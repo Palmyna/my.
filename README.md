@@ -17,6 +17,7 @@ La conception du projet sera documentée progressivement dans le dossier `docs/`
 - [Expérience utilisateur et interface](docs/04-UX-UI.md)
 - [Architecture technique de la V1](docs/05-ARCHITECTURE.md)
 - [Schéma PostgreSQL / Supabase de la V1](docs/06-DATABASE.md)
+- [Pipeline catalogue et synchronisation TCGdex](docs/07-CATALOG-SYNC.md)
 
 ## État du projet
 

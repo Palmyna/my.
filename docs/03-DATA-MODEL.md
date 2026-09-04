@@ -143,7 +143,7 @@ Le modèle distingue conceptuellement :
 
 Une synchronisation ne doit jamais écraser silencieusement une correction locale validée. Les données importantes doivent pouvoir être identifiées comme provenant directement de TCGdex, corrigées localement ou ajoutées localement.
 
-La conservation d'une raison, d'une date ou d'un historique détaillé peut être ajoutée si elle devient nécessaire. La forme technique de cette traçabilité et le mécanisme d'override ne sont pas imposés par ce document.
+Dans la V1, les corrections MY. sont versionnées dans Git puis appliquées par le pipeline catalogue. Les structures privées de PostgreSQL peuvent refléter leur état appliqué sans remplacer les fichiers versionnés. Le format exact des fichiers et le mécanisme physique d'override restent ouverts.
 
 ### Conservation prudente des données source
 
@@ -521,7 +521,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - le SQL final des tables, contraintes, index, politiques RLS, fonctions, vues et migrations ;
 - le mécanisme de maintien des timestamps et de création du profil ;
 - les détails de suppression logique du catalogue et la suppression complète d'un compte ;
-- la stratégie de synchronisation TCGdex ;
+- les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - la représentation physique finale des corrections, valeurs source et valeurs effectives ;
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;

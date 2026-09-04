@@ -387,7 +387,7 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - le responsive et l'accessibilité ;
 - les détails d'implémentation non figés par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
 - le SQL final des politiques RLS, les méthodes d'authentification et les configurations précises de Supabase et Netlify ;
-- la stratégie de synchronisation avec TCGdex ;
+- les détails de synchronisation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - les fonctionnalités éventuellement concernées par une offre Premium post-V1, son prix, ses plans, ses limites, sa facturation, une éventuelle période d'essai et son fournisseur de paiement.
 
 Ces éléments ne doivent pas être inventés ou considérés comme décidés avant leur cadrage et leur validation.

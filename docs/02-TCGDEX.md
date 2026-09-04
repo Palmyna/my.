@@ -2,7 +2,7 @@
 
 ## Rôle du document
 
-Ce document constitue la source de vérité concernant le rôle de **TCGdex / cards-database** dans **MY.**, l'interprétation des cartes et de leurs variantes, la construction des collections automatiques et les principes de synchronisation du catalogue.
+Ce document constitue la source de vérité concernant le rôle de **TCGdex / cards-database** dans **MY.**, l'interprétation des cartes et de leurs variantes et la construction des collections automatiques. Le [pipeline catalogue](07-CATALOG-SYNC.md) précise la source technique et le fonctionnement des synchronisations.
 
 Il complète la [vision générale](00-VISION.md) et les [fonctionnalités de la V1](01-FEATURES.md). Il définit une politique de données et des règles fonctionnelles, sans imposer de schéma SQL, d'architecture technique ou de mécanisme d'implémentation.
 
@@ -20,6 +20,12 @@ TCGdex constitue la **source de référence principale** des données Pokémon T
 - les autres métadonnées disponibles.
 
 TCGdex n'est toutefois pas considéré comme une source parfaite ou suffisante pour tous les besoins. MY. doit pouvoir compléter ou corriger localement des données identifiées comme incomplètes ou incorrectes, sans cesser de considérer TCGdex comme sa source principale.
+
+### Source technique du pipeline
+
+Le dépôt `tcgdex/cards-database` est la source technique principale des imports et synchronisations de la V1. Chaque exécution repose sur un snapshot identifié par son commit SHA Git.
+
+L'API REST TCGdex reste un outil auxiliaire de vérification, diagnostic, comparaison ou investigation. Elle n'est pas fusionnée silencieusement avec `cards-database` comme une seconde source automatique.
 
 ## Périmètre linguistique de la V1
 
@@ -303,7 +309,7 @@ MY. doit pouvoir synchroniser son catalogue local avec les évolutions de TCGdex
 
 Une information de date de mise à jour fournie par TCGdex peut contribuer à cette détection, mais elle ne doit pas être supposée suffisante à elle seule. MY. doit pouvoir comparer les données nécessaires pour déterminer les changements pertinents.
 
-La fréquence et le mécanisme précis de synchronisation restent à définir.
+Dans la phase initiale, la synchronisation retraite le catalogue utile de manière idempotente et reste déclenchée manuellement. Son fonctionnement est défini dans le [pipeline catalogue](07-CATALOG-SYNC.md) ; la cadence et l'automatisation futures restent ouvertes.
 
 ## Catalogue et collections utilisateur : deux mises à jour distinctes
 
@@ -353,7 +359,7 @@ Ces corrections répondent à des cas identifiés et ne remplacent pas TCGdex co
 
 ### Priorité et synchronisation
 
-Une synchronisation ne doit jamais écraser aveuglément une correction locale. MY. doit distinguer la donnée provenant de TCGdex de la correction ou extension locale. La stratégie technique exacte de priorité et de fusion reste à définir.
+Une synchronisation ne doit jamais écraser aveuglément une correction locale. Dans la V1, les corrections MY. sont versionnées dans Git et appliquées après la normalisation de la source, avant la validation finale. Elles ont priorité sur les valeurs TCGdex concernées. Leur format et le mécanisme technique exact de fusion restent à définir.
 
 ### Traçabilité
 
@@ -426,8 +432,8 @@ Les sujets suivants seront définis dans des documents ultérieurs ou lors de l'
 
 - le SQL final des migrations, politiques RLS et RPC au-delà des principes définis dans le [schéma PostgreSQL / Supabase](06-DATABASE.md) ;
 - la structure physique finale des corrections locales ;
-- la stratégie exacte de fusion entre TCGdex et les corrections MY. ;
-- la fréquence et le mécanisme de déclenchement des synchronisations ;
+- le mécanisme physique exact de fusion entre TCGdex et les corrections MY. ;
+- la fréquence future et le mécanisme d'automatisation des synchronisations ;
 - la stratégie de cache éventuelle ;
 - l'ordre automatique exact des cartes ;
 - l'ordre exact des variantes d'une même carte ;
@@ -437,10 +443,10 @@ Les sujets suivants seront définis dans des documents ultérieurs ou lors de l'
 - les critères précis de validation d'une variante française ;
 - l'interface éventuelle d'administration des corrections ;
 - le traitement technique des cartes supprimées ou renommées ;
-- les détails de versionnement et de journalisation propres au pipeline de synchronisation ;
+- le stockage détaillé du versionnement source et le format final des rapports et journaux ;
 - la gestion des erreurs d'API ;
-- l'utilisation éventuelle du dépôt cards-database en complément de l'API ;
-- la stratégie d'import initial ;
+- la méthode de récupération du snapshot `cards-database` ;
+- les détails d'implémentation de l'import initial avec le pipeline commun ;
 - les fonctions, tâches planifiées et autres mécanismes d'exécution.
 
 Ces éléments ne doivent pas être inventés ou considérés comme décidés avant leur cadrage et leur validation.

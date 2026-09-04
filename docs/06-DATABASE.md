@@ -291,7 +291,7 @@ Une structure privilégiée telle que `private.catalog_overrides` permet de dist
 - l'état actif de la correction ;
 - les timestamps.
 
-TCGdex reste la source principale, mais une correction MY. validée a priorité. La synchronisation ne doit pas l'écraser silencieusement. Toute l'application consomme la valeur effective ; le frontend n'applique pas lui-même les overrides.
+TCGdex reste la source principale, mais une correction MY. validée a priorité. Dans la V1, ces corrections ont pour source de vérité des fichiers versionnés dans Git ; la structure privée reflète leur état effectivement appliqué. La synchronisation ne doit pas les écraser silencieusement. Toute l'application consomme la valeur effective ; le frontend n'applique pas lui-même les overrides.
 
 Le catalogue ne stocke pas systématiquement le payload JSON complet de chaque entité TCGdex. Il conserve les données utiles au produit, à la synchronisation et à la traçabilité, ainsi que les métadonnées techniques ciblées réellement nécessaires.
 
@@ -765,6 +765,8 @@ Les préférences de vue, de format de classeur et de mode d'organisation ne jus
 
 ## Synchronisation TCGdex
 
+La source, les transformations et les procédures de synchronisation sont définies dans le [pipeline catalogue](07-CATALOG-SYNC.md). Le présent document en fixe uniquement les structures PostgreSQL et les contraintes associées.
+
 ### `private.catalog_sync_runs`
 
 Cette table privée peut tracer les exécutions importantes du pipeline catalogue. Elle conserve conceptuellement :
@@ -772,7 +774,7 @@ Cette table privée peut tracer les exécutions importantes du pipeline catalogu
 - son identifiant ;
 - le début et la fin ;
 - le statut ;
-- le type et la référence de source ;
+- le dépôt source et le commit SHA du snapshot `cards-database` ;
 - des statistiques ciblées ;
 - un résumé d'erreur éventuel.
 
@@ -900,7 +902,7 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 - l'algorithme exact de l'ordre canonique du catalogue ;
 - le type et l'algorithme de `sort_position` ;
 - la stratégie d'ancrage des cartes manuelles après une mise à jour ;
-- le pipeline précis entre API TCGdex et cards-database ;
+- la méthode exacte de récupération du snapshot `cards-database` et l'usage ponctuel de l'API REST ;
 - les champs source exacts conservés et les détails des données privées de synchronisation ;
 - la stratégie physique exacte de fusion des valeurs source et des overrides ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;

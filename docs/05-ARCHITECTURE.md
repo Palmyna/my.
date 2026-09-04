@@ -270,32 +270,31 @@ La synchronisation du catalogue ne modifie jamais silencieusement une collection
 
 ### Flux de données
 
-TCGdex / cards-database reste la source externe principale. MY. utilise son catalogue PostgreSQL local pour les consultations, recherches et générations automatiques.
+Le dépôt `tcgdex/cards-database` est la source technique principale du pipeline. MY. utilise ensuite son catalogue PostgreSQL local pour les consultations, recherches et générations automatiques.
 
 ```text
-TCGdex → synchronisation de confiance → catalogue local MY. → application
+Snapshot cards-database identifié → synchronisation de confiance → catalogue local MY. → application
 ```
 
-La source technique exacte peut être l'API REST, cards-database ou une combinaison contrôlée des deux. Le reste de l'application ne doit pas dépendre directement de ce choix.
+Chaque snapshot est identifié par le commit SHA Git utilisé. L'API REST TCGdex reste auxiliaire pour les vérifications, diagnostics ou besoins spécifiques ; elle n'est pas une seconde source automatiquement fusionnée.
 
 ### Synchronisation dans un environnement de confiance
 
 Le processus doit pouvoir :
 
-- lire les données TCGdex ;
+- lire un snapshot identifié de `cards-database` ;
 - les transformer vers le modèle MY. ;
 - détecter les changements ;
-- appliquer les données source ;
-- préserver les corrections locales ;
+- appliquer les données source puis les corrections MY. versionnées dans Git ;
 - mettre à jour le catalogue.
 
 Il ne s'exécute pas depuis le navigateur avec des droits d'écriture sur le catalogue.
 
 ### Import initial et rythme de synchronisation
 
-L'import initial peut être une opération administrative réalisée avec un outil fiable et reproductible. Une infrastructure lourde n'est pas nécessaire pour cette opération.
+L'import initial utilise autant que possible le même pipeline fiable et reproductible que les synchronisations ultérieures. Une infrastructure lourde n'est pas nécessaire pour cette opération.
 
-Au début, la synchronisation peut être lancée manuellement ou selon les besoins. Elle doit néanmoins rester reproductible et raisonnablement idempotente.
+Au début, la synchronisation est lancée manuellement selon les besoins. Elle retraite le catalogue utile, préserve les IDs internes et reste reproductible et idempotente.
 
 Une automatisation simple pourra être ajoutée ultérieurement via Supabase, GitHub Actions ou un autre mécanisme adapté. Le déclencheur et la fréquence exacts restent ouverts. Aucun scheduler payant ou worker permanent n'est requis au démarrage.
 
@@ -307,7 +306,7 @@ Les données de gameplay inutiles et une copie complète de chaque payload « au
 
 ### Corrections locales
 
-Les corrections MY. vivent dans une couche serveur contrôlée du catalogue et non uniquement dans React. La recherche, l'affichage et les collections automatiques consomment la valeur effective fournie par le catalogue.
+Les corrections MY. ont pour source de vérité des fichiers versionnés dans Git. Le pipeline les applique dans une couche serveur contrôlée du catalogue ; les tables privées peuvent refléter leur état appliqué. La recherche, l'affichage et les collections automatiques consomment la valeur effective fournie par le catalogue.
 
 Le mécanisme physique des corrections reste ouvert. La V1 ne nécessite pas obligatoirement de back-office graphique ; des outils réservés aux mainteneurs peuvent suffire initialement.
 
@@ -498,7 +497,7 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 - le framework de tests ;
 - les méthodes précises d'authentification ;
 - la stratégie exacte de développement, staging éventuel et production ;
-- la fréquence et le déclencheur de synchronisation ;
+- la fréquence et le déclencheur de l'automatisation future du pipeline décrit dans [07-CATALOG-SYNC.md](07-CATALOG-SYNC.md) ;
 - l'utilisation exacte des Edge Functions ;
 - la politique détaillée de sauvegarde ;
 - la branche de production et l'automatisation CI ;

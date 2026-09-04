@@ -26,7 +26,7 @@ Dans sa vision initiale, MY. n'est ni un outil de deckbuilding ou de jeu, ni une
 
 MY. s'appuie sur **TCGdex / cards-database** comme source de référence pour les données Pokémon TCG. Cette source fournit à l'application les informations nécessaires pour identifier et représenter les cartes disponibles, afin d'éviter la maintenance manuelle d'une base exhaustive.
 
-Les modalités de synchronisation, la structure locale des données, les langues, les variantes, la gestion des mises à jour et les éventuelles limites de la source seront définies ultérieurement.
+La politique d'interprétation de TCGdex, la structure locale et le pipeline de synchronisation sont précisés dans les documents dédiés du dépôt. Les choix d'implémentation qui y restent explicitement ouverts ne doivent pas être inventés.
 
 ## Utilisateurs et espace principal
 
@@ -232,7 +232,7 @@ Les sujets suivants devront être traités dans de futurs documents dédiés et 
 - la configuration détaillée de Netlify et du déploiement ;
 - les détails SQL et Supabase volontairement laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
 - le fonctionnement précis de l'authentification ;
-- la fréquence et le mécanisme exacts de synchronisation avec TCGdex ;
+- les détails d'implémentation et l'automatisation future laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - les règles exactes des variantes de cartes ;
 - l'ordre automatique exact des collections ciblant un Pokémon ou une extension ;
 - le comportement détaillé lors de l'apparition d'une nouvelle carte ou variante éligible ;
