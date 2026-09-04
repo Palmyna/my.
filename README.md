@@ -11,6 +11,7 @@ Ce dépôt regroupera la documentation, le code source, les données, les config
 La conception du projet sera documentée progressivement dans le dossier `docs/`. Les documents qui y seront regroupés constitueront le cadre de référence des futures étapes du projet.
 
 - [Vision générale du projet](docs/00-VISION.md)
+- [Fonctionnalités de la V1](docs/01-FEATURES.md)
 
 ## État du projet
 
