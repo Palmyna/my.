@@ -382,8 +382,8 @@ Les sujets suivants devront être définis dans de futurs documents dédiés :
 - la gestion détaillée du profil ;
 - le design détaillé du dashboard et des vues ;
 - le responsive et l'accessibilité ;
-- l'architecture technique et la stack ;
-- Supabase, Netlify, l'authentification, la sécurité et les stratégies d'accès aux données ;
+- les détails d'implémentation non figés par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
+- les politiques RLS détaillées, les méthodes d'authentification et les configurations précises de Supabase et Netlify ;
 - la stratégie de synchronisation avec TCGdex ;
 - les fonctionnalités éventuellement concernées par une offre Premium post-V1, son prix, ses plans, ses limites, sa facturation, une éventuelle période d'essai et son fournisseur de paiement.
 

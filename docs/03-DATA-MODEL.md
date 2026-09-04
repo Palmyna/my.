@@ -520,7 +520,7 @@ Dans la V1, aucune donnée d'abonnement, de facturation, de paiement, de quota o
 
 Les sujets suivants restent à cadrer ou à décider lors de l'architecture et de l'implémentation :
 
-- la stack technique et l'utilisation exacte de Supabase ;
+- l'utilisation détaillée de Supabase au-delà des responsabilités définies dans l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
 - les noms de tables et de colonnes ;
 - les types de clés internes et les types SQL ;
 - les clés étrangères et contraintes SQL précises ;

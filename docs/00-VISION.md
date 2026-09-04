@@ -228,12 +228,11 @@ Ces possibilités futures ne doivent pas influencer inutilement l'architecture d
 
 Les sujets suivants devront être traités dans de futurs documents dédiés et ne sont pas définis par la vision générale :
 
-- la stack frontend définitive ;
-- l'architecture technique et l'hébergement ;
-- l'intégration Netlify ;
-- l'architecture Supabase et le modèle de données ;
+- les détails d'implémentation laissés ouverts par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
+- la configuration détaillée de Netlify et du déploiement ;
+- le schéma physique PostgreSQL, les politiques RLS détaillées et les choix Supabase de bas niveau ;
 - le fonctionnement précis de l'authentification ;
-- la synchronisation avec TCGdex et le stockage local ou synchronisé de ses données ;
+- la fréquence et le mécanisme exacts de synchronisation avec TCGdex ;
 - les règles exactes des variantes de cartes ;
 - l'ordre automatique exact des collections ciblant un Pokémon ou une extension ;
 - le comportement détaillé lors de l'apparition d'une nouvelle carte ou variante éligible ;

@@ -555,7 +555,7 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - les breakpoints et adaptations responsive détaillées ;
 - le design system complet ;
 - les composants frontend et la bibliothèque UI éventuelle ;
-- l'architecture frontend et l'implémentation technique ;
+- l'organisation détaillée du frontend et son implémentation technique ;
 - le moteur de recherche et les détails techniques de performance.
 
 Ces éléments ne doivent pas être considérés comme décidés avant leur cadrage et leur validation.

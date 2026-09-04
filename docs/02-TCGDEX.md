@@ -445,7 +445,6 @@ Les sujets suivants seront définis dans des documents ultérieurs :
 - la gestion des erreurs d'API ;
 - l'utilisation éventuelle du dépôt cards-database en complément de l'API ;
 - la stratégie d'import initial ;
-- les fonctions, tâches planifiées et autres mécanismes d'exécution ;
-- la stack technique.
+- les fonctions, tâches planifiées et autres mécanismes d'exécution.
 
 Ces éléments ne doivent pas être inventés ou considérés comme décidés avant leur cadrage et leur validation.
