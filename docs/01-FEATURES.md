@@ -32,7 +32,7 @@ Un utilisateur peut :
 - accéder à son espace personnel ;
 - gérer les informations essentielles de son profil.
 
-Chaque utilisateur possède un identifiant public unique propre à MY., utilisé notamment pour le partage de collections. Cet identifiant public ne doit pas être confondu par principe avec l'identifiant technique interne du système d'authentification ; leur relation reste à définir.
+Chaque utilisateur possède un identifiant public unique propre à MY., utilisé notamment pour le partage de collections. Cet identifiant public reste distinct de l'UUID technique fourni par le système d'authentification.
 
 ## Dashboard
 
@@ -111,7 +111,7 @@ Une collection automatique par extension ne se limite pas aux cartes de catégor
 
 Chaque variante française pertinente produit une entrée distincte. L'extension ciblée est un set précis et ne doit pas être confondue avec une série ou un bloc TCGdex.
 
-Une collection automatique par extension calcule sa progression comme les autres collections, à partir des variantes pour lesquelles l'utilisateur possède au moins un exemplaire. L'inclusion éventuelle des éléments manuels dans certains calculs reste ouverte.
+Une collection automatique par extension calcule sa progression comme les autres collections. Tous ses éléments, automatiques comme manuels, contribuent au total ; une variante contribue au nombre possédé lorsque le propriétaire en possède au moins un exemplaire.
 
 ### Structure automatique fixe
 
@@ -148,9 +148,9 @@ Lorsqu'une mise à jour est disponible :
 2. il peut consulter un résumé des changements avant leur application ;
 3. il choisit explicitement de mettre à jour la collection.
 
-Le résumé doit permettre de comprendre les changements et notamment d'identifier les nouvelles cartes ou variantes qui seront ajoutées. Une évolution peut provenir d'une nouvelle carte, d'une nouvelle variante française, d'une correction TCGdex ou d'une correction locale MY. Les autres types de changements restent à cadrer.
+Le résumé doit permettre de comprendre les changements : variantes ajoutées ou retirées, éléments manuels qui deviendront automatiques et changements d'ordre pertinents. Une évolution peut provenir d'une nouvelle carte, d'une nouvelle variante française, d'une correction TCGdex ou d'une correction locale MY.
 
-Lorsqu'elle est validée, la mise à jour insère les nouvelles cartes automatiques à leur position correcte dans l'ordre de référence, sans perturber inutilement les cartes manuelles existantes. La logique précise de repositionnement de ces cartes manuelles reste ouverte.
+Lorsqu'elle est validée, la mise à jour insère les nouvelles cartes automatiques à leur position correcte, convertit sans doublon les éléments manuels devenus automatiques et retire de la structure les éléments automatiques devenus non éligibles. Elle ne supprime jamais les exemplaires physiques. Les autres cartes manuelles sont préservées sans être perturbées inutilement ; leur logique précise de repositionnement reste ouverte.
 
 ## Cartes de référence et exemplaires physiques
 
@@ -174,6 +174,12 @@ Une carte est considérée comme :
 - **manquante** lorsqu'aucun exemplaire n'est enregistré.
 
 L'interface doit distinguer clairement ces deux états sans exposer la structure technique sous-jacente.
+
+### Progression
+
+La progression d'une collection utilise tous ses éléments, automatiques comme manuels. Son total correspond au nombre de variantes présentes dans la collection ; son nombre possédé correspond aux variantes pour lesquelles le propriétaire possède au moins un exemplaire. Plusieurs exemplaires d'une même variante ne la font compter qu'une fois.
+
+Une collection partagée affiche la progression de son propriétaire.
 
 ### Informations propres à chaque exemplaire
 
@@ -303,7 +309,7 @@ Le recours à une invitation, à une acceptation explicite ou à des notificatio
 
 Seul le propriétaire peut supprimer sa collection. Une confirmation explicite est requise afin d'éviter toute suppression accidentelle.
 
-La suppression retire également l'accès à tous les utilisateurs avec lesquels la collection était partagée. Le comportement technique de suppression ou d'archivage des données reste à définir.
+La suppression retire également l'accès à tous les utilisateurs avec lesquels la collection était partagée. Elle peut supprimer physiquement la collection, ses éléments et ses partages dans la V1, mais ne supprime jamais les exemplaires physiques du propriétaire.
 
 ## Profil utilisateur
 
@@ -362,13 +368,10 @@ Les collections automatiques sont accessibles normalement dans la V1, sans abonn
 
 ## Éléments laissés ouverts
 
-Les sujets suivants devront être définis dans de futurs documents dédiés :
+Les sujets suivants devront être définis dans de futurs documents dédiés ou lors de l'implémentation concernée :
 
-- le modèle de données précis ;
-- la structure technique des cartes de référence et des exemplaires ;
-- la gestion technique des positions ;
-- la logique exacte d'insertion des cartes manuelles entre les cartes automatiques ;
-- le comportement des cartes manuelles lors d'une mise à jour automatique ;
+- les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
+- l'algorithme exact de positionnement, d'insertion et d'ancrage des cartes manuelles, notamment lors d'une mise à jour automatique ;
 - les règles exactes d'inclusion, les variantes prises en charge et l'ordre automatique des collections ciblant un Pokémon ou une extension ;
 - la classification des blocs et des ères ;
 - les données exactes exploitées depuis TCGdex ;
@@ -383,7 +386,7 @@ Les sujets suivants devront être définis dans de futurs documents dédiés :
 - le design détaillé du dashboard et des vues ;
 - le responsive et l'accessibilité ;
 - les détails d'implémentation non figés par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
-- les politiques RLS détaillées, les méthodes d'authentification et les configurations précises de Supabase et Netlify ;
+- le SQL final des politiques RLS, les méthodes d'authentification et les configurations précises de Supabase et Netlify ;
 - la stratégie de synchronisation avec TCGdex ;
 - les fonctionnalités éventuellement concernées par une offre Premium post-V1, son prix, ses plans, ses limites, sa facturation, une éventuelle période d'essai et son fournisseur de paiement.
 

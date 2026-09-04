@@ -4,7 +4,7 @@
 
 Ce document constitue la source de vérité concernant le modèle de données conceptuel de **MY.**. Il traduit en entités, responsabilités et relations les décisions définies dans la [vision](00-VISION.md), les [fonctionnalités de la V1](01-FEATURES.md) et la [politique d'intégration de TCGdex](02-TCGDEX.md).
 
-Il ne constitue pas un schéma SQL définitif. Les noms de tables et de colonnes, les types techniques, les contraintes de base de données, les politiques d'accès et les choix d'implémentation restent hors de son périmètre.
+Il ne constitue pas un schéma SQL définitif. La traduction PostgreSQL / Supabase retenue est définie dans le [document de base de données](06-DATABASE.md), tandis que le SQL final des migrations et les choix explicitement laissés ouverts restent hors du présent document.
 
 ## Organisation générale
 
@@ -37,7 +37,7 @@ Une même entité peut donc porter :
 - un identifiant interne MY. ;
 - un ou plusieurs identifiants TCGdex ou externes.
 
-Cette séparation permet de gérer les corrections locales, de préserver les relations lorsque la source évolue et de limiter la dépendance à la structure d'identification de TCGdex. Le type exact des identifiants internes reste à définir.
+Cette séparation permet de gérer les corrections locales, de préserver les relations lorsque la source évolue et de limiter la dépendance à la structure d'identification de TCGdex. Le schéma de la V1 utilise des UUID pour les principales entités utilisateur et des `BIGINT` internes pour le catalogue.
 
 ## Catalogue global
 
@@ -123,7 +123,7 @@ Deux variantes réellement distinctes doivent toujours pouvoir être représent�
 
 #### Disponibilité française
 
-Une variante doit pouvoir être considérée comme disponible en français, non disponible en français ou non déterminée lorsque l'information n'est pas suffisamment fiable. La représentation technique de cet état reste à définir.
+Une variante doit pouvoir être considérée comme disponible en français, non disponible en français ou non déterminée lorsque l'information n'est pas suffisamment fiable. Cet état reste ternaire ; le nom final de ses valeurs et son type SQL ne sont pas encore figés.
 
 Une variante qui n'est pas confirmée comme française ne doit pas entrer automatiquement dans les collections de la V1.
 
@@ -270,9 +270,7 @@ Le calcul exact de l'ordre canonique n'est pas défini ici. Le modèle doit seul
 
 ### État de génération
 
-Une collection automatique doit conserver suffisamment d'informations pour déterminer l'état du catalogue sur lequel sa structure a été générée ou mise à jour.
-
-Cet état peut conceptuellement prendre la forme d'une révision de catalogue, d'une date de synchronisation, d'un état de génération ou d'un autre marqueur stable. Le mécanisme exact reste ouvert.
+Une collection automatique conserve la version de structure qu'elle a réellement appliquée. Un état courant par cible Pokémon ou Set associe une version de génération à un hash de la liste ordonnée des variantes éligibles, conformément au [schéma PostgreSQL / Supabase](06-DATABASE.md).
 
 ### Détection des changements
 
@@ -301,8 +299,10 @@ Après validation explicite de l'utilisateur :
 
 - les nouveaux éléments automatiques nécessaires sont ajoutés ;
 - leur ordre canonique est appliqué ;
-- les éléments automatiques existants sont conservés ;
-- les éléments manuels sont préservés ;
+- les éléments automatiques encore éligibles sont conservés ;
+- les éléments automatiques devenus non éligibles peuvent être retirés de la collection ;
+- un élément manuel devenu automatiquement éligible est converti sans être dupliqué ;
+- les autres éléments manuels sont préservés ;
 - les exemplaires physiques restent inchangés ;
 - les notes et autres informations personnelles restent inchangées.
 
@@ -429,9 +429,7 @@ Des valeurs mises en cache peuvent être utilisées si nécessaire pour les perf
 
 ### Progression d'une collection
 
-Le modèle doit permettre de calculer la progression en comparant le nombre de variantes possédées au nombre de variantes présentes dans la collection. Une variante compte comme possédée dès qu'au moins un exemplaire correspondant existe.
-
-L'inclusion ou non des éléments manuels dans certains calculs de progression reste à définir selon les besoins UX.
+Le modèle calcule la progression en comparant le nombre de variantes possédées au nombre total de variantes présentes dans la collection. Tous les éléments de collection, automatiques comme manuels, contribuent au total. Une variante compte comme possédée dès que le propriétaire de la collection possède au moins un exemplaire correspondant.
 
 ## Relations conceptuelles principales
 
@@ -482,7 +480,7 @@ Le futur modèle technique doit permettre de garantir autant que possible que :
 - les éléments automatiques ne sont pas modifiables comme des éléments manuels ;
 - les corrections locales ne sont pas écrasées silencieusement par TCGdex.
 
-La manière technique d'imposer ces invariants reste à définir.
+Les contraintes et opérations retenues pour imposer ces invariants sont précisées dans le [schéma PostgreSQL / Supabase](06-DATABASE.md) ; leur SQL final reste à écrire.
 
 ## Principes de sécurité futurs
 
@@ -495,7 +493,7 @@ Le modèle doit permettre de mettre en place des règles garantissant que :
 - les données personnelles d'autrui ne sont accessibles que dans le contexte explicitement partagé ;
 - le catalogue global est consultable sans être modifiable par les utilisateurs ordinaires.
 
-Les politiques techniques exactes seront définies avec l'architecture et le service de données retenu.
+Les principes RLS sont définis dans le [schéma PostgreSQL / Supabase](06-DATABASE.md). Le code SQL final des politiques reste à écrire et à tester.
 
 ## Évolutivité
 
@@ -518,34 +516,24 @@ Dans la V1, aucune donnée d'abonnement, de facturation, de paiement, de quota o
 
 ## Éléments laissés ouverts
 
-Les sujets suivants restent à cadrer ou à décider lors de l'architecture et de l'implémentation :
+Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, dans les limites du [schéma PostgreSQL / Supabase](06-DATABASE.md) :
 
-- l'utilisation détaillée de Supabase au-delà des responsabilités définies dans l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
-- les noms de tables et de colonnes ;
-- les types de clés internes et les types SQL ;
-- les clés étrangères et contraintes SQL précises ;
-- la stratégie de suppression logique ou physique ;
-- les politiques d'accès et de RLS ;
-- les index, triggers, fonctions SQL, vues SQL et migrations ;
+- le SQL final des tables, contraintes, index, politiques RLS, fonctions, vues et migrations ;
+- le mécanisme de maintien des timestamps et de création du profil ;
+- les détails de suppression logique du catalogue et la suppression complète d'un compte ;
 - la stratégie de synchronisation TCGdex ;
-- la représentation technique des corrections, valeurs source et valeurs effectives ;
+- la représentation physique finale des corrections, valeurs source et valeurs effectives ;
 - l'historique éventuel des corrections ;
-- la stratégie de version du catalogue ;
-- le mécanisme exact d'état de synchronisation d'une collection ;
 - la persistance ou non des résumés de mise à jour ;
 - l'algorithme d'ordre canonique ;
-- la représentation technique du type de cible et de sa cible compatible ;
 - l'algorithme de positionnement des éléments manuels ;
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
 - la nomenclature des conditions ;
 - les sociétés de grading et le format de leurs notes ;
 - la source de la liste des Pokémon et de leurs noms ;
 - le format et le niveau de persistance des préférences de vue ;
-- les règles exactes de calcul de progression ;
-- la suppression complète d'un compte ;
 - les éventuels outils d'administration du catalogue ;
-- le stockage éventuel des images TCGdex ;
-- la stratégie et le moteur de recherche ;
+- l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;
 - les éventuels plans, droits fonctionnels, fonctionnalités Premium, limites gratuites, prix, périodicités, essais et fournisseurs de paiement d'une offre post-V1.
 

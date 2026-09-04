@@ -383,7 +383,7 @@ Les données TCGdex prioritaires comprennent notamment :
 - les informations nécessaires à l'ordre automatique ;
 - les informations de mise à jour utiles.
 
-La structure exacte de stockage sera définie dans le futur document consacré au modèle de données.
+Le [modèle de données conceptuel](03-DATA-MODEL.md) et le [schéma PostgreSQL / Supabase](06-DATABASE.md) définissent la structure retenue. Les champs source exacts du pipeline restent à préciser.
 
 ## Données non prioritaires pour la V1
 
@@ -422,26 +422,22 @@ La stratégie technique de traitement de ces cas reste à définir.
 
 ## Éléments laissés ouverts
 
-Les sujets suivants seront définis dans des documents ultérieurs :
+Les sujets suivants seront définis dans des documents ultérieurs ou lors de l'implémentation concernée :
 
-- le modèle SQL, les tables, les colonnes, les contraintes, les index et les politiques d'accès ;
-- la structure technique du catalogue et des variantes ;
-- le format des corrections locales ;
+- le SQL final des migrations, politiques RLS et RPC au-delà des principes définis dans le [schéma PostgreSQL / Supabase](06-DATABASE.md) ;
+- la structure physique finale des corrections locales ;
 - la stratégie exacte de fusion entre TCGdex et les corrections MY. ;
 - la fréquence et le mécanisme de déclenchement des synchronisations ;
-- la stratégie de cache ;
-- le stockage des images et l'utilisation éventuelle du CDN TCGdex ;
+- la stratégie de cache éventuelle ;
 - l'ordre automatique exact des cartes ;
 - l'ordre exact des variantes d'une même carte ;
 - les critères détaillés d'ordre propres aux collections par Pokémon et par extension ;
 - les critères détaillés d'inclusion des anciennes cartes particulières ;
-- la gestion technique des cartes représentant plusieurs Pokémon ;
 - le fallback exact lorsque `dexId` est absent ou incomplet ;
 - les critères précis de validation d'une variante française ;
 - l'interface éventuelle d'administration des corrections ;
 - le traitement technique des cartes supprimées ou renommées ;
-- la stratégie de versioning du catalogue ;
-- la journalisation des synchronisations ;
+- les détails de versionnement et de journalisation propres au pipeline de synchronisation ;
 - la gestion des erreurs d'API ;
 - l'utilisation éventuelle du dépôt cards-database en complément de l'API ;
 - la stratégie d'import initial ;

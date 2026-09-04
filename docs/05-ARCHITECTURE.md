@@ -155,7 +155,7 @@ Le catalogue comprend notamment les Pokémon, séries ou blocs, sets, cartes, va
 
 Les données utilisateur comprennent notamment les profils, collections, éléments de collection, exemplaires, partages et paramètres nécessaires.
 
-Le schéma physique reste hors périmètre de ce document et devra respecter `03-DATA-MODEL.md`.
+Le schéma physique reste hors périmètre de ce document et doit respecter le [modèle conceptuel](03-DATA-MODEL.md) ainsi que le [schéma PostgreSQL / Supabase](06-DATABASE.md).
 
 ### Supabase Auth
 
@@ -177,7 +177,7 @@ La Row Level Security PostgreSQL constitue la fondation de la sécurité des don
 - les autres données privées restent invisibles ;
 - un utilisateur ordinaire ne peut pas modifier le catalogue global.
 
-Les politiques SQL précises restent à définir avec le schéma.
+Les principes de politiques sont définis dans le [schéma PostgreSQL / Supabase](06-DATABASE.md). Leur SQL final reste à écrire et à tester dans les migrations.
 
 ### Le frontend n'est pas une frontière de sécurité
 
@@ -224,7 +224,7 @@ Une opération qui touche plusieurs ensembles de données, doit être atomique, 
 
 Elle doit être centralisée dans une opération métier côté base ou backend. Lorsqu'elle est principalement liée aux données et doit être transactionnelle, une fonction PostgreSQL exposée via RPC est privilégiée si elle simplifie correctement le système.
 
-Les RPC pourront notamment servir à créer une collection automatique, appliquer sa mise à jour ou réaliser une réorganisation complexe. Leur liste exacte reste à définir.
+Les RPC servent notamment à créer une collection automatique, produire et appliquer sa mise à jour, résoudre un destinataire et créer un partage, ou réaliser une réorganisation complexe. Leur code et leurs signatures SQL finales restent à définir.
 
 ### Edge Functions
 
@@ -487,15 +487,12 @@ Sans nouveau besoin explicite, la V1 n'introduit pas :
 
 ## Éléments laissés ouverts
 
-Les choix suivants seront définis lors des étapes ultérieures :
+Les choix suivants seront définis lors des étapes ultérieures, dans les limites du [schéma PostgreSQL / Supabase](06-DATABASE.md) :
 
-- les noms de tables et de colonnes ;
-- les types PostgreSQL, index et contraintes SQL exactes ;
-- les politiques RLS détaillées ;
-- les fonctions RPC exactes ;
+- le SQL final des tables, index, contraintes et migrations ;
+- le code final des politiques RLS et des fonctions RPC ;
 - la stratégie physique des corrections locales ;
-- le versionnement exact du catalogue ;
-- l'algorithme final d'ordre et le mécanisme de comparaison des mises à jour ;
+- l'algorithme final d'ordre et les détails de calcul des hashes de structure ;
 - les bibliothèques de routage, de requêtes, de cache et d'interface ;
 - la structure exacte des dossiers et le gestionnaire de paquets ;
 - le framework de tests ;
@@ -509,4 +506,3 @@ Les choix suivants seront définis lors des étapes ultérieures :
 - le modèle Premium et un éventuel fournisseur de paiement.
 
 Ces éléments ne doivent pas être considérés comme décidés avant leur cadrage et leur validation.
-

@@ -85,7 +85,7 @@ Il peut également conserver des informations personnelles concernant les cartes
 - la société de grading ;
 - la note obtenue lors du grading.
 
-Des états tels que *Near Mint*, *Excellent*, *Good* ou *Poor* illustrent le besoin, sans constituer à ce stade une nomenclature définitive. La représentation de plusieurs exemplaires d'une même carte et les règles détaillées du grading seront cadrées séparément.
+Des états tels que *Near Mint*, *Excellent*, *Good* ou *Poor* illustrent le besoin, sans constituer à ce stade une nomenclature définitive. Une même variante peut avoir plusieurs exemplaires physiques distincts ; la nomenclature des états et les règles détaillées du grading restent à cadrer.
 
 ## Vues d'une collection
 
@@ -230,14 +230,13 @@ Les sujets suivants devront être traités dans de futurs documents dédiés et 
 
 - les détails d'implémentation laissés ouverts par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
 - la configuration détaillée de Netlify et du déploiement ;
-- le schéma physique PostgreSQL, les politiques RLS détaillées et les choix Supabase de bas niveau ;
+- les détails SQL et Supabase volontairement laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
 - le fonctionnement précis de l'authentification ;
 - la fréquence et le mécanisme exacts de synchronisation avec TCGdex ;
 - les règles exactes des variantes de cartes ;
 - l'ordre automatique exact des collections ciblant un Pokémon ou une extension ;
 - le comportement détaillé lors de l'apparition d'une nouvelle carte ou variante éligible ;
 - le degré de personnalisation d'une collection automatique ;
-- la gestion de plusieurs exemplaires d'une même carte ;
 - la nomenclature exacte des états de conservation ;
 - les sociétés et formats de notes de grading pris en charge ;
 - le fonctionnement précis des pages du classeur ;
