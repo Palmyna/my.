@@ -55,16 +55,20 @@ Une collection libre est créée sans contenu prédéfini. L'utilisateur peut :
 
 Elle peut notamment servir à représenter une collection personnelle spécifique, des cartes favorites, une collection thématique ou un objectif personnel. Aucune logique automatique liée à un Pokémon particulier ne lui est imposée.
 
-### Collection automatique basée sur un Pokémon
+### Collection automatique
 
-Une collection peut être générée automatiquement à partir d'un Pokémon choisi par l'utilisateur. MY. s'appuie alors sur les données de TCGdex / cards-database pour :
+Une collection automatique est générée à partir d'une cible choisie par l'utilisateur. Deux types de cible sont disponibles dans la V1 :
 
-- retrouver les cartes correspondant à ce Pokémon ;
-- constituer automatiquement la liste de la collection ;
-- inclure les différentes versions pertinentes ;
-- appliquer un ordre cohérent et prédéfini.
+- un Pokémon ;
+- une extension, c'est-à-dire un set Pokémon TCG précis.
 
-Cette automatisation évite à l'utilisateur de rechercher et d'ajouter manuellement chaque carte concernée. Les critères exacts d'inclusion, l'ordre, les variantes, les rééditions, les cartes promotionnelles et le traitement des nouvelles cartes restent à définir.
+Pour une cible Pokémon, MY. rassemble automatiquement les cartes et variantes françaises pertinentes rattachées à ce Pokémon.
+
+Pour une cible Extension, MY. rassemble toutes les cartes et variantes françaises pertinentes du set choisi, y compris les Pokémon, Dresseurs, Énergies et autres catégories présentes dans cette extension.
+
+Dans les deux cas, MY. s'appuie sur son catalogue issu de TCGdex / cards-database, constitue automatiquement la structure et applique un ordre cohérent et stable. Cette automatisation évite à l'utilisateur de rechercher et d'ajouter manuellement chaque variante concernée.
+
+Une extension ou un set précis ne doit pas être confondu avec une série ou un bloc TCGdex, qui regroupe plusieurs sets.
 
 ## Suivi des cartes
 
@@ -170,7 +174,7 @@ L'utilisateur ne doit pas avoir à reconstruire manuellement les informations d�
 
 ### Liberté et automatisation
 
-MY. permet à la fois de construire librement une collection et d'en automatiser la création lorsqu'une logique objective existe, notamment pour une collection dédiée à un Pokémon.
+MY. permet à la fois de construire librement une collection et d'en automatiser la création lorsqu'une logique objective existe, notamment pour une collection dédiée à un Pokémon ou à une extension précise.
 
 ### Une expérience visuelle
 
@@ -189,7 +193,7 @@ La première version comprend au minimum :
 - la gestion de plusieurs collections ;
 - la création et l'organisation manuelle d'une collection libre ;
 - l'ajout de cartes à une collection libre ;
-- la création d'une collection automatique basée sur un Pokémon ;
+- la création d'une collection automatique ciblant un Pokémon ou une extension ;
 - l'exploitation des données de TCGdex / cards-database ;
 - l'affichage des images des cartes ;
 - le suivi des cartes possédées et manquantes ;
@@ -231,8 +235,8 @@ Les sujets suivants devront être traités dans de futurs documents dédiés et 
 - le fonctionnement précis de l'authentification ;
 - la synchronisation avec TCGdex et le stockage local ou synchronisé de ses données ;
 - les règles exactes des variantes de cartes ;
-- l'ordre automatique des collections basées sur un Pokémon ;
-- le comportement lors de l'ajout d'une nouvelle carte correspondant à un Pokémon ;
+- l'ordre automatique exact des collections ciblant un Pokémon ou une extension ;
+- le comportement détaillé lors de l'apparition d'une nouvelle carte ou variante éligible ;
 - le degré de personnalisation d'une collection automatique ;
 - la gestion de plusieurs exemplaires d'une même carte ;
 - la nomenclature exacte des états de conservation ;
@@ -244,11 +248,16 @@ Les sujets suivants devront être traités dans de futurs documents dédiés et 
 
 Ces éléments ne doivent pas être inventés ou considérés comme décidés avant leur cadrage et leur validation.
 
+## Évolution possible après la V1
+
+Après la V1, tout ou partie des fonctionnalités automatiques pourrait éventuellement intégrer une offre **Premium sur abonnement**. Cette possibilité reste une orientation d'évolutivité et non une fonctionnalité actuelle.
+
+Dans la V1, les collections automatiques restent accessibles normalement : aucun abonnement, paiement, écran Premium ou restriction Premium n'est requis. Le prix, les plans, les limites d'un éventuel compte gratuit, les fonctionnalités concernées, la périodicité de facturation, une éventuelle période d'essai et le fournisseur de paiement ne sont pas définis.
+
 ## Synthèse
 
 **MY. est une webapp personnelle de gestion de collections Pokémon TCG, pensée pour remplacer les limites d'un suivi manuel dans des tableurs par une expérience structurée, automatisée et visuelle.**
 
-Elle permet de gérer plusieurs collections, libres ou automatiquement constituées autour d'un Pokémon grâce aux données de TCGdex. Elle facilite le suivi des cartes possédées et manquantes, la conservation d'informations personnelles sur les exemplaires possédés et la consultation des collections sous plusieurs formes, dont une vue inspirée d'un classeur physique.
+Elle permet de gérer plusieurs collections, libres ou automatiquement constituées autour d'un Pokémon ou d'une extension précise grâce aux données de TCGdex. Elle facilite le suivi des cartes possédées et manquantes, la conservation d'informations personnelles sur les exemplaires possédés et la consultation des collections sous plusieurs formes, dont une vue inspirée d'un classeur physique.
 
 La première version reste centrée sur cette expérience de collection. Les fonctionnalités périphériques ne doivent pas détourner le projet de ce cœur tant qu'il n'est pas solidement défini et réalisé.
-

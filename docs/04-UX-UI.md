@@ -153,6 +153,8 @@ Les collections sont principalement présentées sous forme de cartes ou tuiles 
 - sa progression ;
 - l'accès à la collection.
 
+Dès lors qu'il s'agit d'une collection automatique, la tuile doit pouvoir distinguer `Automatique · Pokémon` de `Automatique · Extension`. La cible peut également être indiquée lorsque pertinent, par exemple `Pokémon · Pikachu` ou `Extension · Légendes Brillantes`.
+
 D'autres informations peuvent être ajoutées seulement si elles restent utiles et peu encombrantes.
 
 ### Progression
@@ -183,12 +185,30 @@ La collection peut être créée vide. L'utilisateur y ajoute ensuite des varian
 ### Collection automatique
 
 ```text
-Nouvelle collection → Collection automatique → Nom → Choix du Pokémon → Création
+Nouvelle collection
+  → Collection automatique
+  → Pokémon ou Extension
+  → Choix de la cible
+  → Nom
+  → Création
 ```
 
-La recherche ou la sélection du Pokémon doit être rapide. MY. génère ensuite la structure depuis son catalogue local.
+L'ordre exact entre le nom et le choix de la cible peut être adapté, mais le parcours doit rester court.
+
+Pour une cible Pokémon, une recherche ou sélection rapide permet de choisir le Pokémon et de confirmer clairement la cible avant la création.
+
+Pour une cible Extension, une recherche ou sélection permet de choisir un set précis dans le catalogue MY. Les résultats doivent pouvoir identifier l'extension à l'aide des informations disponibles, notamment :
+
+- son nom français ;
+- sa série ou son bloc ;
+- sa date de sortie ;
+- son logo ou son symbole lorsqu'il existe.
+
+L'interface doit employer de préférence le terme `Extension` et éviter de confondre ce set précis avec sa série ou son bloc TCGdex. MY. génère ensuite la structure depuis son catalogue local.
 
 Les deux types doivent être expliqués en quelques mots afin que leur différence soit immédiatement compréhensible.
+
+Dans la V1, toutes les collections automatiques sont accessibles sans abonnement. Aucun écran Premium, checkout ou parcours de paiement ne doit être introduit.
 
 ## Page principale d'une collection
 

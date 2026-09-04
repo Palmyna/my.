@@ -71,6 +71,8 @@ Chaque set appartient à une série. Il doit pouvoir conserver les informations 
 - sa série ;
 - une image, un logo ou un symbole lorsque nécessaire.
 
+Un set peut également être la cible d'une collection automatique par extension. Dans ce contexte, il représente une extension précise et ne doit pas être confondu avec la série ou le bloc auquel il appartient.
+
 ### Cartes sources
 
 Une carte source représente la carte de base provenant de TCGdex, avant la distinction de ses variantes de collection. Elle appartient à un set et peut notamment conserver :
@@ -179,17 +181,26 @@ Une collection appartient à exactement un utilisateur. Elle doit pouvoir conser
 - ses paramètres fonctionnels ;
 - les informations nécessaires à son affichage.
 
-La V1 distingue les collections libres et les collections automatiques basées sur un Pokémon.
+La V1 distingue les collections libres et les collections automatiques. Une collection automatique possède une cible dont le type est soit Pokémon, soit Set.
 
 ### Collections libres
 
-Une collection libre n'a pas besoin de Pokémon cible. Son propriétaire sélectionne et ordonne librement des variantes existantes dans le catalogue MY.
+Une collection libre ne possède pas de cible automatique. Son propriétaire sélectionne et ordonne librement des variantes existantes dans le catalogue MY.
 
 La V1 ne permet pas de créer une carte personnalisée qui n'existe pas dans le catalogue. Si une carte ou une variante française réelle manque, elle doit être ajoutée ou corrigée dans le catalogue global, et non créée uniquement dans une collection utilisateur.
 
-### Collections automatiques Pokémon
+### Collections automatiques et cibles
 
-Une collection automatique est liée à un Pokémon cible. Cette relation permet de déterminer les cartes et variantes éligibles à sa génération.
+Une collection automatique possède exactement un type de cible et une cible compatible avec celui-ci.
+
+Deux cas existent dans la V1 :
+
+- type Pokémon : la collection référence un Pokémon cible et sélectionne les variantes françaises à partir des cartes qui lui sont rattachées ;
+- type Set : la collection référence un set cible et sélectionne les variantes françaises de toutes les cartes appartenant à cette extension.
+
+Une collection automatique ne peut pas cibler simultanément un Pokémon et un set. Une cible Set désigne une extension précise, non une série ou un bloc TCGdex.
+
+Une collection par extension peut inclure toutes les catégories présentes dans le set, notamment les Pokémon, Dresseurs, Énergies et autres catégories.
 
 Sa structure est **matérialisée** : les éléments générés sont enregistrés dans la collection. Elle n'est pas recalculée dynamiquement à chaque affichage à partir de l'état courant du catalogue.
 
@@ -247,7 +258,11 @@ La stratégie de positionnement exacte — rangs, ancres, positions relatives ou
 
 ### Ordre canonique du catalogue
 
-Les variantes éligibles aux collections automatiques doivent pouvoir être ordonnées de manière stable et déterministe. Cet ordre peut notamment tenir compte de la série, du set, de la date de sortie, du numéro de carte et du type de variante.
+Les variantes éligibles aux collections automatiques doivent pouvoir être ordonnées de manière stable et déterministe.
+
+Pour une cible Pokémon, cet ordre peut notamment tenir compte de la série, du set, de la date de sortie, du numéro de carte et du type de variante.
+
+Pour une cible Set, il doit pouvoir tenir compte de l'ordre officiel ou local du set, du numéro de carte et de l'ordre stable des variantes d'une même carte.
 
 Le calcul exact de l'ordre canonique n'est pas défini ici. Le modèle doit seulement permettre de le représenter ou de le calculer.
 
@@ -261,7 +276,9 @@ Cet état peut conceptuellement prendre la forme d'une révision de catalogue, d
 
 ### Détection des changements
 
-MY. doit pouvoir construire l'ensemble courant des variantes françaises éligibles pour le Pokémon cible et le comparer aux éléments automatiques matérialisés dans la collection.
+MY. doit pouvoir construire l'ensemble courant des variantes françaises éligibles pour la cible de la collection et le comparer aux éléments automatiques matérialisés.
+
+Selon le type de cible, cet ensemble provient des cartes rattachées au Pokémon ou de toutes les cartes appartenant au set ciblé.
 
 Cette comparaison peut détecter notamment :
 
@@ -304,7 +321,7 @@ Exemplaire physique N → 1 Variante
 
 Un exemplaire physique **n'appartient pas à une collection particulière**. Il appartient globalement au compte de l'utilisateur.
 
-Si une même variante apparaît dans plusieurs collections du même utilisateur, chacune reflète les mêmes exemplaires physiques. Aucun exemplaire supplémentaire ne doit être créé pour cette raison.
+Si une même variante apparaît dans plusieurs collections du même utilisateur — par exemple une collection Pokémon, une collection par extension et une collection libre — chacune reflète les mêmes exemplaires physiques. Aucun exemplaire supplémentaire ne doit être créé pour cette raison.
 
 ### Plusieurs exemplaires
 
@@ -432,6 +449,10 @@ Carte source N ↔ N Pokémon
 Collection 1 → N Éléments de collection
 Élément de collection N → 1 Variante
 
+Collection automatique → exactement une cible compatible
+  ├── Pokémon cible
+  └── Set cible
+
 Exemplaire physique N → 1 Variante
 
 Collection 1 → N Partages
@@ -443,8 +464,11 @@ Partage N → 1 Utilisateur destinataire
 Le futur modèle technique doit permettre de garantir autant que possible que :
 
 - une collection possède exactement un propriétaire ;
-- une collection automatique possède un Pokémon cible ;
-- une collection libre n'a pas besoin de Pokémon cible ;
+- une collection libre ne possède pas de cible automatique ;
+- une collection automatique possède exactement un type de cible ;
+- une collection automatique de type Pokémon possède un Pokémon cible ;
+- une collection automatique de type Set possède un set cible ;
+- une collection automatique ne possède pas simultanément un Pokémon cible et un set cible ;
 - un élément de collection référence une variante existante ;
 - une même variante n'est pas dupliquée dans une même collection ;
 - un exemplaire appartient à un utilisateur ;
@@ -485,9 +509,12 @@ Le modèle doit pouvoir évoluer ultérieurement vers :
 - d'autres permissions de partage ;
 - des données de prix ;
 - des informations d'achat ;
-- des emplacements physiques de rangement.
+- des emplacements physiques de rangement ;
+- un éventuel système futur de droits fonctionnels permettant d'accompagner une offre Premium.
 
 Ces possibilités ne doivent pas être implémentées prématurément dans la V1.
+
+Dans la V1, aucune donnée d'abonnement, de facturation, de paiement, de quota ou de rôle Premium n'est nécessaire. Les collections automatiques restent accessibles sans abonnement. La possibilité d'une offre Premium après la V1 impose seulement de ne pas rendre une future gestion de droits inutilement difficile. Une version future pourrait conceptuellement recourir à un plan, un entitlement, une permission fonctionnelle ou un mécanisme équivalent, sans qu'aucun de ces choix soit arrêté ou implémenté maintenant.
 
 ## Éléments laissés ouverts
 
@@ -507,6 +534,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'architecture et d
 - le mécanisme exact d'état de synchronisation d'une collection ;
 - la persistance ou non des résumés de mise à jour ;
 - l'algorithme d'ordre canonique ;
+- la représentation technique du type de cible et de sa cible compatible ;
 - l'algorithme de positionnement des éléments manuels ;
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
 - la nomenclature des conditions ;
@@ -518,7 +546,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'architecture et d
 - les éventuels outils d'administration du catalogue ;
 - le stockage éventuel des images TCGdex ;
 - la stratégie et le moteur de recherche ;
-- les choix de performance et d'optimisation.
+- les choix de performance et d'optimisation ;
+- les éventuels plans, droits fonctionnels, fonctionnalités Premium, limites gratuites, prix, périodicités, essais et fournisseurs de paiement d'une offre post-V1.
 
 Ces éléments ne doivent pas être considérés comme décidés avant leur cadrage et leur validation.
-

@@ -23,7 +23,7 @@ TCGdex n'est toutefois pas considéré comme une source parfaite ou suffisante p
 
 ## Périmètre linguistique de la V1
 
-La V1 de MY. est exclusivement centrée sur les **cartes Pokémon TCG disponibles en français**. Les collections automatiques ne doivent inclure que les cartes et variantes réellement disponibles pour l'édition ou le marché français.
+La V1 de MY. est exclusivement centrée sur les **cartes Pokémon TCG disponibles en français**. Les collections automatiques par Pokémon comme celles par extension ne doivent inclure que les cartes et variantes réellement disponibles pour l'édition ou le marché français.
 
 Une carte disponible en français n'implique pas que toutes ses variantes le soient également. La disponibilité linguistique doit donc être évaluée pour chaque variante avant son ajout automatique.
 
@@ -231,7 +231,11 @@ La liste définitive des champs recherchés sera précisée avec le modèle de d
 
 ## Construction des collections automatiques
 
-Lorsqu'un utilisateur crée une collection automatique pour un Pokémon, MY. doit :
+Le catalogue local MY. permet deux stratégies de sélection automatique dans la V1 : par rattachement à un Pokémon ou par appartenance à une extension précise.
+
+### Collection automatique par Pokémon
+
+Lorsqu'un utilisateur choisit un Pokémon, MY. doit :
 
 1. identifier le Pokémon ;
 2. rechercher dans son catalogue local les cartes françaises pertinentes ;
@@ -239,19 +243,49 @@ Lorsqu'un utilisateur crée une collection automatique pour un Pokémon, MY. doi
 4. créer une entrée distincte pour chaque variante ;
 5. appliquer l'ordre automatique défini par MY.
 
-Le catalogue local MY., et non un appel direct à TCGdex lors de la consultation, constitue la source utilisée pour cette génération.
+La sélection utilise principalement les rattachements issus de `dexId`, complétés si nécessaire par les corrections locales MY.
+
+```text
+Pokémon → cartes rattachées → variantes françaises → collection automatique
+```
+
+### Collection automatique par extension
+
+Lorsqu'un utilisateur choisit une extension, MY. doit :
+
+1. identifier le set précis dans son catalogue local ;
+2. rechercher toutes les cartes de ce set pertinentes pour la V1 française ;
+3. déterminer leurs variantes françaises pertinentes ;
+4. créer une entrée distincte pour chaque variante ;
+5. appliquer l'ordre automatique défini par MY.
+
+Cette génération inclut toutes les catégories de cartes présentes dans l'extension, notamment les Pokémon, Dresseurs, Énergies et autres catégories. Elle cible un set précis, et non une série ou un bloc TCGdex.
+
+La hiérarchie déjà conservée entre série ou bloc, set, carte et variante suffit conceptuellement à cette sélection ; aucune nouvelle source externe fondamentale n'est requise.
+
+```text
+Set → cartes du set → variantes françaises → collection automatique
+```
+
+Dans les deux cas, le catalogue local MY., et non un appel direct à TCGdex lors de la consultation ou côté navigateur, constitue la source de la génération.
 
 ### Ordre stable et reproductible
 
-L'ordre d'une collection automatique doit rester stable et reproductible. Une synchronisation ne doit pas produire un ordre différent de manière aléatoire lorsque la collection n'a pas changé.
+L'ordre d'une collection automatique doit rester stable et reproductible. Une synchronisation ne doit pas produire un ordre différent de manière arbitraire lorsque la cible et l'état du catalogue n'ont pas changé.
 
-La convention future pourra notamment exploiter :
+Pour une collection par Pokémon, la convention future pourra notamment exploiter :
 
 - la chronologie des séries ;
 - la chronologie des sets ;
 - les dates de sortie ;
 - les numéros de cartes ;
 - les variantes d'une même carte.
+
+Pour une collection par extension, elle pourra notamment exploiter :
+
+- l'ordre officiel ou local du set ;
+- les numéros de cartes ;
+- l'ordre stable des variantes d'une même carte.
 
 La logique exacte d'ordre des cartes et des variantes reste à définir.
 
@@ -296,11 +330,12 @@ Cette opération suit obligatoirement le processus défini dans `01-FEATURES.md`
 3. il consulte un résumé des changements ;
 4. il choisit explicitement d'appliquer la mise à jour.
 
-Pour une collection existante, MY. compare sa structure avec l'état actuel du catalogue correspondant au Pokémon. Les nouveautés peuvent notamment comprendre :
+Pour une collection existante, MY. compare sa structure avec l'état actuel du catalogue correspondant à sa cible Pokémon ou Extension. Les nouveautés peuvent notamment comprendre :
 
-- une nouvelle carte du Pokémon ;
+- une nouvelle carte éligible pour le Pokémon ou le set ciblé ;
 - une nouvelle variante française d'une carte existante ;
-- une carte ou variante précédemment absente mais désormais connue.
+- une carte ou variante précédemment absente mais désormais connue ;
+- une correction TCGdex ou locale rendant une carte ou variante éligible.
 
 Ces nouveautés doivent apparaître dans le résumé présenté à l'utilisateur.
 
@@ -378,6 +413,7 @@ La stratégie technique de traitement de ces cas reste à définir.
 - **TCGdex reste la source principale** : MY. ne reconstruit pas manuellement le catalogue Pokémon TCG.
 - **MY. utilise un catalogue local** : les données utiles sont synchronisées avant d'alimenter les collections.
 - **La V1 est française** : seules les cartes et variantes réellement disponibles en français alimentent automatiquement les collections.
+- **Deux cibles automatiques existent** : une collection automatique sélectionne les variantes par rattachement à un Pokémon ou par appartenance à un set précis.
 - **Une variante est une unité de collection** : chaque variante pertinente occupe un emplacement distinct.
 - **Les exemplaires restent des données utilisateur** : une variante peut avoir zéro, un ou plusieurs exemplaires physiques.
 - **Le `dexId` est la référence principale** : il rattache une carte aux collections automatiques des Pokémon représentés.
@@ -397,6 +433,7 @@ Les sujets suivants seront définis dans des documents ultérieurs :
 - le stockage des images et l'utilisation éventuelle du CDN TCGdex ;
 - l'ordre automatique exact des cartes ;
 - l'ordre exact des variantes d'une même carte ;
+- les critères détaillés d'ordre propres aux collections par Pokémon et par extension ;
 - les critères détaillés d'inclusion des anciennes cartes particulières ;
 - la gestion technique des cartes représentant plusieurs Pokémon ;
 - le fallback exact lorsque `dexId` est absent ou incomplet ;
@@ -412,4 +449,3 @@ Les sujets suivants seront définis dans des documents ultérieurs :
 - la stack technique.
 
 Ces éléments ne doivent pas être inventés ou considérés comme décidés avant leur cadrage et leur validation.
-

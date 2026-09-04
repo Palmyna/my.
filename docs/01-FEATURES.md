@@ -38,6 +38,8 @@ Chaque utilisateur possède un identifiant public unique propre à MY., utilisé
 
 Après connexion, l'utilisateur accède à son dashboard, point central d'accès aux collections. Celui-ci distingue clairement au minimum deux catégories, sans imposer encore leur présentation exacte dans l'interface.
 
+Au sein des collections, l'utilisateur doit pouvoir distinguer les types `Libre`, `Automatique · Pokémon` et `Automatique · Extension`, ainsi que la cible automatique lorsque cela est pertinent.
+
 ### Mes collections
 
 Cette catégorie regroupe les collections dont l'utilisateur est propriétaire. Il peut :
@@ -66,7 +68,12 @@ Le choix entre des onglets, des sections ou une navigation dédiée relève du c
 Lors de la création d'une collection, l'utilisateur choisit entre deux types :
 
 - une collection libre ;
-- une collection automatique basée sur un Pokémon.
+- une collection automatique.
+
+Pour une collection automatique, il choisit ensuite un type de cible puis la cible correspondante :
+
+- un Pokémon ;
+- une extension, c'est-à-dire un set précis.
 
 Une collection possède au minimum un nom. Aucune autre métadonnée ne doit être supposée tant qu'elle n'est pas cadrée.
 
@@ -86,11 +93,25 @@ Elle ne dépend d'aucune logique automatique liée à un Pokémon. Elle peut not
 
 La wishlist est seulement un exemple d'usage d'une collection libre et ne constitue pas une fonctionnalité supplémentaire de la V1.
 
-## Collections automatiques basées sur un Pokémon
+## Collections automatiques
 
-Une collection automatique est créée à partir d'un Pokémon choisi par l'utilisateur. MY. constitue alors la liste de référence correspondante à partir des données de **TCGdex / cards-database**.
+Une collection automatique possède une cible. Deux types de cible sont proposés dans la V1 : Pokémon et Extension.
 
-Le contenu automatique est généré selon des règles communes et reproductibles. Les règles exactes de sélection, de variantes et d'ordre seront définies séparément.
+Le contenu automatique est généré depuis le catalogue local MY. selon des règles communes et reproductibles. Quel que soit le type de cible, la structure est matérialisée, les éléments automatiques sont fixes, l'ordre est stable, les ajouts manuels restent possibles et toute mise à jour structurelle nécessite une validation explicite.
+
+### Cible Pokémon
+
+L'utilisateur choisit un Pokémon. MY. constitue la liste des cartes et variantes françaises pertinentes qui lui sont rattachées, principalement au moyen de `dexId` et des corrections locales MY. Une carte représentant plusieurs Pokémon peut appartenir aux collections automatiques de chacun d'eux.
+
+### Cible Extension
+
+L'utilisateur choisit une extension Pokémon TCG précise, par exemple *Légendes Brillantes*, *151*, *Évolutions à Paldea* ou *Tempête Argentée*. MY. constitue la liste de toutes les cartes et variantes françaises pertinentes de ce set.
+
+Une collection automatique par extension ne se limite pas aux cartes de catégorie Pokémon. Elle peut contenir des Pokémon, Dresseurs, Énergies et toute autre catégorie présente dans le set.
+
+Chaque variante française pertinente produit une entrée distincte. L'extension ciblée est un set précis et ne doit pas être confondue avec une série ou un bloc TCGdex.
+
+Une collection automatique par extension calcule sa progression comme les autres collections, à partir des variantes pour lesquelles l'utilisateur possède au moins un exemplaire. L'inclusion éventuelle des éléments manuels dans certains calculs reste ouverte.
 
 ### Structure automatique fixe
 
@@ -119,7 +140,7 @@ Les déplacements de cartes manuelles ne modifient jamais l'ordre relatif des ca
 
 ### Mise à jour contrôlée
 
-Une collection automatique peut évoluer lorsque de nouvelles cartes deviennent disponibles dans la source de données. Elle ne doit jamais être modifiée silencieusement.
+Une collection automatique peut évoluer lorsque le catalogue change pour sa cible Pokémon ou Extension. Elle ne doit jamais être modifiée silencieusement.
 
 Lorsqu'une mise à jour est disponible :
 
@@ -127,7 +148,7 @@ Lorsqu'une mise à jour est disponible :
 2. il peut consulter un résumé des changements avant leur application ;
 3. il choisit explicitement de mettre à jour la collection.
 
-Le résumé doit permettre de comprendre les changements et notamment d'identifier les nouvelles cartes qui seront ajoutées. Les autres types de changements provenant de la source restent à cadrer.
+Le résumé doit permettre de comprendre les changements et notamment d'identifier les nouvelles cartes ou variantes qui seront ajoutées. Une évolution peut provenir d'une nouvelle carte, d'une nouvelle variante française, d'une correction TCGdex ou d'une correction locale MY. Les autres types de changements restent à cadrer.
 
 Lorsqu'elle est validée, la mise à jour insère les nouvelles cartes automatiques à leur position correcte dans l'ordre de référence, sans perturber inutilement les cartes manuelles existantes. La logique précise de repositionnement de ces cartes manuelles reste ouverte.
 
@@ -332,9 +353,12 @@ Les fonctionnalités suivantes ne font pas partie de la V1 :
 - l'historique complet de toutes les modifications ;
 - la gestion d'équipes ou de groupes d'utilisateurs ;
 - les permissions d'édition collaborative ;
-- le partage public par URL sans authentification.
+- le partage public par URL sans authentification ;
+- un abonnement Premium, un système de paiement ou une restriction Premium des fonctionnalités automatiques.
 
 Ces possibilités futures ne doivent pas complexifier la V1 tant qu'elles ne sont pas cadrées.
+
+Les collections automatiques sont accessibles normalement dans la V1, sans abonnement ni paiement. Tout ou partie de ces fonctionnalités pourrait éventuellement relever d'une offre Premium après la V1, mais aucune règle commerciale n'est encore définie.
 
 ## Éléments laissés ouverts
 
@@ -345,7 +369,7 @@ Les sujets suivants devront être définis dans de futurs documents dédiés :
 - la gestion technique des positions ;
 - la logique exacte d'insertion des cartes manuelles entre les cartes automatiques ;
 - le comportement des cartes manuelles lors d'une mise à jour automatique ;
-- les règles exactes d'inclusion, les variantes prises en charge et l'ordre automatique des collections basées sur un Pokémon ;
+- les règles exactes d'inclusion, les variantes prises en charge et l'ordre automatique des collections ciblant un Pokémon ou une extension ;
 - la classification des blocs et des ères ;
 - les données exactes exploitées depuis TCGdex ;
 - la fréquence de vérification des mises à jour ;
@@ -360,7 +384,7 @@ Les sujets suivants devront être définis dans de futurs documents dédiés :
 - le responsive et l'accessibilité ;
 - l'architecture technique et la stack ;
 - Supabase, Netlify, l'authentification, la sécurité et les stratégies d'accès aux données ;
-- la stratégie de synchronisation avec TCGdex.
+- la stratégie de synchronisation avec TCGdex ;
+- les fonctionnalités éventuellement concernées par une offre Premium post-V1, son prix, ses plans, ses limites, sa facturation, une éventuelle période d'essai et son fournisseur de paiement.
 
 Ces éléments ne doivent pas être inventés ou considérés comme décidés avant leur cadrage et leur validation.
-
