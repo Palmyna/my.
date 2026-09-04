@@ -13,6 +13,7 @@ La conception du projet sera documentée progressivement dans le dossier `docs/`
 - [Vision générale du projet](docs/00-VISION.md)
 - [Fonctionnalités de la V1](docs/01-FEATURES.md)
 - [Intégration de TCGdex](docs/02-TCGDEX.md)
+- [Modèle de données conceptuel](docs/03-DATA-MODEL.md)
 
 ## État du projet
 
