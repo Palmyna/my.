@@ -229,7 +229,7 @@ Ces possibilités futures ne doivent pas influencer inutilement l'architecture d
 Les sujets suivants devront être traités dans de futurs documents dédiés et ne sont pas définis par la vision générale :
 
 - les détails d'implémentation laissés ouverts par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
-- la configuration détaillée de Netlify et du déploiement ;
+- la configuration détaillée de Vercel et du déploiement ;
 - les détails SQL et Supabase volontairement laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
 - le fonctionnement précis de l'authentification ;
 - les détails d'implémentation et l'automatisation future laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;

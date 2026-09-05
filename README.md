@@ -10,7 +10,9 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 **Phase 0 — Bootstrap technique initialisé.** L'application affiche uniquement `MY.` et « Application initialisée » sur une page temporaire. Le routage et le provider de cache sont en place ; le client Supabase est préparé sans connexion au démarrage.
 
-Aucune fonctionnalité métier, authentification, migration SQL, table métier, policy RLS, RPC, synchronisation TCGdex ou interface finale n'est implémentée. Le projet Supabase cloud n'est pas lié au dépôt et Netlify n'est pas configuré. La Phase 1 n'a pas commencé.
+Aucune fonctionnalité métier, authentification, migration SQL, table métier, policy RLS, RPC, synchronisation TCGdex ou interface finale n'est implémentée. Le projet Supabase cloud n'est pas lié au dépôt. La Phase 1 n'a pas commencé.
+
+**Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place.
 
 ## Développement local
 

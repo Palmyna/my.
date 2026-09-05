@@ -34,7 +34,7 @@ Les choix suivants sont figés pour la V1 :
 | Validation des données et de la configuration | Zod |
 | Client Supabase frontend | `@supabase/supabase-js` |
 | Type d'application | Single Page Application (SPA) |
-| Hébergement frontend | Netlify |
+| Hébergement frontend | Vercel |
 | Backend principal | Supabase |
 | Base de données | PostgreSQL via Supabase |
 | Authentification | Supabase Auth |
@@ -50,9 +50,10 @@ La V1 n'utilise ni Next.js ni un framework SSR équivalent. Ce choix répond au 
 ```text
 Utilisateur
     ↓
-Navigateur
-    ↓
-MY. — React + TypeScript + Vite
+Navigateur — MY. : React + TypeScript + Vite (SPA)
+    │
+    ├──────────→ Vercel
+    │               frontend compilé, CDN / HTTPS
     │
     ├──────────→ CDN / assets TCGdex
     │               images de cartes
@@ -60,6 +61,7 @@ MY. — React + TypeScript + Vite
     └──────────→ Supabase
                     ├── Auth
                     ├── PostgreSQL
+                    ├── Storage selon les besoins cadrés
                     ├── RLS
                     ├── fonctions SQL / RPC si nécessaire
                     └── logique serveur privilégiée si nécessaire
@@ -71,7 +73,7 @@ Processus de synchronisation dans un environnement de confiance
                 Catalogue local MY.
 ```
 
-Netlify héberge principalement le frontend. Supabase constitue le backend applicatif. TCGdex alimente le catalogue local, mais n'est pas interrogé à chaque consultation utilisateur.
+Vercel héberge le frontend compilé par Vite. La SPA React s'exécute dans le navigateur et accède directement à Supabase pour les opérations applicatives simples, sous contrôle Auth et RLS. Supabase reste le backend principal ; aucune logique backend n'est déplacée vers Vercel. TCGdex alimente le catalogue local, mais n'est pas interrogé à chaque consultation utilisateur.
 
 ## Frontend
 
@@ -81,7 +83,7 @@ MY. est une SPA React. Cette approche correspond à une application authentifié
 
 La navigation applicative est gérée côté client avec React Router. Les routes pourront notamment représenter la homepage, la connexion, l'inscription, le dashboard, une collection et le profil. La Phase 0 prépare uniquement le routeur et une route temporaire de bootstrap.
 
-Netlify devra permettre l'accès direct et le rafraîchissement d'une route interne de la SPA. Le mécanisme de configuration exact sera défini lors de la préparation du déploiement, hors Phase 0.
+Vercel devra permettre l'accès direct et le rafraîchissement des routes internes de la SPA. Le mécanisme précis de rewrite ou de fallback SPA sera défini et configuré lors du déploiement effectif. La présente décision d'hébergement n'ajoute aucune configuration de déploiement et ne modifie pas React Router.
 
 ### TypeScript
 
@@ -95,7 +97,7 @@ Le frontend est développé en TypeScript avec une configuration suffisamment st
 
 ### Vite
 
-Vite assure le développement local, le bundling et le build de production. Il produit l'application statique déployée sur Netlify.
+Vite assure le développement local, le bundling et le build de production. Il produit l'application statique destinée à être hébergée sur Vercel.
 
 ### Organisation du code
 
@@ -115,9 +117,9 @@ L'état local reste local lorsqu'il n'a pas besoin d'être partagé. Les donnée
 
 TanStack Query est retenu pour les requêtes et le cache des données serveur. Son provider est préparé dès la Phase 0, sans requête métier ni gestionnaire d'état global supplémentaire. Zod est retenu pour valider les données et la configuration.
 
-## Netlify
+## Hébergement frontend : Vercel
 
-Netlify est principalement responsable de :
+Vercel est retenu pour :
 
 - construire le frontend Vite ;
 - héberger et servir les fichiers statiques ;
@@ -125,17 +127,20 @@ Netlify est principalement responsable de :
 - fournir HTTPS ;
 - gérer éventuellement le domaine ;
 - déployer depuis le dépôt GitHub ;
+- permettre ultérieurement les previews de branches ou de pull requests lorsqu'elles sont utiles ;
 - servir correctement les routes de la SPA.
 
-Netlify n'est pas le backend général de MY. Le flux normal ne doit pas passer par une Netlify Function avant Supabase sans besoin particulier.
+Supabase reste le backend principal. Les opérations applicatives simples continuent à aller directement du navigateur vers Supabase, sous contrôle Auth, RLS et contraintes de base. Vercel Functions ne constituent pas par défaut un nouveau backend applicatif ni un intermédiaire obligatoire devant Supabase.
 
 ```text
-Flux privilégié : Navigateur → Supabase
+Flux applicatif courant : Navigateur → Supabase (Auth / RLS)
 
-Flux non systématique : Navigateur → Netlify Function → Supabase
+Flux éventuel, après cadrage : Navigateur → Vercel Functions → Supabase
 ```
 
-Les Netlify Functions ne doivent être ajoutées que lorsqu'un besoin réel justifie cette complexité et cette latence supplémentaires.
+L'utilisation éventuelle de Vercel Functions ne peut être introduite qu'en réponse à un besoin réel, après cadrage et validation. Elle ne doit pas déplacer par défaut la logique backend de Supabase vers Vercel.
+
+Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place.
 
 ## Supabase et PostgreSQL
 
@@ -352,7 +357,7 @@ La V1 ne nécessite pas Supabase Realtime. Le partage en lecture seule ne justif
 
 L'objectif est un coût d'infrastructure aussi proche que possible de `0 € / mois` pendant la phase initiale d'environ deux utilisateurs.
 
-Les offres gratuites de Supabase et Netlify sont privilégiées tant qu'elles répondent aux besoins. Leurs quotas ne sont pas figés dans l'architecture : ils doivent être surveillés, et un plan supérieur ne sera choisi qu'en réponse à un besoin mesuré.
+Les offres gratuites de Supabase et Vercel sont privilégiées tant qu'elles répondent aux besoins. Leurs quotas ne sont pas figés dans l'architecture : ils doivent être surveillés, et un plan supérieur ne sera choisi qu'en réponse à un besoin mesuré.
 
 ### Garde-fous
 
@@ -367,7 +372,7 @@ La V1 évite sans besoin réel :
 - un monitoring ou des analytics payants ;
 - un cron externe payant ;
 - Realtime ;
-- une Netlify Function pour chaque requête ;
+- une Vercel Function pour chaque requête ;
 - l'import de données TCGdex inutiles.
 
 Chaque nouveau service doit répondre à un besoin concret.
@@ -380,7 +385,7 @@ Avec la croissance du projet, il faudra suivre notamment :
 - la bande passante Supabase ;
 - les utilisateurs actifs et le volume de requêtes ;
 - l'exécution des fonctions ;
-- la consommation Netlify et la fréquence des builds ;
+- la consommation Vercel et la fréquence des builds ;
 - les performances de recherche ;
 - la durée des synchronisations.
 
@@ -394,17 +399,17 @@ Les URL, clés publiques et autres paramètres sont injectés par environnement.
 
 ## Versionnement et déploiement
 
-### GitHub et Netlify
+### GitHub et Vercel
 
 Le dépôt GitHub est la source de référence du code et de la configuration versionnée. Il doit contenir le frontend, les scripts, les migrations, la documentation et la configuration non secrète. Aucun secret ne doit y être commité.
 
-Netlify construit et déploie le frontend depuis GitHub :
+Lors du déploiement effectif, Vercel construira et déploiera le frontend depuis GitHub selon le flux prévu :
 
 ```text
-Push GitHub → build Netlify → application déployée
+Push GitHub → build Vite sur Vercel → frontend statique déployé sur Vercel
 ```
 
-La branche de production et les règles détaillées restent à définir. Les previews sont utilisables lorsqu'elles apportent une valeur réelle, sans provoquer volontairement un grand nombre de builds inutiles.
+La branche de production, la configuration Vercel et les règles détaillées restent à définir. Les previews de branches ou de pull requests pourront être utilisées ultérieurement lorsqu'elles apportent une valeur réelle, sans provoquer volontairement un grand nombre de builds inutiles. Ce flux n'est pas encore configuré.
 
 ### Migrations PostgreSQL
 
@@ -444,7 +449,7 @@ Il n'est pas nécessaire de tester mécaniquement chaque détail de présentatio
 
 ### Logs, monitoring et sauvegardes
 
-Au démarrage, MY. privilégie les outils de diagnostic fournis par Supabase, Netlify et le navigateur. Aucun service de monitoring payant n'est requis par défaut.
+Au démarrage, MY. privilégie les outils de diagnostic fournis par Supabase, Vercel et le navigateur. Aucun service de monitoring payant n'est requis par défaut.
 
 Les données utilisateur ne sont jamais considérées comme jetables. Les migrations et synchronisations potentiellement destructrices doivent être conçues prudemment. La politique détaillée de sauvegarde évoluera avec le stade du projet et le plan Supabase disponible.
 
@@ -472,7 +477,7 @@ L'architecture doit accompagner une progression naturelle :
 3. ouverture publique, optimisation et éventuelle montée en gamme des services ;
 4. éventuelle offre Premium avec droits et paiement seulement après cadrage.
 
-Une augmentation des capacités Supabase ou Netlify ne doit pas exiger de remplacer React, Vite, Netlify, Supabase ou PostgreSQL. Chaque phase ajoute seulement la complexité devenue nécessaire.
+Une augmentation des capacités Supabase ou Vercel ne doit pas exiger de remplacer React, Vite, Vercel, Supabase ou PostgreSQL. Chaque phase ajoute seulement la complexité devenue nécessaire.
 
 ## Technologies et services exclus de la V1
 
@@ -501,6 +506,7 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 - le découpage détaillé des futures fonctionnalités dans la structure initialisée ;
 - les méthodes précises d'authentification ;
 - le staging éventuel et la stratégie de production au-delà du développement Supabase local ;
+- la configuration détaillée de Vercel, dont le rewrite ou fallback des routes SPA lors du déploiement effectif ;
 - la fréquence et le déclencheur de l'automatisation future du pipeline décrit dans [07-CATALOG-SYNC.md](07-CATALOG-SYNC.md) ;
 - l'utilisation exacte des Edge Functions ;
 - la politique détaillée de sauvegarde ;
