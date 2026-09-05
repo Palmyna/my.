@@ -432,7 +432,7 @@ Le pipeline doit idéalement proposer un mode dry-run. Ce mode exécute :
 
 Il n'écrit rien dans PostgreSQL.
 
-Une commande comme `catalog:sync --dry-run` n'est qu'un exemple conceptuel. Son nom, le package manager et sa syntaxe restent ouverts.
+Une commande comme `catalog:sync --dry-run` n'est qu'un exemple conceptuel. Son nom et sa syntaxe restent ouverts ; npm est le gestionnaire de paquets du projet retenu en Phase 0.
 
 ## Import initial
 
@@ -545,7 +545,7 @@ Aucun cron externe, worker permanent, scheduler payant, Edge Function planifiée
 
 Lors de l'implémentation, une courte procédure devra expliquer comment récupérer le projet et le snapshot, exécuter le dry-run, lire le rapport, lancer l'écriture puis vérifier le résultat. Les commandes exactes seront documentées seulement lorsque le pipeline existera.
 
-Le projet devra alors proposer une commande principale claire pour la synchronisation et une variante explicite pour le dry-run. `catalog:sync` et `catalog:sync --dry-run` ne sont que des exemples conceptuels ; le package manager et la syntaxe finale ne sont pas fixés.
+Le projet devra alors proposer une commande principale claire pour la synchronisation et une variante explicite pour le dry-run. `catalog:sync` et `catalog:sync --dry-run` ne sont que des exemples conceptuels ; la syntaxe finale reste ouverte, avec npm comme gestionnaire de paquets du projet.
 
 ## Sécurité et environnements
 
@@ -704,7 +704,7 @@ Le pipeline ne doit pas :
 Les choix suivants seront réalisés lors de l'implémentation ou d'un cadrage ultérieur :
 
 - le langage et l'emplacement exacts du code ;
-- le package manager et le nom de la commande ;
+- le nom et la syntaxe de la commande ;
 - la récupération par clone Git, archive ou autre mécanisme ;
 - l'emplacement final des corrections ;
 - JSON, YAML ou autre format structuré ;

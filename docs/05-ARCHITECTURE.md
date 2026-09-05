@@ -28,6 +28,11 @@ Les choix suivants sont figés pour la V1 :
 |---|---|
 | Frontend | React avec TypeScript |
 | Outil de développement et build | Vite |
+| Gestionnaire de paquets | npm |
+| Routage SPA | React Router |
+| Données serveur et cache frontend | TanStack Query |
+| Validation des données et de la configuration | Zod |
+| Client Supabase frontend | `@supabase/supabase-js` |
 | Type d'application | Single Page Application (SPA) |
 | Hébergement frontend | Netlify |
 | Backend principal | Supabase |
@@ -74,9 +79,9 @@ Netlify héberge principalement le frontend. Supabase constitue le backend appli
 
 MY. est une SPA React. Cette approche correspond à une application authentifiée et interactive centrée sur un dashboard, des collections, des listes, des grilles, des classeurs, des recherches et des panneaux de détail.
 
-La navigation applicative est gérée côté client. Les routes peuvent notamment représenter la homepage, la connexion, l'inscription, le dashboard, une collection et le profil. La bibliothèque de routage reste à choisir.
+La navigation applicative est gérée côté client avec React Router. Les routes pourront notamment représenter la homepage, la connexion, l'inscription, le dashboard, une collection et le profil. La Phase 0 prépare uniquement le routeur et une route temporaire de bootstrap.
 
-Netlify devra permettre l'accès direct et le rafraîchissement d'une route interne de la SPA. Le mécanisme de configuration exact sera défini lors de l'initialisation.
+Netlify devra permettre l'accès direct et le rafraîchissement d'une route interne de la SPA. Le mécanisme de configuration exact sera défini lors de la préparation du déploiement, hors Phase 0.
 
 ### TypeScript
 
@@ -102,13 +107,13 @@ Le frontend doit distinguer conceptuellement :
 - la logique métier partagée ;
 - les types applicatifs.
 
-La structure exacte des dossiers reste ouverte. Une architecture dite « enterprise » ou excessivement abstraite n'est pas justifiée pour la V1.
+Le socle de la Phase 0 distingue `src/app/` pour l'application, les providers et les routes, `src/services/` pour l'accès aux données et services, `src/lib/` pour la logique partagée, `src/types/` pour les types et `src/test/` pour la configuration des tests. Les tests sont placés à côté du code testé. `src/components/` et `src/features/` accueilleront les composants partagés et les fonctionnalités au premier besoin, sans dossiers vides anticipés. Une architecture dite « enterprise » ou excessivement abstraite n'est pas justifiée pour la V1.
 
 ### État frontend
 
 L'état local reste local lorsqu'il n'a pas besoin d'être partagé. Les données serveur sont traitées comme des données distantes. Aucun système lourd de gestion d'état global n'est imposé par défaut.
 
-Une bibliothèque de requêtes ou de cache pourra être choisie si elle apporte un bénéfice réel. Ce choix reste ouvert.
+TanStack Query est retenu pour les requêtes et le cache des données serveur. Son provider est préparé dès la Phase 0, sans requête métier ni gestionnaire d'état global supplémentaire. Zod est retenu pour valider les données et la configuration.
 
 ## Netlify
 
@@ -208,7 +213,7 @@ La recherche d'un destinataire par son identifiant public MY. ne doit retourner 
 
 ### Accès direct du frontend à Supabase
 
-Les opérations simples et autorisées peuvent être réalisées directement depuis React avec le client Supabase, notamment :
+Les opérations simples et autorisées pourront être réalisées directement depuis React avec `@supabase/supabase-js`, retenu comme client Supabase, notamment :
 
 - consulter ses collections ou une collection partagée ;
 - gérer ses exemplaires ;
@@ -383,7 +388,7 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. doit distinguer au minimum le développement et la production. Le développement pourra utiliser Supabase local ou un projet Supabase distinct ; le choix opérationnel reste ouvert.
+MY. distingue le développement et la production. La Phase 0 prépare Supabase local avec sa CLI installée comme dépendance de développement npm et sa configuration versionnée. Elle ne lie ni ne modifie le projet cloud. Le staging éventuel et la configuration de production restent ouverts.
 
 Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Les données de production ne doivent pas être utilisées inconsidérément pendant le développement.
 
@@ -417,7 +422,7 @@ Le développement privilégie un code lisible, des responsabilités claires, des
 
 ### Vérifications
 
-Les changements importants doivent pouvoir être vérifiés au minimum par le build, la vérification TypeScript, le lint lorsqu'il est configuré et les tests pertinents. Les outils précis seront choisis lors de l'initialisation.
+Les changements importants doivent pouvoir être vérifiés au minimum par le build Vite, la vérification TypeScript, ESLint et les tests pertinents. La Phase 0 retient Vitest, React Testing Library et jest-dom avec jsdom comme environnement DOM. Les commandes npm sont documentées dans le README.
 
 ### Tests prioritaires
 
@@ -492,11 +497,10 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 - le code final des politiques RLS et des fonctions RPC ;
 - la stratégie physique des corrections locales ;
 - l'algorithme final d'ordre et les détails de calcul des hashes de structure ;
-- les bibliothèques de routage, de requêtes, de cache et d'interface ;
-- la structure exacte des dossiers et le gestionnaire de paquets ;
-- le framework de tests ;
+- la bibliothèque d'interface éventuelle ;
+- le découpage détaillé des futures fonctionnalités dans la structure initialisée ;
 - les méthodes précises d'authentification ;
-- la stratégie exacte de développement, staging éventuel et production ;
+- le staging éventuel et la stratégie de production au-delà du développement Supabase local ;
 - la fréquence et le déclencheur de l'automatisation future du pipeline décrit dans [07-CATALOG-SYNC.md](07-CATALOG-SYNC.md) ;
 - l'utilisation exacte des Edge Functions ;
 - la politique détaillée de sauvegarde ;

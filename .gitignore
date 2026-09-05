@@ -1,0 +1,25 @@
+# Dependencies, builds and local caches
+node_modules/
+dist/
+coverage/
+.vite/
+.cache/
+*.tsbuildinfo
+*.log
+.eslintcache
+
+# Local environment values; only the root template is versioned
+.env
+.env.*
+!/.env.example
+
+# Local Supabase state (also covered by supabase/.gitignore)
+supabase/.temp/
+supabase/.branches/
+supabase/signing_keys.json
+
+# OS and editor state
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
