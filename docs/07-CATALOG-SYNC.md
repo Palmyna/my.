@@ -192,6 +192,7 @@ Chaque carte pertinente du snapshot produit ou met à jour une `source_card`. Le
 - la rareté ;
 - la référence d'image ;
 - les données de tri ;
+- la date de parution effective complète de la carte, avec fallback normal sur la sortie française du set et priorité aux corrections MY. validées ;
 - les rattachements Pokémon ;
 - les informations nécessaires aux variantes ;
 - les métadonnées techniques ciblées utiles à la synchronisation.
@@ -445,7 +446,7 @@ Sur une base vide, le pipeline doit pouvoir :
 3. construire les états initiaux des cibles automatiques ;
 4. produire un rapport initial.
 
-Chaque Pokémon possédant au moins une variante éligible et chaque set pertinent doit disposer d'un état courant après l'import. La version initiale doit être cohérente ; sa représentation exacte sera fixée avec l'implémentation.
+Chaque Pokémon possédant au moins une variante éligible et chaque set pertinent doit disposer d'un état courant après l'import. La Phase 1 représente `generation_version` par un `BIGINT` strictement positif, sans créer d'état de génération fictif. Le pipeline initialise et fait évoluer cet état en Phase 2.
 
 Le rapport initial doit notamment permettre de connaître le nombre de séries, sets, cartes, variantes et relations Pokémon. La taille réelle de PostgreSQL sera ensuite mesurée dans Supabase.
 
@@ -483,11 +484,11 @@ Une cible Extension désigne toujours un set précis, non une série ou un bloc.
 
 L'ordre produit est déterministe : un même catalogue génère toujours le même ordre.
 
-Pour une Extension, l'ordre suit principalement l'ordre des cartes dans le set, puis l'ordre stable de leurs variantes.
+Pour une Extension, l'ordre suit le numéro normalisé de la carte dans le set, puis l'ordre stable des variantes d'une même carte. Un tri textuel naïf du numéro est exclu.
 
-Pour un Pokémon, l'ordre doit pouvoir exploiter l'ordre chronologique des séries ou blocs, celui des sets, l'ordre des cartes et celui des variantes.
+Pour un Pokémon, les priorités sont la date de parution effective complète de la carte (`YYYY-MM-DD`) croissante, puis son numéro normalisé, puis l'ordre stable des variantes d'une même carte. La date précise de la carte prime ; à défaut, la sortie française du set sert de fallback normal. Une correction MY. peut fournir une valeur fiable lorsque la source est insuffisante ou erronée.
 
-L'ordre des variantes doit fonctionner au-delà de Normal, Holo et Reverse et tenir compte de leurs propriétés réelles. Les algorithmes finaux restent ouverts.
+La Phase 1 conserve `source_cards.effective_release_date DATE` nullable et ne l'alimente pas. La Phase 2 précisera les champs source utilisés, la normalisation des numéros, le traitement des cartes sans date fiable et l'ordre précis des variantes. Celui-ci doit fonctionner au-delà de Normal, Holo et Reverse. Des départages techniques peuvent compléter les priorités validées pour obtenir un ordre total déterministe, sans les changer.
 
 ## Hash et version des cibles
 
@@ -710,7 +711,7 @@ Les choix suivants seront réalisés lors de l'implémentation ou d'un cadrage u
 - JSON, YAML ou autre format structuré ;
 - le schéma précis de validation des corrections ;
 - l'algorithme final de `variant_key` et les propriétés exactes par type de variante ;
-- l'ordre final des variantes et des collections Pokémon ;
+- l'ordre précis des variantes, la normalisation des numéros et le traitement des cartes sans date de parution fiable ;
 - le traitement des cas TCGdex particulièrement atypiques ;
 - le SQL exact des upserts ;
 - la taille et le découpage des transactions ;

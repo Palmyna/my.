@@ -17,6 +17,7 @@ coverage/
 supabase/.temp/
 supabase/.branches/
 supabase/signing_keys.json
+supabase/tests/database/harden_rls_auto_enable.generated.inc
 
 # OS and editor state
 .DS_Store

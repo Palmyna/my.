@@ -435,7 +435,7 @@ La collection n'est jamais mise à jour silencieusement. L'utilisateur reste ma�
 
 Une collection appartenant à l'utilisateur propose une action `Partager`. Le propriétaire saisit l'identifiant public MY. du destinataire et, lorsque possible, l'interface identifie clairement l'utilisateur concerné avant validation.
 
-Le propriétaire peut consulter les personnes ayant accès à la collection et retirer un partage. Les mécanismes précis d'invitation ou d'acceptation restent à définir.
+Après confirmation du propriétaire, le partage est directement actif et la collection apparaît dans « Collections partagées avec moi ». Il n'existe ni invitation, ni acceptation, ni refus. Le propriétaire peut consulter les personnes ayant accès et retirer un partage ; le destinataire peut retirer son propre accès. Ce retrait conserve la collection, ses éléments et les exemplaires. L'interface détaillée et la résolution limitée du destinataire seront implémentées ultérieurement.
 
 ### Expérience en lecture seule
 
@@ -461,7 +461,7 @@ Le profil reste léger. Il permet notamment de :
 - copier facilement cet identifiant ;
 - accéder aux paramètres nécessaires.
 
-Le rôle de l'identifiant doit être compréhensible. Son format exact reste ouvert. Les fonctionnalités sociales avancées ne font pas partie de la V1.
+Le rôle de l'identifiant doit être compréhensible. MY. le génère au format `MY-XXXXX-XXXXX-XXXXX-XXXXX` ; il est consultable et copiable, sans choix ni modification par l'utilisateur. Les fonctionnalités sociales avancées ne font pas partie de la V1.
 
 ## États de l'interface
 

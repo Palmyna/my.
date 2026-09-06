@@ -18,7 +18,11 @@
     "test:watch": "vitest",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "supabase:status": "supabase status"
+    "supabase:status": "supabase status",
+    "db:reset": "supabase db reset --local",
+    "db:test": "node scripts/test-database.js",
+    "db:lint": "supabase db lint --local --schema public,private --level warning --fail-on warning",
+    "db:types": "node scripts/generate-supabase-types.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.115.0",

@@ -279,21 +279,17 @@ Dans les deux cas, le catalogue local MY., et non un appel direct à TCGdex lors
 
 L'ordre d'une collection automatique doit rester stable et reproductible. Une synchronisation ne doit pas produire un ordre différent de manière arbitraire lorsque la cible et l'état du catalogue n'ont pas changé.
 
-Pour une collection par Pokémon, la convention future pourra notamment exploiter :
+Pour une collection par Pokémon, les priorités sont :
 
-- la chronologie des séries ;
-- la chronologie des sets ;
-- les dates de sortie ;
-- les numéros de cartes ;
-- les variantes d'une même carte.
+1. date de parution effective complète de la carte (`YYYY-MM-DD`), croissante ;
+2. numéro normalisé de la carte ;
+3. ordre stable des variantes d'une même carte.
 
-Pour une collection par extension, elle pourra notamment exploiter :
+La date précise de la carte est utilisée lorsqu'elle est connue ; sinon, la date de sortie française du set sert de fallback normal. Une correction locale MY. peut fournir la valeur correcte si la source est insuffisante ou erronée. `source_cards.effective_release_date` conserve cette date effective et reste nullable lorsqu'aucune date fiable n'est connue. La Phase 1 n'invente et ne remplit aucune date ; la Phase 2 précisera l'alimentation depuis `cards-database` et le traitement des dates manquantes.
 
-- l'ordre officiel ou local du set ;
-- les numéros de cartes ;
-- l'ordre stable des variantes d'une même carte.
+Pour une collection par Extension, les priorités sont le numéro normalisé de la carte dans le set, puis l'ordre stable des variantes d'une même carte. Le numéro n'est jamais trié naïvement comme une chaîne de caractères.
 
-La logique exacte d'ordre des cartes et des variantes reste à définir.
+La normalisation finale des numéros et l'ordre précis des variantes restent ouverts pour la Phase 2. Des départages techniques peuvent rendre l'ordre total déterministe, sans modifier ces priorités. La chronologie des séries ou des sets ne remplace pas la date effective de la carte comme priorité Pokémon.
 
 ## Synchronisation du catalogue
 
@@ -435,7 +431,7 @@ Les sujets suivants seront définis dans des documents ultérieurs ou lors de l'
 - le mécanisme physique exact de fusion entre TCGdex et les corrections MY. ;
 - la fréquence future et le mécanisme d'automatisation des synchronisations ;
 - la stratégie de cache éventuelle ;
-- l'ordre automatique exact des cartes ;
+- la normalisation finale des numéros de cartes et le traitement des cartes sans date de parution fiable ;
 - l'ordre exact des variantes d'une même carte ;
 - les critères détaillés d'ordre propres aux collections par Pokémon et par extension ;
 - les critères détaillés d'inclusion des anciennes cartes particulières ;

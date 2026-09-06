@@ -34,6 +34,8 @@ Un utilisateur peut :
 
 Chaque utilisateur possède un identifiant public unique propre à MY., utilisé notamment pour le partage de collections. Cet identifiant public reste distinct de l'UUID technique fourni par le système d'authentification.
 
+MY. génère automatiquement cet identifiant au format `MY-XXXXX-XXXXX-XXXXX-XXXXX`. Les 20 caractères aléatoires utilisent des lettres majuscules et des chiffres, sans `0`, `O`, `1`, `I` ni `L`. L'utilisateur ne le choisit pas et ne peut pas le modifier. Il est stocké en majuscules ; sa recherche et son unicité sont insensibles à la casse. Sa longueur et sa génération cryptographique rendent sa découverte par devinette déraisonnable. Aucun pseudo ou nom d'affichage supplémentaire n'est défini.
+
 ## Dashboard
 
 Après connexion, l'utilisateur accède à son dashboard, point central d'accès aux collections. Celui-ci distingue clairement au minimum deux catégories, sans imposer encore leur présentation exacte dans l'interface.
@@ -114,6 +116,8 @@ Chaque variante française pertinente produit une entrée distincte. L'extension
 Une collection automatique par extension calcule sa progression comme les autres collections. Tous ses éléments, automatiques comme manuels, contribuent au total ; une variante contribue au nombre possédé lorsque le propriétaire en possède au moins un exemplaire.
 
 ### Structure automatique fixe
+
+L'ordre canonique Pokémon suit la date de parution effective complète de la carte (`YYYY-MM-DD`) croissante, puis son numéro normalisé, puis l'ordre stable des variantes d'une même carte. L'ordre Extension suit le numéro normalisé dans le set, puis l'ordre stable des variantes. Les règles de date et les détails encore ouverts sont précisés dans la [politique TCGdex](02-TCGDEX.md).
 
 Les cartes générées automatiquement constituent la structure de référence de la collection. Elles :
 
@@ -287,6 +291,8 @@ Le comportement détaillé de navigation relève du cadrage UX.
 
 Le propriétaire peut partager une collection avec un autre utilisateur MY. depuis la collection concernée. Il utilise pour cela l'identifiant public unique du destinataire, qui doit être clairement identifié avant ou pendant la validation du partage.
 
+Le partage devient immédiatement actif après confirmation du propriétaire et la collection apparaît dans « Collections partagées avec moi ». La V1 ne comporte ni invitation, ni attente, ni acceptation ou refus par le destinataire. La résolution de l'identifiant reste limitée et ne permet jamais de parcourir les profils.
+
 ### Accès en lecture seule
 
 Le partage de la V1 est strictement limité à la consultation. Le destinataire peut :
@@ -301,9 +307,9 @@ Il ne peut modifier aucune donnée. Le propriétaire reste le seul utilisateur a
 
 ### Gestion et retrait des partages
 
-Le propriétaire peut consulter la liste des utilisateurs avec lesquels sa collection est partagée et retirer un accès. Dès son retrait, la collection ne doit plus être accessible depuis l'espace du destinataire.
+Le propriétaire peut consulter la liste des utilisateurs avec lesquels sa collection est partagée et retirer un accès. Le destinataire peut également retirer son propre accès. Dès son retrait, la collection ne doit plus être accessible depuis l'espace du destinataire.
 
-Le recours à une invitation, à une acceptation explicite ou à des notifications détaillées de partage reste à définir.
+Dans les deux cas, seule la relation de partage est supprimée : la collection, ses éléments et les exemplaires du propriétaire sont conservés. Un partage vers soi-même et un doublon collection-destinataire sont interdits. Les notifications ne font pas partie de cette phase.
 
 ## Suppression d'une collection
 
@@ -372,7 +378,7 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 
 - les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
 - l'algorithme exact de positionnement, d'insertion et d'ancrage des cartes manuelles, notamment lors d'une mise à jour automatique ;
-- les règles exactes d'inclusion, les variantes prises en charge et l'ordre automatique des collections ciblant un Pokémon ou une extension ;
+- les règles exactes d'inclusion, les variantes prises en charge, leur ordre précis, la normalisation des numéros et le traitement des cartes sans date fiable ;
 - la classification des blocs et des ères ;
 - les données exactes exploitées depuis TCGdex ;
 - la fréquence de vérification des mises à jour ;
@@ -381,12 +387,12 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - les sociétés de grading et leurs formats de notes ;
 - la liste définitive des champs utilisés par la recherche ;
 - le comportement exact de la recherche dans la vue classeur ;
-- le comportement du partage avant l'accès, notamment une éventuelle invitation ou acceptation ;
+- la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
 - la gestion détaillée du profil ;
 - le design détaillé du dashboard et des vues ;
 - le responsive et l'accessibilité ;
 - les détails d'implémentation non figés par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
-- le SQL final des politiques RLS, les méthodes d'authentification et les configurations précises de Supabase et Vercel ;
+- les futures RPC fonctionnelles, les méthodes d'authentification et les configurations de production de Supabase et Vercel ; les permissions et policies du socle Phase 1 sont définies dans `06-DATABASE.md` ;
 - les détails de synchronisation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - les fonctionnalités éventuellement concernées par une offre Premium post-V1, son prix, ses plans, ses limites, sa facturation, une éventuelle période d'essai et son fournisseur de paiement.
 

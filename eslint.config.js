@@ -31,4 +31,9 @@ export default defineConfig([
     files: ['vite.config.ts'],
     languageOptions: { globals: globals.node },
   },
+  {
+    files: ['src/types/database.generated.ts'],
+    // Preserve generated declarations, including unions for currently empty views.
+    rules: { '@typescript-eslint/no-redundant-type-constituents': 'off' },
+  },
 ])

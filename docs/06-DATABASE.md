@@ -6,7 +6,17 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Ce document ne constitue ni une migration SQL prête à exécuter, ni le code final des politiques RLS ou des RPC. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés pendant l'implémentation.
+Le socle stable de Phase 1 est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue ce socle des opérations fonctionnelles et du pipeline encore à implémenter. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+
+## Socle SQL de Phase 1
+
+| Migration | Responsabilité |
+|---|---|
+| [20260906082312_phase1_schema.sql](../supabase/migrations/20260906082312_phase1_schema.sql) | 12 tables, schéma privé, extensions utiles, contraintes, index, triggers techniques, RLS activée explicitement et fermeture des privilèges par défaut |
+| [20260906082313_phase1_security.sql](../supabase/migrations/20260906082313_phase1_security.sql) | Permissions de table et de colonne, policies RLS, prédicat privé de propriété |
+| [20260906082314_harden_rls_auto_enable.sql](../supabase/migrations/20260906082314_harden_rls_auto_enable.sql) | Révocation conditionnelle des droits d'appel API sur Automatic RLS, sans désactiver son event trigger |
+
+Ce socle est local et n'est pas déployé dans Supabase cloud. Il ne contient aucune donnée TCGdex réelle, aucune génération automatique, aucune RPC fonctionnelle et aucun frontend métier.
 
 ## Principes structurants
 
@@ -73,7 +83,9 @@ Les identifiants TCGdex restent des références externes séparées. Ils ne son
 
 ### Dates techniques
 
-Les timestamps techniques utilisent `TIMESTAMPTZ`. Les tables mutables importantes disposent de `created_at` et `updated_at` lorsque ces champs sont pertinents, avec une valeur initiale correspondant à la date courante. Le mécanisme commun de maintien de `updated_at` sera choisi lors de l'implémentation.
+Les timestamps techniques utilisent `TIMESTAMPTZ`, avec `now()` à la création. Le trigger commun `private.set_updated_at()` impose `statement_timestamp()` à chaque mise à jour ; il fonctionne en `SECURITY INVOKER`, avec `search_path = ''`, sans droit d'appel direct pour les rôles API. `card_pokemon` ne possède pas de timestamps ; `collection_shares` conserve seulement `created_at` ; `automatic_target_states` conserve seulement `updated_at`. Les autres tables possèdent les deux timestamps.
+
+Les UUID utilisateur hors profil utilisent `gen_random_uuid()`. L'UUID du profil provient exclusivement d'Auth. Les IDs numériques utilisent `BIGINT GENERATED ALWAYS AS IDENTITY`.
 
 ## Vue relationnelle simplifiée
 
@@ -118,6 +130,8 @@ tcg_sets ─ cible possible d'une collection automatique
 - `collection_shares`
 
 ### Données techniques et privilégiées
+
+Le schéma `private` existe dès la Phase 1, sans accès général pour `anon` et `authenticated`. Il accueille uniquement les fonctions techniques nécessaires au socle. Les structures suivantes restent conceptuelles et sont reportées à la Phase 2 :
 
 - `private.catalog_sync_runs`
 - `private.catalog_overrides`
@@ -191,6 +205,7 @@ Elle conserve notamment :
 - la rareté ;
 - l'URL de l'image ;
 - un ordre normalisé dans le set ;
+- `effective_release_date DATE`, date de parution effective complète et nullable ;
 - la date de mise à jour de la source ;
 - la présence actuelle dans la source ;
 - l'état actif dans MY. ;
@@ -199,7 +214,11 @@ Elle conserve notamment :
 
 Une carte appartient à exactement un set. Son ordre normalisé doit être stable et ne doit pas reposer uniquement sur un tri textuel naïf de `local_id`. L'algorithme final de calcul reste du ressort du pipeline TCGdex.
 
-La valeur d'origine doit distinguer au minimum une carte issue de TCGdex d'un ajout local MY., sans figer ici le type SQL ou le nom final de l'énumération.
+La valeur `origin` utilise `TEXT + CHECK` avec `tcgdex` et `my`. `source_present` est obligatoire et distinct de `is_active` ; une origine ne suffit pas à déterminer la présence actuelle dans la source.
+
+`effective_release_date` utilise la date précise de la carte si elle est fiable, sinon la sortie française du set (`tcg_sets.release_date`), avec priorité à une correction locale MY. validée. Aucune date n'est inventée en Phase 1. Le remplissage de la valeur effective et le traitement des dates manquantes seront définis par le pipeline.
+
+`normalized_number BIGINT` représente une clé numérique d'ordre du numéro, nullable avant normalisation. `sort_order BIGINT` conserve les ordres techniques des séries, sets et variantes ; ces colonnes peuvent rester nulles avant le pipeline. Aucun ordre final des variantes n'est imposé. Les données descriptives facultatives restent nullables, afin de ne pas fabriquer de noms, dates, images ou raretés manquants.
 
 ### `catalog_variants`
 
@@ -243,7 +262,7 @@ La disponibilité française distingue au minimum trois états conceptuels :
 - inconnue ou non déterminée ;
 - non disponible.
 
-Le nom final des valeurs et leur type SQL restent ouverts. Un simple booléen n'est pas suffisant, car l'absence d'information ne signifie pas une indisponibilité confirmée.
+La Phase 1 utilise `french_availability TEXT + CHECK` avec `confirmed`, `unknown` et `unavailable`, et `unknown` par défaut. L'absence d'information ne signifie pas une indisponibilité confirmée.
 
 Une variante est éligible à une génération automatique de la V1 seulement si elle est notamment :
 
@@ -328,13 +347,21 @@ Elle ne duplique pas le mot de passe, les informations internes Supabase ou les 
 
 ### Identifiant public MY.
 
-`public_id` est obligatoire, unique et distinct conceptuellement de l'UUID Auth. Il sert au partage d'une collection. Son format exact n'est pas encore défini ; aucune expression régulière produit ne doit être imposée arbitrairement.
+`public_id` est obligatoire, généré automatiquement par MY., non choisi par l'utilisateur, immuable et distinct de l'UUID Auth. Il sert principalement au partage d'une collection.
 
-Si le futur format est insensible à la casse, l'unicité devra l'être également. Ce comportement dépend du cadrage final de l'identifiant.
+Son format est `MY-XXXXX-XXXXX-XXXXX-XXXXX`, par exemple `MY-7K4P9-M2Q8X-RVH6T-C3N5D`. Les 20 caractères aléatoires appartiennent à l'alphabet `23456789ABCDEFGHJKMNPQRSTUVWXYZ`, qui exclut `0`, `O`, `1`, `I` et `L`.
+
+Le trigger `private.set_profile_public_id()` utilise `extensions.gen_random_bytes()` de `pgcrypto`. Il rejette les octets supérieurs ou égaux à 248 avant réduction modulo 31 pour éviter un biais de distribution. Le domaine représente environ 99 bits d'entropie. Toute insertion de profil sans identifiant reçoit automatiquement une valeur ; une valeur fournie explicitement est refusée.
+
+Le type `extensions.citext` et une contrainte `UNIQUE` assurent l'égalité et l'unicité insensibles à la casse. Le `CHECK` de format travaille sur la conversion `TEXT` avec collation `C` et impose les majuscules. Le trigger compare aussi l'ancienne et la nouvelle valeur en `TEXT` : une modification, même de casse ou vers `NULL`, est refusée. Les rôles API utilisateur ne reçoivent aucun droit d'écriture sur `profiles`.
+
+En cas de collision cryptographique exceptionnellement improbable, la contrainte unique refuse l'insertion ; le futur créateur de profil privilégié pourra retenter l'insertion. Aucun pseudo, nom d'affichage ou champ Auth dupliqué n'est ajouté.
 
 ### Création du profil
 
 Un utilisateur Auth valide ne doit pas rester durablement sans profil MY. La création fiable du profil peut reposer sur un trigger, une opération serveur ou un autre mécanisme adapté. Le choix final sera réalisé avec l'implémentation de l'authentification.
+
+La Phase 1 ne crée aucun trigger `auth.users → profiles`. La FK `profiles.id → auth.users.id` utilise `ON DELETE RESTRICT`, sans décider d'une cascade de suppression de compte.
 
 ## Collections
 
@@ -354,7 +381,7 @@ Une collection appartient à exactement un utilisateur. La table conserve notamm
 | `applied_target_version` | Version de structure réellement appliquée |
 | timestamps | Création et mise à jour |
 
-`collection_type` distingue les valeurs fonctionnelles `free` et `automatic`. `automatic_target_type` distingue `pokemon` et `set`. Les noms et types SQL définitifs de ces valeurs restent ouverts.
+`collection_type` utilise `free` et `automatic`. `automatic_target_type` utilise `pokemon` et `set`. Ces valeurs sont représentées par `TEXT + CHECK`, comme les origines et la disponibilité française, pour faciliter les migrations d'une jeune application sans enum PostgreSQL figé.
 
 Le type d'une collection est stable après sa création dans la V1.
 
@@ -392,15 +419,17 @@ Une variante ne peut apparaître qu'une seule fois dans une collection :
 UNIQUE(collection_id, variant_id)
 ```
 
-L'origine distingue les valeurs fonctionnelles `automatic` et `manual`, sans figer ici le type SQL final.
+L'origine utilise `TEXT + CHECK` avec `automatic` et `manual`.
 
 Dans une collection libre, tous les éléments sont manuels. Dans une collection automatique, les deux origines sont possibles.
 
 #### Ordre
 
-`sort_position` représente l'ordre global affiché. Sa représentation doit permettre autant que possible une insertion entre deux éléments sans réécrire systématiquement toute la collection. L'algorithme de positionnement et de rééquilibrage reste ouvert.
+`sort_position NUMERIC(40,20)` représente l'ordre global affiché avec une arithmétique décimale exacte. Une insertion entre deux positions peut utiliser leur moyenne ; un rééquilibrage limité à une plage sera nécessaire si les 20 décimales disponibles sont épuisées. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 1 fournit le stockage ; le code de repositionnement, de concurrence et d'ancrage lors des synchronisations reste à implémenter dans les opérations contrôlées. Les futures opérations devront préserver cette précision, sans calcul en flottant JavaScript.
 
-`automatic_rank` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est normalement absent pour un élément manuel.
+`automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection libre, y compris lors d'un changement de parent.
+
+Cet ordre canonique est distinct de `sort_position`. Pour Pokémon : date de parution effective complète croissante, numéro normalisé, ordre stable des variantes de la carte. Pour Extension : numéro normalisé dans le set, ordre stable des variantes. Les départages techniques ne peuvent pas modifier ces priorités. L'ordre précis des variantes, la normalisation et les dates non fiables restent à définir en Phase 2.
 
 La base, les permissions ou les opérations métier doivent garantir que :
 
@@ -438,7 +467,7 @@ La nomenclature des conditions n'est pas encore validée. `condition` doit reste
 
 `grading_company` et `grading_score` restent textuels. Une note de grading ne doit pas être supposée purement numérique.
 
-Lorsque `is_graded` est faux, les champs propres au grading doivent normalement être absents. Lorsque l'exemplaire est gradé, la société et la note ne sont pas encore rendues toutes deux obligatoires tant que le comportement produit exact n'est pas cadré.
+Lorsque `is_graded` est faux, un `CHECK` impose l'absence de `grading_company` et `grading_score`. Lorsque l'exemplaire est gradé, la société et la note peuvent encore être absentes tant que le comportement produit exact n'est pas cadré. `condition`, `grading_company` et `grading_score` sont des `TEXT` nullables, sans nomenclature métier définitive.
 
 ### Possession dérivée
 
@@ -465,7 +494,9 @@ UNIQUE(collection_id, recipient_user_id)
 
 Le propriétaire ne peut pas partager sa collection avec lui-même. La V1 ne définit qu'une permission de lecture seule ; aucun champ de rôle, de permission ou `can_edit` n'est nécessaire.
 
-Retirer un partage supprime seulement l'accès du destinataire. Cela ne modifie ni la collection ni les exemplaires du propriétaire.
+La ligne représente directement un partage actif dès confirmation du propriétaire. Aucun statut, invitation, acceptation ou refus n'existe dans la V1.
+
+Le propriétaire et le destinataire peuvent chacun supprimer la ligne de partage. Cela conserve la collection, ses éléments et les exemplaires. Un trigger interdit le partage vers le propriétaire et verrouille la collection lors de la vérification ; une modification privilégiée du propriétaire ne peut pas non plus créer un partage vers soi-même. La création depuis `public_id` attend la fonctionnalité dédiée.
 
 ## Suppressions des données utilisateur
 
@@ -519,7 +550,7 @@ Cette table conserve l'état courant de la structure automatique de chaque cible
 - le `content_hash` ;
 - `updated_at`.
 
-Une ligne représente exactement un Pokémon ou un set. La base doit assurer qu'il n'existe qu'un état courant par cible compatible, au moyen de contraintes adaptées sans imposer ici leur syntaxe finale.
+Une ligne représente exactement un Pokémon ou un set compatible avec `target_type`, garanti par un `CHECK`. Deux contraintes `UNIQUE` sur les cibles nullables assurent un seul état courant par Pokémon et par set. `generation_version BIGINT` est obligatoire et strictement positive. `content_hash TEXT` est obligatoire et non vide, sans longueur ou algorithme de digest imposé. Aucun état fictif ni calcul de structure n'est créé en Phase 1.
 
 ### Hash de structure
 
@@ -667,6 +698,29 @@ Un utilisateur anonyme n'accède pas aux données privées authentifiées. Un pr
 
 Les opérations structurantes peuvent être limitées aux RPC afin que la RLS et les contraintes ne soient pas contournées par une suite d'écritures directes.
 
+### Permissions effectivement accordées en Phase 1
+
+La matrice précédente décrit la cible fonctionnelle V1. Le socle SQL accorde actuellement :
+
+| Ressource | Accès direct `authenticated` |
+|---|---|
+| Catalogue et états de cible | `SELECT` uniquement, policies de lecture authentifiée |
+| Profil | Lecture de sa propre ligne uniquement ; aucune insertion, modification ou suppression |
+| Collections | Lecture si propriétaire ou destinataire ; insertion des seuls champs `name` et `collection_type`, limitée à `free` ; modification du seul `name` ; suppression par propriétaire |
+| Éléments | Lecture des collections accessibles ; aucune écriture directe, même pour le propriétaire |
+| Exemplaires | Lecture de ses lignes ou des seules variantes du propriétaire présentes dans une collection effectivement partagée ; insertion et édition des champs autorisés ; suppression de ses propres lignes |
+| Partages | Lecture par propriétaire ou destinataire concerné ; suppression par l'un ou l'autre ; aucune insertion ou modification directe |
+
+Les insertions de collections et d'exemplaires attribuent le propriétaire depuis `auth.uid()`. Les grants de colonnes ne permettent de modifier ni les propriétaires, ni les IDs, ni les versions ou cibles automatiques, ni les timestamps techniques. Les policies `UPDATE` comprennent à la fois `USING` et `WITH CHECK`. Les contraintes et triggers restent applicables aux écritures privilégiées.
+
+`anon` n'a aucun grant applicatif. Les privilèges par défaut des nouveaux objets créés par `postgres` sont fermés ; les migrations futures devront accorder explicitement leurs droits. Les 12 tables activent la RLS explicitement. `service_role`, réservé à un environnement de confiance, reçoit `SELECT / INSERT / UPDATE / DELETE` et l'usage des seules séquences catalogue nécessaires, sans grant applicatif `TRUNCATE`, `TRIGGER` ou `CREATE`.
+
+Le seul helper `SECURITY DEFINER` est `private.owns_collection(uuid)`. Il renvoie uniquement si `auth.uid()` est propriétaire de la collection donnée, sans paramètre d'identité utilisateur. Il évite la récursion des policies entre collections et partages. Son `search_path` est vide et son `EXECUTE` est accordé uniquement à `authenticated` pour l'évaluation des policies par référence résolue. Aucun `USAGE` général sur `private` n'est accordé aux rôles API ; le helper ne constitue pas une RPC exposée. Les autres fonctions techniques sont `SECURITY INVOKER`, sans droits d'appel API.
+
+### Automatic RLS existant
+
+La migration de durcissement vérifie `to_regprocedure('public.rls_auto_enable()')`. Si la fonction existe, elle retire `EXECUTE` à `PUBLIC`, `anon`, `authenticated` et `service_role`. Si elle est absente, la migration ne fait rien. Elle ne supprime, ne remplace et ne désactive ni la fonction ni l'event trigger. Un test local rejoue cette migration avec une fonction absente puis un event trigger synthétique actif, et vérifie qu'il continue d'activer la RLS.
+
 ### Fonctions privilégiées
 
 `SECURITY DEFINER` ne doit pas être utilisé par défaut. Lorsqu'une fonction en a réellement besoin, elle doit :
@@ -677,7 +731,7 @@ Les opérations structurantes peuvent être limitées aux RPC afin que la RLS et
 - disposer de droits d'exécution restreints ;
 - ne pas devenir un contournement général de la RLS.
 
-Les vues ou fonctions exposées doivent préserver le même périmètre d'accès que les tables sous-jacentes et ne jamais élargir implicitement la visibilité des données. Le SQL final de ces protections sera validé avec les migrations.
+Les futures vues ou fonctions exposées doivent préserver le même périmètre d'accès que les tables sous-jacentes et ne jamais élargir implicitement la visibilité des données. Aucune vue ou RPC fonctionnelle n'est créée en Phase 1.
 
 ## Opérations directes et centralisées
 
@@ -728,6 +782,7 @@ Les accès suivants doivent disposer d'index ou de contraintes uniques adaptés 
 - `tcg_sets.series_id` ;
 - `source_cards.set_id` ;
 - `source_cards.local_id` ;
+- `(effective_release_date, normalized_number, id)` pour préparer la priorité de tri Pokémon ;
 - `catalog_variants.source_card_id` ;
 - `card_pokemon.pokemon_id` ;
 - `card_pokemon.card_id`.
@@ -819,11 +874,13 @@ Ces mesures détermineront les optimisations ou évolutions d'offre nécessaires
 
 ## Migrations et versionnement
 
-Le schéma sera créé et modifié au moyen de migrations reproductibles et versionnées dans Git. Les tables, contraintes, fonctions, politiques et index ne doivent pas exister uniquement sous forme de changements manuels dans le dashboard Supabase.
+Le socle Phase 1 est créé par les migrations reproductibles versionnées dans Git ; ses évolutions suivent le même mécanisme. Les tables, contraintes, fonctions, politiques et index ne doivent pas exister uniquement sous forme de changements manuels dans le dashboard Supabase.
 
 Les migrations définissent la structure. Le catalogue TCGdex complet est alimenté par le pipeline d'import ou de synchronisation et ne doit pas être inséré dans une migration SQL gigantesque.
 
 ## Vérifications attendues
+
+Les suites [de tests PostgreSQL](../supabase/tests/database/) de Phase 1 couvrent la structure, les contraintes, les suppressions, les droits de table et de colonne, la RLS et Automatic RLS. `npm run db:test` exécute pgTAP via la CLI installée. Les fixtures synthétiques sont créées dans des transactions annulées, avec propriétaire, deux destinataires, tiers et rôle anonyme. Les scénarios fonctionnels de génération, conversion, progression et ancrage ci-dessous restent à tester lors de leur implémentation ; le socle ne prétend pas les calculer.
 
 ### Contraintes et logique métier
 
@@ -892,21 +949,19 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
-- le SQL exact des tables et des migrations ;
-- les noms finaux de certains enums et leur représentation SQL ;
-- la syntaxe exacte et la sensibilité à la casse de `public_id` ;
+- les migrations complémentaires nécessaires aux futures fonctionnalités et au pipeline ;
 - la nomenclature des conditions ;
 - les sociétés et formats de grading ;
 - le mécanisme exact de création du profil ;
 - l'algorithme de génération de `variant_key` ;
-- l'algorithme exact de l'ordre canonique du catalogue ;
-- le type et l'algorithme de `sort_position` ;
+- la normalisation finale des numéros, l'ordre précis des variantes et le traitement des cartes sans date fiable ;
+- le code de positionnement et de rééquilibrage de `sort_position`, dont le stockage fractionnaire est fixé ;
 - la stratégie d'ancrage des cartes manuelles après une mise à jour ;
 - la méthode exacte de récupération du snapshot `cards-database` et l'usage ponctuel de l'API REST ;
 - les champs source exacts conservés et les détails des données privées de synchronisation ;
 - la stratégie physique exacte de fusion des valeurs source et des overrides ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
-- le SQL final des politiques RLS ;
+- les évolutions des policies nécessaires aux futures opérations ;
 - le code et les signatures finaux des RPC ;
 - les préférences de vue effectivement persistées ;
 - la politique de suppression complète d'un compte ;

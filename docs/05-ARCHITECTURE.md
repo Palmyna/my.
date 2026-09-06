@@ -187,7 +187,7 @@ La Row Level Security PostgreSQL constitue la fondation de la sécurité des don
 - les autres données privées restent invisibles ;
 - un utilisateur ordinaire ne peut pas modifier le catalogue global.
 
-Les principes de politiques sont définis dans le [schéma PostgreSQL / Supabase](06-DATABASE.md). Leur SQL final reste à écrire et à tester dans les migrations.
+Les permissions et policies du socle Phase 1 sont définies dans le [schéma PostgreSQL / Supabase](06-DATABASE.md), implémentées par migrations et testées avec pgTAP sur Supabase local. Les opérations fonctionnelles futures conservent leurs limites de périmètre.
 
 ### Le frontend n'est pas une frontière de sécurité
 
@@ -498,10 +498,10 @@ Sans nouveau besoin explicite, la V1 n'introduit pas :
 
 Les choix suivants seront définis lors des étapes ultérieures, dans les limites du [schéma PostgreSQL / Supabase](06-DATABASE.md) :
 
-- le SQL final des tables, index, contraintes et migrations ;
-- le code final des politiques RLS et des fonctions RPC ;
+- les extensions futures du socle SQL, des index et des policies RLS de Phase 1 ;
+- le code final des fonctions RPC métier ;
 - la stratégie physique des corrections locales ;
-- l'algorithme final d'ordre et les détails de calcul des hashes de structure ;
+- la normalisation des numéros, l'ordre précis des variantes, les dates non fiables et les détails de calcul des hashes de structure, dans les priorités définies par `02-TCGDEX.md` ;
 - la bibliothèque d'interface éventuelle ;
 - le découpage détaillé des futures fonctionnalités dans la structure initialisée ;
 - les méthodes précises d'authentification ;

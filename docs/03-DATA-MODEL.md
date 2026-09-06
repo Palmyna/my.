@@ -84,6 +84,7 @@ Une carte source représente la carte de base provenant de TCGdex, avant la dist
 - son image ;
 - sa rareté et sa catégorie ;
 - une date ou information de mise à jour de la source ;
+- une date de parution effective complète, nullable si aucune date fiable n'est connue, selon la priorité carte puis sortie française du set et les corrections MY. ;
 - les autres métadonnées utiles à MY.
 
 Les données de gameplay inutiles à la V1 ne doivent pas être conservées sans besoin produit.
@@ -123,7 +124,7 @@ Deux variantes réellement distinctes doivent toujours pouvoir être représent�
 
 #### Disponibilité française
 
-Une variante doit pouvoir être considérée comme disponible en français, non disponible en français ou non déterminée lorsque l'information n'est pas suffisamment fiable. Cet état reste ternaire ; le nom final de ses valeurs et son type SQL ne sont pas encore figés.
+Une variante doit pouvoir être considérée comme disponible en français, non disponible en français ou non déterminée lorsque l'information n'est pas suffisamment fiable. Cet état reste ternaire ; la Phase 1 utilise `confirmed`, `unavailable` et `unknown` en `TEXT + CHECK`, conformément à `06-DATABASE.md`.
 
 Une variante qui n'est pas confirmée comme française ne doit pas entrer automatiquement dans les collections de la V1.
 
@@ -168,7 +169,7 @@ Chaque profil doit pouvoir contenir notamment :
 - les informations de profil nécessaires à la V1 ;
 - d'éventuels paramètres utilisateur futurs.
 
-L'identifiant public de partage est unique et ne doit pas être supposé identique à l'identifiant technique d'authentification. Sa possible modification ultérieure reste à définir.
+L'identifiant public de partage est distinct de l'UUID Auth, généré automatiquement par MY. et immuable. Il suit le format `MY-XXXXX-XXXXX-XXXXX-XXXXX`, avec 20 caractères aléatoires cryptographiques, sans `0`, `O`, `1`, `I` ni `L`. Sa forme stockée est en majuscules ; sa recherche et son unicité ignorent la casse. Aucun pseudo supplémentaire n'est créé. Le mécanisme fiable de création du profil lors du signup reste réservé à la phase Auth.
 
 ## Collections
 
@@ -254,17 +255,17 @@ Le modèle doit représenter un ordre stable des éléments :
 - dans une collection libre, l'ordre est contrôlé par l'utilisateur ;
 - dans une collection automatique, les éléments automatiques suivent l'ordre canonique de MY. et les éléments manuels sont positionnables librement autour d'eux.
 
-La stratégie de positionnement exacte — rangs, ancres, positions relatives ou autre mécanisme — reste ouverte.
+La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. L'ancrage et le repositionnement des éléments manuels lors d'une synchronisation restent ouverts.
 
 ### Ordre canonique du catalogue
 
 Les variantes éligibles aux collections automatiques doivent pouvoir être ordonnées de manière stable et déterministe.
 
-Pour une cible Pokémon, cet ordre peut notamment tenir compte de la série, du set, de la date de sortie, du numéro de carte et du type de variante.
+Pour une cible Pokémon, cet ordre suit la date de parution effective complète de la carte croissante, puis son numéro normalisé, puis l'ordre stable des variantes d'une même carte.
 
-Pour une cible Set, il doit pouvoir tenir compte de l'ordre officiel ou local du set, du numéro de carte et de l'ordre stable des variantes d'une même carte.
+Pour une cible Set, il suit le numéro normalisé dans le set, puis l'ordre stable des variantes d'une même carte. Le numéro ne suit pas un tri textuel naïf.
 
-Le calcul exact de l'ordre canonique n'est pas défini ici. Le modèle doit seulement permettre de le représenter ou de le calculer.
+La [politique TCGdex](02-TCGDEX.md) précise la date effective et son fallback français. Restent ouverts pour la Phase 2 : la normalisation des numéros, l'ordre précis des variantes et le traitement des dates non fiables. Des départages techniques peuvent compléter ces priorités sans les modifier.
 
 ## État et mise à jour des collections automatiques
 
@@ -373,7 +374,7 @@ La V1 ne propose qu'une permission de partage : la **lecture seule**. Aucun syst
 
 Pour une même collection, la relation avec un destinataire doit être unique. Le propriétaire ne doit pas se partager sa propre collection.
 
-Retirer un partage supprime l'accès du destinataire sans supprimer la collection, modifier son contenu ou toucher aux exemplaires du propriétaire. Le fonctionnement éventuel d'invitations ou d'acceptation reste ouvert.
+L'existence d'un partage représente directement un accès actif dès confirmation du propriétaire. Aucun statut, invitation, acceptation ou refus n'est prévu. Le propriétaire et le destinataire peuvent chacun supprimer cette relation ; cela retire uniquement l'accès, sans supprimer la collection, ses éléments ou les exemplaires du propriétaire. La résolution limitée d'un identifiant public sera implémentée avec la fonctionnalité de partage.
 
 ## Paramètres de vue et classeur
 
@@ -480,7 +481,7 @@ Le futur modèle technique doit permettre de garantir autant que possible que :
 - les éléments automatiques ne sont pas modifiables comme des éléments manuels ;
 - les corrections locales ne sont pas écrasées silencieusement par TCGdex.
 
-Les contraintes et opérations retenues pour imposer ces invariants sont précisées dans le [schéma PostgreSQL / Supabase](06-DATABASE.md) ; leur SQL final reste à écrire.
+Les contraintes implémentées en Phase 1 et les opérations fonctionnelles restant à réaliser sont distinguées dans le [schéma PostgreSQL / Supabase](06-DATABASE.md).
 
 ## Principes de sécurité futurs
 
@@ -493,7 +494,7 @@ Le modèle doit permettre de mettre en place des règles garantissant que :
 - les données personnelles d'autrui ne sont accessibles que dans le contexte explicitement partagé ;
 - le catalogue global est consultable sans être modifiable par les utilisateurs ordinaires.
 
-Les principes RLS sont définis dans le [schéma PostgreSQL / Supabase](06-DATABASE.md). Le code SQL final des politiques reste à écrire et à tester.
+Les permissions et policies RLS du socle Phase 1 sont définies dans le [schéma PostgreSQL / Supabase](06-DATABASE.md), versionnées par migrations et vérifiées par des tests PostgreSQL.
 
 ## Évolutivité
 
@@ -518,14 +519,14 @@ Dans la V1, aucune donnée d'abonnement, de facturation, de paiement, de quota o
 
 Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, dans les limites du [schéma PostgreSQL / Supabase](06-DATABASE.md) :
 
-- le SQL final des tables, contraintes, index, politiques RLS, fonctions, vues et migrations ;
-- le mécanisme de maintien des timestamps et de création du profil ;
+- les futures fonctions métier, vues et extensions du socle SQL de Phase 1 ;
+- le mécanisme de création du profil lors du signup ;
 - les détails de suppression logique du catalogue et la suppression complète d'un compte ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - la représentation physique finale des corrections, valeurs source et valeurs effectives ;
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;
-- l'algorithme d'ordre canonique ;
+- la normalisation finale des numéros, l'ordre précis des variantes et le traitement des dates non fiables ;
 - l'algorithme de positionnement des éléments manuels ;
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
 - la nomenclature des conditions ;

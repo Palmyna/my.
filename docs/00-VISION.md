@@ -234,7 +234,7 @@ Les sujets suivants devront être traités dans de futurs documents dédiés et 
 - le fonctionnement précis de l'authentification ;
 - les détails d'implémentation et l'automatisation future laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - les règles exactes des variantes de cartes ;
-- l'ordre automatique exact des collections ciblant un Pokémon ou une extension ;
+- les détails d'ordre encore ouverts dans la [politique TCGdex](02-TCGDEX.md), notamment l'ordre des variantes et les cas sans date fiable ;
 - le comportement détaillé lors de l'apparition d'une nouvelle carte ou variante éligible ;
 - le degré de personnalisation d'une collection automatique ;
 - la nomenclature exacte des états de conservation ;
