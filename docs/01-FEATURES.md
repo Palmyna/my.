@@ -117,7 +117,7 @@ Une collection automatique par extension calcule sa progression comme les autres
 
 ### Structure automatique fixe
 
-L'ordre canonique Pokémon suit la date de parution effective complète de la carte (`YYYY-MM-DD`) croissante, puis son numéro normalisé, puis l'ordre stable des variantes d'une même carte. L'ordre Extension suit le numéro normalisé dans le set, puis l'ordre stable des variantes. Les règles de date et les détails encore ouverts sont précisés dans la [politique TCGdex](02-TCGDEX.md).
+L'ordre canonique Pokémon suit la date de parution effective complète de la carte (`YYYY-MM-DD`) croissante, puis son numéro normalisé, puis l'ordre stable des variantes d'une même carte. L'ordre Extension suit le numéro normalisé dans le set, puis l'ordre stable des variantes. Le [pipeline](07-CATALOG-SYNC.md) implémente le tri naturel, les familles Normal/Holo/Reverse/autres et les dates inconnues en dernier. Seules les variantes standard actives et confirmées françaises sont éligibles ; les Jumbo sont exclues.
 
 Les cartes générées automatiquement constituent la structure de référence de la collection. Elles :
 
@@ -378,9 +378,9 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 
 - les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
 - l'algorithme exact de positionnement, d'insertion et d'ancrage des cartes manuelles, notamment lors d'une mise à jour automatique ;
-- les règles exactes d'inclusion, les variantes prises en charge, leur ordre précis, la normalisation des numéros et le traitement des cartes sans date fiable ;
+- les vérifications historiques d'inclusion de certaines variantes rares et les éventuelles évolutions au-delà des règles V1 du pipeline ;
 - la classification des blocs et des ères ;
-- les données exactes exploitées depuis TCGdex ;
+- les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;
 - la fréquence de vérification des mises à jour ;
 - le contenu précis du résumé et le fonctionnement des notifications de mise à jour ;
 - la nomenclature définitive des états de conservation ;

@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable de Phase 1 est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue ce socle des opérations fonctionnelles et du pipeline encore à implémenter. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable de Phase 1 est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue le socle Phase 1 déployé, les compléments locaux Phase 2 et les opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -16,7 +16,7 @@ Le socle stable de Phase 1 est implémenté dans les [migrations versionnées](.
 | [20260906082313_phase1_security.sql](../supabase/migrations/20260906082313_phase1_security.sql) | Permissions de table et de colonne, policies RLS, prédicat privé de propriété |
 | [20260906082314_harden_rls_auto_enable.sql](../supabase/migrations/20260906082314_harden_rls_auto_enable.sql) | Révocation conditionnelle des droits d'appel API sur Automatic RLS, sans désactiver son event trigger |
 
-Ce socle est local et n'est pas déployé dans Supabase cloud. Il ne contient aucune donnée TCGdex réelle, aucune génération automatique, aucune RPC fonctionnelle et aucun frontend métier.
+La Phase 1 est validée et déployée dans Supabase cloud ; ses trois migrations sont synchronisées Local / Remote selon le propriétaire. La Phase 2 ajoute uniquement en local [20260906155043_phase2_catalog_pipeline.sql](../supabase/migrations/20260906155043_phase2_catalog_pipeline.sql), sans modifier les migrations déployées. Elle apporte les stamps multiples et trois tables privées. Le pipeline local alimente le catalogue et les états automatiques ; les RPC utilisateur et le frontend métier restent à développer.
 
 ## Principes structurants
 
@@ -131,14 +131,13 @@ tcg_sets ─ cible possible d'une collection automatique
 
 ### Données techniques et privilégiées
 
-Le schéma `private` existe dès la Phase 1, sans accès général pour `anon` et `authenticated`. Il accueille uniquement les fonctions techniques nécessaires au socle. Les structures suivantes restent conceptuelles et sont reportées à la Phase 2 :
+La migration Phase 2 crée trois tables dans `private` :
 
-- `private.catalog_sync_runs`
-- `private.catalog_overrides`
-- `private.card_pokemon_overrides`, ou structure privilégiée équivalente
-- les seules autres métadonnées démontrées nécessaires par le pipeline catalogue
+- `catalog_sync_runs` : UUID, début/fin, statut, repository, SHA/date du commit, hash des overrides, version du pipeline, statistiques JSON et erreur ;
+- `catalog_overrides` : ID Git, raison, action, cible, valeurs source/effective JSON, redondance, état appliqué et FK du dernier run ; les mappings utilisent cette même table ;
+- `catalog_entity_keys` : clé durable, FK vers exactement une carte ou variante, pour les ajouts locaux et variantes corrigées. Les aliases persistent afin de préserver les IDs après retrait ou réactivation.
 
-Cette liste ne doit être étendue que pour répondre à un besoin réel non couvert.
+La RLS est activée explicitement sur les trois tables, sans policy ni grant API. PUBLIC, anon, authenticated et service_role n’ont ni USAGE du schéma privé ni droits sur ses tables/séquences. Le pipeline utilise la connexion PostgreSQL locale privilégiée ; aucune fonction SECURITY DEFINER supplémentaire n’est créée. Les FK techniques sont indexées et restrictives.
 
 ## Catalogue global
 
@@ -216,9 +215,9 @@ Une carte appartient à exactement un set. Son ordre normalisé doit être stabl
 
 La valeur `origin` utilise `TEXT + CHECK` avec `tcgdex` et `my`. `source_present` est obligatoire et distinct de `is_active` ; une origine ne suffit pas à déterminer la présence actuelle dans la source.
 
-`effective_release_date` utilise la date précise de la carte si elle est fiable, sinon la sortie française du set (`tcg_sets.release_date`), avec priorité à une correction locale MY. validée. Aucune date n'est inventée en Phase 1. Le remplissage de la valeur effective et le traitement des dates manquantes seront définis par le pipeline.
+`effective_release_date` suit carte, produit/coffret fiable, set FR/global, avec priorité finale aux overrides. Sans date fiable : NULL, placé en dernier pour Pokémon. Le snapshot inspecté ne fournit pas de dates propres ou de produits exploitables ; le pipeline utilise les dates des sets sans inventer de précision historique.
 
-`normalized_number BIGINT` représente une clé numérique d'ordre du numéro, nullable avant normalisation. `sort_order BIGINT` conserve les ordres techniques des séries, sets et variantes ; ces colonnes peuvent rester nulles avant le pipeline. Aucun ordre final des variantes n'est imposé. Les données descriptives facultatives restent nullables, afin de ne pas fabriquer de noms, dates, images ou raretés manquants.
+`normalized_number BIGINT` représente une clé numérique d'ordre du numéro, nullable avant normalisation. `sort_order BIGINT` conserve les ordres techniques des séries, sets et variantes ; ces colonnes peuvent rester nulles avant le pipeline. Le pipeline Phase 2 remplit les rangs naturels intra-set et les rangs de variantes selon `07-CATALOG-SYNC.md`. Les données descriptives facultatives restent nullables, afin de ne pas fabriquer de noms, dates, images ou raretés manquants.
 
 ### `catalog_variants`
 
@@ -233,7 +232,7 @@ La table conserve notamment :
 - l'éventuel identifiant de variante fourni par la source ;
 - un `variant_key` stable dans la carte source ;
 - un label d'affichage ;
-- les propriétés structurées utiles, dont type, subtype, taille, stamp et foil ;
+- les propriétés structurées type, subtype, taille, `stamp TEXT[] NOT NULL DEFAULT '{}'` et foil ;
 - une éventuelle URL d'image spécifique ;
 - la disponibilité française ;
 - un ordre stable dans la carte ;
@@ -252,7 +251,7 @@ Chaque variante possède une clé stable à l'intérieur de sa carte source. La 
 UNIQUE(source_card_id, variant_key)
 ```
 
-Le mécanisme final de génération de `variant_key` reste ouvert. Cette clé doit néanmoins permettre d'identifier durablement une variante même lorsque TCGdex ne fournit pas un identifiant directement exploitable.
+La clé V1 est `v1:` suivi du JSON `[type, subtype|null, taille standard, stamps triés, foil|null]`. Langue, label et tiers sont exclus de l’identité. La migration convertit chaque ancien stamp scalaire en tableau singleton et NULL en tableau vide, sans perte. Les tableaux ne peuvent pas contenir NULL ; le pipeline trie et déduplique les stamps avant persistance.
 
 #### Disponibilité française
 
@@ -294,13 +293,11 @@ La relation effective peut aussi conserver les informations techniques stricteme
 
 ### Corrections de rattachement Pokémon
 
-Une structure privilégiée telle que `private.card_pokemon_overrides` permet d'ajouter un rattachement manquant ou d'exclure un rattachement source incorrect. Elle peut distinguer les actions conceptuelles `include` et `exclude`, conserver leur raison et leurs timestamps.
-
-Le résultat effectif doit être déterministe et donner priorité à la correction MY. validée. Le SQL final et la forme physique exacte de cette structure restent ouverts.
+`private.catalog_overrides` trace aussi `mapping.include` et `mapping.exclude`, leur raison et leurs valeurs avant/après. La table effective `card_pokemon` est produite après ces actions Git prioritaires ; aucune table de corrections parallèle n’est nécessaire. `cameoDexIds` n’alimente pas ces relations en V1.
 
 ### Corrections de champs du catalogue
 
-Une structure privilégiée telle que `private.catalog_overrides` permet de distinguer la valeur source de la correction locale. Elle peut conserver conceptuellement :
+`private.catalog_overrides` distingue la valeur source de la valeur effective. Chaque action conserve :
 
 - l'entité concernée ;
 - son identifiant ;
@@ -429,7 +426,7 @@ Dans une collection libre, tous les éléments sont manuels. Dans une collection
 
 `automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection libre, y compris lors d'un changement de parent.
 
-Cet ordre canonique est distinct de `sort_position`. Pour Pokémon : date de parution effective complète croissante, numéro normalisé, ordre stable des variantes de la carte. Pour Extension : numéro normalisé dans le set, ordre stable des variantes. Les départages techniques ne peuvent pas modifier ces priorités. L'ordre précis des variantes, la normalisation et les dates non fiables restent à définir en Phase 2.
+Cet ordre canonique est distinct de `sort_position`. Pour Pokémon : date de parution effective complète croissante, numéro normalisé, ordre stable des variantes de la carte. Pour Extension : numéro normalisé dans le set, ordre stable des variantes. Les départages techniques ne peuvent pas modifier ces priorités. Les algorithmes précis sont implémentés en Phase 2 et définis dans `07-CATALOG-SYNC.md`.
 
 La base, les permissions ou les opérations métier doivent garantir que :
 
@@ -556,7 +553,7 @@ Une ligne représente exactement un Pokémon ou un set compatible avec `target_t
 
 `content_hash` représente la liste effective et ordonnée des IDs internes de variantes éligibles pour la cible.
 
-Si la liste ou son ordre change, le hash change. Si seule une métadonnée descriptive change, le hash reste identique.
+Le pipeline calcule SHA-256 sur le JSON compact de la liste ordonnée des IDs internes, sérialisés comme chaînes décimales. La version initiale vaut 1 ; elle augmente de 1 uniquement si le hash change. Si seule une métadonnée descriptive change sans modifier cet ordre, hash, version et timestamp restent identiques.
 
 #### Changement de métadonnée
 
@@ -824,7 +821,7 @@ La source, les transformations et les procédures de synchronisation sont défin
 
 ### `private.catalog_sync_runs`
 
-Cette table privée peut tracer les exécutions importantes du pipeline catalogue. Elle conserve conceptuellement :
+Cette table privée trace chaque apply, y compris un noop. Elle conserve :
 
 - son identifiant ;
 - le début et la fin ;
@@ -833,7 +830,7 @@ Cette table privée peut tracer les exécutions importantes du pipeline catalogu
 - des statistiques ciblées ;
 - un résumé d'erreur éventuel.
 
-Elle sert au diagnostic et n'est pas exposée aux utilisateurs. Le nom final de ses statuts et la structure exacte de ses données techniques restent ouverts.
+Statuts : running, success, failed. Le SHA source comporte 40 caractères hexadécimaux, le hash des overrides 64. Le run conserve également la date du commit et la version du pipeline. Le dry-run ne crée aucune ligne technique. Un échec de validation laisse la base intacte ; une erreur pendant apply annule le catalogue et peut produire ensuite un journal failed.
 
 ### Atomicité et recalcul des cibles
 
@@ -949,17 +946,12 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
-- les migrations complémentaires nécessaires aux futures fonctionnalités et au pipeline ;
+- les migrations complémentaires nécessaires aux futures fonctionnalités ;
 - la nomenclature des conditions ;
 - les sociétés et formats de grading ;
 - le mécanisme exact de création du profil ;
-- l'algorithme de génération de `variant_key` ;
-- la normalisation finale des numéros, l'ordre précis des variantes et le traitement des cartes sans date fiable ;
 - le code de positionnement et de rééquilibrage de `sort_position`, dont le stockage fractionnaire est fixé ;
 - la stratégie d'ancrage des cartes manuelles après une mise à jour ;
-- la méthode exacte de récupération du snapshot `cards-database` et l'usage ponctuel de l'API REST ;
-- les champs source exacts conservés et les détails des données privées de synchronisation ;
-- la stratégie physique exacte de fusion des valeurs source et des overrides ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code et les signatures finaux des RPC ;

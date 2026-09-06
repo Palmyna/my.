@@ -1,730 +1,170 @@
-# Pipeline catalogue et synchronisation TCGdex de la V1 de MY.
+# Pipeline catalogue et synchronisation TCGdex de MY.
 
-## Rôle du document
+## Rôle et état
 
-Ce document constitue la source de vérité concernant l'import et la synchronisation du catalogue Pokémon TCG de **MY.**. Il définit la source technique principale, l'identification des snapshots, la normalisation, la politique française, les corrections propres à MY., la comparaison avec PostgreSQL, la mise à jour des structures automatiques et les garde-fous du pipeline.
-
-Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique d'intégration de TCGdex](02-TCGDEX.md), le [modèle de données conceptuel](03-DATA-MODEL.md), les [principes UX/UI](04-UX-UI.md), l'[architecture technique](05-ARCHITECTURE.md) et le [schéma PostgreSQL / Supabase](06-DATABASE.md).
-
-Ce document ne constitue ni un script d'import, ni une procédure de déploiement finale, ni une spécification de code ligne par ligne. Les choix explicitement laissés ouverts ne doivent pas être inventés lors de l'implémentation.
-
-## Architecture générale
-
-Le catalogue est construit selon le flux suivant :
+Ce document est la référence du pipeline V1. Il applique la [politique TCGdex](02-TCGDEX.md), le [modèle](03-DATA-MODEL.md) et le [schéma SQL](06-DATABASE.md). La Phase 2 implémente le pipeline et le premier catalogue **sur Supabase local**. Son déploiement cloud reste séparé. La Phase 1 est déjà déployée dans le cloud, selon la validation du propriétaire.
 
 ```text
-tcgdex/cards-database
-          ↓
-Snapshot identifié par commit Git
-          ↓
-Parsing et normalisation
-          ↓
-Politique française
-          ↓
-Corrections MY. versionnées dans Git
-          ↓
-Validation
-          ↓
-Catalogue effectif MY.
-          ↓
-PostgreSQL / Supabase
-          ↓
-Structures automatiques versionnées
+Snapshot Git exact → lecture TypeScript → normalisation FR → overrides JSON Git
+→ validation → plan PostgreSQL → dry-run → application transactionnelle
+→ catalogue et structures automatiques hashées/versionnées → rapport
 ```
 
-Le frontend React ne récupère, ne construit et ne synchronise jamais directement le catalogue global. Il consomme les valeurs effectives déjà produites par le pipeline et enregistrées dans le catalogue local MY.
+Le même code assure import initial et synchronisations. Il ne modifie aucun profil, collection, élément, exemplaire, note ou partage. Les collections conservent leur version appliquée jusqu'à une future preview puis validation explicite. Les RPC et interfaces correspondantes restent hors Phase 2.
 
-## Source technique principale
+## Code et commandes
 
-### `tcgdex/cards-database`
+Le pipeline réside dans [`scripts/catalog/`](../scripts/catalog/), hors React. Node 24 exécute directement le TypeScript effaçable. `pg` assure la connexion PostgreSQL directe ; Zod valide les données ; le compilateur TypeScript déjà installé lit les AST sans exécuter les modules upstream. Aucun runtime `tsx` supplémentaire n'est nécessaire.
 
-Le dépôt open source `tcgdex/cards-database` est la source technique principale du pipeline catalogue de la V1. Il fournit le dataset amont utilisé pour construire le catalogue local.
+| Modules | Responsabilité |
+|---|---|
+| `snapshot.ts`, `reader.ts` | Cache Git, SHA, checkout détaché, lecture des littéraux et relations |
+| `normalize.ts`, `variants.ts`, `order.ts` | Champs utiles, FR, variantes, dates, images et rangs |
+| `overrides.ts` | Schéma strict, fusion prioritaire et provenance |
+| `database.ts`, `plan.ts` | Connexion, état existant, identités, diff et structures |
+| `apply.ts` | Réservation des IDs, écritures batchées et traces |
+| `report.ts`, `cli.ts` | Commandes, transaction, rapport et erreurs |
+| `catalog.test.ts`, `integration.ts`, `fixtures.ts` | Tests unitaires et intégration annulée |
 
-Le dépôt est privilégié parce qu'il permet :
+```sh
+npm run supabase:start
+npm run catalog:validate -- --snapshot <SHA_COMPLET>
+npm run catalog:sync -- --snapshot <SHA_COMPLET> --dry-run
+npm run catalog:sync -- --snapshot <SHA_COMPLET> --apply
+npm run supabase:stop
+```
 
-- de traiter un ensemble cohérent de données ;
-- d'identifier précisément la version importée ;
-- de reproduire un import ;
-- d'éviter des milliers d'appels réseau unitaires ;
-- de parser et valider localement les données ;
-- de comparer les évolutions ;
-- de faciliter les diagnostics.
+`catalog:sync` sans flag est un dry-run. Sans `--snapshot`, HEAD distant est résolu une fois puis figé. Le SHA explicite comporte 40 caractères hexadécimaux minuscules ; s'il est déjà en cache, aucun fetch n'est nécessaire. Les options inconnues/contradictoires sont refusées. `catalog:validate` effectue aussi le rapprochement en lecture avec la base locale, nécessaire pour les corrections d'entités historiques.
 
-### Place de l'API REST TCGdex
+Seul PostgreSQL local est accepté : loopback `127.0.0.1`, `localhost` ou `::1`, port `55322`, base `postgres`, migration Phase 2 présente. La connexion provient du statut JSON Supabase capturé en mémoire. La variable privée `CATALOG_DATABASE_URL` peut la remplacer, avec les mêmes restrictions et sans paramètres URL. Aucun secret n'est codé, affiché ou injecté dans React. Toutes les bases distantes sont refusées ; le mode remote reste à implémenter séparément.
 
-L'API REST TCGdex n'est pas la source principale des synchronisations. Elle peut servir à une vérification ponctuelle, un diagnostic, une comparaison, un test, une investigation manuelle ou un besoin futur spécifique.
+## Snapshot et lecture
 
-Elle ne doit pas être fusionnée silencieusement avec `cards-database` comme une seconde source automatique. Chaque exécution normale repose sur une source et un snapshot clairement identifiables.
+La seule source automatique est [`tcgdex/cards-database`](https://github.com/tcgdex/cards-database). REST reste réservé aux diagnostics ; aucune API de Pokémon, prix ou assets ne complète silencieusement le dataset.
 
-## Identification du snapshot
+Le clone/fetch peu profond est conservé dans `.cache/tcgdex/cards-database/`, ignoré par Git. L'origine et la propreté sont vérifiées avant checkout détaché. `.cache/tcgdex/pipeline.lock` empêche deux processus de changer simultanément le snapshot. Après un arrêt brutal, vérifier l'absence de run actif avant de retirer un verrou périmé. Aucun dataset complet n'est versionné dans MY.
 
-Chaque synchronisation conserve une référence immuable à la version de `cards-database` utilisée. La référence principale est le commit SHA Git.
+La référence inspectée est `1c30c50253756bafecf0f065fc377f77016ad12f`, datée `2026-09-06T11:03:48+01:00` : `interfaces.d.ts`, `cardUtil.ts`, `variantUtil.ts`, `setUtil.ts`, `translationUtil.ts` et les données réelles. La licence MIT du code dérivé accompagne le pipeline dans `TCGDEX-LICENSE.txt`.
 
-Le run doit pouvoir enregistrer conceptuellement :
+Le lecteur parcourt `data/`. Un nom `name.fr` non vide confirme la carte française. Les sets nommés en français sont conservés, même vides, ainsi que les sets référencés par une carte française. Les autres sets étrangers sont exclus. La relation explicite `card.set`, puis `set.serie`, prime sur le dossier ; une divergence est signalée. Le nom français manquant d'un set reste `NULL`.
 
-- le dépôt source ;
-- le commit SHA ;
-- la date du commit lorsqu'elle est utile.
+La série numérique `tcgp` (Pokémon TCG Pocket) est exclue du périmètre physique et comptée séparément. Le set technique `jumbo` est exclu. Les sets français vides sont diagnostiqués.
 
-Une valeur vague comme `latest` ou « dernière version » ne suffit pas. Une branche peut évoluer ; le commit effectivement importé doit rester identifiable pour permettre l'audit et la reproduction du résultat.
+Seuls les littéraux des champs utiles sont interprétés. Un import hors du répertoire de données, un champ dupliqué ou une expression exécutable dans un champ lu provoque une erreur. Les champs gameplay sont ignorés. Catégorie, rareté et labels utilisent les traductions du même snapshot, avec fallback sur la valeur source. Aucun `git log` unitaire par carte : `source_updated_at` reste `NULL` faute de valeur source fiable disponible.
 
-La méthode concrète de récupération du snapshot — clone Git, archive ou mécanisme équivalent — reste ouverte.
+Les fichiers, clés et départages sont triés explicitement sans locale système. La date du run appartient uniquement au journal technique.
 
-## Reproductibilité et déterminisme
+## Variantes et français
 
-À partir :
+Les objets détaillés et les booléens legacy sont convertis vers un modèle interne commun.
 
-- du même commit `cards-database` ;
-- de la même version des corrections MY. ;
-- du même code de pipeline ;
+| Déclaration sur une carte française | Résultat |
+|---|---|
+| `languages` contient `fr` | `confirmed` |
+| `languages` existe et exclut `fr`, même vide | `unavailable` |
+| `languages` absent | `confirmed` : sémantique TCGdex « toutes les langues » |
+| Variante legacy déclarée | `confirmed` |
+| Définition absente | Normal standard, valeur par défaut du convertisseur TCGdex |
+| Ambiguïté | Diagnostic ; un override peut imposer `unknown` |
 
-le résultat fonctionnel doit être identique. Les parsings, normalisations, clés de rapprochement, tris et calculs de structures doivent donc tendre vers un comportement déterministe.
+Legacy : `normal` est vrai par défaut, `holo`/`reverse` faux ; `firstEdition` ajoute le stamp aux finitions déclarées, `wPromo` ajoute la Normal W. `preRelease` seul ne précise pas la finition : diagnostic sans fabrication d'une combinaison. Les formes inconnues/contradictoires bloquent. Les répétitions dont toutes les valeurs normalisées sont identiques sont regroupées et comptées ; aucun doublon ne subsiste après validation.
 
-## Stratégie de synchronisation de la V1
+Une taille absente vaut `standard`. Toute variante `jumbo` est comptée puis écartée avant catalogue collectible, rangs et structures. Un ajout local Jumbo est refusé. Une ligne historique absente du catalogue souhaité reste stockée inactive.
 
-### Retraitement complet du catalogue utile
-
-Pendant la phase initiale, chaque synchronisation peut retraiter l'ensemble du catalogue utile à MY. Cette stratégie simple est privilégiée à un moteur incrémental complexe, car elle facilite la fiabilité, les tests, la comparaison et la reproductibilité.
-
-Le retraitement complet signifie :
-
-1. lire tout le snapshot pertinent ;
-2. construire l'état souhaité ;
-3. le comparer au catalogue PostgreSQL existant ;
-4. appliquer uniquement les différences nécessaires.
-
-Il ne signifie jamais vider les tables, recréer toutes les entités ou casser les références utilisateur.
-
-### Idempotence
-
-Le pipeline est idempotent. Relancer le même snapshot avec les mêmes corrections et le même code ne doit produire :
-
-- aucun doublon ;
-- aucun nouvel ID pour une entité déjà connue ;
-- aucun changement fonctionnel supplémentaire ;
-- aucune nouvelle version automatique lorsque la structure n'a pas changé.
+### Identité V1
 
 ```text
-sync(snapshot X) + sync(snapshot X) = même état fonctionnel
+v1:JSON.stringify([type, subtype|null, "standard", stamps_triés_sans_doublon, foil|null])
 ```
 
-## Étapes du pipeline
+Exemple : `v1:["holo",null,"standard",["pre-release","staff"],"cosmos"]`.
 
-Une synchronisation suit conceptuellement les étapes suivantes :
+Les propriétés utilisent les valeurs canoniques upstream. Les stamps sont triés indépendamment de la locale. Label, langue, image, tiers et prix ne participent jamais à l'identité. `UNIQUE(source_card_id, variant_key)` reste en place.
 
-1. identifier le snapshot `cards-database` ;
-2. lire les données source ;
-3. sélectionner les données pertinentes pour MY. ;
-4. parser et normaliser les données ;
-5. construire les séries ou blocs ;
-6. construire les extensions ou sets ;
-7. construire les cartes sources ;
-8. construire les variantes ;
-9. déterminer leur disponibilité française ;
-10. construire les rattachements entre cartes et Pokémon ;
-11. appliquer les corrections MY. versionnées ;
-12. valider l'état final ;
-13. comparer cet état avec PostgreSQL ;
-14. produire un plan de changements ;
-15. appliquer les changements ;
-16. recalculer les structures des cibles automatiques ;
-17. mettre à jour leurs hashes et versions uniquement si nécessaire ;
-18. produire un rapport de synchronisation.
+Pour les variantes détaillées, `source_variant_id` reproduit l'identifiant du `variantUtil.ts` inspecté : valeurs anglaises, taille explicite, clés triées, hash entier base 31 rendu en base 36. Il reste distinct de la clé MY. Pour le legacy, il vaut `NULL` ; `generated` n'est jamais stocké.
 
-Une erreur bloquante pendant la lecture, le parsing, les corrections ou la validation interrompt le processus avant toute écriture.
+### Ordre
 
-## Politique française
+Ordre macro : Normal, Normal avec stamps ; Holo, Holo avec stamps, Holo avec foil, Holo avec foil/stamps ; les quatre groupes Reverse équivalents ; autres types. Poké Ball précède Master Ball. Aux niveaux égaux, type, foil canonique, stamps, subtype et identité départagent de façon déterministe. Aucun ordre officiel des futures valeurs n'est inventé.
 
-### Périmètre de la V1
+Le rang positif intra-carte est stocké dans `sort_order`, y compris pour les variantes standard non confirmées. L'éligibilité est filtrée ensuite.
 
-Les collections automatiques de la V1 utilisent uniquement les variantes actives et confirmées comme réellement disponibles en français.
+## Numéros, dates, images et Pokémon
 
-La présence d'un set en français ne prouve pas que toutes ses variantes existent dans cette langue. Une variante ne devient pas française par simple analogie avec une version anglaise, une habitude éditoriale ou les autres variantes de la même carte.
+Le tri naturel reconnaît `préfixe lettres + entier + suffixe lettres`, avec entier `BigInt`. La numérotation principale précède les groupes préfixés, classés canoniquement puis naturellement. Exemple : `1, 2, 2A, 3, 10`, puis groupes GG/SV/TG. La forme originale départage `1`/`001`. Les autres formes (`!`, `%3F`, lettres Zarbi, `ONE`/`TWO`/`THREE`/`FOUR`) produisent un diagnostic et un fallback canonique après les formats reconnus. Le rang positif intra-set est matérialisé dans `normalized_number`.
 
-### États de disponibilité
+Une date fiable est une date calendrier complète `YYYY-MM-DD`. Un objet linguistique fournit uniquement sa date `fr` ; une date globale scalaire est acceptée. Une date étrangère n'est pas choisie arbitrairement dans un objet sans FR.
 
-La disponibilité française conserve trois états conceptuels, ou des noms techniques équivalents :
+Priorité : date propre de carte, produit/coffret fiable, set FR/global ; un override peut tout remplacer. Le snapshot inspecté ne fournit pas de date propre ni de relation produit datée exploitable pour les cartes importées : toutes utilisent le fallback set. La fonction de priorité teste le niveau produit, mais aucun champ produit hypothétique ni recherche externe n'est inventé. Les dates promotionnelles précises peuvent être corrigées par un override documenté. Sans date fiable : `NULL`, diagnostic et placement après les cartes datées dans l'ordre Pokémon.
 
-| État | Signification | Éligibilité automatique |
-|---|---|---|
-| `confirmed` | La variante est confirmée disponible en français | Oui, si les autres critères sont satisfaits |
-| `unknown` | Les informations sont insuffisantes | Non |
-| `unavailable` | La variante est connue comme indisponible en français | Non |
+Les URL suivent le compilateur source : carte `https://assets.tcgdex.net/fr/<serie>/<set>/<localId>/high.webp`, logo FR, symbole `univ`. Les segments déjà encodés comme `%3F` ne sont pas encodés deux fois. Les variantes partagent normalement l'image principale ; un override peut la remplacer. Ces URL déterministes ne garantissent pas l'existence de l'asset : aucun index CDN mutable, téléchargement ou sondage HTTP ne décide de la structure. Le futur frontend devra gérer les images manquantes. Un compteur d'URL non nulles n'est pas un audit HTTP.
 
-En cas de doute, le pipeline choisit `unknown`. Une disponibilité `confirmed` doit venir d'une donnée suffisamment fiable ou d'une correction MY. validée.
+Les Pokémon proviennent des `dexId` effectifs après overrides : entiers positifs, sans doublons. Plusieurs dex créent plusieurs relations. `cameoDexIds` est ignoré pour les cibles et compté séparément. Aucun nom de carte, suffixe ou forme ne sert à deviner un nom Pokémon. `pokemon.name_fr` peut rester `NULL` ; les noms absents sont comptés. Leur source fiable reste à cadrer.
 
-## Séries, sets et noms
+## Overrides Git
 
-### Séries ou blocs
+Les fichiers `*.json` directement dans [`data/catalog-overrides/`](../data/catalog-overrides/) contiennent des tableaux d'actions. Le [guide et les exemples](../data/catalog-overrides/README.md) complètent le schéma Zod strict de `overrides.ts`. Le fichier initial est vide : aucun correctif réel n'est inventé.
 
-Le pipeline importe les séries ou blocs nécessaires à la hiérarchie, à la recherche, à l'ordre chronologique, à la vue classeur et aux relations avec les sets.
+Chaque action possède un ID durable et une raison non vide. Actions : `card.patch`, `card.add`, `variant.patch`, `variant.add`, `mapping.include`, `mapping.exclude`. Les patches portent uniquement sur les noms, catégorie, rareté, image, date, propriétés de variante, disponibilité et activité autorisés. Une carte locale reçoit `my:<id-override>`, sans faux ID TCGdex. Une variante source est ciblée par sa clé originale ; une variante ajoutée séparément par `my:<id-override>`.
 
-Une série ou un bloc — par exemple *Sun & Moon*, *Sword & Shield* ou *Scarlet & Violet* — ne doit jamais être confondu avec une extension précise.
+Ordre de dépendance : ajouts de cartes, ajouts de variantes, patches/rattachements ; chaque groupe est trié par ID. Deux corrections du même champ ou rattachement sont refusées. Sont également bloquants : JSON invalide, action/champ inconnu, ID dupliqué, cible inconnue, set manquant, date/dex invalide, Jumbo, doublon ou conflit d'identité final. Une entité absente du snapshot mais connue de PostgreSQL peut être ciblée si son set est encore reconnu ; carte et variantes repartent inactives et doivent être maintenues explicitement.
 
-### Extensions ou sets
+Un patch égal à sa valeur source est signalé comme redondant sans être supprimé. `private.catalog_overrides` conserve valeurs source/effectives ciblées, raison, redondance, état appliqué et dernier run. Les mappings utilisent cette même table. Git demeure l'autorité ; le frontend ne fusionne rien. Retirer un override désactive sa trace ; les ajouts locaux retirés deviennent inactifs sans suppression.
 
-Pour chaque set pertinent, le pipeline conserve les données utiles disponibles, notamment :
+Le hash des corrections est le SHA-256 du JSON canonique des actions validées triées par ID : clés d'objet triées, tableaux conservés. Les espaces des fichiers ne créent pas de version sémantique.
 
-- l'identifiant TCGdex ;
-- le nom français et le nom source ;
-- la série ou le bloc ;
-- la date de sortie ;
-- les abréviations ;
-- le nombre officiel de cartes ;
-- le logo et le symbole ;
-- les informations nécessaires à un ordre stable.
+## Diff, identités et transaction
 
-Une collection automatique Extension cible un set précis.
+Rapprochement : Pokémon par dex, séries/sets/cartes par ID TCGdex, variantes par carte et clé. Des aliases privés, créés seulement pour les ajouts locaux et variantes corrigées, préservent les IDs après correction, retrait ou réactivation. Ils sont conservés avec FK restrictives, sans exposition API.
 
-### Noms français
+Le plan distingue créations, modifications, réactivations, disparitions, désactivations, inchangés et différences de mappings. Les doublons sont vérifiés aussi contre les lignes historiques inactives. Aucun truncate ni remplacement global. Une disparition conserve la ligne, normalement `source_present=false`, `is_active=false`. Une donnée locale peut être `origin=my`, absente de la source et active. Corriger une entité TCGdex ne change pas automatiquement son origine.
 
-Lorsqu'une traduction française fiable est présente dans TCGdex, elle constitue la valeur source privilégiée. Une correction MY. peut néanmoins la remplacer lorsqu'elle est incorrecte.
+Le dry-run utilise `REPEATABLE READ READ ONLY` : aucun run, alias ou écriture, aucun `nextval`. Les IDs nouveaux sont prédits depuis les séquences lues afin de calculer les mêmes structures/hashes que l'apply sur le même état.
 
-## Cartes sources
+L'apply verrouille le pipeline et les tables catalogue/techniques, relit l'état puis valide le plan avant toute écriture. Il réserve les vrais IDs avec `nextval`, vérifie les prédictions puis insère via `OVERRIDING SYSTEM VALUE`. Une concurrence sur les séquences provoque un échec explicite. Les séquences PostgreSQL ne sont pas transactionnelles : un échec peut laisser des trous, sans catalogue partiellement importé. Un noop ne réserve aucun ID.
 
-Chaque carte pertinente du snapshot produit ou met à jour une `source_card`. Le pipeline conserve seulement les données utiles au produit et à la synchronisation, notamment :
+Les lignes modifiées sont écrites par lots de 1 000, avec paramètres JSON et types SQL ; les mappings sont appliqués en différences. Catalogue, mappings, aliases, corrections et états partagent une transaction. Une erreur annule les données ; un journal technique `failed` peut être ajouté après rollback. Une erreur de parsing/validation ne produit aucune écriture DB. Les statuts `running`/`success` sont enregistrés dans la transaction de réussite, avec statistiques compactes ; le fichier local conserve les détails.
 
-- l'identifiant TCGdex ;
-- le `local_id` ;
-- le set ;
-- le nom français ;
-- la catégorie ;
-- la rareté ;
-- la référence d'image ;
-- les données de tri ;
-- la date de parution effective complète de la carte, avec fallback normal sur la sortie française du set et priorité aux corrections MY. validées ;
-- les rattachements Pokémon ;
-- les informations nécessaires aux variantes ;
-- les métadonnées techniques ciblées utiles à la synchronisation.
+## Structures et versionnement
 
-Les attaques, coûts d'énergie, faiblesses, retraites, règles de combat et autres données de gameplay ne sont pas importés par défaut sans besoin produit.
+Éligibilité : variante standard, active, `confirmed`, carte et set actifs. La cible Pokémon nécessite le rattachement effectif ; la cible Set inclut toutes les catégories.
 
-### Identité et préservation des cartes
+Ordre Pokémon : date croissante, `NULL` en dernier, rang de numéro, rang de variante, clé de carte, identité de variante. Ordre Set : les mêmes critères sans date. Les départages techniques ne changent pas ces priorités.
 
-Le `tcgdex_id` est la référence externe principale pour reconnaître une carte source existante.
+Le hash est exactement `SHA-256(UTF-8(JSON.stringify(ids)))`, avec les IDs internes de variantes sous forme de chaînes décimales, dans leur ordre final. Exemple : `["12","47","103"]`. Les métadonnées n'entrent pas directement dans le hash ; une date agit seulement si elle change l'ordre.
 
-- Si la carte est déjà connue, son ID interne MY. est conservé.
-- Si un ID TCGdex inconnu apparaît, une nouvelle `source_card` reçoit un nouvel ID interne.
-- Une correction de nom, rareté ou autre métadonnée ne crée pas une nouvelle carte.
+Chaque set pertinent reçoit un état, même vide ; chaque Pokémon avec variante éligible reçoit un état. Un ancien état peut devenir vide. Version initiale `1`, puis `+1` uniquement si le hash diffère. Sinon hash, version, ID et timestamp restent inchangés. Une seconde application identique n'a aucun effet fonctionnel ; seul le journal peut évoluer.
 
-Une carte connue qui disparaît d'un snapshot n'est pas supprimée automatiquement. Elle peut être marquée comme absente de la source, notamment via `source_present = false`, puis être activée ou désactivée selon les règles du catalogue. Les références utilisateur restent intactes.
+## Rapports et validation
 
-## Construction des variantes
+Le résumé console affiche snapshot, volumes, FR, Jumbo, diff, mappings, overrides, dates, cibles, diagnostics, durée et résultat. Le JSON complet dans `.cache/catalog-reports/` inclut listes ordonnées par cible et hash du plan. Les rapports sont ignorés par Git ; aucune sortie de pilote, chaîne de connexion ou secret n'est recopiée.
 
-### Une variante par objet collectible
+Les tests couvrent unités Vitest, intégration complète sur dataset synthétique hors ligne et schéma/RLS pgTAP. L'intégration vérifie notamment les IDs, corrections, données locales, disparitions/rétablissements, hashes, versions, conservation des données utilisateur et rollback après erreur SQL tardive.
 
-Chaque variante réelle constitue une entité de catalogue distincte. Le pipeline exploite les propriétés structurées pertinentes disponibles, notamment :
-
-- type ;
-- subtype ;
-- taille ;
-- stamp ;
-- foil ;
-- autres propriétés réellement identitaires.
-
-Il ne réduit pas systématiquement toutes les variantes aux seuls libellés Normal, Holo et Reverse.
-
-### Label d'affichage
-
-Le pipeline peut construire un label lisible tel que Normal, Reverse, Holo ou Staff. Ce label sert à l'UX mais n'est pas nécessairement l'identité technique de la variante.
-
-### `variant_key`
-
-Chaque variante possède un `variant_key` stable à l'intérieur de sa carte source. Il permet de rapprocher une variante du snapshot de la `catalog_variant` MY. existante.
-
-Sa génération doit être :
-
-- déterministe ;
-- normalisée ;
-- stable autant que possible.
-
-Lorsqu'un identifiant de variante source stable et exploitable existe, il peut participer au rapprochement. Le pipeline ne doit toutefois pas dépendre exclusivement d'un champ absent sur certaines cartes.
-
-En fallback, la clé peut être construite à partir d'une combinaison normalisée du type, subtype, format ou taille, stamp, foil et des autres propriétés identitaires réelles. Son format exact reste ouvert.
-
-Un nom, une traduction ou un label purement descriptif ne doit pas constituer seul l'identité. Leur correction ne doit pas créer une nouvelle variante.
-
-### Cartes sans variante détaillée
-
-Lorsque TCGdex ne fournit pas de structure de variantes suffisante, le pipeline ne doit pas inventer toutes les variantes théoriquement possibles.
-
-Une variante de base peut être représentée lorsqu'elle est nécessaire pour que la carte réelle existe dans le catalogue. Toute variante supplémentaire doit provenir d'une donnée fiable ou d'une correction MY. validée.
-
-Le cas de Pikachu 28/73 de *Légendes Brillantes* illustre cette prudence : l'absence d'une Reverse dans la source ne prouve pas qu'aucune Reverse française réelle n'existe, mais elle n'autorise pas non plus le pipeline à l'inventer. Une correction MY. peut la documenter.
-
-## Rattachements Pokémon
-
-Le champ `dexId` est la source principale des relations entre cartes et Pokémon.
-
-- Plusieurs `dexId` produisent plusieurs rattachements.
-- Une carte multi-Pokémon devient éligible aux collections automatiques de chacun des Pokémon concernés.
-- L'absence de `dexId` ne déclenche pas une recherche textuelle agressive sur le nom.
-- Une carte peut rester sans rattachement tant qu'aucune information fiable n'est disponible.
-
-Les corrections MY. permettent d'inclure un rattachement manquant ou d'exclure un rattachement source erroné. La relation effective issue de ces corrections a priorité.
-
-## Corrections MY. versionnées dans Git
-
-### Source de vérité des corrections
-
-Dans la V1, les corrections et extensions propres au catalogue MY. sont versionnées dans le dépôt Git du projet. Elles ne doivent pas exister uniquement comme des modifications manuelles invisibles dans Supabase.
-
-Des commandes SQL ponctuelles exécutées dans le dashboard Supabase sans correction correspondante dans Git ne constituent jamais une source de vérité acceptable.
-
-```text
-Snapshot TCGdex
-    + normalisation MY.
-    + corrections MY. versionnées
-          ↓
-Catalogue effectif MY.
+```sh
+npm ci
+npm run supabase:start
+npm run db:reset
+npm run db:test
+npm run db:lint
+npm run catalog:test:db
+npm run db:types
+npm run typecheck
+npm run build
+npm run lint
+npm test
+npm run db:reset
+npm run catalog:sync -- --snapshot <SHA_COMPLET> --dry-run
+# Lire le rapport, puis :
+npm run catalog:sync -- --snapshot <SHA_COMPLET> --apply
+npm run catalog:sync -- --snapshot <SHA_COMPLET> --apply
+npm run supabase:stop
 ```
 
-Git fournit l'historique principal des décisions de correction : chaque ajout, modification ou retrait est lisible, révisable et reproductible comme un changement normal du dépôt.
+`db:reset` détruit exclusivement les données locales ; il n'est pas nécessaire à une synchronisation normale. L'intégration attend une base sans catalogue réel et annule toutes les fixtures. Les tests peuvent consommer des séquences malgré rollback, d'où le reset avant la mesure reproductible du premier import. L'arrêt normal conserve le volume importé.
 
-### Emplacement et format
+## Points restant ouverts
 
-Le dépôt devra disposer d'un emplacement clairement identifié pour ces corrections. Un dossier tel que `data/catalog-overrides/` est un exemple conceptuel, pas un nom imposé par ce document.
+Restent à cadrer : déploiement/opt-in distant, cadence, CI, automatisation, seuils d'alerte, vérification historique de variantes rares, dates de promotions/coffrets absentes de la source, noms Pokémon, politique éventuelle des cameos, interface de maintenance et traitement visuel des images manquantes.
 
-Le format doit être textuel, structuré, versionnable, lisible et validable automatiquement. JSON, YAML ou un format équivalent sont envisageables ; le choix final reste ouvert.
-
-Aucun dossier ni fichier d'override n'est créé tant que son emplacement et son format ne sont pas choisis lors de l'implémentation.
-
-### Types de corrections
-
-Les fichiers doivent pouvoir représenter au minimum :
-
-- une correction de champ : nom français, rareté, catégorie, date, set, image, disponibilité française ou propriété de variante ;
-- l'ajout d'une variante réelle absente de TCGdex ;
-- l'ajout exceptionnel d'une carte française réelle entièrement absente de TCGdex ;
-- l'inclusion ou l'exclusion d'un rattachement Pokémon ;
-- la désactivation fonctionnelle d'une donnée source incorrecte sans suppression physique.
-
-Une carte ou variante locale doit fonctionner comme toute autre entité dans la recherche, les collections, les exemplaires et les structures automatiques.
-
-### Références stables
-
-Une correction cible une entité au moyen de références stables, par exemple :
-
-- l'identifiant TCGdex d'une carte ou d'un set ;
-- un identifiant de carte associé au `variant_key` ;
-- un numéro Pokédex ;
-- un identifiant local MY. lorsqu'il est approprié.
-
-Elle ne doit pas dépendre uniquement d'un nom affiché, d'une traduction, d'une position de fichier ou d'un index de tableau fragile.
-
-### Validation
-
-Toutes les corrections sont validées avant toute écriture PostgreSQL. Une correction impossible à appliquer provoque un échec explicite, notamment en cas :
-
-- d'entité ciblée inexistante ;
-- de set invalide ;
-- de `variant_key` dupliqué ;
-- d'action inconnue ;
-- de champ non pris en charge ;
-- de structure de fichier invalide.
-
-Une correction devenue invalide après une évolution de TCGdex ne doit jamais être ignorée silencieusement.
-
-### Priorité et corrections redondantes
-
-L'ordre de calcul du catalogue effectif est :
-
-1. données TCGdex ;
-2. normalisation MY. ;
-3. corrections MY. ;
-4. validation finale.
-
-Une correction MY. validée a priorité sur la donnée source concernée.
-
-Si TCGdex corrige ultérieurement le problème, l'override MY. n'est pas supprimé automatiquement. Le rapport peut signaler qu'il paraît redondant ; son retrait reste une action contrôlée dans Git.
-
-### Workflow d'une correction
-
-Le flux de maintenance est conceptuellement :
-
-1. identifier une erreur ou une absence dans TCGdex ;
-2. ajouter ou modifier la correction dans le dépôt ;
-3. committer la correction ;
-4. lancer un dry-run ;
-5. vérifier le rapport ;
-6. lancer la synchronisation réelle ;
-7. vérifier le rapport final et les cibles affectées.
-
-### Représentation dans PostgreSQL
-
-Les structures privées telles que `private.catalog_overrides` peuvent refléter les corrections effectivement appliquées. Elles ne remplacent jamais les fichiers versionnés dans Git comme source de vérité de la V1.
-
-Le frontend consomme une seule valeur effective. Il ne choisit jamais lui-même entre donnée source et override.
-
-## Comparaison avec PostgreSQL
-
-### État souhaité et plan de changements
-
-Le pipeline construit d'abord l'état catalogue souhaité, puis le compare au catalogue existant. Il doit distinguer au minimum :
-
-- création ;
-- modification ;
-- absence de la source ;
-- désactivation ;
-- réactivation ;
-- ajout local ;
-- correction locale ;
-- changement de disponibilité française ;
-- ajout ou retrait d'un rattachement Pokémon ;
-- ajout ou retrait de variante.
-
-Cette comparaison produit un plan de changements avant l'écriture.
-
-### Préservation des IDs internes
-
-Toute entité reconnue comme existante conserve son ID interne MY. Le pipeline ne recrée pas arbitrairement les Pokémon, séries, sets, cartes ou variantes.
-
-Cette stabilité préserve les relations portées par les éléments de collection, les exemplaires et les structures automatiques.
-
-### Persistance et transactions
-
-Les différences peuvent être appliquées au moyen d'upserts ou d'opérations contrôlées équivalentes respectant les contraintes de `06-DATABASE.md`.
-
-Les changements sont transactionnels autant que raisonnablement possible. Si une transaction globale devient trop importante, plusieurs phases transactionnelles clairement ordonnées sont acceptables, à condition de garantir la cohérence de l'état final et la reprise explicite après une erreur.
-
-Une donnée source disparue est normalement inactivée ou marquée absente, pas supprimée physiquement. Aucune écriture catalogue ne doit supprimer des données utilisateur.
-
-## Historique et rapport de synchronisation
-
-### `private.catalog_sync_runs`
-
-Chaque synchronisation importante produit une entrée dans `private.catalog_sync_runs` ou une structure équivalente. Elle doit pouvoir conserver :
-
-- le début et la fin ;
-- le statut ;
-- le dépôt source ;
-- le commit SHA ;
-- la version du pipeline lorsqu'elle est utile ;
-- les compteurs et statistiques pertinents ;
-- un résumé d'erreur.
-
-Les états conceptuels principaux sont `running`, `success` et `failed`.
-
-### Rapport mainteneur
-
-Chaque exécution produit un rapport lisible, distinct des logs techniques bruts. Il doit permettre de comprendre le passage de l'état précédent au nouvel état et couvrir notamment :
-
-- **source** : dépôt, commit SHA et date ;
-- **séries et sets** : ajouts, modifications et disparitions ;
-- **cartes** : ajouts, modifications et absences de la source ;
-- **variantes** : ajouts, modifications, variantes devenues françaises ou non françaises, variantes restées inconnues et désactivations ;
-- **corrections** : overrides appliqués, invalides ou potentiellement redondants ;
-- **Pokémon** : rattachements ajoutés, retirés ou corrigés ;
-- **cibles automatiques** : hashes modifiés, anciennes versions et nouvelles versions.
-
-Le format exact du rapport reste ouvert.
-
-## Dry-run
-
-Le pipeline doit idéalement proposer un mode dry-run. Ce mode exécute :
-
-- la lecture du snapshot ;
-- le parsing et la normalisation ;
-- l'application en mémoire des corrections ;
-- les validations ;
-- la comparaison avec PostgreSQL ;
-- le calcul des structures automatiques ;
-- la génération du rapport.
-
-Il n'écrit rien dans PostgreSQL.
-
-Une commande comme `catalog:sync --dry-run` n'est qu'un exemple conceptuel. Son nom et sa syntaxe restent ouverts ; npm est le gestionnaire de paquets du projet retenu en Phase 0.
-
-## Import initial
-
-L'import initial utilise autant que possible le même pipeline que les synchronisations suivantes. La V1 ne doit pas reposer sur un script jetable d'initialisation suivi d'un second mécanisme différent.
-
-Sur une base vide, le pipeline doit pouvoir :
-
-1. remplir le catalogue utile ;
-2. appliquer les corrections Git ;
-3. construire les états initiaux des cibles automatiques ;
-4. produire un rapport initial.
-
-Chaque Pokémon possédant au moins une variante éligible et chaque set pertinent doit disposer d'un état courant après l'import. La Phase 1 représente `generation_version` par un `BIGINT` strictement positif, sans créer d'état de génération fictif. Le pipeline initialise et fait évoluer cet état en Phase 2.
-
-Le rapport initial doit notamment permettre de connaître le nombre de séries, sets, cartes, variantes et relations Pokémon. La taille réelle de PostgreSQL sera ensuite mesurée dans Supabase.
-
-## Structures automatiques
-
-### Cible Pokémon
-
-```text
-Rattachements carte-Pokémon effectifs
-          ↓
-Cartes actives
-          ↓
-Variantes actives et confirmées françaises
-          ↓
-Ordre canonique
-          ↓
-Structure automatique Pokémon
-```
-
-### Cible Extension
-
-```text
-Cartes actives du set
-          ↓
-Variantes actives et confirmées françaises
-          ↓
-Ordre canonique
-          ↓
-Structure automatique Extension
-```
-
-Une cible Extension désigne toujours un set précis, non une série ou un bloc.
-
-### Ordre canonique
-
-L'ordre produit est déterministe : un même catalogue génère toujours le même ordre.
-
-Pour une Extension, l'ordre suit le numéro normalisé de la carte dans le set, puis l'ordre stable des variantes d'une même carte. Un tri textuel naïf du numéro est exclu.
-
-Pour un Pokémon, les priorités sont la date de parution effective complète de la carte (`YYYY-MM-DD`) croissante, puis son numéro normalisé, puis l'ordre stable des variantes d'une même carte. La date précise de la carte prime ; à défaut, la sortie française du set sert de fallback normal. Une correction MY. peut fournir une valeur fiable lorsque la source est insuffisante ou erronée.
-
-La Phase 1 conserve `source_cards.effective_release_date DATE` nullable et ne l'alimente pas. La Phase 2 précisera les champs source utilisés, la normalisation des numéros, le traitement des cartes sans date fiable et l'ordre précis des variantes. Celui-ci doit fonctionner au-delà de Normal, Holo et Reverse. Des départages techniques peuvent compléter les priorités validées pour obtenir un ordre total déterministe, sans les changer.
-
-## Hash et version des cibles
-
-### Construction du `content_hash`
-
-Pour chaque cible, le pipeline produit la séquence stable et ordonnée des IDs internes de variantes qui constituent sa structure automatique. Le `content_hash` est calculé à partir de cette séquence.
-
-Le hash dépend :
-
-- des variantes présentes ;
-- de leur ordre.
-
-Il ne dépend pas du nom, de l'image, de la rareté, du label ou d'une autre métadonnée descriptive.
-
-### Mise à jour de la version
-
-Lors de la première génération, la cible reçoit une version initiale cohérente. Ensuite :
-
-- si le nouveau hash est identique, `generation_version` reste inchangée ;
-- si le hash diffère, `generation_version` est incrémentée.
-
-Pour la V1 privée, le pipeline peut recalculer toutes les structures automatiques après une synchronisation complète si cette opération reste rapide. Un moteur sophistiqué de dépendances incrémentales n'est pas requis.
-
-### Métadonnées et structure
-
-Une correction de nom, rareté, image, nom de set ou autre métadonnée descriptive devient immédiatement visible puisque les collections référencent le catalogue. Elle ne change pas la version si la séquence ordonnée de variantes reste identique.
-
-Un passage de `unknown` à `confirmed` peut ajouter la variante aux structures concernées. Un passage de `confirmed` à `unavailable` peut l'en retirer. Ces changements modifient le hash et incrémentent les versions correspondantes.
-
-## Séparation avec les collections utilisateur
-
-Le pipeline catalogue modifie :
-
-- le catalogue global ;
-- les états et versions des cibles automatiques.
-
-Il ne modifie jamais directement les `collection_items` des utilisateurs en réponse à une évolution du catalogue. Chaque collection conserve son `applied_target_version` jusqu'à ce que son propriétaire consulte le résumé puis applique explicitement la mise à jour prévue par `06-DATABASE.md`.
-
-Le pipeline ne crée ou ne modifie pas non plus :
-
-- les exemplaires physiques ;
-- les notes utilisateur ;
-- les profils ;
-- les partages.
-
-## Exécution manuelle initiale
-
-La synchronisation de la V1 privée est déclenchée manuellement. Le mainteneur choisit quand lancer :
-
-1. un dry-run ;
-2. la synchronisation réelle après lecture du rapport ;
-3. la vérification du rapport final et des cibles affectées.
-
-Aucun cron externe, worker permanent, scheduler payant, Edge Function planifiée ou traitement quotidien n'est nécessaire au départ.
-
-Lors de l'implémentation, une courte procédure devra expliquer comment récupérer le projet et le snapshot, exécuter le dry-run, lire le rapport, lancer l'écriture puis vérifier le résultat. Les commandes exactes seront documentées seulement lorsque le pipeline existera.
-
-Le projet devra alors proposer une commande principale claire pour la synchronisation et une variante explicite pour le dry-run. `catalog:sync` et `catalog:sync --dry-run` ne sont que des exemples conceptuels ; la syntaxe finale reste ouverte, avec npm comme gestionnaire de paquets du projet.
-
-## Sécurité et environnements
-
-### Exécution privilégiée
-
-Le pipeline peut écrire dans le catalogue global et s'exécute donc uniquement dans un environnement de confiance. Ses privilèges ne sont jamais exposés au navigateur.
-
-La clé Supabase `service_role`, ou tout secret équivalent :
-
-- n'est jamais utilisée dans React ;
-- n'est jamais placée dans une variable `VITE_*` ;
-- n'est jamais commitée dans Git ;
-- provient de variables d'environnement privées.
-
-Les logs et rapports ne doivent afficher aucune clé, aucun token ni aucun autre secret.
-
-### Protection de la base cible
-
-Le pipeline doit rendre difficile une synchronisation accidentelle vers la mauvaise base. L'environnement cible — développement ou production — doit être clairement identifiable. Le mécanisme précis de vérification et de confirmation reste ouvert.
-
-Les évolutions importantes sont testées en développement, avec le même pipeline, les mêmes règles et les mêmes fichiers de corrections qu'en production. Seule la configuration d'environnement change.
-
-## Contrôles de qualité et garde-fous
-
-Avant toute écriture, le pipeline vérifie notamment :
-
-- la validité des séries et des sets ;
-- la cohérence des identifiants TCGdex ;
-- l'absence de doublons source ;
-- l'absence de `variant_key` dupliqué dans une carte ;
-- la validité des rattachements Pokémon ;
-- la validité des états de disponibilité française ;
-- la validité de toutes les corrections.
-
-Il signale les situations suspectes, notamment :
-
-- plusieurs variantes produisant la même clé ;
-- une carte sans set ;
-- une correction ciblant une entité inexistante ;
-- une disparition massive de cartes ;
-- une variation anormale du nombre de variantes françaises ;
-- l'absence totale de cartes françaises ou de sets importés.
-
-Des seuils d'alerte ou de refus peuvent être ajoutés. Leurs valeurs exactes restent ouvertes. Le principe prioritaire est de préférer un échec explicite à la corruption silencieuse du catalogue.
-
-### Gestion des erreurs
-
-Une erreur bloquante détectée avant l'écriture laisse PostgreSQL inchangé.
-
-Une erreur pendant l'écriture doit être contenue par les transactions autant que possible. L'exécution est marquée `failed` et produit un résumé exploitable ; aucun état intermédiaire ne doit être masqué comme une réussite.
-
-## Maîtrise du coût et du volume
-
-Le pipeline respecte l'objectif Free Tier et la compacité définie dans l'architecture :
-
-- il ne télécharge ni ne stocke toutes les images TCGdex ;
-- il ne conserve pas systématiquement les payloads JSON bruts ;
-- il n'importe pas les données de gameplay inutiles ;
-- il utilise les IDs internes compacts du catalogue ;
-- il ne duplique pas le catalogue par utilisateur.
-
-Il conserve seulement les références ou URL d'images nécessaires. Les mesures prises après l'import initial permettent de confirmer la taille des tables, des index et du catalogue complet.
-
-## Organisation future du code
-
-Le pipeline sera isolé du frontend React. Son implémentation pourra séparer conceptuellement :
-
-- la récupération de la source ;
-- le parsing ;
-- la normalisation ;
-- la politique française ;
-- la construction des variantes ;
-- les rattachements Pokémon ;
-- les corrections ;
-- la comparaison avec la base ;
-- la persistance ;
-- le calcul des structures automatiques ;
-- le reporting.
-
-Ce découpage décrit des responsabilités, pas une structure de dossiers imposée.
-
-## Automatisation future
-
-La V1 privée ne fixe aucune fréquence de synchronisation. Un run peut être lancé lors d'une nouvelle extension, de nouvelles cartes, d'une correction TCGdex importante ou d'une correction MY.
-
-Plus tard, le même pipeline pourra être déclenché par GitHub Actions, une capacité Supabase ou un autre mécanisme adapté. Cette automatisation devra idéalement changer seulement l'origine du déclenchement, pas la manière dont le catalogue est construit.
-
-La fréquence, le mécanisme et l'éventuelle CI restent ouverts.
-
-## Tests prioritaires
-
-Les tests du pipeline doivent couvrir en priorité :
-
-- l'idempotence ;
-- la correspondance entre IDs source et IDs internes MY. ;
-- la préservation des IDs existants ;
-- la génération stable du `variant_key` ;
-- les trois états de disponibilité française ;
-- l'application et la persistance des overrides ;
-- le signalement d'un override devenu redondant ;
-- l'ajout d'une variante ou d'une carte locale ;
-- les cartes multi-Pokémon ;
-- la disparition d'une donnée source ;
-- le calcul du `content_hash` ;
-- l'évolution de `generation_version`.
-
-Scénarios essentiels :
-
-- resynchroniser le même snapshot ne produit aucun changement fonctionnel ;
-- une erreur TCGdex reste corrigée tant que l'override Git est présent ;
-- une correction devenue redondante est signalée sans être supprimée ;
-- une variante locale n'est pas dupliquée lors d'une nouvelle synchronisation ;
-- une modification de nom conserve le même hash et la même version ;
-- une nouvelle variante française modifie le hash et incrémente la version.
-
-## Reconstruction complète
-
-Une base doit pouvoir être reconstruite à partir de :
-
-1. ses migrations ;
-2. un snapshot `cards-database` identifié ;
-3. les corrections MY. versionnées dans Git ;
-4. le code du pipeline ;
-5. la génération du catalogue effectif et des états automatiques.
-
-Le résultat doit être fonctionnellement équivalent à celui de la synchronisation d'origine.
-
-## Hors responsabilité du pipeline
-
-Le pipeline ne doit pas :
-
-- modifier les exemplaires, notes, profils ou partages ;
-- appliquer automatiquement une mise à jour aux collections utilisateur ;
-- télécharger toutes les images TCGdex ;
-- stocker systématiquement les données gameplay ou payloads complets ;
-- gérer le Premium, les abonnements ou les paiements.
-
-## Décisions désormais figées
-
-- `tcgdex/cards-database` est la source technique principale.
-- Chaque synchronisation référence un snapshot par commit SHA Git.
-- Le retraitement complet du catalogue utile est acceptable dans la V1.
-- Le pipeline est déterministe autant que possible et idempotent.
-- Les IDs internes MY. existants sont préservés.
-- La politique française est stricte et conservatrice.
-- Aucune variante n'est supposée française sans preuve fiable.
-- Les corrections MY. sont versionnées dans Git et prioritaires sur la source.
-- Une correction invalide ou inapplicable provoque un échec explicite.
-- Le dry-run est recommandé et chaque synchronisation produit un rapport lisible.
-- La synchronisation est déclenchée manuellement dans la phase initiale.
-- Les structures automatiques sont recalculées, hashées et versionnées.
-- Une évolution du catalogue ne modifie jamais silencieusement une collection utilisateur.
-
-## Éléments laissés ouverts
-
-Les choix suivants seront réalisés lors de l'implémentation ou d'un cadrage ultérieur :
-
-- le langage et l'emplacement exacts du code ;
-- le nom et la syntaxe de la commande ;
-- la récupération par clone Git, archive ou autre mécanisme ;
-- l'emplacement final des corrections ;
-- JSON, YAML ou autre format structuré ;
-- le schéma précis de validation des corrections ;
-- l'algorithme final de `variant_key` et les propriétés exactes par type de variante ;
-- l'ordre précis des variantes, la normalisation des numéros et le traitement des cartes sans date de parution fiable ;
-- le traitement des cas TCGdex particulièrement atypiques ;
-- le SQL exact des upserts ;
-- la taille et le découpage des transactions ;
-- le format exact du rapport et des logs ;
-- les seuils d'alerte ou de refus ;
-- la protection exacte contre une mauvaise base cible ;
-- la fréquence future et le mécanisme d'automatisation ;
-- l'éventuelle intégration continue.
-
-## Synthèse
-
-MY. construit son catalogue depuis un snapshot immuable de `tcgdex/cards-database`, identifié par commit SHA. Le pipeline normalise les données, applique une politique française conservatrice, fusionne les corrections MY. versionnées dans Git, valide l'état souhaité puis le compare à PostgreSQL en préservant les IDs internes.
-
-Chaque exécution est traçable, reproductible et idempotente. Un dry-run et un rapport lisible permettent au mainteneur de contrôler les changements avant l'écriture. Les anomalies importantes provoquent un échec explicite plutôt qu'une modification silencieuse.
-
-Le pipeline recalcule les structures automatiques Pokémon et Extension, puis n'incrémente leur version que si leur séquence ordonnée de variantes change. Il ne modifie jamais les collections, exemplaires ou autres données utilisateur. La V1 reste manuelle et compacte ; une automatisation future pourra réutiliser exactement le même pipeline.
+Auth, frontend métier, recherche UI, notifications et opérations de collections restent des phases ultérieures. Langage, cache, JSON/Zod, identité, stamps, FR, Jumbo, numéros, dates inconnues, ordre, transaction, dry-run, hash et version sont désormais implémentés et testés.

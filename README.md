@@ -8,9 +8,9 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phase 0 validée ; Phase 1 — Socle PostgreSQL / Supabase implémenté et testé localement.** Trois migrations créent les 12 tables de la V1, leurs contraintes, index, triggers techniques, permissions et policies RLS. Les tests pgTAP vérifient le schéma et les accès. Les types TypeScript sont générés depuis la base locale.
+**Phase 0 validée ; Phase 1 validée et déployée sur Supabase cloud ; Phase 2 implémentée et vérifiée localement.** Les trois migrations Phase 1 sont synchronisées Local / Remote, selon la validation du propriétaire : 12 tables cloud avec RLS et Security Advisor sans problème. La migration complémentaire Phase 2 et le catalogue réel restent exclusivement locaux.
 
-Le frontend affiche toujours uniquement `MY.` et « Application initialisée ». Aucune Auth frontend, RPC fonctionnelle, interface métier ou synchronisation TCGdex n'est implémentée. Aucun catalogue réel n'a été importé. Le projet Supabase cloud n'est ni lié au dépôt ni modifié ; la Phase 1 n'est pas déployée en production et la Phase 2 n'a pas commencé.
+Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. Le frontend affiche toujours `MY.` et « Application initialisée » ; la Phase 3 / Auth, les RPC de collections et les interfaces métier n'ont pas commencé. Le cloud applicatif était vide au début de cette tâche, selon le propriétaire ; aucune écriture cloud Phase 2 n'a été effectuée.
 
 **Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place.
 
@@ -30,14 +30,14 @@ La stack installée comprend React 19, TypeScript 6, Vite 8, React Router 8, Tan
 | Commande | Usage |
 |---|---|
 | `npm run dev` | Serveur Vite de développement |
-| `npm run typecheck` | Vérification TypeScript du frontend, des tests et de la configuration Vite |
+| `npm run typecheck` | Vérification TypeScript du frontend, du pipeline, des tests et de Vite |
 | `npm run build` | Vérification TypeScript puis build Vite dans `dist/` |
 | `npm run preview` | Aperçu local du dernier build |
 | `npm run lint` | ESLint, avec analyse TypeScript et zéro avertissement autorisé |
 | `npm test` | Tests Vitest exécutés une fois |
 | `npm run test:watch` | Tests Vitest en mode interactif |
 
-Les tests utilisent React Testing Library, jest-dom et jsdom. Ils vérifient le rendu initial, les providers, la navigation, la conservation du cache et la préparation de la configuration/client Supabase sans requête réseau.
+Les 11 tests frontend utilisent React Testing Library, jest-dom et jsdom. Le projet Vitest `catalog` utilise Node pour les tests du pipeline. Aucun test unitaire ne requiert le dataset réel ni une base distante.
 
 ## Organisation du frontend
 
@@ -94,11 +94,11 @@ npm run supabase:stop
 | Commande ajoutée | Usage |
 |---|---|
 | `npm run db:reset` | Reconstruit entièrement la base **locale**, en supprimant ses données, depuis les migrations |
-| `npm run db:test` | Exécute les trois suites pgTAP via `supabase test db --local` |
+| `npm run db:test` | Exécute les quatre suites pgTAP via `supabase test db --local` |
 | `npm run db:lint` | Vérifie `public` et `private`, avec échec dès un avertissement SQL |
 | `npm run db:types` | Régénère `src/types/database.generated.ts` depuis `public` local ; le fichier existant est conservé si la CLI échoue |
 
-Les 258 assertions PostgreSQL utilisent uniquement des fixtures synthétiques, annulées à la fin de chaque suite. Elles couvrent les contraintes, l'identifiant public, les suppressions, les grants, la RLS et le durcissement d'Automatic RLS. Le lanceur de tests copie temporairement la migration de durcissement à côté du test pour la rendre accessible au conteneur `pg_prove` ; cette copie ignorée par Git est supprimée après l'exécution. Aucune donnée Auth ou catalogue de test ne constitue un seed applicatif.
+Les 307 assertions PostgreSQL comprennent les 258 assertions Phase 1 et 49 assertions complémentaires : stamps multiples, tables privées et permissions du pipeline. Les fixtures sont annulées à la fin de chaque suite. Le lanceur copie temporairement la migration Automatic RLS à côté du test pour `pg_prove`, puis supprime cette copie ignorée. Aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif.
 
 La validation Phase 1 a réussi sur PostgreSQL 17 local : reconstruction depuis les migrations, 258 assertions pgTAP, lint SQL sans avertissement, contrôle de sécurité Supabase sans problème signalé et génération CLI des types. Les vérifications frontend restent `build`, `lint` et les 11 tests Vitest.
 
@@ -106,7 +106,25 @@ Les déclarations de types restent celles produites par la CLI ; le script norma
 
 Les migrations sont détaillées dans [06-DATABASE.md](docs/06-DATABASE.md). Le profil reçoit automatiquement son identifiant public immuable ; la création du profil lors du signup attend la phase Auth. Les créations automatiques, les modifications d'éléments et la création d'un partage restent fermées à l'écriture directe jusqu'aux opérations contrôlées correspondantes.
 
-Le pipeline, les corrections privées détaillées, les priorités exactes des variantes, la normalisation des numéros et le traitement des dates inconnues attendent la Phase 2. Toute migration cloud fera l'objet d'une étape séparée après review et validation du propriétaire ; aucune commande de lien ou de déploiement distant n'appartient à ce workflow local.
+## Catalogue TCGdex local
+
+La procédure et les algorithmes sont définis dans [07-CATALOG-SYNC.md](docs/07-CATALOG-SYNC.md). `scripts/catalog/` utilise Node 24, TypeScript, Zod et `pg` (avec ses types). Le cache Git et les rapports résident dans `.cache/`, ignoré. Les corrections versionnées sont dans [data/catalog-overrides/](data/catalog-overrides/README.md) ; aucun override réel n'est ajouté par défaut.
+
+L'import vérifié contient 19 907 cartes, 31 900 variantes, 1 025 Pokémon et 188 sets. Le dry-run ne modifie rien et la seconde application conserve intégralement les IDs, hashes, versions et timestamps. Les chiffres, anomalies source et preuves sont conservés dans le [rapport Phase 2](docs/reports/2026-09-06-PHASE2.md).
+
+| Commande | Usage |
+|---|---|
+| `npm run catalog:validate` | Valide snapshot, corrections et rapprochement en lecture sur Supabase local |
+| `npm run catalog:sync` | Dry-run complet par défaut, zéro écriture DB, aucun ID consommé |
+| `npm run catalog:sync -- --snapshot <SHA> --dry-run` | Rejoue un SHA exact et produit le plan |
+| `npm run catalog:sync -- --snapshot <SHA> --apply` | Applique le plan transactionnellement sur la base locale |
+| `npm run catalog:test:db` | 32 assertions d'intégration hors ligne, avec rollback de toutes les fixtures ; base locale vide requise |
+
+Sans SHA, le HEAD TCGdex est résolu une fois. Le premier clone/fetch nécessite GitHub ; un SHA déjà en cache peut être rejoué hors ligne. La connexion locale provient du statut Supabase sans afficher les secrets. `CATALOG_DATABASE_URL`, privée et facultative, accepte seulement le loopback sur `55322/postgres`. Aucun mode distant n'est disponible. `--apply` est obligatoire pour écrire.
+
+Pour vérifier une reconstruction : démarrer Supabase, exécuter `db:reset`, `db:test`, `db:lint`, `catalog:test:db`, `db:types`, puis les contrôles TypeScript/build/lint/tests. Après les fixtures, refaire `db:reset`, lancer le dry-run au SHA choisi, lire son rapport, puis appliquer deux fois le même SHA afin de vérifier l'idempotence. Le deuxième apply ne doit changer aucune donnée fonctionnelle. Les rapports JSON complets sont dans `.cache/catalog-reports/`.
+
+`db:reset` supprime le catalogue local et ne sert pas à une synchronisation normale. `supabase:stop` conserve le volume importé. Le déploiement de la migration Phase 2 et du premier catalogue cloud sera effectué séparément après validation du propriétaire.
 
 ## Documentation
 

@@ -38,7 +38,7 @@ select col_type_is('public', 'profiles', 'public_id', 'citext', 'Public ID equal
 select hasnt_column('public', 'physical_copies', 'collection_id', 'Copies are independent of collections');
 select hasnt_column('public', 'physical_copies', 'quantity', 'One row per physical copy');
 select hasnt_column('public', 'collection_shares', 'status', 'Share existence means active');
-select is((select count(*) from information_schema.tables where table_schema = 'private'), 0::bigint, 'Pipeline tables deferred');
+select is((select count(*) from information_schema.tables where table_schema = 'private'), 3::bigint, 'Phase 2 pipeline tables remain private');
 
 -- Synthetic fixtures only; all tests roll back. No TCGdex data or Auth signup.
 insert into auth.users (id) values

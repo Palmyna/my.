@@ -99,7 +99,7 @@ export type Database = {
           source_card_id: number
           source_present: boolean
           source_variant_id: string | null
-          stamp: string | null
+          stamp: string[]
           subtype: string | null
           updated_at: string
           variant_key: string
@@ -119,7 +119,7 @@ export type Database = {
           source_card_id: number
           source_present: boolean
           source_variant_id?: string | null
-          stamp?: string | null
+          stamp?: string[]
           subtype?: string | null
           updated_at?: string
           variant_key: string
@@ -139,7 +139,7 @@ export type Database = {
           source_card_id?: number
           source_present?: boolean
           source_variant_id?: string | null
-          stamp?: string | null
+          stamp?: string[]
           subtype?: string | null
           updated_at?: string
           variant_key?: string

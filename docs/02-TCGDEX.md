@@ -33,6 +33,10 @@ La V1 de MY. est exclusivement centrée sur les **cartes Pokémon TCG disponible
 
 Une carte disponible en français n'implique pas que toutes ses variantes le soient également. La disponibilité linguistique doit donc être évaluée pour chaque variante avant son ajout automatique.
 
+La Phase 2 fait confiance aux déclarations TCGdex : `languages` contenant `fr` confirme la variante ; une liste explicite sans `fr` la rend `unavailable` ; l'absence de `languages` signifie toutes les langues et confirme la variante sur une carte française. Les variantes legacy déclarées sont également confirmées. Les ambiguïtés sont signalées et peuvent rester `unknown`. Un override MY. peut imposer chacun des trois états.
+
+MY. exclut toutes les variantes Jumbo et le catalogue numérique Pokémon TCG Pocket de son périmètre physique. Une taille absente est normalisée en `standard`. Les séries/sets utiles sont ceux ayant des métadonnées françaises ou référencés par les cartes françaises, selon les conventions détaillées dans le pipeline.
+
 Lorsqu'une information fiable de disponibilité en français existe dans la source, MY. doit l'utiliser. Lorsqu'elle est absente ou insuffisante, une correction locale peut compléter la source. Les cartes uniquement disponibles dans d'autres langues ne sont pas intégrées automatiquement dans la V1. Une éventuelle prise en charge multilingue relève d'un cadrage futur.
 
 ## Séparation des niveaux de données
@@ -179,7 +183,7 @@ Les données `dexId` peuvent être absentes ou incomplètes. MY. doit pouvoir re
 - un rattachement manuel ;
 - d'autres informations structurées disponibles dans la source.
 
-Le mécanisme de fallback exact reste à définir. Une simple comparaison textuelle du nom ne doit pas devenir la règle principale d'identification.
+En V1, le complément est un override Git explicite d'inclusion/exclusion de rattachement. `cameoDexIds` n'alimente pas les cibles automatiques. Aucun fallback textuel ni source Pokémon secondaire n'est ajouté. Les noms français des cibles peuvent rester inconnus.
 
 ## Séries, sets et blocs
 
@@ -285,11 +289,11 @@ Pour une collection par Pokémon, les priorités sont :
 2. numéro normalisé de la carte ;
 3. ordre stable des variantes d'une même carte.
 
-La date précise de la carte est utilisée lorsqu'elle est connue ; sinon, la date de sortie française du set sert de fallback normal. Une correction locale MY. peut fournir la valeur correcte si la source est insuffisante ou erronée. `source_cards.effective_release_date` conserve cette date effective et reste nullable lorsqu'aucune date fiable n'est connue. La Phase 1 n'invente et ne remplit aucune date ; la Phase 2 précisera l'alimentation depuis `cards-database` et le traitement des dates manquantes.
+La date précise de la carte prime, puis la date fiable du produit/coffret, puis la sortie française ou globale fiable du set. Un override MY. peut remplacer toute valeur erronée. `source_cards.effective_release_date` reste nullable ; les dates inconnues viennent après les cartes datées. Le snapshot Phase 2 ne fournit pas de dates de produits exploitables : aucun enrichissement externe ne les invente.
 
 Pour une collection par Extension, les priorités sont le numéro normalisé de la carte dans le set, puis l'ordre stable des variantes d'une même carte. Le numéro n'est jamais trié naïvement comme une chaîne de caractères.
 
-La normalisation finale des numéros et l'ordre précis des variantes restent ouverts pour la Phase 2. Des départages techniques peuvent rendre l'ordre total déterministe, sans modifier ces priorités. La chronologie des séries ou des sets ne remplace pas la date effective de la carte comme priorité Pokémon.
+Le pipeline matérialise un rang issu d'un tri naturel des numéros, avec numérotation principale avant groupes préfixés. Il ordonne Normal, Normal avec stamps, les familles Holo puis Reverse (sans foil/stamp, avec stamps, avec foil, avec foil/stamps), puis les autres types. Poké Ball précède Master Ball ; les valeurs restantes ont un départage canonique. La chronologie des séries ne remplace pas la date effective comme priorité Pokémon.
 
 ## Synchronisation du catalogue
 
@@ -355,7 +359,7 @@ Ces corrections répondent à des cas identifiés et ne remplacent pas TCGdex co
 
 ### Priorité et synchronisation
 
-Une synchronisation ne doit jamais écraser aveuglément une correction locale. Dans la V1, les corrections MY. sont versionnées dans Git et appliquées après la normalisation de la source, avant la validation finale. Elles ont priorité sur les valeurs TCGdex concernées. Leur format et le mécanisme technique exact de fusion restent à définir.
+Les corrections JSON de `data/catalog-overrides/` sont versionnées dans Git, validées par Zod et appliquées après normalisation, avant validation finale. Elles priment sur TCGdex ; les tables privées conservent leur provenance appliquée. Le mécanisme est défini dans `07-CATALOG-SYNC.md`.
 
 ### Traçabilité
 
@@ -385,7 +389,7 @@ Les données TCGdex prioritaires comprennent notamment :
 - les informations nécessaires à l'ordre automatique ;
 - les informations de mise à jour utiles.
 
-Le [modèle de données conceptuel](03-DATA-MODEL.md) et le [schéma PostgreSQL / Supabase](06-DATABASE.md) définissent la structure retenue. Les champs source exacts du pipeline restent à préciser.
+Le [modèle](03-DATA-MODEL.md), le [schéma SQL](06-DATABASE.md) et le [pipeline](07-CATALOG-SYNC.md) définissent les champs effectivement retenus et leurs limites de provenance.
 
 ## Données non prioritaires pour la V1
 
@@ -408,7 +412,7 @@ Les données indispensables à une collection automatique doivent pouvoir être 
 
 Une carte déjà utilisée dans une collection ne doit pas disparaître silencieusement parce qu'elle n'est plus retournée ou qu'elle a changé dans TCGdex. Les suppressions et changements destructeurs de la source doivent être traités avec prudence afin de préserver les données utilisateur et d'éviter toute perte automatique.
 
-La stratégie technique de traitement de ces cas reste à définir.
+Le pipeline conserve les IDs et les lignes historiques, normalement inactives et absentes de la source. Il ne supprime aucune référence utilisateur ; les corrections peuvent maintenir explicitement une donnée connue.
 
 ## Principes fondamentaux
 
@@ -424,25 +428,11 @@ La stratégie technique de traitement de ces cas reste à définir.
 
 ## Éléments laissés ouverts
 
-Les sujets suivants seront définis dans des documents ultérieurs ou lors de l'implémentation concernée :
+- la cadence, l'automatisation et le déploiement distant du pipeline ;
+- la vérification historique de certaines variantes rares et des dates de promotions/coffrets ;
+- une source fiable pour les noms français Pokémon, sans heuristique sur les noms de cartes ;
+- une éventuelle politique des apparitions secondaires (cameos) ;
+- l'interface de maintenance et la gestion visuelle des assets absents ;
+- les RPC et opérations utilisateur des phases suivantes.
 
-- le SQL final des migrations, politiques RLS et RPC au-delà des principes définis dans le [schéma PostgreSQL / Supabase](06-DATABASE.md) ;
-- la structure physique finale des corrections locales ;
-- le mécanisme physique exact de fusion entre TCGdex et les corrections MY. ;
-- la fréquence future et le mécanisme d'automatisation des synchronisations ;
-- la stratégie de cache éventuelle ;
-- la normalisation finale des numéros de cartes et le traitement des cartes sans date de parution fiable ;
-- l'ordre exact des variantes d'une même carte ;
-- les critères détaillés d'ordre propres aux collections par Pokémon et par extension ;
-- les critères détaillés d'inclusion des anciennes cartes particulières ;
-- le fallback exact lorsque `dexId` est absent ou incomplet ;
-- les critères précis de validation d'une variante française ;
-- l'interface éventuelle d'administration des corrections ;
-- le traitement technique des cartes supprimées ou renommées ;
-- le stockage détaillé du versionnement source et le format final des rapports et journaux ;
-- la gestion des erreurs d'API ;
-- la méthode de récupération du snapshot `cards-database` ;
-- les détails d'implémentation de l'import initial avec le pipeline commun ;
-- les fonctions, tâches planifiées et autres mécanismes d'exécution.
-
-Ces éléments ne doivent pas être inventés ou considérés comme décidés avant leur cadrage et leur validation.
+Le langage, le cache Git, JSON/Zod, les propriétés d'identité, les stamps multiples, la disponibilité FR, l'exclusion des Jumbo, les numéros, les dates inconnues, les tris, la fusion, les transactions, le dry-run et les hashes sont désormais fixés dans le pipeline V1.

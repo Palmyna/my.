@@ -22,7 +22,10 @@
     "db:reset": "supabase db reset --local",
     "db:test": "node scripts/test-database.js",
     "db:lint": "supabase db lint --local --schema public,private --level warning --fail-on warning",
-    "db:types": "node scripts/generate-supabase-types.js"
+    "db:types": "node scripts/generate-supabase-types.js",
+    "catalog:validate": "node scripts/catalog/cli.ts --validate",
+    "catalog:sync": "node scripts/catalog/cli.ts",
+    "catalog:test:db": "node scripts/catalog/integration.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.115.0",
@@ -38,6 +41,7 @@
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
     "@types/node": "24.13.3",
+    "@types/pg": "8.23.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
@@ -46,10 +50,11 @@
     "eslint-plugin-react-refresh": "0.5.6",
     "globals": "17.12.0",
     "jsdom": "30.0.1",
+    "pg": "8.23.0",
     "supabase": "2.116.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0",
-    "vitest": "5.0.0",
-    "vite": "8.2.2"
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
   }
 }

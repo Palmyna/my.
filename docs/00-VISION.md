@@ -22,6 +22,8 @@ Le projet répond aux limites d'un suivi manuel réalisé dans des tableurs tels
 
 Dans sa vision initiale, MY. n'est ni un outil de deckbuilding ou de jeu, ni une marketplace, ni une plateforme sociale Pokémon.
 
+Le catalogue de collection porte sur les cartes physiques au format standard. Les cartes Jumbo sont exclues ; le catalogue numérique Pokémon TCG Pocket ne fait pas partie de ce périmètre. La politique française et la normalisation sont précisées dans `02-TCGDEX.md` et `07-CATALOG-SYNC.md`.
+
 ## Source de référence Pokémon TCG
 
 MY. s'appuie sur **TCGdex / cards-database** comme source de référence pour les données Pokémon TCG. Cette source fournit à l'application les informations nécessaires pour identifier et représenter les cartes disponibles, afin d'éviter la maintenance manuelle d'une base exhaustive.

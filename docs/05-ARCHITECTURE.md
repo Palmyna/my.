@@ -308,6 +308,10 @@ Au début, la synchronisation est lancée manuellement selon les besoins. Elle r
 
 Une automatisation simple pourra être ajoutée ultérieurement via Supabase, GitHub Actions ou un autre mécanisme adapté. Le déclencheur et la fréquence exacts restent ouverts. Aucun scheduler payant ou worker permanent n'est requis au démarrage.
 
+### Implémentation Phase 2
+
+Le pipeline est isolé dans `scripts/catalog/`, exécuté directement par Node 24 en TypeScript, avec `pg` pour PostgreSQL et Zod pour les corrections JSON. Il utilise le snapshot Git exact en cache, une transaction catalogue globale, des batches de 1 000 lignes et un dry-run sans écriture. Il ne constitue pas un serveur Node permanent. Les règles complètes sont définies dans `07-CATALOG-SYNC.md`.
+
 ### Catalogue ciblé
 
 PostgreSQL ne doit pas recevoir aveuglément toutes les données brutes de TCGdex. Le catalogue conserve principalement les informations utiles à MY., à la synchronisation, à la comparaison et à la traçabilité.
@@ -318,7 +322,7 @@ Les données de gameplay inutiles et une copie complète de chaque payload « au
 
 Les corrections MY. ont pour source de vérité des fichiers versionnés dans Git. Le pipeline les applique dans une couche serveur contrôlée du catalogue ; les tables privées peuvent refléter leur état appliqué. La recherche, l'affichage et les collections automatiques consomment la valeur effective fournie par le catalogue.
 
-Le mécanisme physique des corrections reste ouvert. La V1 ne nécessite pas obligatoirement de back-office graphique ; des outils réservés aux mainteneurs peuvent suffire initialement.
+Le pipeline TypeScript applique les JSON stricts versionnés dans `data/catalog-overrides/`, validés avec Zod, puis conserve leur provenance dans le schéma privé. La V1 ne nécessite pas obligatoirement de back-office graphique ; des outils réservés aux mainteneurs peuvent suffire initialement.
 
 ## Images
 
@@ -393,7 +397,7 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. distingue le développement et la production. La Phase 0 prépare Supabase local avec sa CLI installée comme dépendance de développement npm et sa configuration versionnée. Elle ne lie ni ne modifie le projet cloud. Le staging éventuel et la configuration de production restent ouverts.
+MY. distingue développement et production. La Phase 1 est validée et déployée sur Supabase cloud, avec ses trois migrations synchronisées Local / Remote selon le propriétaire. La Phase 2 reste locale ; son outil refuse toute base distante. Le staging et les futurs workflows de déploiement restent à cadrer.
 
 Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Les données de production ne doivent pas être utilisées inconsidérément pendant le développement.
 
@@ -500,8 +504,6 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 
 - les extensions futures du socle SQL, des index et des policies RLS de Phase 1 ;
 - le code final des fonctions RPC métier ;
-- la stratégie physique des corrections locales ;
-- la normalisation des numéros, l'ordre précis des variantes, les dates non fiables et les détails de calcul des hashes de structure, dans les priorités définies par `02-TCGDEX.md` ;
 - la bibliothèque d'interface éventuelle ;
 - le découpage détaillé des futures fonctionnalités dans la structure initialisée ;
 - les méthodes précises d'authentification ;

@@ -52,7 +52,7 @@ Cette représentation relie un Pokémon :
 - aux cartes qui le représentent ;
 - aux collections automatiques dont il est la cible.
 
-La provenance exacte du nom et des éventuelles autres métadonnées Pokémon reste à définir.
+La Phase 2 crée les Pokémon à partir des dexId effectifs après corrections. Le nom français peut rester NULL : aucune extraction depuis les noms de cartes ni source secondaire n’est utilisée. Une source fiable pour les noms reste à cadrer.
 
 ### Séries ou blocs
 
@@ -84,7 +84,7 @@ Une carte source représente la carte de base provenant de TCGdex, avant la dist
 - son image ;
 - sa rareté et sa catégorie ;
 - une date ou information de mise à jour de la source ;
-- une date de parution effective complète, nullable si aucune date fiable n'est connue, selon la priorité carte puis sortie française du set et les corrections MY. ;
+- une date de parution effective complète, nullable si aucune date fiable n'est connue, selon la priorité carte, produit/coffret fiable, set FR/global et les corrections MY. ;
 - les autres métadonnées utiles à MY.
 
 Les données de gameplay inutiles à la V1 ne doivent pas être conservées sans besoin produit.
@@ -116,11 +116,10 @@ Deux variantes réellement distinctes doivent toujours pouvoir être représent�
 - le type ;
 - le subtype ;
 - la taille ;
-- le stamp ;
-- le foil ;
-- l'identifiant de variante TCGdex ;
-- la disponibilité linguistique ;
-- les métadonnées locales nécessaires.
+- les stamps multiples normalisés ;
+- le foil.
+
+La langue, les traductions, les labels et les liens tiers ne sont pas identitaires. La clé canonique V1 et la référence source sont distinctes, comme défini dans `07-CATALOG-SYNC.md`. Les Jumbo sont exclues.
 
 #### Disponibilité française
 
@@ -144,7 +143,7 @@ Le modèle distingue conceptuellement :
 
 Une synchronisation ne doit jamais écraser silencieusement une correction locale validée. Les données importantes doivent pouvoir être identifiées comme provenant directement de TCGdex, corrigées localement ou ajoutées localement.
 
-Dans la V1, les corrections MY. sont versionnées dans Git puis appliquées par le pipeline catalogue. Les structures privées de PostgreSQL peuvent refléter leur état appliqué sans remplacer les fichiers versionnés. Le format exact des fichiers et le mécanisme physique d'override restent ouverts.
+Dans la V1, les corrections MY. sont versionnées dans Git puis appliquées par le pipeline catalogue. Les structures privées de PostgreSQL peuvent refléter leur état appliqué sans remplacer les fichiers versionnés. Les fichiers JSON stricts de `data/catalog-overrides/` sont appliqués avant validation ; les tables privées conservent leur provenance et les aliases nécessaires aux identités locales/corrigées.
 
 ### Conservation prudente des données source
 
@@ -156,7 +155,7 @@ Le modèle doit permettre de conserver une donnée devenue :
 - obsolète ;
 - non éligible à de nouvelles générations automatiques.
 
-Cette conservation protège les collections et exemplaires existants. La stratégie exacte de suppression logique ou physique reste ouverte.
+Cette conservation protège les collections et exemplaires existants. Le pipeline conserve les lignes et IDs ; les entités disparues deviennent normalement absentes de la source et inactives, sans supprimer les références utilisateur.
 
 ## Utilisateur et profil MY.
 
@@ -265,7 +264,7 @@ Pour une cible Pokémon, cet ordre suit la date de parution effective complète 
 
 Pour une cible Set, il suit le numéro normalisé dans le set, puis l'ordre stable des variantes d'une même carte. Le numéro ne suit pas un tri textuel naïf.
 
-La [politique TCGdex](02-TCGDEX.md) précise la date effective et son fallback français. Restent ouverts pour la Phase 2 : la normalisation des numéros, l'ordre précis des variantes et le traitement des dates non fiables. Des départages techniques peuvent compléter ces priorités sans les modifier.
+La [politique TCGdex](02-TCGDEX.md) et le [pipeline](07-CATALOG-SYNC.md) fixent le rang naturel des numéros, les familles de variantes et les dates inconnues en dernier. Les départages canoniques complètent ces priorités sans les modifier.
 
 ## État et mise à jour des collections automatiques
 
@@ -521,17 +520,15 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 
 - les futures fonctions métier, vues et extensions du socle SQL de Phase 1 ;
 - le mécanisme de création du profil lors du signup ;
-- les détails de suppression logique du catalogue et la suppression complète d'un compte ;
+- la suppression complète d'un compte ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
-- la représentation physique finale des corrections, valeurs source et valeurs effectives ;
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;
-- la normalisation finale des numéros, l'ordre précis des variantes et le traitement des dates non fiables ;
 - l'algorithme de positionnement des éléments manuels ;
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
 - la nomenclature des conditions ;
 - les sociétés de grading et le format de leurs notes ;
-- la source de la liste des Pokémon et de leurs noms ;
+- la source fiable des noms français Pokémon ; la liste provient des dexId effectifs ;
 - le format et le niveau de persistance des préférences de vue ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
