@@ -3,14 +3,18 @@ import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { hash } from './model.ts'
-import { fixture, fixtureSource, emptyState } from './fixtures.ts'
+import { fixture, fixtureSource, emptyState, fixturePokemonReference } from './fixtures.ts'
 import { compareNumbers, compareVariants, rankCards } from './order.ts'
 import { normalizeProperties, sourceVariantId, variantKey, variants } from './variants.ts'
 import { assetSegment, effectiveDate, normalize, reliableDate, validateCatalogue } from './normalize.ts'
 import { applyOverrides, parseOverrides, loadOverrides } from './overrides.ts'
-import { makePlan } from './plan.ts'
+import { makePlan as planWithReference } from './plan.ts'
 import { assertLocalUrl } from './database.ts'
 import { LiteralReader } from './reader.ts'
+import type { Catalogue } from './model.ts'
+import type { State } from './database.ts'
+
+const makePlan = (catalogue: Catalogue, state: State) => planWithReference(catalogue, state, fixturePokemonReference)
 
 describe('variant identity and source semantics', () => {
   it('normalizes size and unordered stamps, ignores labels/languages/third party', () => {
@@ -88,7 +92,7 @@ describe('deterministic order and dates', () => {
   it('preserves multi-dex links and excludes cameos without extracting names', () => {
     const catalogue = fixture(), plan = makePlan(catalogue, emptyState())
     expect(plan.rows.pokemon.map((row) => row.dex_number)).toEqual([25, 644])
-    expect(plan.rows.pokemon.every((row) => row.name_fr === null)).toBe(true)
+    expect(plan.rows.pokemon.map((row) => row.name_fr)).toEqual(['Pikachu', 'Zekrom'])
     expect(plan.targets).toMatchObject({ set: 1, pokemon: 2 })
   })
 })

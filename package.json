@@ -23,6 +23,7 @@
     "db:test": "node scripts/test-database.js",
     "db:lint": "supabase db lint --local --schema public,private --level warning --fail-on warning",
     "db:types": "node scripts/generate-supabase-types.js",
+    "pokemon:update": "node scripts/catalog/pokemon-update.ts",
     "catalog:validate": "node scripts/catalog/cli.ts --validate",
     "catalog:sync": "node scripts/catalog/cli.ts",
     "catalog:test:db": "node scripts/catalog/integration.ts"

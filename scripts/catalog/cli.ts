@@ -12,6 +12,7 @@ import type { Report } from './report.ts'
 import { lockCache, snapshot } from './snapshot.ts'
 import { applyPlan } from './apply.ts'
 import type { Snapshot } from './model.ts'
+import { loadPokemonReference } from './pokemon-reference.ts'
 
 async function main(): Promise<void> {
   const { values } = parseArgs({ options: { snapshot: { type: 'string' }, apply: { type: 'boolean' },
@@ -23,8 +24,11 @@ async function main(): Promise<void> {
   let result: Report | undefined
   let resolvedSource: Snapshot | undefined
   let resolvedOverridesHash: string | undefined
+  let resolvedPokemonHash: string | undefined
   const file = path.resolve('.cache/catalog-reports', `${started.replace(/[:.]/g, '-')}-${mode}.json`)
   try {
+    const pokemon = loadPokemonReference()
+    resolvedPokemonHash = pokemon.hash
     const source = snapshot(values.snapshot)
     resolvedSource = source
     console.log(`Lecture du snapshot ${source.sha}…`)
@@ -42,7 +46,7 @@ async function main(): Promise<void> {
     const state = await readState(client)
     const catalogue = applyOverrides(includeOverrideHistory(raw, state, overrides.values), overrides.values)
     validateCatalogue(catalogue)
-    const plan = makePlan(catalogue, state)
+    const plan = makePlan(catalogue, state, pokemon)
     result = report(catalogue, plan, source, overrides.hash, mode, started)
     if (values.apply) await applyPlan(client, state, plan, catalogue, result)
     await client.query(values.apply ? 'commit' : 'rollback')
@@ -65,7 +69,7 @@ async function main(): Promise<void> {
       ? error.message.replace(/postgres(?:ql)?:\/\/[^\s]+/gi, '[connection redacted]') : 'PostgreSQL or external command failed; no catalogue changes committed.'
     writeFileSync(file, `${JSON.stringify({ mode, status: 'failed', started_at: started, finished_at: new Date().toISOString(),
       source: resolvedSource ? { repository: resolvedSource.repository, sha: resolvedSource.sha, committed_at: resolvedSource.committedAt } : null,
-      overrides_hash: resolvedOverridesHash ?? null, error: message }, null, 2)}\n`)
+      overrides_hash: resolvedOverridesHash ?? null, pokemon_reference_hash: resolvedPokemonHash ?? null, error: message }, null, 2)}\n`)
     console.error(`Catalogue ${mode} : échec. ${message}\nRapport : ${file}`)
     process.exitCode = 1
   } finally { if (client) await client.end(); unlock() }

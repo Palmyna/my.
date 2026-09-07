@@ -1,5 +1,7 @@
 import { canonical, compare, hash, unique } from './model.ts'
-import type { Catalogue, Card } from './model.ts'
+import type { Catalogue, Card, Diagnostic } from './model.ts'
+import { pokemonNameFor } from './pokemon-reference.ts'
+import type { PokemonReference } from './pokemon-reference.ts'
 import { tables } from './database.ts'
 import type { Row, State, Table } from './database.ts'
 import type { Override } from './overrides.ts'
@@ -7,6 +9,7 @@ import { normalizeProperties, variantKey } from './variants.ts'
 
 export interface Diff { created: number; modified: number; reactivated: number; disappeared: number; deactivated: number; unchanged: number }
 export interface Plan {
+  pokemonReference: { hash: string; count: number }; diagnostics: Diagnostic[]
   rows: Record<Table, Row[]>; writes: Record<Table, Row[]>; additions: Record<Table, Row[]>; diffs: Record<Table, Diff>
   mappings: Row[]; mappingAdds: Row[]; mappingRemoves: Row[]; aliases: Row[]
   targets: { created: number; changed: number; unchanged: number; pokemon: number; set: number }
@@ -48,8 +51,9 @@ export function includeOverrideHistory(input: Catalogue, state: State, overrides
   return result
 }
 
-export function makePlan(catalogue: Catalogue, state: State): Plan {
-  const plan: Plan = { rows: {} as Plan['rows'], writes: {} as Plan['writes'], additions: {} as Plan['additions'], diffs: {} as Plan['diffs'],
+export function makePlan(catalogue: Catalogue, state: State, reference: PokemonReference): Plan {
+  const plan: Plan = { pokemonReference: { hash: reference.hash, count: reference.count }, diagnostics: [],
+    rows: {} as Plan['rows'], writes: {} as Plan['writes'], additions: {} as Plan['additions'], diffs: {} as Plan['diffs'],
     mappings: [], mappingAdds: [], mappingRemoves: [], aliases: [], targets: { created: 0, changed: 0, unchanged: 0, pokemon: 0, set: 0 }, structures: [] }
   const next = { ...state.next }
   const seen = new Map<Table, Set<string>>()
@@ -64,6 +68,12 @@ export function makePlan(catalogue: Catalogue, state: State): Plan {
     return row
   }
   const oldBy = (table: Table, key: string): Map<string, Row> => new Map(state.rows[table].map((row) => [String(row[key]), row]))
+  const nameFor = (number: number): string | null => {
+    const name = pokemonNameFor(reference, number)
+    if (name === null) plan.diagnostics.push({ code: 'pokemon-name-missing', target: String(number),
+      detail: 'National dex absent from the versioned French species reference; name_fr remains NULL.' })
+    return name
+  }
   const oldSeries = oldBy('tcg_series', 'tcgdex_id'), oldSets = oldBy('tcg_sets', 'tcgdex_id'), oldCards = oldBy('source_cards', 'tcgdex_id')
   const oldPokemon = oldBy('pokemon', 'dex_number'), oldVariants = new Map(state.rows.catalog_variants.map((row) => [`${String(row.source_card_id)}#${String(row.variant_key)}`, row]))
   const oldAlias = new Map(state.aliases.map((row) => [String(row.entity_key), row]))
@@ -82,7 +92,7 @@ export function makePlan(catalogue: Catalogue, state: State): Plan {
   }
   for (const number of [...new Set(catalogue.cards.flatMap((card) => card.dex))].sort((a, b) => a - b)) {
     const previous = oldPokemon.get(String(number))
-    const row = add('pokemon', { dex_number: number, name_fr: previous?.name_fr ?? null,
+    const row = add('pokemon', { dex_number: number, name_fr: nameFor(number),
       is_active: catalogue.cards.some((card) => card.active && card.dex.includes(number)) }, previous)
     pokemonIds.set(number, id(row))
   }
@@ -107,7 +117,7 @@ export function makePlan(catalogue: Catalogue, state: State): Plan {
     }
     for (const number of card.dex) plan.mappings.push({ card_id: id(row), pokemon_id: pokemonIds.get(number) ?? null })
   }
-  // Retain absent entities and all user references. Only activity/presence change.
+  // Retain absent entities and all user references; species names still follow the reference.
   for (const table of tables.filter((table) => table !== 'automatic_target_states')) {
     const columns = Object.keys(plan.rows[table][0] ?? {})
     for (const previous of state.rows[table]) if (!seen.get(table)?.has(id(previous))) {
@@ -115,6 +125,7 @@ export function makePlan(catalogue: Catalogue, state: State): Plan {
       // A table may be empty in the desired snapshot (e.g. all Pokemon mappings removed).
       if (!columns.length) for (const [key, value] of Object.entries(previous)) if (!['id', 'created_at', 'updated_at'].includes(key)) values[key] = value
       values.is_active = false
+      if (table === 'pokemon') values.name_fr = nameFor(Number(previous.dex_number))
       if ('source_present' in previous) values.source_present = false
       add(table, values, previous)
     }

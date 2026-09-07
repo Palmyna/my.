@@ -52,7 +52,9 @@ Cette représentation relie un Pokémon :
 - aux cartes qui le représentent ;
 - aux collections automatiques dont il est la cible.
 
-La Phase 2 crée les Pokémon à partir des dexId effectifs après corrections. Le nom français peut rester NULL : aucune extraction depuis les noms de cartes ni source secondaire n’est utilisée. Une source fiable pour les noms reste à cadrer.
+La Phase 2 crée les Pokémon à partir des `dexId` effectifs après corrections. Leur nom français provient du référentiel local versionné des noms d'espèces, généré manuellement depuis PokéAPI `pokemon-species` (ID et nom de langue `fr`). Le pipeline n'appelle jamais cette API et n'extrait aucun nom de carte, suffixe ou forme. Un dex absent du référentiel conserve le Pokémon avec `name_fr=NULL` et un diagnostic.
+
+Le rapprochement par `dex_number` conserve l'ID interne. Le nom versionné fait autorité sur le nom précédent, y compris pour une ligne inactive ; une correction de nom ne change ni les rattachements ni les IDs ordonnés, hashes ou versions des cibles automatiques. La [procédure de maintenance](../data/pokemon/README.md) distingue génération manuelle du fichier et synchronisation du catalogue.
 
 ### Séries ou blocs
 
@@ -528,7 +530,6 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
 - la nomenclature des conditions ;
 - les sociétés de grading et le format de leurs notes ;
-- la source fiable des noms français Pokémon ; la liste provient des dexId effectifs ;
 - le format et le niveau de persistance des préférences de vue ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;

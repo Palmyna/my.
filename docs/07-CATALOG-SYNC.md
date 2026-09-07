@@ -6,7 +6,7 @@ Ce document est la référence du pipeline V1. Il applique la [politique TCGdex]
 
 ```text
 Snapshot Git exact → lecture TypeScript → normalisation FR → overrides JSON Git
-→ validation → plan PostgreSQL → dry-run → application transactionnelle
+→ validation + référentiel local des noms FR → plan PostgreSQL → dry-run → application transactionnelle
 → catalogue et structures automatiques hashées/versionnées → rapport
 ```
 
@@ -21,10 +21,13 @@ Le pipeline réside dans [`scripts/catalog/`](../scripts/catalog/), hors React. 
 | `snapshot.ts`, `reader.ts` | Cache Git, SHA, checkout détaché, lecture des littéraux et relations |
 | `normalize.ts`, `variants.ts`, `order.ts` | Champs utiles, FR, variantes, dates, images et rangs |
 | `overrides.ts` | Schéma strict, fusion prioritaire et provenance |
+| `pokemon-reference.ts` | Validation du JSON local des noms d'espèces, lookup et empreinte canonique |
+| `pokemon-update.ts` | Commande manuelle PokéAPI indépendante, jamais importée par la synchronisation |
 | `database.ts`, `plan.ts` | Connexion, état existant, identités, diff et structures |
 | `apply.ts` | Réservation des IDs, écritures batchées et traces |
 | `report.ts`, `cli.ts` | Commandes, transaction, rapport et erreurs |
 | `catalog.test.ts`, `integration.ts`, `fixtures.ts` | Tests unitaires et intégration annulée |
+| `pokemon.test.ts` | Référentiel, génération HTTP simulée, erreurs et invariance des structures |
 
 ```sh
 npm run supabase:start
@@ -40,9 +43,9 @@ Seul PostgreSQL local est accepté : loopback `127.0.0.1`, `localhost` ou `::1`,
 
 ## Snapshot et lecture
 
-La seule source automatique est [`tcgdex/cards-database`](https://github.com/tcgdex/cards-database). REST reste réservé aux diagnostics ; aucune API de Pokémon, prix ou assets ne complète silencieusement le dataset.
+La source des cartes, variantes et rattachements est [`tcgdex/cards-database`](https://github.com/tcgdex/cards-database). REST TCGdex reste réservé aux diagnostics. Le seul complément autorisé est le référentiel versionné des noms français d'espèces, généré manuellement depuis PokéAPI ; la synchronisation ne contacte jamais PokéAPI et ne fusionne aucune API de prix ou d'assets.
 
-Le clone/fetch peu profond est conservé dans `.cache/tcgdex/cards-database/`, ignoré par Git. L'origine et la propreté sont vérifiées avant checkout détaché. `.cache/tcgdex/pipeline.lock` empêche deux processus de changer simultanément le snapshot. Après un arrêt brutal, vérifier l'absence de run actif avant de retirer un verrou périmé. Aucun dataset complet n'est versionné dans MY.
+Le clone/fetch peu profond est conservé dans `.cache/tcgdex/cards-database/`, ignoré par Git. L'origine et la propreté sont vérifiées avant checkout détaché. `.cache/tcgdex/pipeline.lock` empêche deux processus de changer simultanément le snapshot. Après un arrêt brutal, vérifier l'absence de run actif avant de retirer un verrou périmé. Le dataset TCGdex complet n'est pas versionné dans MY. Le petit mapping complet des noms d'espèces l'est dans `data/pokemon/pokemon-fr.json`.
 
 La référence inspectée est `1c30c50253756bafecf0f065fc377f77016ad12f`, datée `2026-09-06T11:03:48+01:00` : `interfaces.d.ts`, `cardUtil.ts`, `variantUtil.ts`, `setUtil.ts`, `translationUtil.ts` et les données réelles. La licence MIT du code dérivé accompagne le pipeline dans `TCGDEX-LICENSE.txt`.
 
@@ -99,7 +102,19 @@ Priorité : date propre de carte, produit/coffret fiable, set FR/global ; un ove
 
 Les URL suivent le compilateur source : carte `https://assets.tcgdex.net/fr/<serie>/<set>/<localId>/high.webp`, logo FR, symbole `univ`. Les segments déjà encodés comme `%3F` ne sont pas encodés deux fois. Les variantes partagent normalement l'image principale ; un override peut la remplacer. Ces URL déterministes ne garantissent pas l'existence de l'asset : aucun index CDN mutable, téléchargement ou sondage HTTP ne décide de la structure. Le futur frontend devra gérer les images manquantes. Un compteur d'URL non nulles n'est pas un audit HTTP.
 
-Les Pokémon proviennent des `dexId` effectifs après overrides : entiers positifs, sans doublons. Plusieurs dex créent plusieurs relations. `cameoDexIds` est ignoré pour les cibles et compté séparément. Aucun nom de carte, suffixe ou forme ne sert à deviner un nom Pokémon. `pokemon.name_fr` peut rester `NULL` ; les noms absents sont comptés. Leur source fiable reste à cadrer.
+Les Pokémon proviennent des `dexId` effectifs après overrides : entiers positifs, sans doublons. Plusieurs dex créent plusieurs relations. `cameoDexIds` est ignoré pour les cibles et compté séparément. Aucun nom de carte, suffixe ou forme ne sert à deviner un nom Pokémon.
+
+### Référentiel des noms français
+
+`npm run pokemon:update` génère manuellement le mapping complet `dex_number → nom FR` depuis la liste paginée PokéAPI `pokemon-species` et ses ressources par ID. Seule l'entrée `names[].language.name === "fr"` est retenue, avec sa typographie exacte. Le [guide de maintenance](../data/pokemon/README.md) décrit les endpoints, six requêtes simultanées maximum, les timeouts/retries limités et la publication atomique après validation complète. Un échec ou une espèce sans nom FR laisse l'ancien fichier intact.
+
+Avant tout accès DB, la CLI charge une seule fois `data/pokemon/pokemon-fr.json` via `loadPokemonReference`. Le schéma Zod refuse les formes/champs inattendus, clés non canoniques, numéros invalides et noms nuls/vides ; le contrôle des clés JSON détecte aussi les doublons échappés. Le générateur réseau n'est jamais importé ni appelé par la synchronisation. Aucun appel PokéAPI ou fallback implicite ne se produit si le fichier manque ou est invalide : l'exécution échoue sans écriture DB.
+
+Le plan utilise ce mapping comme autorité pour `pokemon.name_fr`, en conservant `pokemon.id` par `dex_number`, y compris sur les lignes historiques inactives. Un numéro absent donne `NULL` et le diagnostic `pokemon-name-missing` ; le Pokémon reste présent et le total apparaît dans `catalogue.pokemon_without_name` et en console. Les noms de cartes et formes ne sont jamais consultés pour ce lookup.
+
+Le hash SHA-256 du mapping canonique validé (clés triées lexicalement sans locale, JSON sans espaces, noms inchangés) est exposé dans `pokemon_reference.hash`, avec le nombre d'entrées, et enregistré dans le JSON existant `private.catalog_sync_runs.report` lors de l'apply. Un rapport d'échec local inclut l'empreinte si le fichier a pu être validé. Aucune migration n'est nécessaire.
+
+Le déterminisme dépend désormais du snapshot TCGdex, du référentiel local, des overrides et du code ; l'état initial de PostgreSQL fixe les IDs déjà attribués. Un changement de nom seul modifie uniquement les métadonnées du Pokémon. Les listes de variantes, hashes et `generation_version` des cibles restent inchangés.
 
 ## Overrides Git
 
@@ -137,7 +152,7 @@ Chaque set pertinent reçoit un état, même vide ; chaque Pokémon avec variant
 
 ## Rapports et validation
 
-Le résumé console affiche snapshot, volumes, FR, Jumbo, diff, mappings, overrides, dates, cibles, diagnostics, durée et résultat. Le JSON complet dans `.cache/catalog-reports/` inclut listes ordonnées par cible et hash du plan. Les rapports sont ignorés par Git ; aucune sortie de pilote, chaîne de connexion ou secret n'est recopiée.
+Le résumé console affiche snapshot, empreinte du référentiel des noms et noms manquants, volumes, FR, Jumbo, diff, mappings, overrides, dates, cibles, diagnostics, durée et résultat. Le JSON complet dans `.cache/catalog-reports/` inclut listes ordonnées par cible et hash du plan. Les rapports sont ignorés par Git ; aucune sortie de pilote, chaîne de connexion ou secret n'est recopiée.
 
 Les tests couvrent unités Vitest, intégration complète sur dataset synthétique hors ligne et schéma/RLS pgTAP. L'intégration vérifie notamment les IDs, corrections, données locales, disparitions/rétablissements, hashes, versions, conservation des données utilisateur et rollback après erreur SQL tardive.
 
@@ -165,6 +180,6 @@ npm run supabase:stop
 
 ## Points restant ouverts
 
-Restent à cadrer : déploiement/opt-in distant, cadence, CI, automatisation, seuils d'alerte, vérification historique de variantes rares, dates de promotions/coffrets absentes de la source, noms Pokémon, politique éventuelle des cameos, interface de maintenance et traitement visuel des images manquantes.
+Restent à cadrer : déploiement/opt-in distant, cadence, CI, automatisation, seuils d'alerte, vérification historique de variantes rares, dates de promotions/coffrets absentes de la source, politique éventuelle des cameos, interface de maintenance et traitement visuel des images manquantes. La source et la maintenance manuelle des noms français d'espèces sont désormais cadrées et implémentées.
 
 Auth, frontend métier, recherche UI, notifications et opérations de collections restent des phases ultérieures. Langage, cache, JSON/Zod, identité, stamps, FR, Jumbo, numéros, dates inconnues, ordre, transaction, dry-run, hash et version sont désormais implémentés et testés.

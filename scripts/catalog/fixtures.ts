@@ -3,6 +3,9 @@ import type { Catalogue } from './model.ts'
 import type { Source } from './reader.ts'
 import type { State } from './database.ts'
 import { tables } from './database.ts'
+import { parsePokemonReference } from './pokemon-reference.ts'
+
+export const fixturePokemonReference = parsePokemonReference('{"1":"Bulbizarre","25":"Pikachu","644":"Zekrom"}')
 
 export function fixtureSource(): Source {
   const serie = { id: 'fixture-series', name: { fr: 'Série synthétique', en: 'Synthetic series' } }

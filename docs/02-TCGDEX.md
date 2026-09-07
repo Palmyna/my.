@@ -183,7 +183,13 @@ Les données `dexId` peuvent être absentes ou incomplètes. MY. doit pouvoir re
 - un rattachement manuel ;
 - d'autres informations structurées disponibles dans la source.
 
-En V1, le complément est un override Git explicite d'inclusion/exclusion de rattachement. `cameoDexIds` n'alimente pas les cibles automatiques. Aucun fallback textuel ni source Pokémon secondaire n'est ajouté. Les noms français des cibles peuvent rester inconnus.
+En V1, le complément de rattachement est un override Git explicite d'inclusion/exclusion. `cameoDexIds` n'alimente pas les cibles automatiques. Aucun fallback textuel ne déduit un rattachement.
+
+### Noms français des espèces
+
+PokéAPI est la source secondaire autorisée uniquement pour `dex_number → nom français d'espèce`. Le générateur manuel utilise la liste `pokemon-species` et les réponses `pokemon-species/{id}` : ID de l'espèce et entrée `names` de langue `fr`, sans ressource de forme ni fallback anglais.
+
+Le résultat complet est versionné dans [`data/pokemon/pokemon-fr.json`](../data/pokemon/pokemon-fr.json). La synchronisation lit ce fichier validé, sans appel PokéAPI ; TCGdex demeure la source des cartes et rattachements. Le [guide du référentiel](../data/pokemon/README.md) précise la génération et la traçabilité. Un dex absent conserve le Pokémon avec `name_fr=NULL` et un diagnostic explicite. Une correction de nom reste descriptive et ne change pas la structure des cibles.
 
 ## Séries, sets et blocs
 
@@ -430,7 +436,6 @@ Le pipeline conserve les IDs et les lignes historiques, normalement inactives et
 
 - la cadence, l'automatisation et le déploiement distant du pipeline ;
 - la vérification historique de certaines variantes rares et des dates de promotions/coffrets ;
-- une source fiable pour les noms français Pokémon, sans heuristique sur les noms de cartes ;
 - une éventuelle politique des apparitions secondaires (cameos) ;
 - l'interface de maintenance et la gestion visuelle des assets absents ;
 - les RPC et opérations utilisateur des phases suivantes.

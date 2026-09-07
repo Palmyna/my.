@@ -12,6 +12,8 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. Le frontend affiche toujours `MY.` et « Application initialisée » ; la Phase 3 / Auth, les RPC de collections et les interfaces métier n'ont pas commencé. Le cloud applicatif était vide au début de cette tâche, selon le propriétaire ; aucune écriture cloud Phase 2 n'a été effectuée.
 
+Le complément Phase 2 fournit les noms français des espèces via un référentiel PokéAPI généré manuellement et destiné au versionnement. Les 1 025 Pokémon locaux ont désormais un nom français, sans changement des 1 213 états de cible ; la seconde application est un noop fonctionnel. La synchronisation du catalogue utilise uniquement ce fichier local et ne contacte jamais PokéAPI.
+
 **Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place.
 
 ## Développement local
@@ -115,12 +117,15 @@ L'import vérifié contient 19 907 cartes, 31 900 variantes, 1 025 Pokémon et 1
 | Commande | Usage |
 |---|---|
 | `npm run catalog:validate` | Valide snapshot, corrections et rapprochement en lecture sur Supabase local |
+| `npm run pokemon:update` | Régénère manuellement le référentiel complet des noms d'espèces français depuis PokéAPI, sans accès DB |
 | `npm run catalog:sync` | Dry-run complet par défaut, zéro écriture DB, aucun ID consommé |
 | `npm run catalog:sync -- --snapshot <SHA> --dry-run` | Rejoue un SHA exact et produit le plan |
 | `npm run catalog:sync -- --snapshot <SHA> --apply` | Applique le plan transactionnellement sur la base locale |
 | `npm run catalog:test:db` | 32 assertions d'intégration hors ligne, avec rollback de toutes les fixtures ; base locale vide requise |
 
 Sans SHA, le HEAD TCGdex est résolu une fois. Le premier clone/fetch nécessite GitHub ; un SHA déjà en cache peut être rejoué hors ligne. La connexion locale provient du statut Supabase sans afficher les secrets. `CATALOG_DATABASE_URL`, privée et facultative, accepte seulement le loopback sur `55322/postgres`. Aucun mode distant n'est disponible. `--apply` est obligatoire pour écrire.
+
+Le [référentiel Pokémon](data/pokemon/README.md) précise la provenance, la validation, les erreurs et la mise à jour de `data/pokemon/pokemon-fr.json`. Une synchronisation reproductible fixe également ce fichier, les overrides et le code. Les résultats du complément noms sont consignés dans le [rapport du 7 septembre](docs/reports/2026-09-07-PHASE2-POKEMON-NAMES.md).
 
 Pour vérifier une reconstruction : démarrer Supabase, exécuter `db:reset`, `db:test`, `db:lint`, `catalog:test:db`, `db:types`, puis les contrôles TypeScript/build/lint/tests. Après les fixtures, refaire `db:reset`, lancer le dry-run au SHA choisi, lire son rapport, puis appliquer deux fois le même SHA afin de vérifier l'idempotence. Le deuxième apply ne doit changer aucune donnée fonctionnelle. Les rapports JSON complets sont dans `.cache/catalog-reports/`.
 

@@ -3,15 +3,17 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { connect, readState } from './database.ts'
 import { applyPlan } from './apply.ts'
-import { fixtureSource } from './fixtures.ts'
+import { fixtureSource, fixturePokemonReference } from './fixtures.ts'
 import { normalize, validateCatalogue } from './normalize.ts'
 import { readSource } from './reader.ts'
 import { applyOverrides, parseOverrides } from './overrides.ts'
-import { includeOverrideHistory, makePlan } from './plan.ts'
+import { includeOverrideHistory, makePlan as planWithReference } from './plan.ts'
 import { canonical, hash } from './model.ts'
 import type { Catalogue } from './model.ts'
 import { report } from './report.ts'
 import { variantKey } from './variants.ts'
+
+const makePlan = (catalogue: Catalogue, state: Awaited<ReturnType<typeof readState>>) => planWithReference(catalogue, state, fixturePokemonReference)
 
 const directory = path.resolve('.cache/catalog-test-fixture')
 mkdirSync(path.join(directory, 'data/Synthetic/Set'), { recursive: true })

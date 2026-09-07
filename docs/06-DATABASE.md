@@ -155,6 +155,8 @@ La table `pokemon` représente les Pokémon utilisables notamment comme cibles d
 
 Le numéro du Pokédex national est la référence fonctionnelle principale ; l'ID interne est utilisé par les relations de la base.
 
+`name_fr` reste nullable et reçoit le nom du référentiel d'espèces français versionné, généré manuellement depuis PokéAPI. Le rapprochement par `dex_number` préserve `id` ; un numéro absent du fichier donne `NULL` et un diagnostic. Cet enrichissement descriptif ne modifie aucune structure de cible. Son empreinte est conservée dans le JSON du journal privé existant, sans migration ni colonne supplémentaire ; voir le [pipeline](07-CATALOG-SYNC.md).
+
 ### `tcg_series`
 
 La table `tcg_series` représente les séries ou blocs TCGdex, par exemple *Sun & Moon*, *Sword & Shield* ou *Scarlet & Violet*. Une série ou un bloc ne doit jamais être confondu avec une extension précise.

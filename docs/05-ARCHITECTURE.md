@@ -288,6 +288,8 @@ Snapshot cards-database identifié → synchronisation de confiance → catalogu
 
 Chaque snapshot est identifié par le commit SHA Git utilisé. L'API REST TCGdex reste auxiliaire pour les vérifications, diagnostics ou besoins spécifiques ; elle n'est pas une seconde source automatiquement fusionnée.
 
+Les seuls noms français d'espèces utilisent un [référentiel JSON local versionné](../data/pokemon/README.md), généré manuellement par `npm run pokemon:update` depuis PokéAPI `pokemon-species`. Node 24 utilise `fetch` natif pour cette maintenance indépendante, sans base ni service permanent. La synchronisation et le navigateur ne contactent jamais PokéAPI. Le contenu canonique de ce fichier est hashé et participe, avec le snapshot, les overrides et le code, à la reproductibilité du catalogue.
+
 ### Synchronisation dans un environnement de confiance
 
 Le processus doit pouvoir :
