@@ -1,0 +1,48 @@
+[
+  {
+    "id": "pikachu-sm3.5-28-reverse-fr",
+    "reason": "Variante française vérifiée de Pikachu 28/73 — SL Légendes Brillantes.",
+    "action": "variant.add",
+    "card": "tcgdex:sm3.5-28",
+    "variant": {
+      "type": "reverse",
+      "availability": "confirmed"
+    }
+  },
+  {
+    "id": "pikachu-sm3.5-28-holo-cosmos-fr",
+    "reason": "Variante française vérifiée Holo Cosmos de Pikachu 28/73 — SL Légendes Brillantes.",
+    "action": "variant.add",
+    "card": "tcgdex:sm3.5-28",
+    "variant": {
+      "type": "holo",
+      "foil": "cosmos",
+      "label": "Holo Cosmos",
+      "availability": "confirmed"
+    }
+  },
+  {
+    "id": "pikachu-sm3.5-28-holo-cracked-ice-fr",
+    "reason": "Variante française vérifiée Holo Cracked Ice de Pikachu 28/73 — SL Légendes Brillantes.",
+    "action": "variant.add",
+    "card": "tcgdex:sm3.5-28",
+    "variant": {
+      "type": "holo",
+      "foil": "cracked-ice",
+      "label": "Holo Cracked Ice",
+      "availability": "confirmed"
+    }
+  },
+  {
+    "id": "pikachu-sm3.5-28-holo-water-web-fr",
+    "reason": "Variante française vérifiée Holo Water Web de Pikachu 28/73 — SL Légendes Brillantes.",
+    "action": "variant.add",
+    "card": "tcgdex:sm3.5-28",
+    "variant": {
+      "type": "holo",
+      "foil": "water-web",
+      "label": "Holo Water Web",
+      "availability": "confirmed"
+    }
+  }
+]
