@@ -27,6 +27,7 @@ Le pipeline réside dans [`scripts/catalog/`](../scripts/catalog/), hors React. 
 | `apply.ts` | Réservation des IDs, écritures batchées et traces |
 | `report.ts`, `cli.ts` | Commandes, transaction, rapport et erreurs |
 | `catalog.test.ts`, `integration.ts`, `fixtures.ts` | Tests unitaires et intégration annulée |
+| `variant-dates.test.ts` | Fallback, overrides datés, historique, identité, ordres et versions |
 | `pokemon.test.ts` | Référentiel, génération HTTP simulée, erreurs et invariance des structures |
 | `search-catalog.ts` | Contrat métier portable, normalisation, matching, score et tri |
 | `search-catalog-db.ts`, `catalog-find.ts` | Projection PostgreSQL locale en lecture seule et présentation terminal |
@@ -87,7 +88,7 @@ v1:JSON.stringify([type, subtype|null, "standard", stamps_triés_sans_doublon, f
 
 Exemple : `v1:["holo",null,"standard",["pre-release","staff"],"cosmos"]`.
 
-Les propriétés utilisent les valeurs canoniques upstream. Les stamps sont triés indépendamment de la locale. Label, langue, image, tiers et prix ne participent jamais à l'identité. `UNIQUE(source_card_id, variant_key)` reste en place.
+Les propriétés utilisent les valeurs canoniques upstream. Les stamps sont triés indépendamment de la locale. Label, langue, image, date, provenance de date, tiers et prix ne participent jamais à l'identité. `UNIQUE(source_card_id, variant_key)` reste en place. Une correction de date conserve l'identité, la clé source et l'ID existant.
 
 Pour les variantes détaillées, `source_variant_id` reproduit l'identifiant du `variantUtil.ts` inspecté : valeurs anglaises, taille explicite, clés triées, hash entier base 31 rendu en base 36. Il reste distinct de la clé MY. Pour le legacy, il vaut `NULL` ; `generated` n'est jamais stocké.
 
@@ -103,7 +104,9 @@ Le tri naturel reconnaît `préfixe lettres + entier + suffixe lettres`, avec en
 
 Une date fiable est une date calendrier complète `YYYY-MM-DD`. Un objet linguistique fournit uniquement sa date `fr` ; une date globale scalaire est acceptée. Une date étrangère n'est pas choisie arbitrairement dans un objet sans FR.
 
-Priorité : date propre de carte, produit/coffret fiable, set FR/global ; un override peut tout remplacer. Le snapshot inspecté ne fournit pas de date propre ni de relation produit datée exploitable pour les cartes importées : toutes utilisent le fallback set. La fonction de priorité teste le niveau produit, mais aucun champ produit hypothétique ni recherche externe n'est inventé. Les dates promotionnelles précises peuvent être corrigées par un override documenté. Sans date fiable : `NULL`, diagnostic et placement après les cartes datées dans l'ordre Pokémon.
+La carte résout son fallback selon date propre de carte, produit/coffret fiable, set FR/global ; un override de carte peut le remplacer. **La date effective utilisée pour le classement appartient à chaque variante** : date spécifique fiable, sinon `card.date` avec `card.dateOrigin`, sinon `NULL`. Une variante peut sortir après la carte de base ; les autres variantes ne sont pas déplacées arbitrairement avec elle. La valeur et la provenance sont persistées dans `catalog_variants.effective_release_date` et `date_origin`.
+
+Le type `Variant` contient `date: string | null` et `dateOrigin: 'variant' | 'card' | 'product' | 'set' | 'override' | 'unknown'`. La validation réutilise `z.iso.date()`. Une date héritée conserve sa provenance réelle ; elle n'est jamais présentée comme spécifique à la variante. Le snapshot inspecté (`interfaces.d.ts`, `variant_detailed`, booléens legacy et compilateur de variantes) ne fournit pas de date propre de variante ni de lien produit daté exploitable. Les cartes importées utilisent actuellement le fallback set, transmis à leurs variantes. Les provenances `variant` et `product` restent prévues sans source artificielle. Sans date fiable : `NULL`, après toutes les dates connues dans le tri Pokémon. Le diagnostic existant au niveau carte reste suffisant ; aucun diagnostic par variante n'est généré pour ce cas.
 
 Les URL suivent le compilateur source : carte `https://assets.tcgdex.net/fr/<serie>/<set>/<localId>/high.webp`, logo FR, symbole `univ`. Les segments déjà encodés comme `%3F` ne sont pas encodés deux fois. Les variantes partagent normalement l'image principale ; un override peut la remplacer. Ces URL déterministes ne garantissent pas l'existence de l'asset : aucun index CDN mutable, téléchargement ou sondage HTTP ne décide de la structure. Le futur frontend devra gérer les images manquantes. Un compteur d'URL non nulles n'est pas un audit HTTP.
 
@@ -129,6 +132,10 @@ Chaque action possède un ID durable et une raison non vide. Actions : `card.pat
 
 Ordre de dépendance : ajouts de cartes, ajouts de variantes, patches/rattachements ; chaque groupe est trié par ID. Deux corrections du même champ ou rattachement sont refusées. Sont également bloquants : JSON invalide, action/champ inconnu, ID dupliqué, cible inconnue, set manquant, date/dex invalide, Jumbo, doublon ou conflit d'identité final. Une entité absente du snapshot mais connue de PostgreSQL peut être ciblée si son set est encore reconnu ; carte et variantes repartent inactives et doivent être maintenues explicitement.
 
+`variant.add` accepte une date ISO facultative : absente, elle hérite de la carte ; présente, elle définit une date d'origine `override`. `variant.patch` accepte `date` : une date complète impose `override`, `date:null` retire la correction spécifique et rétablit la date/provenance de la carte. L'absence du champ dans un patch conserve la date en cours. Les variantes déclarées dans `card.add` suivent les mêmes règles. Les fallbacks des variantes courantes ou ajoutées sont finalisés après tous les patches de carte, indépendamment de l'ordre lexical des IDs d'override ; les dates spécifiques sont conservées.
+
+Les variantes historiques reconstruites depuis la DB conservent leur date et provenance persistées, même lors d'un patch descriptif. Les variantes absentes du snapshot, y compris celles d'une carte toujours présente, conservent également ces colonnes lors de leur désactivation. Un `date:null` explicite sur une variante historique demande le fallback de sa carte, dont la provenance reste `unknown` si elle n'est pas historiquement connue.
+
 Un patch égal à sa valeur source est signalé comme redondant sans être supprimé. `private.catalog_overrides` conserve valeurs source/effectives ciblées, raison, redondance, état appliqué et dernier run. Les mappings utilisent cette même table. Git demeure l'autorité ; le frontend ne fusionne rien. Retirer un override désactive sa trace ; les ajouts locaux retirés deviennent inactifs sans suppression.
 
 Le hash des corrections est le SHA-256 du JSON canonique des actions validées triées par ID : clés d'objet triées, tableaux conservés. Les espaces des fichiers ne créent pas de version sémantique.
@@ -149,7 +156,7 @@ Les lignes modifiées sont écrites par lots de 1 000, avec paramètres JSON et 
 
 Éligibilité : variante standard, active, `confirmed`, carte et set actifs. La cible Pokémon nécessite le rattachement effectif ; la cible Set inclut toutes les catégories.
 
-Ordre Pokémon : date croissante, `NULL` en dernier, rang de numéro, rang de variante, clé de carte, identité de variante. Ordre Set : les mêmes critères sans date. Les départages techniques ne changent pas ces priorités.
+Ordre Pokémon : **date effective de variante** croissante, `NULL` strictement en dernier, rang de numéro de carte, rang de variante, clé de carte, identité de variante. Ordre Set inchangé : les mêmes critères sans date. Les départages techniques ne changent pas ces priorités. Ainsi A Normal (2020-01-01), A Promo (2021-01-01) et B Normal (2020-06-01) donnent A Normal → B Normal → A Promo pour Pokémon, tandis que le set conserve A Normal → A Promo → B Normal si A précède B par numéro.
 
 Le hash est exactement `SHA-256(UTF-8(JSON.stringify(ids)))`, avec les IDs internes de variantes sous forme de chaînes décimales, dans leur ordre final. Exemple : `["12","47","103"]`. Les métadonnées n'entrent pas directement dans le hash ; une date agit seulement si elle change l'ordre.
 
@@ -158,6 +165,10 @@ Chaque set pertinent reçoit un état, même vide ; chaque Pokémon avec variant
 ## Rapports et validation
 
 Le résumé console affiche snapshot, empreinte du référentiel des noms et noms manquants, volumes, FR, Jumbo, diff, mappings, overrides, dates, cibles, diagnostics, durée et résultat. Le JSON complet dans `.cache/catalog-reports/` inclut listes ordonnées par cible et hash du plan. Les rapports sont ignorés par Git ; aucune sortie de pilote, chaîne de connexion ou secret n'est recopiée.
+
+`variant_dates` compte les six provenances (`variant`, `card`, `product`, `set`, `override`, `unknown`) sur l'état final complet, variantes historiques retenues comprises. `catalogue.variants_without_date` compte les dates effectives NULL. Les compteurs `dates` existants restent ceux des cartes. Ces compteurs sont affichés en console et enregistrés dans le rapport du run ; zéro est conservé pour les provenances non utilisées.
+
+La [migration de date de variante](../supabase/migrations/20260908083516_phase2_variant_release_dates.sql) doit être appliquée localement avant ce pipeline avec `supabase migration up --local`, sans reset du volume existant. Elle copie les dates de cartes avec provenance `unknown`, faute de provenance historique persistée, puis le pipeline recalcule les valeurs. Le [rapport dédié](reports/2026-09-08-PHASE2-VARIANT-DATES.md) conserve les preuves de migration, de reconstruction en base shadow et des applications locales.
 
 Les tests couvrent unités Vitest, intégration complète sur dataset synthétique hors ligne et schéma/RLS pgTAP. L'intégration vérifie notamment les IDs, corrections, données locales, disparitions/rétablissements, hashes, versions, conservation des données utilisateur et rollback après erreur SQL tardive.
 

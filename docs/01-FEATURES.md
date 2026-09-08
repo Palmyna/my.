@@ -117,7 +117,7 @@ Une collection automatique par extension calcule sa progression comme les autres
 
 ### Structure automatique fixe
 
-L'ordre canonique Pokémon suit la date de parution effective complète de la carte (`YYYY-MM-DD`) croissante, puis son numéro normalisé, puis l'ordre stable des variantes d'une même carte. L'ordre Extension suit le numéro normalisé dans le set, puis l'ordre stable des variantes. Le [pipeline](07-CATALOG-SYNC.md) implémente le tri naturel, les familles Normal/Holo/Reverse/autres et les dates inconnues en dernier. Seules les variantes standard actives et confirmées françaises sont éligibles ; les Jumbo sont exclues.
+L'ordre canonique Pokémon suit la date de parution effective complète de la variante (`YYYY-MM-DD`) croissante, puis le numéro normalisé de sa carte, puis l'ordre stable des variantes d'une même carte. Une variante sortie plus tard peut donc apparaître après une autre carte intermédiaire. L'ordre Extension reste numéro normalisé dans le set, puis ordre stable des variantes, sans critère de date. Le [pipeline](07-CATALOG-SYNC.md) conserve la provenance réelle des dates et utilise le fallback fiable de carte lorsqu'aucune date spécifique n'est connue, puis NULL en dernier. Il implémente le tri naturel et les familles Normal/Holo/Reverse/autres. Seules les variantes standard actives et confirmées françaises sont éligibles ; les Jumbo sont exclues.
 
 Les cartes générées automatiquement constituent la structure de référence de la collection. Elles :
 

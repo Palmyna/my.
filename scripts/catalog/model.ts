@@ -13,6 +13,7 @@ export function canonical(value: unknown): string {
 export const hash = (value: unknown): string => createHash('sha256').update(canonical(value)).digest('hex')
 export const text = z.string().trim().min(1)
 export const date = z.iso.date()
+export const dateOrigin = z.enum(['variant', 'card', 'product', 'set', 'override', 'unknown'])
 export const availability = z.enum(['confirmed', 'unknown', 'unavailable'])
 export const dex = z.number().int().positive().max(2_147_483_647)
 export const properties = z.strictObject({
@@ -21,6 +22,8 @@ export const properties = z.strictObject({
 })
 export type Properties = z.infer<typeof properties>
 export interface Variant extends Properties {
+  date: string | null
+  dateOrigin: z.infer<typeof dateOrigin>
   key: string
   identity: string
   sourceId: string | null
@@ -44,7 +47,7 @@ export interface SetRecord {
 export interface Card {
   key: string; sourceId: string | null; localId: string; set: string; name: string | null
   category: string | null; rarity: string | null; image: string | null; date: string | null
-  dateOrigin: 'card' | 'product' | 'set' | 'override' | 'unknown'
+  dateOrigin: Exclude<z.infer<typeof dateOrigin>, 'variant'>
   sourceUpdated: string | null; dex: number[]; rank: number; origin: 'tcgdex' | 'my'
   present: boolean; active: boolean; variants: Variant[]
 }

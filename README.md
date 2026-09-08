@@ -8,13 +8,15 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phase 0 validée ; Phase 1 validée et déployée sur Supabase cloud ; Phase 2 implémentée et vérifiée localement.** Les trois migrations Phase 1 sont synchronisées Local / Remote, selon la validation du propriétaire : 12 tables cloud avec RLS et Security Advisor sans problème. La migration complémentaire Phase 2 et le catalogue réel restent exclusivement locaux.
+**Phase 0 validée ; Phase 1 validée et déployée sur Supabase cloud ; Phase 2 implémentée et vérifiée localement.** Les trois migrations Phase 1 sont synchronisées Local / Remote, selon la validation du propriétaire : 12 tables cloud avec RLS et Security Advisor sans problème. Les migrations complémentaires Phase 2 et le catalogue réel restent exclusivement locaux.
 
 Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. Le frontend affiche toujours `MY.` et « Application initialisée » ; la Phase 3 / Auth, les RPC de collections et les interfaces métier n'ont pas commencé. Le cloud applicatif était vide au début de cette tâche, selon le propriétaire ; aucune écriture cloud Phase 2 n'a été effectuée.
 
 Le complément Phase 2 fournit les noms français des espèces via un référentiel PokéAPI généré manuellement et destiné au versionnement. Les 1 025 Pokémon locaux ont désormais un nom français, sans changement des 1 213 états de cible ; la seconde application est un noop fonctionnel. La synchronisation du catalogue utilise uniquement ce fichier local et ne contacte jamais PokéAPI.
 
 La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue local en lecture seule. Son moteur TypeScript pur est séparé de PostgreSQL et du terminal, pour une réutilisation future. Aucune interface de recherche ni API publique n'est ajoutée.
+
+Chaque variante porte désormais sa date effective nullable et sa provenance persistée. Elle hérite de la date résolue de sa carte lorsqu'aucune date spécifique fiable n'est connue. Le classement Pokémon utilise cette date de variante ; le classement Set reste numéro puis variante. La [correction des dates de variantes](docs/reports/2026-09-08-PHASE2-VARIANT-DATES.md) conserve les preuves de migration du volume local, de stabilité des IDs et d'idempotence.
 
 **Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place.
 
@@ -98,11 +100,11 @@ npm run supabase:stop
 | Commande ajoutée | Usage |
 |---|---|
 | `npm run db:reset` | Reconstruit entièrement la base **locale**, en supprimant ses données, depuis les migrations |
-| `npm run db:test` | Exécute les quatre suites pgTAP via `supabase test db --local` |
+| `npm run db:test` | Exécute les cinq suites pgTAP via `supabase test db --local` |
 | `npm run db:lint` | Vérifie `public` et `private`, avec échec dès un avertissement SQL |
 | `npm run db:types` | Régénère `src/types/database.generated.ts` depuis `public` local ; le fichier existant est conservé si la CLI échoue |
 
-Les 307 assertions PostgreSQL comprennent les 258 assertions Phase 1 et 49 assertions complémentaires : stamps multiples, tables privées et permissions du pipeline. Les fixtures sont annulées à la fin de chaque suite. Le lanceur copie temporairement la migration Automatic RLS à côté du test pour `pg_prove`, puis supprime cette copie ignorée. Aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif.
+Les 325 assertions PostgreSQL comprennent les 258 assertions Phase 1, 49 assertions sur les stamps multiples, tables privées et permissions du pipeline, et 18 assertions ciblées sur les dates de variantes. Les fixtures sont annulées à la fin de chaque suite. Le lanceur copie temporairement la migration Automatic RLS à côté du test pour `pg_prove`, puis supprime cette copie ignorée. Aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif.
 
 La validation Phase 1 a réussi sur PostgreSQL 17 local : reconstruction depuis les migrations, 258 assertions pgTAP, lint SQL sans avertissement, contrôle de sécurité Supabase sans problème signalé et génération CLI des types. Les vérifications frontend restent `build`, `lint` et les 11 tests Vitest.
 

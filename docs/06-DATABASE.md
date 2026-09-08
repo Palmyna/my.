@@ -18,6 +18,8 @@ Le socle stable de Phase 1 est implémenté dans les [migrations versionnées](.
 
 La Phase 1 est validée et déployée dans Supabase cloud ; ses trois migrations sont synchronisées Local / Remote selon le propriétaire. La Phase 2 ajoute uniquement en local [20260906155043_phase2_catalog_pipeline.sql](../supabase/migrations/20260906155043_phase2_catalog_pipeline.sql), sans modifier les migrations déployées. Elle apporte les stamps multiples et trois tables privées. Le pipeline local alimente le catalogue et les états automatiques ; les RPC utilisateur et le frontend métier restent à développer.
 
+La migration complémentaire [20260908083516_phase2_variant_release_dates.sql](../supabase/migrations/20260908083516_phase2_variant_release_dates.sql), créée avec la CLI, ajoute la date effective et sa provenance aux variantes. Elle conserve les IDs et backfille la valeur depuis les cartes. Faute de provenance historique persistée sur les cartes, le backfill utilise honnêtement `unknown`, même lorsque la date est connue ; la synchronisation suivante recalcule les provenances correctes. Cette migration reste exclusivement locale et fonctionne aussi lors d'une reconstruction complète depuis les migrations.
+
 ## Principes structurants
 
 PostgreSQL via Supabase est la source de vérité persistante de MY. Le modèle sépare strictement :
@@ -206,7 +208,7 @@ Elle conserve notamment :
 - la rareté ;
 - l'URL de l'image ;
 - un ordre normalisé dans le set ;
-- `effective_release_date DATE`, date de parution effective complète et nullable ;
+- `effective_release_date DATE`, date complète nullable résolue pour le fallback des variantes ;
 - la date de mise à jour de la source ;
 - la présence actuelle dans la source ;
 - l'état actif dans MY. ;
@@ -217,7 +219,7 @@ Une carte appartient à exactement un set. Son ordre normalisé doit être stabl
 
 La valeur `origin` utilise `TEXT + CHECK` avec `tcgdex` et `my`. `source_present` est obligatoire et distinct de `is_active` ; une origine ne suffit pas à déterminer la présence actuelle dans la source.
 
-`effective_release_date` suit carte, produit/coffret fiable, set FR/global, avec priorité finale aux overrides. Sans date fiable : NULL, placé en dernier pour Pokémon. Le snapshot inspecté ne fournit pas de dates propres ou de produits exploitables ; le pipeline utilise les dates des sets sans inventer de précision historique.
+La date de carte suit carte, produit/coffret fiable, set FR/global, avec priorité finale aux overrides. Sans date fiable : `NULL`. Elle sert de fallback ; le classement Pokémon utilise désormais la date persistée de chaque variante. Le snapshot inspecté ne fournit pas de dates propres ou de produits exploitables ; le pipeline utilise les dates des sets sans inventer de précision historique.
 
 `normalized_number BIGINT` représente une clé numérique d'ordre du numéro, nullable avant normalisation. `sort_order BIGINT` conserve les ordres techniques des séries, sets et variantes ; ces colonnes peuvent rester nulles avant le pipeline. Le pipeline Phase 2 remplit les rangs naturels intra-set et les rangs de variantes selon `07-CATALOG-SYNC.md`. Les données descriptives facultatives restent nullables, afin de ne pas fabriquer de noms, dates, images ou raretés manquants.
 
@@ -236,6 +238,8 @@ La table conserve notamment :
 - un label d'affichage ;
 - les propriétés structurées type, subtype, taille, `stamp TEXT[] NOT NULL DEFAULT '{}'` et foil ;
 - une éventuelle URL d'image spécifique ;
+- `effective_release_date DATE NULL`, date effective propre à la variante ;
+- `date_origin TEXT NOT NULL DEFAULT 'unknown'`, contraint à `variant`, `card`, `product`, `set`, `override` ou `unknown` ;
 - la disponibilité française ;
 - un ordre stable dans la carte ;
 - l'origine TCGdex ou MY. ;
@@ -245,6 +249,8 @@ La table conserve notamment :
 
 L'identité principale d'une variante est son ID interne MY. Elle ne change pas à la suite d'une simple correction de la donnée source.
 
+Une variante peut sortir après la carte de base. Elle utilise sa date spécifique fiable, sinon la date déjà résolue de la carte, sinon `NULL`. La provenance réelle est conservée lors du fallback : une date héritée du set reste `set`, pas `variant`. La provenance `unknown` signifie que l'origine n'est pas connue, notamment pour une valeur historique migrée ; elle n'impose donc pas une date NULL. La correction explicite d'une date utilise `override`, et `variant.patch` avec `date:null` restaure le fallback de carte. Le pipeline préserve les dates persistées des variantes absentes/historiques lorsqu'il les reconstruit depuis PostgreSQL.
+
 #### `variant_key`
 
 Chaque variante possède une clé stable à l'intérieur de sa carte source. La contrainte conceptuelle est :
@@ -253,7 +259,7 @@ Chaque variante possède une clé stable à l'intérieur de sa carte source. La 
 UNIQUE(source_card_id, variant_key)
 ```
 
-La clé V1 est `v1:` suivi du JSON `[type, subtype|null, taille standard, stamps triés, foil|null]`. Langue, label et tiers sont exclus de l’identité. La migration convertit chaque ancien stamp scalaire en tableau singleton et NULL en tableau vide, sans perte. Les tableaux ne peuvent pas contenir NULL ; le pipeline trie et déduplique les stamps avant persistance.
+La clé V1 est `v1:` suivi du JSON `[type, subtype|null, taille standard, stamps triés, foil|null]`. Langue, label, date, provenance de date et tiers sont exclus de l’identité. Une correction de date conserve la clé et l'ID. La migration des stamps convertit chaque ancien stamp scalaire en tableau singleton et NULL en tableau vide, sans perte. Les tableaux ne peuvent pas contenir NULL ; le pipeline trie et déduplique les stamps avant persistance.
 
 #### Disponibilité française
 
@@ -428,7 +434,7 @@ Dans une collection libre, tous les éléments sont manuels. Dans une collection
 
 `automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection libre, y compris lors d'un changement de parent.
 
-Cet ordre canonique est distinct de `sort_position`. Pour Pokémon : date de parution effective complète croissante, numéro normalisé, ordre stable des variantes de la carte. Pour Extension : numéro normalisé dans le set, ordre stable des variantes. Les départages techniques ne peuvent pas modifier ces priorités. Les algorithmes précis sont implémentés en Phase 2 et définis dans `07-CATALOG-SYNC.md`.
+Cet ordre canonique est distinct de `sort_position`. Pour Pokémon : date de parution effective de la variante croissante (`NULL` en dernier), numéro normalisé, ordre stable des variantes de la carte. Pour Extension : numéro normalisé dans le set, ordre stable des variantes, sans critère de date. Les départages techniques ne peuvent pas modifier ces priorités. Les algorithmes précis sont implémentés en Phase 2 et définis dans `07-CATALOG-SYNC.md`. Le hash ne contient que les IDs ordonnés : une date sans déplacement ne modifie ni hash ni version ; une date seule ne modifie jamais la cible Set.
 
 La base, les permissions ou les opérations métier doivent garantir que :
 
@@ -781,7 +787,7 @@ Les accès suivants doivent disposer d'index ou de contraintes uniques adaptés 
 - `tcg_sets.series_id` ;
 - `source_cards.set_id` ;
 - `source_cards.local_id` ;
-- `(effective_release_date, normalized_number, id)` pour préparer la priorité de tri Pokémon ;
+- `(effective_release_date, normalized_number, id)` sur `source_cards`, index historique Phase 1 conservé ; le tri Pokémon Phase 2 utilise les dates de variantes dans le plan TypeScript ;
 - `catalog_variants.source_card_id` ;
 - `card_pokemon.pokemon_id` ;
 - `card_pokemon.card_id`.

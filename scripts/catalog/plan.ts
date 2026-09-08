@@ -1,4 +1,4 @@
-import { canonical, compare, hash, unique } from './model.ts'
+import { canonical, compare, dateOrigin, hash, unique } from './model.ts'
 import type { Catalogue, Card, Diagnostic } from './model.ts'
 import { pokemonNameFor } from './pokemon-reference.ts'
 import type { PokemonReference } from './pokemon-reference.ts'
@@ -42,6 +42,7 @@ export function includeOverrideHistory(input: Catalogue, state: State, overrides
         const props = normalizeProperties({ type: String(row.variant_type), subtype: nullable(row.subtype), size: 'standard',
           stamp: Array.isArray(row.stamp) ? row.stamp : [], foil: nullable(row.foil) })
         return { ...props, key: `${key}#${String(row.variant_key)}`, identity: variantKey(props), sourceId: nullable(row.source_variant_id),
+          date: nullable(row.effective_release_date), dateOrigin: dateOrigin.parse(row.date_origin),
           label: String(row.label), image: nullable(row.image_url), availability: row.french_availability === 'confirmed' ? 'confirmed'
             : row.french_availability === 'unavailable' ? 'unavailable' : 'unknown',
           origin: row.origin === 'my' ? 'my' : 'tcgdex', present: false, active: false, rank: Number(row.sort_order), alias: true }
@@ -111,6 +112,7 @@ export function makePlan(catalogue: Catalogue, state: State, reference: PokemonR
       const variantRow = add('catalog_variants', { source_card_id: id(row), source_variant_id: variant.sourceId, variant_key: variant.identity,
         label: variant.label, variant_type: variant.type, subtype: variant.subtype, size: variant.size, stamp: variant.stamp, foil: variant.foil,
         image_url: variant.image ?? card.image, french_availability: variant.availability, sort_order: String(variant.rank),
+        effective_release_date: variant.date, date_origin: variant.dateOrigin,
         origin: variant.origin, source_present: variant.present, is_active: variant.active }, previous)
       variantIds.set(variant.key, id(variantRow))
       if (variant.alias && !alias) plan.aliases.push({ entity_key: variant.key, source_card_id: null, variant_id: id(variantRow) })
@@ -135,7 +137,8 @@ export function makePlan(catalogue: Catalogue, state: State, reference: PokemonR
   const oldTargets = new Map(state.rows.automatic_target_states.map((row) => [`${String(row.target_type)}:${String(row.pokemon_id ?? row.set_id)}`, row]))
   const target = (type: 'pokemon' | 'set', targetId: string, entries: typeof eligible): void => {
     const previous = oldTargets.get(`${type}:${targetId}`)
-    const ordered = [...entries].sort((a, b) => (type === 'pokemon' ? compare(a.card.date ?? '9999-12-31', b.card.date ?? '9999-12-31') : 0)
+    const ordered = [...entries].sort((a, b) => (type === 'pokemon'
+      ? Number(a.variant.date === null) - Number(b.variant.date === null) || compare(a.variant.date ?? '', b.variant.date ?? '') : 0)
       || a.card.rank - b.card.rank || a.variant.rank - b.variant.rank || compare(a.card.key, b.card.key) || compare(a.variant.identity, b.variant.identity))
     const ids = ordered.map((item) => variantIds.get(item.variant.key) ?? '')
     const contentHash = hash(ids), changed = previous && previous.content_hash !== contentHash

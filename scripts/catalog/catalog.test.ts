@@ -69,13 +69,13 @@ describe('deterministic order and dates', () => {
   })
   it('orders unknown dates last; date changes affect Pokemon but not set order', () => {
     const c = fixture()
-    c.cards[0]!.date = null
+    c.cards[0]!.variants.forEach((v) => { v.date = null; v.dateOrigin = 'unknown' })
     c.cards[1]!.dex = [25]
     const first = makePlan(c, emptyState())
     const secondCard = first.rows.source_cards.find((row) => row.local_id === '2A')!
     const secondIds = first.rows.catalog_variants.filter((row) => row.source_card_id === secondCard.id).map((row) => row.id)
     expect(first.structures.find((target) => target.type === 'pokemon')?.ids.slice(0, 2)).toEqual(secondIds)
-    c.cards[0]!.date = '2000-01-01'
+    c.cards[0]!.variants.forEach((v) => { v.date = '2000-01-01'; v.dateOrigin = 'override' })
     const changed = makePlan(c, { ...emptyState(), rows: first.rows, mappings: first.mappings })
     expect(changed.structures.filter((target) => target.type === 'set')).toEqual(first.structures.filter((target) => target.type === 'set'))
     expect(changed.targets.changed).toBe(1)

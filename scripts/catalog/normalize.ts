@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { compare, date, dex, unique } from './model.ts'
+import { compare, date, dateOrigin, dex, unique } from './model.ts'
 import type { Catalogue, Card, Diagnostic } from './model.ts'
 import type { Source } from './reader.ts'
 import { numberParts, rankCards } from './order.ts'
@@ -37,12 +37,12 @@ export function normalize(source: Source): Catalogue {
   const sets = new Map(catalogue.sets.map((set) => [set.key, set]))
   catalogue.cards = source.cards.filter((card) => card.set.id !== 'jumbo').map((raw) => {
     const id = `${raw.set.id}-${raw.localId}`, key = `tcgdex:${id}`
-    const result = variants(raw.variants, key, diagnostics, source.translations)
+    const dates = effectiveDate(raw.releaseDate, null, sets.get(raw.set.id)?.date)
+    const result = variants(raw.variants, key, diagnostics, source.translations, dates)
     catalogue.counters.source_variants = (catalogue.counters.source_variants ?? 0) + result.count
     catalogue.counters.jumbo_ignored = (catalogue.counters.jumbo_ignored ?? 0) + result.jumbo
     if (raw.cameoDexIds?.length) catalogue.counters.cameo_cards_ignored = (catalogue.counters.cameo_cards_ignored ?? 0) + 1
     if (numberParts(raw.localId).group === 2) diagnostics.push({ code: 'atypical-number', target: id, detail: raw.localId })
-    const dates = effectiveDate(raw.releaseDate, null, sets.get(raw.set.id)?.date)
     if (!dates.date) diagnostics.push({ code: 'unknown-date', target: id, detail: 'No reliable card/product/set French or global date.' })
     return { key, sourceId: id, localId: raw.localId, set: raw.set.id, name: raw.name.fr ?? null,
       category: raw.category ? source.translations.category?.[raw.category] ?? raw.category : null,
@@ -80,6 +80,8 @@ export function validateCatalogue(catalogue: Catalogue): void {
     unique(card.variants, (item) => item.identity, `variant of ${card.key}`)
     unique(card.variants.filter((item) => item.sourceId), (item) => item.sourceId ?? '', `source variant of ${card.key}`)
     for (const variant of card.variants) {
+      date.nullable().parse(variant.date)
+      dateOrigin.parse(variant.dateOrigin)
       if (variant.size !== 'standard' || variant.identity !== variantKey(variant)) throw new Error(`Invalid variant identity: ${variant.key}`)
       if (variant.sourceId === 'generated') throw new Error('Generic source ID refused')
     }

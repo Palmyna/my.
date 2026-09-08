@@ -314,6 +314,8 @@ Une automatisation simple pourra être ajoutée ultérieurement via Supabase, Gi
 
 Le pipeline est isolé dans `scripts/catalog/`, exécuté directement par Node 24 en TypeScript, avec `pg` pour PostgreSQL et Zod pour les corrections JSON. Il utilise le snapshot Git exact en cache, une transaction catalogue globale, des batches de 1 000 lignes et un dry-run sans écriture. Il ne constitue pas un serveur Node permanent. Les règles complètes sont définies dans `07-CATALOG-SYNC.md`.
 
+La date effective et sa provenance sont persistées sur chaque variante. La normalisation et les overrides résolvent la date spécifique, sinon le fallback fiable de carte, sinon `NULL`, en conservant la provenance réelle. Le plan utilise cette date pour les cibles Pokémon, avec `NULL` en dernier ; les cibles Set restent classées par numéro puis variante. Les hashes portent uniquement sur les IDs ordonnés : une correction de date sans déplacement ne change aucune version. La date ne participe jamais à l'identité ; les variantes historiques conservent leur date persistée.
+
 ### Catalogue ciblé
 
 PostgreSQL ne doit pas recevoir aveuglément toutes les données brutes de TCGdex. Le catalogue conserve principalement les informations utiles à MY., à la synchronisation, à la comparaison et à la traçabilité.

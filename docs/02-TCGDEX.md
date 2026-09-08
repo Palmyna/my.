@@ -291,11 +291,11 @@ L'ordre d'une collection automatique doit rester stable et reproductible. Une sy
 
 Pour une collection par Pokémon, les priorités sont :
 
-1. date de parution effective complète de la carte (`YYYY-MM-DD`), croissante ;
+1. date de parution effective complète de la variante (`YYYY-MM-DD`), croissante ;
 2. numéro normalisé de la carte ;
 3. ordre stable des variantes d'une même carte.
 
-La date précise de la carte prime, puis la date fiable du produit/coffret, puis la sortie française ou globale fiable du set. Un override MY. peut remplacer toute valeur erronée. `source_cards.effective_release_date` reste nullable ; les dates inconnues viennent après les cartes datées. Le snapshot Phase 2 ne fournit pas de dates de produits exploitables : aucun enrichissement externe ne les invente.
+La variante utilise sa date spécifique fiable lorsqu'elle est connue, sinon la date effective résolue de sa carte, sinon `NULL`. La carte résout son fallback selon carte, produit/coffret fiable, puis sortie française ou globale fiable du set. Une variante peut ainsi sortir après la carte de base. `catalog_variants.effective_release_date` et `date_origin` conservent la valeur et sa provenance réelle (`variant`, `card`, `product`, `set`, `override`, `unknown`) ; une date héritée n'est pas présentée comme spécifique à la variante. Les dates inconnues viennent après les variantes datées. Le snapshot inspecté ne fournit ni dates propres de variantes ni produits datés exploitables : aucun enrichissement externe ne les invente. Un override peut corriger une date de variante ; `date:null` retire cette correction et restaure le fallback de carte.
 
 Pour une collection par Extension, les priorités sont le numéro normalisé de la carte dans le set, puis l'ordre stable des variantes d'une même carte. Le numéro n'est jamais trié naïvement comme une chaîne de caractères.
 

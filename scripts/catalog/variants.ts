@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { canonical, compare, properties } from './model.ts'
-import type { Diagnostic, Properties, Variant } from './model.ts'
+import type { Card, Diagnostic, Properties, Variant } from './model.ts'
 
 export function normalizeProperties(input: z.input<typeof properties>): Properties {
   const value = properties.parse({ type: input.type, subtype: input.subtype, size: input.size, stamp: input.stamp, foil: input.foil })
@@ -28,7 +28,8 @@ export function label(v: Properties, translations: Record<string, Record<string,
   return [translate('variantType', v.type), v.foil && translate('variantFoil', v.foil),
     ...v.stamp.map((stamp) => translate('variantStamp', stamp)), v.subtype && translate('variantSubtype', v.subtype)].filter(Boolean).join(' ')
 }
-export function variants(input: unknown, card: string, diagnostics: Diagnostic[], translations: Record<string, Record<string, string>> = {}): { values: Variant[]; jumbo: number; count: number } {
+export function variants(input: unknown, card: string, diagnostics: Diagnostic[], translations: Record<string, Record<string, string>> = {},
+  cardDate: Pick<Card, 'date' | 'dateOrigin'> = { date: null, dateOrigin: 'unknown' }): { values: Variant[]; jumbo: number; count: number } {
   let raw: { value: Properties; languages?: string[]; sourceId: string | null; ambiguous: boolean }[]
   let jumbo = 0
   if (Array.isArray(input)) {
@@ -62,7 +63,9 @@ export function variants(input: unknown, card: string, diagnostics: Diagnostic[]
   for (const entry of raw) {
     if (entry.value.size === 'jumbo') { jumbo++; continue }
     const identity = variantKey(entry.value)
-    const variant: Variant = { ...entry.value, identity, key: `${card}#${identity}`, sourceId: entry.sourceId,
+    // The audited upstream variant definitions contain no reliable release date or dated product link.
+    const variant: Variant = { ...entry.value, date: cardDate.date, dateOrigin: cardDate.dateOrigin,
+      identity, key: `${card}#${identity}`, sourceId: entry.sourceId,
       label: label(entry.value, translations), image: null, availability: entry.ambiguous ? 'unknown'
         : entry.languages === undefined || entry.languages.includes('fr') ? 'confirmed' : 'unavailable',
       origin: 'tcgdex', present: true, active: true, rank: 0, alias: false }

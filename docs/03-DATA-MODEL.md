@@ -86,7 +86,7 @@ Une carte source représente la carte de base provenant de TCGdex, avant la dist
 - son image ;
 - sa rareté et sa catégorie ;
 - une date ou information de mise à jour de la source ;
-- une date de parution effective complète, nullable si aucune date fiable n'est connue, selon la priorité carte, produit/coffret fiable, set FR/global et les corrections MY. ;
+- une date de parution résolue servant de fallback aux variantes, nullable si aucune date fiable n'est connue, selon la priorité carte, produit/coffret fiable, set FR/global et les corrections MY. ;
 - les autres métadonnées utiles à MY.
 
 Les données de gameplay inutiles à la V1 ne doivent pas être conservées sans besoin produit.
@@ -108,8 +108,15 @@ Chaque variante :
 - possède sa propre identité interne MY. ;
 - appartient à une seule carte source ;
 - représente une entrée distincte du catalogue ;
+- porte sa propre date effective nullable et la provenance réelle de cette date ;
 - peut être référencée par des collections ;
 - peut être associée à zéro, un ou plusieurs exemplaires physiques par utilisateur.
+
+#### Date effective d'une variante
+
+Une variante peut sortir plus tard que la carte de base. Sa date effective utilise une date spécifique fiable si elle est connue, sinon la date résolue de sa carte, sinon `NULL`. L'héritage conserve la provenance de la carte : `card`, `product`, `set`, `override` ou `unknown`. `variant` désigne uniquement une date spécifique issue d'une source fiable ; une correction explicite porte `override`. Aucune date approximative n'est inventée. Le modèle persistant conserve cette valeur et sa provenance sur la variante.
+
+Les variantes historiques conservent leurs dates persistées. Une correction de date ne crée pas une nouvelle variante et ne modifie pas son identité.
 
 #### Identité d'une variante
 
@@ -121,7 +128,7 @@ Deux variantes réellement distinctes doivent toujours pouvoir être représent�
 - les stamps multiples normalisés ;
 - le foil.
 
-La langue, les traductions, les labels et les liens tiers ne sont pas identitaires. La clé canonique V1 et la référence source sont distinctes, comme défini dans `07-CATALOG-SYNC.md`. Les Jumbo sont exclues.
+La langue, les traductions, les labels, les dates et les liens tiers ne sont pas identitaires. La clé canonique V1 et la référence source sont distinctes, comme défini dans `07-CATALOG-SYNC.md`. Les Jumbo sont exclues.
 
 #### Disponibilité française
 
@@ -262,7 +269,7 @@ La Phase 1 représente l'ordre matérialisé par des positions numériques fract
 
 Les variantes éligibles aux collections automatiques doivent pouvoir être ordonnées de manière stable et déterministe.
 
-Pour une cible Pokémon, cet ordre suit la date de parution effective complète de la carte croissante, puis son numéro normalisé, puis l'ordre stable des variantes d'une même carte.
+Pour une cible Pokémon, cet ordre suit la date de parution effective complète de la variante croissante (`NULL` en dernier), puis le numéro normalisé de la carte, puis l'ordre stable des variantes d'une même carte. Les variantes d'une carte peuvent donc être séparées par celles d'une autre carte sortie entre leurs dates respectives.
 
 Pour une cible Set, il suit le numéro normalisé dans le set, puis l'ordre stable des variantes d'une même carte. Le numéro ne suit pas un tri textuel naïf.
 

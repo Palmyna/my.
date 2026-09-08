@@ -87,6 +87,8 @@ export type Database = {
       catalog_variants: {
         Row: {
           created_at: string
+          date_origin: string
+          effective_release_date: string | null
           foil: string | null
           french_availability: string
           id: number
@@ -107,6 +109,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          date_origin?: string
+          effective_release_date?: string | null
           foil?: string | null
           french_availability?: string
           id?: never
@@ -127,6 +131,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          date_origin?: string
+          effective_release_date?: string | null
           foil?: string | null
           french_availability?: string
           id?: never

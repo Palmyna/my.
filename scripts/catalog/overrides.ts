@@ -12,10 +12,10 @@ const cardPatch = z.strictObject({ name: text.nullable().optional(), category: t
 // Patch fields deliberately have no defaults: omitted properties must remain unchanged.
 const variantPatch = z.strictObject({ type: text.optional(), subtype: text.nullable().optional(),
   size: z.enum(['standard', 'jumbo']).optional(), stamp: z.array(text).optional(), foil: text.nullable().optional(),
-  label: text.optional(), image: z.url().nullable().optional(),
+  label: text.optional(), image: z.url().nullable().optional(), date: date.nullable().optional(),
   availability: availability.optional(), active: z.boolean().optional() }).refine((v) => Object.keys(v).length > 0)
 const newVariant = properties.extend({ label: text.optional(), image: z.url().nullable().default(null), availability,
-  active: z.boolean().default(true) }).refine((v) => v.size === 'standard', 'Jumbo is outside MY.')
+  active: z.boolean().default(true), date: date.optional() }).refine((v) => v.size === 'standard', 'Jumbo is outside MY.')
 export const overrideSchema = z.discriminatedUnion('action', [
   z.strictObject({ ...base, action: z.literal('card.patch'), card: text, patch: cardPatch }),
   z.strictObject({ ...base, action: z.literal('card.add'), card: z.strictObject({ set: text, localId: text, name: text,
@@ -41,14 +41,24 @@ export function loadOverrides(directory: string): { values: Override[]; hash: st
   const values = parseOverrides(entries)
   return { values, hash: hash(values) }
 }
-function localVariant(input: z.infer<typeof newVariant>, key: string): Variant {
+function localVariant(input: z.infer<typeof newVariant>, key: string, cardDate: Pick<Card, 'date' | 'dateOrigin'>): Variant {
   const props = normalizeProperties(input)
   return { ...props, identity: variantKey(props), key, sourceId: null, label: input.label ?? label(props), image: input.image,
+    date: input.date ?? cardDate.date, dateOrigin: input.date === undefined ? cardDate.dateOrigin : 'override',
     availability: input.availability, origin: 'my', present: false, active: input.active, rank: 0, alias: true }
 }
 export function applyOverrides(input: Catalogue, overrides: Override[]): Catalogue {
   const result = structuredClone(input)
   const cards = new Map(result.cards.map((card) => [card.key, card]))
+  // Track fallback independently of provenance: an inherited card date can itself be an override.
+  // Historical variants retain their persisted value unless explicitly patched with date:null.
+  const inherited = new Set(result.cards.flatMap((card) => card.variants.filter((v) => v.present
+    && v.dateOrigin !== 'variant' && v.dateOrigin !== 'override')))
+  const addVariant = (input: z.infer<typeof newVariant>, key: string, card: Pick<Card, 'date' | 'dateOrigin'>): Variant => {
+    const variant = localVariant(input, key, card)
+    if (input.date === undefined) inherited.add(variant)
+    return variant
+  }
   const touched = new Set<string>()
   const claim = (key: string): void => {
     if (touched.has(key)) throw new Error(`Conflicting overrides: ${key}`)
@@ -65,7 +75,8 @@ export function applyOverrides(input: Catalogue, overrides: Override[]): Catalog
       if (!result.sets.some((set) => set.key === override.card.set)) throw new Error(`Unknown set: ${override.card.set}`)
       const card: Card = { ...override.card, key, sourceId: null, sourceUpdated: null,
         dateOrigin: override.card.date ? 'override' : 'unknown', origin: 'my', present: false, rank: 0,
-        variants: override.card.variants.map((v) => localVariant(v, `${key}#${variantKey(v)}`)) }
+        variants: override.card.variants.map((v) => addVariant(v, `${key}#${variantKey(v)}`,
+          { date: override.card.date, dateOrigin: override.card.date ? 'override' : 'unknown' })) }
       cards.set(key, card); result.cards.push(card); target = key; after = card
     } else {
       const card = cards.get(override.card)
@@ -78,7 +89,7 @@ export function applyOverrides(input: Catalogue, overrides: Override[]): Catalog
         if ('date' in override.patch) card.dateOrigin = 'override'
         after = override.patch
       } else if (override.action === 'variant.add') {
-        const variant = localVariant(override.variant, `my:${override.id}`)
+        const variant = addVariant(override.variant, `my:${override.id}`, card)
         if (card.variants.some((v) => v.identity === variant.identity)) throw new Error(`Duplicate added variant: ${card.key} ${variant.identity}`)
         card.variants.push(variant); after = variant
       } else if (override.action === 'variant.patch') {
@@ -89,6 +100,15 @@ export function applyOverrides(input: Catalogue, overrides: Override[]): Catalog
         before = Object.fromEntries(Object.keys(override.patch).map((field) => [field, variant[field as keyof Variant]]))
         for (const field of Object.keys(override.patch)) claim(`${variant.key}:${field}`)
         Object.assign(variant, override.patch)
+        if ('date' in override.patch) {
+          if (override.patch.date === null) {
+            inherited.add(variant)
+            variant.date = card.date; variant.dateOrigin = card.dateOrigin
+          } else {
+            inherited.delete(variant)
+            variant.dateOrigin = 'override'
+          }
+        }
         Object.assign(variant, normalizeProperties(variant))
         variant.identity = variantKey(variant)
         variant.alias = true
@@ -105,7 +125,13 @@ export function applyOverrides(input: Catalogue, overrides: Override[]): Catalog
     result.overrides.push({ id: override.id, reason: override.reason, action: override.action, target,
       before: structuredClone(before), after: structuredClone(after), redundant: canonical(before) === canonical(after) })
   }
-  for (const card of result.cards) card.dex.sort((a, b) => a - b)
+  for (const card of result.cards) {
+    card.dex.sort((a, b) => a - b)
+    // Resolve after every card patch, independently of override IDs/dependency ordering.
+    for (const variant of card.variants) if (inherited.has(variant)) {
+      variant.date = card.date; variant.dateOrigin = card.dateOrigin
+    }
+  }
   rankCards(result.cards)
   return result
 }

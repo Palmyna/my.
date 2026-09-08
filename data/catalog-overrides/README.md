@@ -102,10 +102,26 @@ Exemples **synthétiques, non chargés** : remplacer les références et raisons
 ]
 ```
 
-`card.patch` accepte `name`, `category`, `rarity`, `image`, `date`, `active`. Les champs descriptifs peuvent être `null`. `variant.patch` accepte `type`, `subtype`, `size`, `stamp`, `foil`, `label`, `image`, `availability`, `active`. Disponibilités : `confirmed`, `unknown`, `unavailable`. Pour désactiver : `active: false`. Pour retirer un rattachement : `mapping.exclude`.
+`card.patch` accepte `name`, `category`, `rarity`, `image`, `date`, `active`. Les champs descriptifs peuvent être `null`. `variant.patch` accepte `type`, `subtype`, `size`, `stamp`, `foil`, `label`, `image`, `date`, `availability`, `active`. Disponibilités : `confirmed`, `unknown`, `unavailable`. Pour désactiver : `active: false`. Pour retirer un rattachement : `mapping.exclude`.
 
 `variant.add` requiert `type` et `availability`, avec taille standard implicite. `card.add` requiert set, numéro local, nom, date complète ou `null`, et au moins une variante. La carte devient `my:<id-override>` ; une variante ajoutée séparément est sélectionnable par `my:<id-override>`. Utiliser les propriétés canoniques TCGdex, pas les traductions. Les stamps sont un tableau.
 
 Un patch de variante source cible sa clé **avant correction**. L'alias privé préserve l'ID si foil ou stamps changent. Les cibles inconnues, doublons et conflits bloquent avant écriture. Les ajouts retirés sont conservés inactifs. Pour maintenir une carte disparue, cibler la carte historique et ses variantes explicitement ; son set doit encore être reconnu.
 
 Les traces appliquées résident dans `private.catalog_overrides`. Git reste l'autorité ; une modification manuelle de PostgreSQL ne le remplace pas.
+
+## Date effective d'une variante
+
+Une variante peut être sortie après la carte de base. La date appartient à la variante et ne participe ni à `variantKey` ni à son identité ou son ID.
+
+- `variant.add` sans `date` : hérite de la date résolue de la carte et de sa provenance réelle.
+- `variant.add` avec `"date": "2018-03-15"` dans l'objet `variant` : date explicite, provenance `override`.
+- `variant.patch` avec `"patch": { "date": "2018-03-15" }` : correction explicite, provenance `override`.
+- `variant.patch` avec `"patch": { "date": null }` : supprime la correction spécifique et restaure le fallback de carte, éventuellement NULL si la carte n'a aucune date fiable.
+- Champ absent d'un patch : la date n'est pas corrigée par cette action. `null` est accepté uniquement pour le patch, pas pour `variant.add` où l'absence exprime le fallback.
+
+Ces dates sont des exemples synthétiques, pas une correction à appliquer à Pikachu. Une date doit être complète et valide en ISO `YYYY-MM-DD`, étayée par une raison factuelle ; aucune date approximative n'est inventée. Les variantes dans `card.add` acceptent aussi la date facultative.
+
+Le fallback conserve `card`, `product`, `set`, `override` ou `unknown`, sans le présenter comme une date spécifique `variant`. Une correction de carte met à jour les variantes courantes qui en héritent, même si l'ajout de variante est traité avant ce patch ; les dates spécifiques ne sont pas remplacées. Les variantes historiques conservent leur valeur persistée sauf demande explicite de correction ou de fallback.
+
+La date agit sur le classement Pokémon uniquement. Le classement Set reste numéro puis rang de variante. Les versions changent uniquement si la liste ordonnée des IDs change. Le fichier réel `pikachu-sm3.5-28.json` reste inchangé : ses quatre ajouts sans date héritent temporairement de la date de carte, avec la provenance de cette date.
