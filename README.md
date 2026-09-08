@@ -122,6 +122,7 @@ Le catalogue local vérifié contient 19 907 cartes, 31 904 variantes, 1 025 Pok
 |---|---|
 | `npm run catalog:validate` | Valide snapshot, corrections et rapprochement en lecture sur Supabase local |
 | `npm run catalog:find -- "Pikachu Légendes Brillantes"` | Recherche locale en lecture seule ; affiche la cible d'override directement copiable |
+| `npm run catalog:find -- "Pikachu" --export` | CSV local de toutes les cartes trouvées, une ligne par variante standard, avec dates et sélecteurs |
 | `npm run pokemon:update` | Régénère manuellement le référentiel complet des noms d'espèces français depuis PokéAPI, sans accès DB |
 | `npm run catalog:sync` | Dry-run complet par défaut, zéro écriture DB, aucun ID consommé |
 | `npm run catalog:sync -- --snapshot <SHA> --dry-run` | Rejoue un SHA exact et produit le plan |
@@ -141,6 +142,12 @@ npm run catalog:find -- "Évoli Promo" --limit 10
 ```
 
 La sortie affiche `tcgdex:sm3.5-28`, le nom, les Pokémon liés, le set, `28/73` et cinq variantes pour le cas Pikachu. Les termes peuvent correspondre à des champs différents ; casse et accents sont ignorés. La limite est de 20 résultats, ajustable de 1 à 100, avec le total affiché. Aucun résultat est une sortie normale ; une recherche vide affiche l'usage. Si Supabase est arrêté, la commande indique comment le démarrer. Le [guide des overrides](data/catalog-overrides/README.md) explique `id`, `card` et les étapes suivantes ; le [rapport catalog:find](docs/reports/2026-09-07-PHASE2-CATALOG-FIND.md) conserve les tests réels et la preuve de lecture seule.
+
+Avec `--export`, la même recherche produit toutes ses correspondances, une ligne par variante standard stockée, sans limite 20. La combinaison `--export --limit` est refusée. Les huit colonnes sont **Card, Nom, Set, N°, Variante, Date, Origine date, Variant Key** ; `Variant Key` se copie dans le champ `key` de `variant.patch`, et une date NULL donne une cellule vide.
+
+Le CSV est écrit dans `.cache/catalog-exports/catalog-find-<recherche-normalisée>-<empreinte-10-caractères>.csv`, ignoré par Git, et remplace proprement le précédent export de cette recherche. UTF-8 avec BOM, séparateur `;`, guillemets échappés et fins de ligne CRLF permettent l'ouverture dans Excel/LibreOffice. Aucun résultat ne crée de CSV ; un éventuel ancien export est conservé et signalé.
+
+Workflow : **export de référence → audit humain → fichier séparé `*_override.csv` contenant uniquement les corrections souhaitées**. Ce fichier sert de liste manuelle ; aucun importeur CSV n'est créé et le CSV de référence n'est pas destiné à être modifié puis réimporté. Le [guide des overrides](data/catalog-overrides/README.md) détaille les clés et le [rapport d'export](docs/reports/2026-09-08-PHASE2-CATALOG-FIND-EXPORT.md) conserve les vérifications.
 
 Pour vérifier une reconstruction : démarrer Supabase, exécuter `db:reset`, `db:test`, `db:lint`, `catalog:test:db`, `db:types`, puis les contrôles TypeScript/build/lint/tests. Après les fixtures, refaire `db:reset`, lancer le dry-run au SHA choisi, lire son rapport, puis appliquer deux fois le même SHA afin de vérifier l'idempotence. Le deuxième apply ne doit changer aucune donnée fonctionnelle. Les rapports JSON complets sont dans `.cache/catalog-reports/`.
 

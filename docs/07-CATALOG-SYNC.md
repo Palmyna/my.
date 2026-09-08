@@ -32,6 +32,7 @@ Le pipeline réside dans [`scripts/catalog/`](../scripts/catalog/), hors React. 
 | `search-catalog.ts` | Contrat métier portable, normalisation, matching, score et tri |
 | `search-catalog-db.ts`, `catalog-find.ts` | Projection PostgreSQL locale en lecture seule et présentation terminal |
 | `search-catalog.test.ts` | Recherche, adaptateur de lecture, erreurs et CLI simulée |
+| `catalog-find-export.ts`, `catalog-find-export.test.ts` | Sortie CSV de maintenance, toutes les correspondances, encodage et compatibilité des sélecteurs |
 
 ```sh
 npm run supabase:start
@@ -246,6 +247,22 @@ Si Supabase local est indisponible ou sa configuration refusée, la CLI propose 
 La projection est lue dans une transaction `REPEATABLE READ READ ONLY`, avec timeout SQL de 15 secondes, puis rollback et fermeture de la connexion. La requête libre n'est jamais interpolée dans le SQL. Aucun run, override, alias, séquence, donnée catalogue ou utilisateur n'est écrit. Aucun accès cloud, appel PokéAPI, lecture du snapshot TCGdex ou synchronisation implicite.
 
 Cette CLI charge la projection complète dans son processus local, adaptée au catalogue actuel d'environ 20 000 cartes. Cela ne constitue pas la stratégie du futur navigateur, qui devra recevoir des données filtrées et paginées. Aucune infrastructure, extension, migration, API/RPC ou UI de recherche n'est ajoutée. Les [preuves locales](reports/2026-09-07-PHASE2-CATALOG-FIND.md) mesurent le temps du moteur et comparent intégralement l'état avant/après.
+
+### Export CSV de référence
+
+`npm run catalog:find -- "<recherche>" --export` ajoute uniquement une sortie détaillée de maintenance. Le fichier `search-catalog.ts` et ses règles de normalisation, tokenisation, matching, scoring, champs et classement restent inchangés. La couche maintenance épuise les résultats du moteur par lots de 100 en retirant les résultats déjà obtenus ; elle ne copie aucune règle de classement et conserve l'ordre exact. Le total exporté n'est limité ni à 20 ni à 100. La combinaison `--export --limit` est refusée explicitement avant connexion ; le mode compact conserve son comportement.
+
+`search-catalog-db.ts` lit la projection habituelle, puis enrichit uniquement les IDs trouvés avec leurs variantes standard, dans la même transaction `REPEATABLE READ READ ONLY`. Les dates/provenances et labels sont lus tels que persistés. Les variantes restent dans leur ordre stocké (`sort_order`, clé, ID en départage), sans nouveau tri par date. Les cartes restent dans l'ordre de pertinence du moteur. La logique CSV appartient à `catalog-find-export.ts`, hors du moteur pur.
+
+Colonnes exactes : **Card, Nom, Set, N°, Variante, Date, Origine date, Variant Key**. Une ligne par variante standard, y compris inactive ou non confirmée ; date NULL et nom/label absent donnent une cellule vide. Le set absent utilise son identifiant ; le numéro conserve le format compact existant.
+
+Le sélecteur `Variant Key` est choisi depuis le catalogue appliqué : priorité au sélecteur d'un `variant.patch` appliqué rattaché au même ID via les aliases privés, puis à l'alias `my:<id-ajout>` d'une variante MY ajoutée séparément, sinon à la clé canonique persistée. Le premier choix préserve la clé originale après correction d'identité ; un ancien alias source isolé, dont la correction a été retirée, n'est pas utilisé arbitrairement. Les clés et cartes locales/historiques sont testées avec le véritable pipeline d'overrides, en mémoire seulement.
+
+Pour garantir cette compatibilité, la reconstruction historique ne recrée pas les cartes/variantes déjà prévues par `card.add`/`variant.add` ; elle peut réintroduire uniquement une variante connue ciblée par un patch, absente d'une carte pourtant encore présente. Les dates persistées et IDs sont conservés et ces variantes repartent inactives. Aucun candidat inconnu n'est inventé. Ces corrections ne modifient ni la recherche ni les données pendant un export.
+
+Les CSV résident dans `.cache/catalog-exports/catalog-find-<slug-ascii-70-caractères-max>-<sha256-normalisé-10-caractères>.csv`, ignoré par Git. La normalisation du nom réutilise celle du moteur, sans changer la requête. Le nom est déterministe et compatible Windows ; le hash distingue des requêtes dont la ponctuation diffère mais dont le slug serait identique. Écriture temporaire voisine puis remplacement par renommage, UTF-8 avec BOM, séparateur `;`, cellules systématiquement citées, guillemets doublés et lignes CRLF. Aucun résultat ne crée de CSV et un ancien fichier éventuel est conservé avec une explication ; aucun fichier limité aux en-têtes n'est écrit.
+
+Le [guide des overrides](../data/catalog-overrides/README.md#export-csv-pour-audit-humain) définit le workflow **CSV de référence → audit humain → fichier séparé `*_override.csv` de corrections → JSON maintenu manuellement**. Aucun importeur ni réimport automatique du CSV de référence n'existe. Le [rapport local](reports/2026-09-08-PHASE2-CATALOG-FIND-EXPORT.md) conserve les exports réels, les tests et l'audit avant/après sans écriture DB.
 
 ## Points restant ouverts
 

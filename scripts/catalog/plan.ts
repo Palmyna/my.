@@ -1,5 +1,5 @@
 import { canonical, compare, dateOrigin, hash, unique } from './model.ts'
-import type { Catalogue, Card, Diagnostic } from './model.ts'
+import type { Catalogue, Card, Diagnostic, Variant } from './model.ts'
 import { pokemonNameFor } from './pokemon-reference.ts'
 import type { PokemonReference } from './pokemon-reference.ts'
 import { tables } from './database.ts'
@@ -25,11 +25,38 @@ function same(previous: Row, next: Row): boolean {
 /** A known, disappeared entity can be maintained explicitly; an unknown selector still fails validation. */
 export function includeOverrideHistory(input: Catalogue, state: State, overrides: Override[]): Catalogue {
   const result = structuredClone(input)
+  const addedCards = new Set(overrides.filter((o) => o.action === 'card.add').map((o) => `my:${o.id}`))
+  const addedVariants = new Set(overrides.filter((o) => o.action === 'variant.add').map((o) => `my:${o.id}`))
+  const matches = (row: Row, card: string, key: string): boolean => row.variant_key === key
+    || state.aliases.some((alias) => alias.variant_id === row.id && (alias.entity_key === key || alias.entity_key === `${card}#${key}`))
+  const restore = (row: Row, card: string): Variant => {
+    const props = normalizeProperties({ type: String(row.variant_type), subtype: nullable(row.subtype), size: 'standard',
+      stamp: Array.isArray(row.stamp) ? row.stamp : [], foil: nullable(row.foil) })
+    const patch = overrides.find((o) => o.action === 'variant.patch' && o.card === card && matches(row, card, o.key))
+    const selector = patch?.action === 'variant.patch' ? patch.key : String(row.variant_key)
+    return { ...props, key: selector.startsWith('my:') || selector.startsWith(`${card}#`) ? selector : `${card}#${selector}`,
+      identity: variantKey(props), sourceId: nullable(row.source_variant_id),
+      date: nullable(row.effective_release_date), dateOrigin: dateOrigin.parse(row.date_origin),
+      label: String(row.label), image: nullable(row.image_url), availability: row.french_availability === 'confirmed' ? 'confirmed'
+        : row.french_availability === 'unavailable' ? 'unavailable' : 'unknown',
+      origin: row.origin === 'my' ? 'my' : 'tcgdex', present: false, active: false, rank: Number(row.sort_order), alias: true }
+  }
   for (const override of overrides) {
-    if (override.action === 'card.add' || result.cards.some((card) => card.key === override.card)) continue
+    if (override.action === 'card.add' || addedCards.has(override.card)) continue
+    const current = result.cards.find((card) => card.key === override.card)
+    if (current && (override.action !== 'variant.patch' || addedVariants.has(override.key)
+      || current.variants.some((v) => v.key === override.key || v.key === `${current.key}#${override.key}`))) continue
     const previous = state.rows.source_cards.find((row) => (row.tcgdex_id !== null && `tcgdex:${String(row.tcgdex_id)}` === override.card)
       || state.aliases.some((alias) => alias.entity_key === override.card && alias.source_card_id === row.id))
     if (!previous) continue
+    if (current && override.action === 'variant.patch') {
+      const row = state.rows.catalog_variants.find((row) => row.source_card_id === previous.id && row.size === 'standard'
+        && matches(row, current.key, override.key))
+      if (row && !current.variants.some((v) => v.identity === row.variant_key || (v.sourceId !== null && v.sourceId === row.source_variant_id))) {
+        current.variants.push(restore(row, current.key))
+      }
+      continue
+    }
     const set = state.rows.tcg_sets.find((row) => row.id === previous.set_id)
     if (!set || !result.sets.some((item) => item.key === set.tcgdex_id)) throw new Error(`Historical override requires a current set: ${override.card}`)
     const key = override.card
@@ -38,15 +65,9 @@ export function includeOverrideHistory(input: Catalogue, state: State, overrides
       date: nullable(previous.effective_release_date), dateOrigin: 'unknown', sourceUpdated: nullable(previous.source_updated_at),
       dex: state.mappings.filter((row) => row.card_id === previous.id).map((row) => Number(state.rows.pokemon.find((p) => p.id === row.pokemon_id)?.dex_number)),
       rank: Number(previous.normalized_number), origin: previous.origin === 'my' ? 'my' : 'tcgdex', present: false, active: false,
-      variants: state.rows.catalog_variants.filter((row) => row.source_card_id === previous.id && row.size !== 'jumbo').map((row) => {
-        const props = normalizeProperties({ type: String(row.variant_type), subtype: nullable(row.subtype), size: 'standard',
-          stamp: Array.isArray(row.stamp) ? row.stamp : [], foil: nullable(row.foil) })
-        return { ...props, key: `${key}#${String(row.variant_key)}`, identity: variantKey(props), sourceId: nullable(row.source_variant_id),
-          date: nullable(row.effective_release_date), dateOrigin: dateOrigin.parse(row.date_origin),
-          label: String(row.label), image: nullable(row.image_url), availability: row.french_availability === 'confirmed' ? 'confirmed'
-            : row.french_availability === 'unavailable' ? 'unavailable' : 'unknown',
-          origin: row.origin === 'my' ? 'my' : 'tcgdex', present: false, active: false, rank: Number(row.sort_order), alias: true }
-      }) }
+      variants: state.rows.catalog_variants.filter((row) => row.source_card_id === previous.id && row.size !== 'jumbo'
+        && !state.aliases.some((a) => a.variant_id === row.id && addedVariants.has(String(a.entity_key))))
+        .map((row) => restore(row, key)) }
     result.cards.push(card)
   }
   return result

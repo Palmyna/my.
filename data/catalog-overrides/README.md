@@ -42,6 +42,46 @@ La recherche utilise le catalogue Supabase **local déjà importé**, avec ses c
 
 Pour garder le même snapshot pendant ces étapes, ajouter `--snapshot <SHA_COMPLET>` à la validation, au dry-run et à l'apply. Sans SHA explicite, chaque commande résout le HEAD TCGdex ; une évolution upstream entre deux commandes peut modifier le plan. `catalog:find` n'utilise pas de snapshot : il montre ce qui est déjà présent en base. Un JSON modifié mais non appliqué n'y apparaît pas encore.
 
+## Export CSV pour audit humain
+
+```powershell
+npm run catalog:find -- "Pikachu Légendes Brillantes" --export
+npm run catalog:find -- "Pikachu" --export
+```
+
+Le moteur de recherche est inchangé. Toutes les cartes correspondant à la requête sont exportées, sans limite de 20 ou de 100 ; chaque variante standard stockée produit une ligne, y compris inactive ou non confirmée en français. `--export` et `--limit` sont incompatibles ; sans export, l'affichage compact et sa limite restent inchangés.
+
+| Colonne | Contenu |
+| --- | --- |
+| Card | Sélecteur `tcgdex:<id>` ou alias MY réel de la carte |
+| Nom | Nom français, cellule vide si absent |
+| Set | Nom français, sinon identifiant du set |
+| N° | Numéro local / total officiel, ou numéro local seul |
+| Variante | Label persisté, sans reconstruction |
+| Date | Date effective de variante ISO `YYYY-MM-DD`, cellule vide si NULL |
+| Origine date | Provenance persistée : `variant`, `card`, `product`, `set`, `override`, `unknown` |
+| Variant Key | Sélecteur exact du champ `key` de `variant.patch` |
+
+`Variant Key` n'est pas l'ID PostgreSQL. Une variante source non corrigée utilise sa clé canonique ; si son identité a été corrigée, le sélecteur du patch appliqué permet de retrouver la clé d'origine via les aliases privés. Une variante ajoutée séparément par MY utilise `my:<id-ajout>`. Les variantes internes à `card.add` utilisent leur clé intra-carte, ou le sélecteur d'un patch appliqué. Pour une variante historique, la clé persistée ou son alias reconnu est réutilisé ; le pipeline relit l'entité conservée, sans la réactiver implicitement. Le set d'une carte historique doit toujours être reconnu par le snapshot utilisé lors d'une future correction.
+
+Copier **Card** et **Variant Key** ensemble dans une correction JSON avec un nouvel `id` durable et une raison factuelle. Si une correction du même champ existe déjà, la modifier plutôt qu'ajouter un patch en conflit. La clé décrit le catalogue et les corrections actuellement appliqués ; un changement ultérieur du snapshot ou des overrides nécessite un nouvel audit.
+
+Les fichiers résident dans `.cache/catalog-exports/`, déjà ignoré par Git. Le nom est `catalog-find-<slug>-<empreinte>.csv` : recherche normalisée, slug ASCII borné à 70 caractères, puis 10 caractères de SHA-256 de la recherche normalisée pour distinguer les ponctuations significatives. Les caractères interdits sous Windows sont écartés. Le remplacement passe par un fichier temporaire voisin puis un renommage ; fermer le CSV dans Excel si Windows empêche son remplacement.
+
+Encodage UTF-8 avec BOM, séparateur `;`, huit colonnes exactement, cellules entre guillemets avec guillemets internes doublés, fins de ligne CRLF. Accents, virgules, points-virgules et retours à la ligne contenus dans une valeur sont conservés. Aucun résultat donne une sortie normale et aucun fichier ; un ancien export éventuel reste conservé, ce que précise la console.
+
+Workflow :
+
+```text
+catalog:find --export
+→ CSV de référence du catalogue
+→ audit humain
+→ fichier séparé *_override.csv limité aux ajouts/corrections souhaités
+→ maintenance manuelle des corrections JSON validées
+```
+
+Le CSV exporté est une photographie de référence. Il n'est pas destiné à être modifié puis réimporté. Le fichier `*_override.csv` sert uniquement de liste de corrections humaines : **aucun importeur CSV, aucune application automatique et aucune écriture DB**.
+
 ## Distinguer `id` et `card`
 
 | Champ | Qui fournit sa valeur ? | Exemple |

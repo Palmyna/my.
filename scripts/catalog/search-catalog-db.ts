@@ -1,6 +1,9 @@
 import { z } from 'zod'
+import type pg from 'pg'
 import { connect } from './database.ts'
-import type { CatalogSearchEntry } from './search-catalog.ts'
+import { date, dateOrigin } from './model.ts'
+import type { CatalogSearchEntry, CatalogSearchResponse } from './search-catalog.ts'
+import type { CatalogExportVariant } from './catalog-find-export.ts'
 
 const entrySchema = z.object({
   id: z.string().regex(/^[1-9][0-9]*$/), card: z.string().regex(/^(tcgdex|my):.+$/), tcgdexId: z.string().nullable(),
@@ -36,16 +39,53 @@ const searchRowsSql = `select c.id::text as id,
     order by entity_key limit 1) k on c.tcgdex_id is null`
 
 /** LOCAL only; no query text is interpolated into SQL and no catalogue journal is created. */
-export async function loadCatalogSearchEntries(): Promise<CatalogSearchEntry[]> {
+async function readSearch<T>(read: (client: pg.Client) => Promise<T>): Promise<T> {
   const client = await connect().catch(() => { throw new CatalogSearchUnavailableError() })
   try {
     await client.query('begin isolation level repeatable read read only')
     await client.query("set local statement_timeout='15s'")
-    const result = await client.query(searchRowsSql)
-    return z.array(entrySchema).parse(result.rows)
+    return await read(client)
   } catch { throw new CatalogSearchReadError() }
   finally {
     await client.query('rollback').catch(() => undefined)
     await client.end()
   }
+}
+
+const readEntries = async (client: pg.Client): Promise<CatalogSearchEntry[]> => z.array(entrySchema).parse((await client.query(searchRowsSql)).rows)
+
+export async function loadCatalogSearchEntries(): Promise<CatalogSearchEntry[]> {
+  return readSearch(readEntries)
+}
+
+const exportVariantSchema = z.object({ cardId: z.string(), label: z.string().nullable(), date: date.nullable(),
+  dateOrigin, key: z.string().min(1) }) satisfies z.ZodType<CatalogExportVariant>
+
+// Applied patch selectors preserve the original key even after an identity correction.
+// Removed aliases alone are not authoritative for a current source variant.
+const exportVariantsSql = `select v.source_card_id::text as "cardId",v.label,
+  v.effective_release_date::text as date,v.date_origin as "dateOrigin",
+  coalesce(p.key,a.entity_key,v.variant_key) as key
+  from public.catalog_variants v
+  left join lateral (select o.target->>'key' as key from private.catalog_overrides o
+    where o.action='variant.patch' and o.is_applied and exists (
+      select 1 from private.catalog_entity_keys k where k.variant_id=v.id
+      and (k.entity_key=o.target->>'key' or k.entity_key=(o.target->>'card') || '#' || (o.target->>'key')))
+    order by o.id limit 1) p on true
+  left join lateral (select entity_key from private.catalog_entity_keys
+    where variant_id=v.id and entity_key like 'my:%' and position('#' in entity_key)=0
+    order by entity_key limit 1) a on v.origin='my'
+  where v.source_card_id=any($1::bigint[]) and v.size='standard'
+  order by v.source_card_id,v.sort_order nulls last,v.variant_key,v.id`
+
+/** Enrich only matching cards, in the same read-only snapshot as the search projection. */
+export async function loadCatalogSearchExport(select: (entries: CatalogSearchEntry[]) => CatalogSearchResponse): Promise<{
+  response: CatalogSearchResponse; variants: CatalogExportVariant[]
+}> {
+  return readSearch(async (client) => {
+    const response = select(await readEntries(client))
+    const variants = response.total ? z.array(exportVariantSchema).parse((await client.query(exportVariantsSql,
+      [response.results.map(({ entry }) => entry.id)])).rows) : []
+    return { response, variants }
+  })
 }
