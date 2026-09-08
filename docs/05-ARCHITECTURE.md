@@ -351,6 +351,10 @@ La V1 n'introduit pas Algolia, Elasticsearch, Meilisearch hébergé ou un autre 
 
 Le navigateur ne doit pas charger tout le catalogue pour effectuer une recherche. Les requêtes doivent pouvoir être filtrées, paginées et limitées aux données nécessaires.
 
+Le complément Phase 2 fournit un premier moteur portable dans `scripts/catalog/search-catalog.ts` : données simples typées, normalisation Unicode, tokenisation, correspondances multi-champs en AND, score explicable et tri déterministe. Il n'importe aucun module Node, accès DB ou affichage terminal. Le contrat `searchCatalog(entries, query, { limit })` retourne les entrées classées, leurs scores, les correspondances par terme et le total avant limite.
+
+Pour la maintenance actuelle, `search-catalog-db.ts` charge une projection compacte du catalogue PostgreSQL local, puis `catalog-find.ts` appelle le moteur et affiche les résultats. Cette lecture complète est limitée au processus CLI de maintenance ; elle ne définit pas la future stratégie de chargement du navigateur. Le choix du filtrage/pagination côté serveur et du transport public reste ouvert. Aucune API/RPC, recherche dans une collection, interface React ou recherche distante n'est créée. Le [pipeline catalogue](07-CATALOG-SYNC.md#recherche-de-maintenance-catalogfind) documente les règles et garanties de cet outil.
+
 ## Vue classeur et temps réel
 
 La pagination visuelle du classeur est principalement calculée par le frontend à partir de l'ordre des éléments, du format de page et du mode continu ou par blocs. Il n'est pas nécessaire de persister chaque page virtuelle en base.

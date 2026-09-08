@@ -28,6 +28,9 @@ Le pipeline réside dans [`scripts/catalog/`](../scripts/catalog/), hors React. 
 | `report.ts`, `cli.ts` | Commandes, transaction, rapport et erreurs |
 | `catalog.test.ts`, `integration.ts`, `fixtures.ts` | Tests unitaires et intégration annulée |
 | `pokemon.test.ts` | Référentiel, génération HTTP simulée, erreurs et invariance des structures |
+| `search-catalog.ts` | Contrat métier portable, normalisation, matching, score et tri |
+| `search-catalog-db.ts`, `catalog-find.ts` | Projection PostgreSQL locale en lecture seule et présentation terminal |
+| `search-catalog.test.ts` | Recherche, adaptateur de lecture, erreurs et CLI simulée |
 
 ```sh
 npm run supabase:start
@@ -42,6 +45,8 @@ npm run supabase:stop
 Seul PostgreSQL local est accepté : loopback `127.0.0.1`, `localhost` ou `::1`, port `55322`, base `postgres`, migration Phase 2 présente. La connexion provient du statut JSON Supabase capturé en mémoire. La variable privée `CATALOG_DATABASE_URL` peut la remplacer, avec les mêmes restrictions et sans paramètres URL. Aucun secret n'est codé, affiché ou injecté dans React. Toutes les bases distantes sont refusées ; le mode remote reste à implémenter séparément.
 
 ## Snapshot et lecture
+
+La recherche de maintenance décrite plus bas lit le catalogue PostgreSQL existant ; elle ne passe pas par cette étape de snapshot.
 
 La source des cartes, variantes et rattachements est [`tcgdex/cards-database`](https://github.com/tcgdex/cards-database). REST TCGdex reste réservé aux diagnostics. Le seul complément autorisé est le référentiel versionné des noms français d'espèces, généré manuellement depuis PokéAPI ; la synchronisation ne contacte jamais PokéAPI et ne fusionne aucune API de prix ou d'assets.
 
@@ -177,6 +182,59 @@ npm run supabase:stop
 ```
 
 `db:reset` détruit exclusivement les données locales ; il n'est pas nécessaire à une synchronisation normale. L'intégration attend une base sans catalogue réel et annule toutes les fixtures. Les tests peuvent consommer des séquences malgré rollback, d'où le reset avant la mesure reproductible du premier import. L'arrêt normal conserve le volume importé.
+
+## Recherche de maintenance `catalog:find`
+
+```sh
+npm run catalog:find -- "Pikachu Légendes Brillantes"
+npm run catalog:find -- "Pikachu 28"
+npm run catalog:find -- "Raichu GX"
+npm run catalog:find -- "Évoli Promo" --limit 10
+```
+
+La CLI reçoit une seule chaîne libre entre guillemets. Elle affiche **Card**, nom de carte, Pokémon liés, set, numéro et nombre de variantes. **Card** contient directement `tcgdex:<tcgdex_id>` ou l'alias réel `my:<id-override>` d'une carte locale. La colonne nom distingue notamment les suffixes GX/ex et les Dresseurs sans Pokémon rattaché. Un nom manquant reste `—` ; un Pokémon sans nom est identifié par son dex, un set sans nom par son ID source. Le numéro affiche le `local_id` original et le total officiel du set lorsqu'il existe. Aucune traduction ou relation n'est inventée.
+
+### Séparation du moteur, de la lecture et du terminal
+
+- `search-catalog.ts` est pur et sans import Node/SQL/CLI. Il expose `normalizeSearchText`, `tokenizeSearchQuery` et `searchCatalog(entries, query, { limit })`.
+- `search-catalog-db.ts` réutilise `connect()` et tous ses garde-fous locaux. Une seule projection SQL récupère les champs utiles ; les rattachements Pokémon et les nombres de variantes sont agrégés séparément pour éviter leur multiplication. Les Pokémon sont ordonnés par dex. Les cartes inactives restent recherchables pour la maintenance, avec leur état signalé dans la sortie. Toutes les variantes standard stockées sont comptées, quel que soit leur état d'activité ou de disponibilité ; les Jumbo sont exclues.
+- `catalog-find.ts` gère les arguments, erreurs, limites et colonnes terminal. La logique de matching n'y réside pas.
+
+`CatalogSearchEntry` contient `id` interne sous forme de chaîne, `card` copiable, `tcgdexId` nullable, `name` français nullable, `localId`, `isActive`, `variantCount`, les Pokémon `{ dexNumber, name }` réellement rattachés, et le set `{ tcgdexId, name, abbreviation, abbreviationFr, officialCardCount }`. Les champs nullable conservent l'absence source. Le résultat contient la requête, les termes normalisés, le total avant limite et les résultats `{ entry, score, matches }` ; chaque correspondance indique terme, champ, type et poids. La stratégie pourra évoluer derrière ce contrat sans dépendre du terminal.
+
+### Normalisation et pertinence
+
+La comparaison utilise Unicode NFKD, suppression des marques combinatoires, minuscules, conversion des ligatures `œ/æ`, uniformisation des apostrophes/tirets typographiques, trim et espaces normalisés. Les valeurs originales ne sont jamais modifiées. La tokenisation sépare espaces et ponctuation courante, conserve les points/deux-points/tirets/slash des IDs et numéros, retire les tokens sans lettre/chiffre et déduplique les termes.
+
+Tous les termes doivent avoir une correspondance sur **la même carte**, mais peuvent utiliser des champs distincts ou plusieurs Pokémon liés. Les champs sont : nom carte, noms Pokémon, nom set, numéro local, abréviations FR/source, ID TCGdex, cible copiable et ID du set. Une correspondance du nom de carte reste une correspondance textuelle : elle ne crée jamais un rattachement Pokémon. Un terme peut aussi correspondre au nom du set ; par exemple « Pikachu » peut retrouver des cartes du Kit du dresseur Pikachu Libre, avec leurs vrais Pokémon affichés.
+
+Pour chaque terme textuel, seule la meilleure correspondance est retenue :
+
+| Correspondance | Poids |
+|---|---:|
+| Champ exact : nom carte | 120 |
+| Champ exact : nom Pokémon | 110 |
+| Champ exact : numéro/local ID alphanumérique | 100 |
+| Champ exact : nom set | 90 |
+| Champ exact : abréviation | 85 |
+| Champ exact : identifiant | 80 |
+| Mot entier à l'intérieur d'un champ | 60 |
+| Préfixe du champ ou d'un mot | 40 |
+| Sous-chaîne | 15 |
+
+Un terme entièrement numérique est recherché uniquement dans le numéro local, jamais dans un texte, un ID technique ou le total du set pris isolément. Les zéros initiaux n'empêchent pas une correspondance. Numéro exact sans préfixe/suffixe : 200 ; composante exacte d'un numéro comme `TG028` ou `28A` : 160 ; préfixe numérique comme `28` pour `280` ou `SWSH285` : 80. `128` ne correspond pas à `28`. Une fraction comme `28/73` exige aussi le total officiel 73 et un numéro exact, sans élargissement par préfixe.
+
+Le score additionne les meilleures correspondances de tous les termes, plus au maximum un bonus de champ exact pour la requête normalisée complète (mêmes poids que le tableau). À égalité : nom carte normalisé, nom set normalisé, numéro local normalisé, ID TCGdex ou alias, puis ID interne. Les départages sont lexicaux et indépendants de la locale et de l'ordre SQL. Aucun ordre de retour SQL implicite ne détermine la pertinence.
+
+### Limites, erreurs et lecture seule
+
+Par défaut, 20 résultats sont affichés avec le total ; `--limit` accepte un entier de 1 à 100. Aucun résultat donne un message explicite et un code de sortie `0`. Une recherche vide, sans terme utile, plusieurs chaînes séparées ou des options invalides donnent l'usage et un code `1`, avant toute connexion DB.
+
+Si Supabase local est indisponible ou sa configuration refusée, la CLI propose `npm run supabase:start` et rappelle la restriction au loopback `55322/postgres`. Une erreur de lecture/validation du catalogue est distinguée d'une absence de résultats. Les erreurs de pilote, stacks, secrets, valeurs d'environnement et chaînes de connexion ne sont jamais recopiés.
+
+La projection est lue dans une transaction `REPEATABLE READ READ ONLY`, avec timeout SQL de 15 secondes, puis rollback et fermeture de la connexion. La requête libre n'est jamais interpolée dans le SQL. Aucun run, override, alias, séquence, donnée catalogue ou utilisateur n'est écrit. Aucun accès cloud, appel PokéAPI, lecture du snapshot TCGdex ou synchronisation implicite.
+
+Cette CLI charge la projection complète dans son processus local, adaptée au catalogue actuel d'environ 20 000 cartes. Cela ne constitue pas la stratégie du futur navigateur, qui devra recevoir des données filtrées et paginées. Aucune infrastructure, extension, migration, API/RPC ou UI de recherche n'est ajoutée. Les [preuves locales](reports/2026-09-07-PHASE2-CATALOG-FIND.md) mesurent le temps du moteur et comparent intégralement l'état avant/après.
 
 ## Points restant ouverts
 

@@ -14,6 +14,8 @@ Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, a
 
 Le complément Phase 2 fournit les noms français des espèces via un référentiel PokéAPI généré manuellement et destiné au versionnement. Les 1 025 Pokémon locaux ont désormais un nom français, sans changement des 1 213 états de cible ; la seconde application est un noop fonctionnel. La synchronisation du catalogue utilise uniquement ce fichier local et ne contacte jamais PokéAPI.
 
+La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue local en lecture seule. Son moteur TypeScript pur est séparé de PostgreSQL et du terminal, pour une réutilisation future. Aucune interface de recherche ni API publique n'est ajoutée.
+
 **Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place.
 
 ## Développement local
@@ -112,11 +114,12 @@ Les migrations sont détaillées dans [06-DATABASE.md](docs/06-DATABASE.md). Le 
 
 La procédure et les algorithmes sont définis dans [07-CATALOG-SYNC.md](docs/07-CATALOG-SYNC.md). `scripts/catalog/` utilise Node 24, TypeScript, Zod et `pg` (avec ses types). Le cache Git et les rapports résident dans `.cache/`, ignoré. Les corrections versionnées sont dans [data/catalog-overrides/](data/catalog-overrides/README.md) ; aucun override réel n'est ajouté par défaut.
 
-L'import vérifié contient 19 907 cartes, 31 900 variantes, 1 025 Pokémon et 188 sets. Le dry-run ne modifie rien et la seconde application conserve intégralement les IDs, hashes, versions et timestamps. Les chiffres, anomalies source et preuves sont conservés dans le [rapport Phase 2](docs/reports/2026-09-06-PHASE2.md).
+Le catalogue local vérifié contient 19 907 cartes, 31 904 variantes, 1 025 Pokémon et 188 sets. Le premier override réel, ajouté manuellement puis appliqué localement, porte Pikachu 28/73 à cinq variantes. Les mesures de l'import initial (31 900 variantes) restent dans le [rapport Phase 2](docs/reports/2026-09-06-PHASE2.md). La recherche n'applique aucune correction et ne change ni le catalogue ni les états de cible.
 
 | Commande | Usage |
 |---|---|
 | `npm run catalog:validate` | Valide snapshot, corrections et rapprochement en lecture sur Supabase local |
+| `npm run catalog:find -- "Pikachu Légendes Brillantes"` | Recherche locale en lecture seule ; affiche la cible d'override directement copiable |
 | `npm run pokemon:update` | Régénère manuellement le référentiel complet des noms d'espèces français depuis PokéAPI, sans accès DB |
 | `npm run catalog:sync` | Dry-run complet par défaut, zéro écriture DB, aucun ID consommé |
 | `npm run catalog:sync -- --snapshot <SHA> --dry-run` | Rejoue un SHA exact et produit le plan |
@@ -126,6 +129,16 @@ L'import vérifié contient 19 907 cartes, 31 900 variantes, 1 025 Pokémon et 1
 Sans SHA, le HEAD TCGdex est résolu une fois. Le premier clone/fetch nécessite GitHub ; un SHA déjà en cache peut être rejoué hors ligne. La connexion locale provient du statut Supabase sans afficher les secrets. `CATALOG_DATABASE_URL`, privée et facultative, accepte seulement le loopback sur `55322/postgres`. Aucun mode distant n'est disponible. `--apply` est obligatoire pour écrire.
 
 Le [référentiel Pokémon](data/pokemon/README.md) précise la provenance, la validation, les erreurs et la mise à jour de `data/pokemon/pokemon-fr.json`. Une synchronisation reproductible fixe également ce fichier, les overrides et le code. Les résultats du complément noms sont consignés dans le [rapport du 7 septembre](docs/reports/2026-09-07-PHASE2-POKEMON-NAMES.md).
+
+Pour retrouver une cible, démarrer Supabase local puis utiliser une seule chaîne entre guillemets :
+
+```sh
+npm run catalog:find -- "Pikachu 28"
+npm run catalog:find -- "Raichu GX"
+npm run catalog:find -- "Évoli Promo" --limit 10
+```
+
+La sortie affiche `tcgdex:sm3.5-28`, le nom, les Pokémon liés, le set, `28/73` et cinq variantes pour le cas Pikachu. Les termes peuvent correspondre à des champs différents ; casse et accents sont ignorés. La limite est de 20 résultats, ajustable de 1 à 100, avec le total affiché. Aucun résultat est une sortie normale ; une recherche vide affiche l'usage. Si Supabase est arrêté, la commande indique comment le démarrer. Le [guide des overrides](data/catalog-overrides/README.md) explique `id`, `card` et les étapes suivantes ; le [rapport catalog:find](docs/reports/2026-09-07-PHASE2-CATALOG-FIND.md) conserve les tests réels et la preuve de lecture seule.
 
 Pour vérifier une reconstruction : démarrer Supabase, exécuter `db:reset`, `db:test`, `db:lint`, `catalog:test:db`, `db:types`, puis les contrôles TypeScript/build/lint/tests. Après les fixtures, refaire `db:reset`, lancer le dry-run au SHA choisi, lire son rapport, puis appliquer deux fois le même SHA afin de vérifier l'idempotence. Le deuxième apply ne doit changer aucune donnée fonctionnelle. Les rapports JSON complets sont dans `.cache/catalog-reports/`.
 
