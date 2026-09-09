@@ -34,6 +34,12 @@ Un utilisateur peut :
 - accéder à son espace personnel ;
 - gérer les informations essentielles de son profil.
 
+Le premier facteur V1 est exclusivement **email + mot de passe**, avec **confirmation obligatoire de l'adresse email**. Aucun OAuth (Google, Discord, Apple ou autre), magic link de connexion, compte anonyme ou téléphone n'est proposé. Le lien de confirmation sert à valider l'adresse après signup ; le lien de récupération sert à réinitialiser un mot de passe.
+
+La **MFA TOTP par application Authenticator est obligatoire pour tous**. Après le premier facteur, un compte sans TOTP vérifié doit en enrôler un ; un compte déjà équipé doit répondre au challenge. L'accès à MY. requiert un email confirmé et une session `aal2`, sous contrôle frontend et RLS. SMS, passkeys et recovery codes ne font pas partie de la V1.
+
+La récupération/réinitialisation du mot de passe est prévue et ne dispense jamais de MFA. En cas de perte d'Authenticator, la récupération est administrative et manuelle : vérification de l'identité, suppression de l'ancien facteur, révocation des sessions, puis nouvelle connexion email/mot de passe et enrollment TOTP obligatoire. Aucun outil admin ni récupération MFA automatisée n'est intégré à l'application ; la procédure opérateur figure dans l'[architecture](05-ARCHITECTURE.md#récupération-mfa-administrative).
+
 Chaque utilisateur possède un identifiant public unique propre à MY., utilisé notamment pour le partage de collections. Cet identifiant public reste distinct de l'UUID technique fourni par le système d'authentification.
 
 MY. génère automatiquement cet identifiant au format `MY-XXXXX-XXXXX-XXXXX-XXXXX`. Les 20 caractères aléatoires utilisent des lettres majuscules et des chiffres, sans `0`, `O`, `1`, `I` ni `L`. L'utilisateur ne le choisit pas et ne peut pas le modifier. Il est stocké en majuscules ; sa recherche et son unicité sont insensibles à la casse. Sa longueur et sa génération cryptographique rendent sa découverte par devinette déraisonnable. Aucun pseudo ou nom d'affichage supplémentaire n'est défini.
@@ -440,7 +446,7 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - le design détaillé du dashboard et des vues ;
 - le responsive et l'accessibilité ;
 - les détails d'implémentation non figés par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
-- les futures RPC fonctionnelles, les méthodes d'authentification et les configurations de production de Supabase et Vercel ; les permissions et policies du socle Phase 1 sont définies dans `06-DATABASE.md` ;
+- les futures RPC fonctionnelles et les configurations de production de Supabase et Vercel ; les permissions et policies SQL sont définies dans `06-DATABASE.md` ;
 - les détails de synchronisation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - les fonctionnalités éventuellement concernées par une offre Premium post-V1, son prix, ses plans, ses limites, sa facturation, une éventuelle période d'essai et son fournisseur de paiement.
 

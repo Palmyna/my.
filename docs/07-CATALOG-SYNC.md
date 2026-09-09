@@ -4,7 +4,7 @@
 
 Ce document est la référence du pipeline V1. Il applique la [politique TCGdex](02-TCGDEX.md), le [modèle](03-DATA-MODEL.md) et le [schéma SQL](06-DATABASE.md). **Phase 1 terminée et déployée ; Phase 2 terminée, ses cinq migrations cumulées présentes dans Supabase cloud et son catalogue chargé et vérifié**, selon la validation du propriétaire. Les migrations et volumes cloud validés sont consignés dans le [README](../README.md#état-du-projet) : 1 025 Pokémon, 18 séries, 188 Extensions, 19 907 Cartes, 31 904 Variantes, 16 820 liens Carte/Pokémon et 1 213 états de cible. Aucun nom français Pokémon manquant ni date de Variante NULL ; `sm3.5-28` possède cinq variantes après override. Les tables utilisateur étaient vides au moment de cette validation.
 
-Le **pipeline de synchronisation** reste volontairement local et protégé, tandis que le **catalogue résultant** existe aussi dans le cloud. Les restrictions des commandes ci-dessous ne remettent pas en cause cet état déployé. La préparation intermédiaire avant Phase 3 ajoute seulement des invariants de collections et préférences, validés localement, sans déploiement cloud ni modification du pipeline.
+Le **pipeline de synchronisation** reste volontairement local et protégé, tandis que le **catalogue résultant** existe aussi dans le cloud. Les restrictions des commandes ci-dessous ne remettent pas en cause cet état déployé. La migration intermédiaire des invariants de collections et préférences est également déployée dans le cloud, selon le propriétaire : six migrations cumulées. Le socle Auth 3A est validé localement ; il ne modifie pas le pipeline.
 
 ```text
 Snapshot Git exact → lecture TypeScript → normalisation FR → overrides JSON Git

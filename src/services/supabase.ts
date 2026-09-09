@@ -1,21 +1,20 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { readSupabaseConfig } from '../lib/env'
+import type { Database } from '../types/database.generated'
 
-let client: SupabaseClient | undefined
+let client: SupabaseClient<Database> | undefined
 
-// Préparation uniquement : aucun appel de cette fonction depuis l'application Phase 0.
 export function getSupabaseClient() {
   if (client) return client
 
   const config = readSupabaseConfig()
   if (!config) return null
 
-  client = createClient(config.url, config.publishableKey, {
-    // Les comportements de session seront définis avec l'authentification.
+  client = createClient<Database>(config.url, config.publishableKey, {
     auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
     },
   })
 

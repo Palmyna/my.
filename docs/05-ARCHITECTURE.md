@@ -81,7 +81,7 @@ Vercel héberge le frontend compilé par Vite. La SPA React s'exécute dans le n
 
 MY. est une SPA React. Cette approche correspond à une application authentifiée et interactive centrée sur un dashboard, des collections, des listes, des grilles, des classeurs, des recherches et des panneaux de détail.
 
-La navigation applicative est gérée côté client avec React Router. Les routes conceptuelles comprennent la homepage, les parcours d'authentification et pages légales, puis Dashboard, Pokémon catalogue, Extension catalogue, Carte catalogue, Collection, Profil et Paramètres. Ces sept dernières destinations restent authentifiées. Les chemins, slugs ou IDs exacts restent à définir pour garantir stabilité, accès direct et absence d'ambiguïté avec les IDs MY./TCGdex. Le frontend actuel conserve uniquement le routeur et la vue temporaire de bootstrap ; la Phase 3 Auth n'a pas commencé.
+La navigation applicative est gérée côté client avec React Router. Les routes conceptuelles comprennent la homepage, les parcours d'authentification et pages légales, puis Dashboard, Pokémon catalogue, Extension catalogue, Carte catalogue, Collection, Profil et Paramètres. Ces sept dernières destinations restent authentifiées. Les chemins, slugs ou IDs exacts restent à définir pour garantir stabilité, accès direct et absence d'ambiguïté avec les IDs MY./TCGdex. La Phase 3A fournit le socle Auth sans modifier la vue temporaire ni construire les routes et écrans des Phases 3B/3C.
 
 Le futur layout authentifié porte le header permanent logo vers Dashboard / recherche globale / menu utilisateur. Le routeur et l'état de navigation conservent autant que possible page, vue, filtres et scroll lors du retour d'une fiche Carte. Précédente/Suivante réutilise l'ordre réel du contexte d'origine ; aucune séquence n'est fabriquée pour une arrivée globale sans liste. Le détail Variante est un composant contextuel commun aux pages Carte et aux collections, avec actions et données adaptées aux droits du contexte.
 
@@ -177,7 +177,69 @@ Le schéma physique reste hors périmètre de ce document et doit respecter le [
 
 Supabase Auth gère l'identité technique, la création de compte, la connexion, la déconnexion et les sessions. MY. ne met pas en place de système de mots de passe maison.
 
-Le profil MY. demeure distinct de l'identité Auth. Les méthodes d'authentification proposées dans la V1 restent à préciser.
+Le premier facteur V1 est **email + mot de passe uniquement**, avec **confirmation email obligatoire**. Aucun OAuth, magic link de connexion, téléphone, accès anonyme ou passkey n'est proposé. La MFA est obligatoire pour tous, exclusivement via **TOTP/application Authenticator** ; les sessions `aal1` servent à terminer Auth et les sessions `aal2` permettent l'accès aux données selon les policies métier. Aucun choix d'autorisation ne repose sur `user_metadata`.
+
+```text
+Signup → email de confirmation → adresse confirmée
+Email + mot de passe → aucun TOTP vérifié : enrollment puis vérification
+                    → TOTP vérifié existant : challenge
+                    → aal2 : accès MY. sous RLS
+```
+
+Le profil MY. est créé dans la transaction d'insertion Auth, avant confirmation email, sans accorder d'accès applicatif anticipé. Le trigger et son backfill sont décrits dans [06-DATABASE.md](06-DATABASE.md#création-du-profil). Le profil ne contient ni mot de passe ni secret MFA.
+
+### Contrat frontend Auth de Phase 3A
+
+`src/services/supabase.ts` fournit un seul client typé par `Database`. `persistSession`, `autoRefreshToken` et `detectSessionInUrl` sont activés. Le flux implicite standard de la SPA Supabase traite les liens de confirmation et de récupération à l'initialisation. Les futures pages pourront fournir une URL de retour explicitement autorisée ; aucun chemin 3B n'est figé ici.
+
+`src/services/auth.ts` encapsule signup, login, logout, session, abonnement Auth, renvoi de confirmation, AAL, liste des facteurs, enrollment/challenge/vérification TOTP et récupération/réinitialisation du mot de passe. Le QR, l'URI et le secret d'enrollment restent uniquement dans la réponse destinée au futur écran : pas de cache global ni de journalisation. `getProfile()` exige email confirmé et TOTP vérifié avec `aal2`, puis lit sa propre ligne par UUID sous RLS. Il ne crée pas de profil de secours.
+
+`AuthProvider`, intégré dans `AppProviders`, possède un seul état dérivé, lu par `useAuth()` via `useSyncExternalStore`. Supabase reste propriétaire de la session persistée ; aucun second stockage de tokens n'est ajouté. `useAuth()` expose `session`, `user`, `mfa`, `profile`, `pendingEmail`, `passwordRecovery`, `error`, `isAuthorized` et les actions pour 3B.
+
+| État | Signification |
+| --- | --- |
+| `initializing` | Restauration ou réévaluation en cours ; aucun accès MY. ni profil exposé |
+| `unconfigured` | Variables Supabase absentes ; bootstrap utilisable sans réseau |
+| `signed_out` | Pas de session |
+| `email_confirmation_required` | Signup sans session ou email Auth non confirmé |
+| `mfa_enrollment_required` | Aucun TOTP vérifié, y compris après récupération administrative |
+| `mfa_challenge_required` | TOTP vérifié présent mais session pas encore `aal2` |
+| `authorized` | Email confirmé, TOTP vérifié, `aal2` et profil chargé |
+| `error` | Résolution Auth/profil en échec ; accès fermé, réessai explicite disponible |
+
+Un signup sans session produit un état d'attente email, sans prétendre prouver l'existence ou la création du compte : Supabase peut masquer un compte déjà enregistré. Cette attente reste en mémoire et ne constitue pas une authentification. Le statut de confirmation d'une session provient de l'utilisateur vérifié par Auth.
+
+Les événements Auth, dont `INITIAL_SESSION`, `SIGNED_IN`, `SIGNED_OUT`, `TOKEN_REFRESHED`, `USER_UPDATED`, `PASSWORD_RECOVERY` et `MFA_CHALLENGE_VERIFIED`, provoquent une réévaluation. Le callback Auth reste synchrone ; les appels suivants sont différés pour éviter le verrou interne Supabase. Un numéro de révision ignore les réponses anciennes après logout ou changement de compte. L'abonnement et les tâches différées sont nettoyés, y compris sous StrictMode. Le cache TanStack Query est purgé lors des transitions ; les futures requêtes métier devront être activées uniquement lorsque `isAuthorized` vaut `true`.
+
+`requestPasswordReset()` prépare l'email et `updatePassword()` la modification. `passwordRecovery` signale le parcours dédié pour 3B et est réinitialisé après succès. Une session de récupération ne contourne jamais l'exigence `aal2` des données MY. La V1 n'expose ni `signInWithOtp` ni récupération MFA automatisée ; les endpoints email natifs Supabase couvrent aussi OTP/magic link, et aucun réglage indépendant de désactivation n'est inventé dans `config.toml`.
+
+### Configuration locale Auth
+
+`supabase/config.toml` active signup global/email, confirmation email et enrollment/vérification TOTP. Téléphone/SMS, anonyme, providers externes et serveur OAuth restent désactivés. La Site URL est `http://localhost:5173` et les retours autorisés sont cette URL et `http://127.0.0.1:5173`. Les emails sont capturés localement sur `55324`. Les autres valeurs préexistantes, dont l'expiration JWT de 3 600 secondes et la politique de mot de passe, restent inchangées.
+
+Le cloud ne reprend pas automatiquement ces réglages. Le [rapport 3A](reports/2026-09-09-PHASE3A-AUTH.md#actions-cloud-manuelles) liste les vérifications Dashboard et la seule nouvelle migration à appliquer ultérieurement par le propriétaire.
+
+### Récupération MFA administrative
+
+Procédure réservée à un opérateur dans un environnement de confiance, après vérification manuelle de l'identité du demandeur. Un identifiant MY. ou un email fourni seul ne suffit pas à autoriser la récupération. Aucun écran ni outil d'administration n'est ajouté à la V1.
+
+1. Identifier le compte dans Dashboard → Authentication → Users par email et relever son UUID Auth. S'il fournit son identifiant MY., le rapprocher de `public.profiles.public_id` puis de `profiles.id` dans SQL Editor ; vérifier les deux identités. Ne jamais recréer le compte ou son profil.
+2. Avec un client administratif séparé, sans persistence ni refresh de session, appeler `supabase.auth.admin.mfa.listFactors({ userId })`. Vérifier l'appartenance et le type de chaque facteur. Les facteurs vérifiés devenus inaccessibles doivent tous être retirés pour obtenir un compte sans TOTP vérifié ; ne supprimer que ceux validés par la procédure d'identification.
+3. Supprimer chaque facteur concerné avec `supabase.auth.admin.mfa.deleteFactor({ userId, id: factorId })`, en contrôlant chaque erreur. La clé administrative est fournie par l'environnement de confiance, jamais par `VITE_*`, React, Git ou un log.
+4. **Révoquer explicitement les sessions du seul UUID identifié**, puis vérifier la révocation. La [référence Supabase de deleteFactor](https://supabase.com/docs/reference/javascript/auth-admin-deletefactor) annonce une déconnexion pour un facteur vérifié ; sur le serveur local `v2.196.0` testé en 3A, le refresh restait pourtant utilisable après suppression. Ne pas supposer cette déconnexion acquise. Dans SQL Editor administratif, après avoir remplacé le paramètre par l'UUID vérifié, exécuter la transaction ciblée ci-dessous ; ne toucher ni `auth.users` ni `profiles`.
+
+```sql
+begin;
+-- Remplacer cet UUID sentinelle par l'UUID Auth vérifié, identique dans les deux requêtes.
+delete from auth.sessions
+where user_id = '00000000-0000-0000-0000-000000000000'::uuid;
+select count(*) as remaining_sessions from auth.sessions
+where user_id = '00000000-0000-0000-0000-000000000000'::uuid;
+commit;
+```
+
+5. Vérifier que les facteurs visés ont disparu et que les anciennes sessions ne peuvent plus être renouvelées. Les JWT déjà émis peuvent rester valides jusqu'à leur expiration : la [sémantique Supabase des sessions](https://supabase.com/docs/guides/auth/sessions) n'assure pas leur révocation instantanée. Les policies 3A vérifient le claim `aal`, sans contrôle supplémentaire de `session_id`. Tenir compte de ce délai avant de considérer la révocation complète ; la durée cloud doit être vérifiée, sans supposer qu'elle correspond au local.
+6. L'utilisateur se reconnecte par email/mot de passe, obtient `aal1`, puis doit enrôler et vérifier un nouveau TOTP pour retrouver `aal2`. Son UUID, son identifiant MY. et ses données restent identiques. Consigner l'opération et son résultat sans secret, QR, code TOTP ni token.
 
 ## Sécurité et contrôle d'accès
 
@@ -422,7 +484,7 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. distingue développement et production. La Phase 1 est terminée et déployée ; la Phase 2 est terminée, ses deux migrations et son catalogue sont également déployés dans Supabase cloud, selon la validation du propriétaire consignée dans le [README](../README.md). Le pipeline refuse toujours toute base distante. La migration intermédiaire des préférences et invariants de collections est préparée et validée localement, sans déploiement cloud dans cette tâche. Le staging et les futurs workflows de déploiement restent à cadrer.
+MY. distingue développement et production. Les Phases 1 et 2, le catalogue et la migration intermédiaire des préférences sont déployés dans Supabase cloud, selon le propriétaire : six migrations, détaillées dans le [README](../README.md). Le pipeline refuse toujours toute base distante. La nouvelle migration Auth 3A est validée localement et reste à déployer séparément ; cette phase ne modifie pas le cloud. Le staging et les futurs workflows de déploiement restent à cadrer.
 
 Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Les données de production ne doivent pas être utilisées inconsidérément pendant le développement.
 
@@ -531,7 +593,6 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 - le code final des fonctions RPC métier ;
 - la bibliothèque d'interface éventuelle ;
 - le découpage détaillé des futures fonctionnalités dans la structure initialisée ;
-- les méthodes précises d'authentification ;
 - le staging éventuel et la stratégie de production au-delà du développement Supabase local ;
 - la configuration détaillée de Vercel, dont le rewrite ou fallback des routes SPA lors du déploiement effectif ;
 - la fréquence et le déclencheur de l'automatisation future du pipeline décrit dans [07-CATALOG-SYNC.md](07-CATALOG-SYNC.md) ;

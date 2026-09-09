@@ -178,7 +178,9 @@ Chaque profil doit pouvoir contenir notamment :
 
 Les préférences de vues appartiennent à une entité dédiée liée au profil, décrite ci-dessous ; elles ne transforment pas le profil en stockage générique de paramètres.
 
-L'identifiant public de partage est distinct de l'UUID Auth, généré automatiquement par MY. et immuable. Il suit le format `MY-XXXXX-XXXXX-XXXXX-XXXXX`, avec 20 caractères aléatoires cryptographiques, sans `0`, `O`, `1`, `I` ni `L`. Sa forme stockée est en majuscules ; sa recherche et son unicité ignorent la casse. Aucun pseudo supplémentaire n'est créé. Le mécanisme fiable de création du profil lors du signup reste réservé à la phase Auth.
+L'identifiant public de partage est distinct de l'UUID Auth, généré automatiquement par MY. et immuable. Il suit le format `MY-XXXXX-XXXXX-XXXXX-XXXXX`, avec 20 caractères aléatoires cryptographiques, sans `0`, `O`, `1`, `I` ni `L`. Sa forme stockée est en majuscules ; sa recherche et son unicité ignorent la casse. Aucun pseudo supplémentaire n'est créé. Depuis la Phase 3A, un trigger PostgreSQL crée le profil dans la transaction d'insertion `auth.users`, avec le même UUID et la génération SQL existante ; le frontend ne crée ni profil ni identifiant public.
+
+Les comptes utilisent email/mot de passe, email confirmé obligatoire et MFA TOTP obligatoire. Auth conserve les facteurs, secrets et niveaux AAL ; le profil ne duplique aucune de ces données. Sa présence dès le signup n'accorde aucun accès applicatif : la session doit atteindre `aal2` et respecter les policies métier. Les préférences restent créées à leur première sauvegarde, sans création au signup.
 
 ## Collections
 
@@ -545,7 +547,6 @@ Dans la V1, aucune donnée d'abonnement, de facturation, de paiement, de quota o
 Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, dans les limites du [schéma PostgreSQL / Supabase](06-DATABASE.md) :
 
 - les futures fonctions métier, vues et extensions du socle SQL de Phase 1 ;
-- le mécanisme de création du profil lors du signup ;
 - la suppression complète d'un compte ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;

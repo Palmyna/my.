@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest'
 
-test('prépare le client à la demande, sans requête, et réutilise la même instance', async () => {
+test('prépare le client à la demande et réutilise la même instance avec sessions activées', async () => {
   vi.stubEnv('VITE_SUPABASE_URL', '')
   vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', '')
   const fetchSpy = vi.fn(() => {
@@ -18,4 +18,6 @@ test('prépare le client à la demande, sans requête, et réutilise la même in
   expect(client).not.toBeNull()
   expect(getSupabaseClient()).toBe(client)
   expect(fetchSpy).not.toHaveBeenCalled()
+  expect(client?.auth).toMatchObject({ persistSession: true, autoRefreshToken: true, detectSessionInUrl: true })
+  await client?.auth.stopAutoRefresh()
 })

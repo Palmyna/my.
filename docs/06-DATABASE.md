@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue les Phases 1 et 2 déployées dans le cloud, la préparation intermédiaire locale avant Phase 3 et les opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue les Phases 1 et 2 et la préparation des préférences déjà déployées dans le cloud, le socle Auth 3A validé localement et les opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -16,7 +16,7 @@ Le socle stable est implémenté dans les [migrations versionnées](../supabase/
 | [20260906082313_phase1_security.sql](../supabase/migrations/20260906082313_phase1_security.sql) | Permissions de table et de colonne, policies RLS, prédicat privé de propriété |
 | [20260906082314_harden_rls_auto_enable.sql](../supabase/migrations/20260906082314_harden_rls_auto_enable.sql) | Révocation conditionnelle des droits d'appel API sur Automatic RLS, sans désactiver son event trigger |
 
-La Phase 1 est terminée et déployée dans Supabase cloud. La Phase 2 est également terminée : [20260906155043_phase2_catalog_pipeline.sql](../supabase/migrations/20260906155043_phase2_catalog_pipeline.sql) et [20260908083516_phase2_variant_release_dates.sql](../supabase/migrations/20260908083516_phase2_variant_release_dates.sql) y sont présentes, soit **cinq migrations cloud**. Le catalogue Phase 2 y a été chargé et vérifié selon la validation du propriétaire consignée dans le [README](../README.md#état-du-projet). Les tables utilisateur étaient encore vides lors de cette validation. Le pipeline reste local/protégé ; cette restriction ne décrit pas la localisation du catalogue résultant.
+La Phase 1 est terminée et déployée dans Supabase cloud. La Phase 2 est également terminée : [20260906155043_phase2_catalog_pipeline.sql](../supabase/migrations/20260906155043_phase2_catalog_pipeline.sql) et [20260908083516_phase2_variant_release_dates.sql](../supabase/migrations/20260908083516_phase2_variant_release_dates.sql) y sont présentes, soit les **cinq migrations des Phases 1 et 2**. Le catalogue Phase 2 y a été chargé et vérifié selon la validation du propriétaire consignée dans le [README](../README.md#état-du-projet). Les tables utilisateur étaient encore vides lors de cette validation. Le pipeline reste local/protégé ; cette restriction ne décrit pas la localisation du catalogue résultant.
 
 La migration pipeline apporte les stamps multiples et trois tables privées, sans modifier les migrations précédentes. Les RPC utilisateur et le frontend métier restent à développer.
 
@@ -24,9 +24,15 @@ La migration de dates de variantes, créée avec la CLI, ajoute la date effectiv
 
 ## Préparation SQL avant Phase 3
 
-La nouvelle migration [20260909124950_pre_phase3_collection_preferences.sql](../supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) ajoute l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et `user_preferences` avec RLS. Elle est appliquée et validée **localement uniquement** ; son déploiement cloud attend une décision séparée avec le propriétaire. Les cinq migrations déployées restent immuables.
+La migration [20260909124950_pre_phase3_collection_preferences.sql](../supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) ajoute l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et `user_preferences` avec RLS. Elle est **déjà déployée dans Supabase cloud**, selon le propriétaire, ce qui porte le total à **six migrations cloud**. L'ancienne indication « locale uniquement » était obsolète. Ces six migrations restent immuables et ne sont pas redéployées en 3A.
 
 Elle n'écrit aucune donnée catalogue, ne refond pas `physical_copies` et n'ouvre aucune RPC de création automatique. Les contraintes s'appliquent aussi aux lignes existantes : un nom trop court ou un doublon provoque un échec transactionnel, sans renommage, suppression ou fusion automatique. Les tests couvrent les invariants et droits ; les types frontend sont régénérés depuis le schéma local final. Aucun mécanisme Auth, signup ou création automatique de profil n'est ajouté.
+
+## Phase 3A — Auth et identité
+
+La migration [20260909184529_phase3a_auth_identity.sql](../supabase/migrations/20260909184529_phase3a_auth_identity.sql), créée par `supabase migration new phase3a_auth_identity`, ajoute le trigger Auth/profil, le rattrapage des profils manquants et les restrictions MFA. Elle est appliquée et validée **localement uniquement**. Elle ne modifie aucune donnée catalogue, colonne Auth gérée par Supabase, grant métier ni ancienne migration ; elle ajoute un trigger sur `auth.users` et une fonction dans `private`.
+
+La V1 utilise email/mot de passe, email confirmé obligatoire et TOTP obligatoire. La configuration Auth et la [procédure de récupération administrative](05-ARCHITECTURE.md#récupération-mfa-administrative) sont définies dans l'architecture. La présence d'un profil n'accorde pas l'accès : toutes les données applicatives nécessitent `aal2`.
 
 ## Principes structurants
 
@@ -371,13 +377,17 @@ Le trigger `private.set_profile_public_id()` utilise `extensions.gen_random_byte
 
 Le type `extensions.citext` et une contrainte `UNIQUE` assurent l'égalité et l'unicité insensibles à la casse. Le `CHECK` de format travaille sur la conversion `TEXT` avec collation `C` et impose les majuscules. Le trigger compare aussi l'ancienne et la nouvelle valeur en `TEXT` : une modification, même de casse ou vers `NULL`, est refusée. Les rôles API utilisateur ne reçoivent aucun droit d'écriture sur `profiles`.
 
-En cas de collision cryptographique exceptionnellement improbable, la contrainte unique refuse l'insertion ; le futur créateur de profil privilégié pourra retenter l'insertion. Aucun pseudo, nom d'affichage ou champ Auth dupliqué n'est ajouté.
+En cas de collision cryptographique exceptionnellement improbable, la contrainte unique refuse l'insertion ; le créateur de profil Auth retente alors la génération, avec cinq tentatives maximum. Toute autre violation est immédiatement propagée. Aucun pseudo, nom d'affichage ou champ Auth dupliqué n'est ajouté.
 
 ### Création du profil
 
-Un utilisateur Auth valide ne doit pas rester durablement sans profil MY. La création fiable du profil peut reposer sur un trigger, une opération serveur ou un autre mécanisme adapté. Le choix final sera réalisé avec l'implémentation de l'authentification.
+Depuis 3A, `auth_user_created_profile`, trigger `AFTER INSERT` sur `auth.users`, appelle `private.create_profile_for_auth_user()`. Cette fonction `SECURITY DEFINER`, avec `search_path` vide, insère uniquement `profiles.id = NEW.id`. Elle n'accepte aucun paramètre client et ne lit aucune métadonnée. Le trigger existant `profiles_public_id` génère l'identifiant ; aucune génération React ni insertion de secours frontend n'est ajoutée.
 
-La Phase 1 ne crée aucun trigger `auth.users → profiles`. La FK `profiles.id → auth.users.id` utilise `ON DELETE RESTRICT`, sans décider d'une cascade de suppression de compte.
+Le helper est dans le schéma non exposé `private`, sans `EXECUTE` pour PUBLIC, `anon`, `authenticated`, `service_role` ou `supabase_auth_admin`. PostgreSQL l'exécute comme trigger ; Auth peut créer son utilisateur avec ses droits habituels. La création Auth et celle du profil sont atomiques : si le profil échoue, le signup est annulé. Seule une violation de `profiles_public_id_key` est retentée, au maximum cinq fois, puis l'erreur est propagée.
+
+La migration verrouille brièvement les écritures sur `auth.users` pour installer le trigger et backfiller les identités existantes sans profil dans une transaction. Les profils existants, leurs IDs publics et leurs timestamps sont conservés. Le backfill réutilise également le générateur, avec reprise limitée sur la même collision. Aucune préférence n'est créée d'avance.
+
+La FK `profiles.id → auth.users.id` conserve `ON DELETE RESTRICT`, sans définir une cascade ou un parcours de suppression de compte. La suppression administrative d'un facteur MFA ne touche ni le profil ni ses données.
 
 ## Préférences utilisateur
 
@@ -753,7 +763,7 @@ Les opérations structurantes peuvent être limitées aux RPC afin que la RLS et
 
 ### Permissions effectivement accordées
 
-La matrice précédente décrit la cible fonctionnelle V1. Le socle SQL accorde actuellement :
+La matrice précédente décrit la cible fonctionnelle V1. Le socle SQL accorde actuellement les accès suivants, tous soumis à `aal2` pour `authenticated` :
 
 | Ressource | Accès direct `authenticated` |
 |---|---|
@@ -769,7 +779,15 @@ Les insertions de collections et d'exemplaires attribuent le propriétaire depui
 
 `anon` n'a aucun grant applicatif, y compris sur le catalogue. Les privilèges par défaut des nouveaux objets créés par `postgres` sont fermés ; les migrations futures devront accorder explicitement leurs droits. Les 12 tables Phase 1, les 3 tables privées Phase 2 et la nouvelle table de préférences activent la RLS explicitement. `service_role`, réservé à un environnement de confiance, reçoit `SELECT / INSERT / UPDATE / DELETE` sur les tables applicatives et l'usage des seules séquences catalogue nécessaires, sans grant applicatif `TRUNCATE`, `TRIGGER` ou `CREATE`.
 
-Le seul helper `SECURITY DEFINER` est `private.owns_collection(uuid)`. Il renvoie uniquement si `auth.uid()` est propriétaire de la collection donnée, sans paramètre d'identité utilisateur. Il évite la récursion des policies entre collections et partages. Son `search_path` est vide et son `EXECUTE` est accordé uniquement à `authenticated` pour l'évaluation des policies par référence résolue. Aucun `USAGE` général sur `private` n'est accordé aux rôles API ; le helper ne constitue pas une RPC exposée. Les autres fonctions techniques sont `SECURITY INVOKER`, sans droits d'appel API.
+Le helper RLS `SECURITY DEFINER` `private.owns_collection(uuid)` renvoie uniquement si `auth.uid()` est propriétaire de la collection donnée, sans paramètre d'identité utilisateur. Il évite la récursion des policies entre collections et partages. Son `search_path` est vide et son `EXECUTE` est accordé uniquement à `authenticated` pour l'évaluation des policies par référence résolue. Aucun `USAGE` général sur `private` n'est accordé aux rôles API ; le helper ne constitue pas une RPC exposée. Depuis 3A, le trigger de création du profil est également `SECURITY DEFINER`, sans droit d'appel direct. Les autres fonctions techniques restent `SECURITY INVOKER`, sans droits d'appel API.
+
+### Restriction MFA de Phase 3A
+
+Chaque table applicative `public` porte une policy `require_mfa AS RESTRICTIVE FOR ALL TO authenticated`, avec `USING` **et** `WITH CHECK` sur `(select auth.jwt()->>'aal') = 'aal2'`. Cela couvre `pokemon`, `tcg_series`, `tcg_sets`, `source_cards`, `catalog_variants`, `card_pokemon`, `automatic_target_states`, `profiles`, `collections`, `collection_items`, `physical_copies`, `collection_shares` et `user_preferences`.
+
+Cette restriction s'ajoute par **ET** aux policies métier permissives existantes, selon le [mécanisme MFA/RLS Supabase](https://supabase.com/docs/guides/auth/auth-mfa#database). `aal1`, claim absent ou autre valeur : lectures invisibles, insertions refusées, mises à jour/suppressions sans ligne accessible. `aal2` n'accorde pas de droit supplémentaire : propriété, partage en lecture seule et restrictions de colonnes continuent à s'appliquer. Les appels Auth d'enrollment/challenge restent disponibles à `aal1`.
+
+`service_role` conserve ses grants et `BYPASSRLS`. Le pipeline PostgreSQL privilégié et les trois tables privées restent inchangés ; aucune fonction privilégiée n'est exposée dans `public`. Toute future table ou RPC devra préserver cette frontière, notamment une RPC `SECURITY DEFINER` qui contournerait normalement la RLS. Les JWT déjà émis restent soumis à leur expiration après une révocation administrative ; voir la procédure opérateur.
 
 ### Automatic RLS existant
 
@@ -1016,7 +1034,6 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
 - la nomenclature des conditions ;
 - les sociétés et formats de grading ;
-- le mécanisme exact de création du profil ;
 - le code de positionnement et de rééquilibrage de `sort_position`, dont le stockage fractionnaire est fixé ;
 - la stratégie d'ancrage des cartes manuelles après une mise à jour ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;

@@ -9,7 +9,6 @@ insert into auth.users (id) values
   ('10000000-0000-0000-0000-000000000002'),
   ('10000000-0000-0000-0000-000000000003'),
   ('10000000-0000-0000-0000-000000000004');
-insert into public.profiles (id) select id from auth.users where id::text like '10000000-%';
 insert into public.pokemon (id, dex_number, name_fr) overriding system value values (-1, 900001, 'Test Pokemon');
 insert into public.tcg_series (id, tcgdex_id) overriding system value values (-1, 'test-series');
 insert into public.tcg_sets (id, tcgdex_id, series_id) overriding system value values (-1, 'test-set', -1);
@@ -83,6 +82,7 @@ select ok(not has_function_privilege('authenticated', 'public.phase1_future_func
 
 -- Owner positive cases and structural write boundaries.
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000001';
 select is((select count(*) from profiles ), 1::bigint, 'Owner reads only own profile');
 select is((select count(*) from collections ), 3::bigint, 'Owner reads all owned collections');
@@ -102,7 +102,7 @@ select throws_ok($$update collection_items set automatic_rank = 9 where collecti
 select throws_ok($$update collection_items set sort_position = 9 where collection_id = '20000000-0000-0000-0000-000000000003'$$, '42501', null, 'Owner cannot move automatic items arbitrarily');
 select throws_ok($$delete from collection_items where collection_id = '20000000-0000-0000-0000-000000000003'$$, '42501', null, 'Owner cannot delete automatic items arbitrarily');
 select throws_ok($$update profiles set public_id = 'MY-22222-22222-22222-22222'$$, '42501', null, 'Owner cannot write public ID');
-select throws_ok($$insert into profiles(id) values ('10000000-0000-0000-0000-000000000001')$$, '42501', null, 'No profile insertion before Auth integration');
+select throws_ok($$insert into profiles(id) values ('10000000-0000-0000-0000-000000000001')$$, '42501', null, 'No browser profile insertion: Auth trigger owns creation');
 select throws_ok($$insert into collection_shares(collection_id, recipient_user_id) values ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002')$$, '42501', null, 'Share creation awaits public-ID operation');
 select lives_ok($$insert into physical_copies(variant_id, condition, note) values (-3, 'Unspecified test', 'Browser copy')$$, 'Owner creates individual copy');
 select is((select count(*) from physical_copies ), 4::bigint, 'Copy assigned to caller');
@@ -132,6 +132,7 @@ select throws_ok($$select private.owns_collection('20000000-0000-0000-0000-00000
 
 -- Recipient gets only the shared collection, its items and relevant owner copies.
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000002';
 select is((select count(*) from profiles ), 1::bigint, 'Recipient only sees own profile');
 select results_eq($$select id from collections$$, $$values ('20000000-0000-0000-0000-000000000001'::uuid)$$, 'Recipient sees exactly shared collection');
@@ -152,6 +153,7 @@ select throws_ok($$update collection_shares set recipient_user_id = '10000000-00
 
 -- Unrelated authenticated caller and anonymous role.
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000003';
 select is((select count(*) from collections ), 0::bigint, 'Third party sees no collections');
 select is((select count(*) from collection_items ), 0::bigint, 'Third party sees no collection_items');
@@ -185,6 +187,7 @@ reset role;
 grant update(user_id) on physical_copies to authenticated;
 grant update(owner_id) on collections to authenticated;
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000001';
 select throws_ok($$update physical_copies set user_id = '10000000-0000-0000-0000-000000000002' where id = '40000000-0000-0000-0000-000000000001'$$, '42501', null, 'Copy WITH CHECK independently rejects ownership reassignment');
 select throws_ok($$update collections set owner_id = '10000000-0000-0000-0000-000000000003' where id = '20000000-0000-0000-0000-000000000002'$$, '42501', null, 'Collection WITH CHECK independently rejects ownership reassignment');
@@ -194,6 +197,7 @@ revoke update(owner_id) on collections from authenticated;
 
 -- Both parties can remove a share, with immediate loss of access and no cascade.
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000002';
 select lives_ok($$delete from collection_shares where id = '50000000-0000-0000-0000-000000000001'$$, 'Recipient removes own share');
 select is((select count(*) from collections ), 0::bigint, 'Recipient loses collection access after removal');
@@ -204,14 +208,17 @@ select is((select count(*) from collections ), 4::bigint, 'Share deletion preser
 select is((select count(*) from collection_items ), 3::bigint, 'Share deletion preserved all items');
 select is((select count(*) from physical_copies ), 4::bigint, 'Share deletion preserved all copies');
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000001';
 select lives_ok($$delete from collection_shares where id = '50000000-0000-0000-0000-000000000002'$$, 'Owner removes another share');
 select is((select count(*) from collection_shares ), 0::bigint, 'Owner removal persisted');
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000004';
 select is((select count(*) from collections ), 0::bigint, 'Second recipient loses collection access');
 select is((select count(*) from physical_copies ), 0::bigint, 'Second recipient loses copy access');
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000001';
 select lives_ok($$delete from collections where id = '20000000-0000-0000-0000-000000000002'$$, 'Owner deletes owned collection through RLS');
 select is((select count(*) from physical_copies ), 3::bigint, 'Owner collection deletion preserves copies');
@@ -219,6 +226,8 @@ select is((select count(*) from physical_copies ), 3::bigint, 'Owner collection 
 -- Trusted role uses actual grants and triggers, without a browser JWT.
 reset role;
 insert into auth.users(id) values ('10000000-0000-0000-0000-000000000005');
+-- Isolate trusted maintenance insertion after testing the automatic creation elsewhere.
+delete from profiles where id = '10000000-0000-0000-0000-000000000005';
 set local role service_role;
 set local request.jwt.claim.sub = '';
 select lives_ok($$insert into pokemon(dex_number) values (900002)$$, 'Trusted role writes catalogue using identity sequence');

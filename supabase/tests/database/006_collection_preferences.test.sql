@@ -11,7 +11,6 @@ insert into auth.users(id) values
   ('60000000-0000-0000-0000-000000000001'),
   ('60000000-0000-0000-0000-000000000002'),
   ('60000000-0000-0000-0000-000000000003');
-insert into public.profiles(id) select id from auth.users where id::text like '60000000-%';
 
 -- The existing schema suite covers a duplicate Pokemon target for one owner.
 insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_pokemon_id,applied_target_version)
@@ -52,6 +51,7 @@ select throws_ok($$insert into user_preferences(user_id) values('60000000-0000-0
   '23503',null,'Preferences cannot exist without a profile');
 
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '60000000-0000-0000-0000-000000000001';
 select lives_ok($$insert into user_preferences default values$$,'Owner can create preferences using auth.uid()');
 select results_eq($$select user_id,catalog_default_view,collection_default_view,last_catalog_view,last_collection_view from user_preferences$$,
@@ -82,6 +82,7 @@ reset role;
 insert into public.collection_shares(collection_id,recipient_user_id)
 values('61000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002');
 set local role authenticated;
+set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '60000000-0000-0000-0000-000000000002';
 select is((select count(*) from user_preferences),0::bigint,'Sharing a collection never exposes owner preferences');
 select results_eq($$update user_preferences set catalog_default_view='cards' returning user_id$$,
