@@ -2,7 +2,9 @@
 
 ## Rôle et état
 
-Ce document est la référence du pipeline V1. Il applique la [politique TCGdex](02-TCGDEX.md), le [modèle](03-DATA-MODEL.md) et le [schéma SQL](06-DATABASE.md). La Phase 2 implémente le pipeline et le premier catalogue **sur Supabase local**. Son déploiement cloud reste séparé. La Phase 1 est déjà déployée dans le cloud, selon la validation du propriétaire.
+Ce document est la référence du pipeline V1. Il applique la [politique TCGdex](02-TCGDEX.md), le [modèle](03-DATA-MODEL.md) et le [schéma SQL](06-DATABASE.md). **Phase 1 terminée et déployée ; Phase 2 terminée, ses cinq migrations cumulées présentes dans Supabase cloud et son catalogue chargé et vérifié**, selon la validation du propriétaire. Les migrations et volumes cloud validés sont consignés dans le [README](../README.md#état-du-projet) : 1 025 Pokémon, 18 séries, 188 Extensions, 19 907 Cartes, 31 904 Variantes, 16 820 liens Carte/Pokémon et 1 213 états de cible. Aucun nom français Pokémon manquant ni date de Variante NULL ; `sm3.5-28` possède cinq variantes après override. Les tables utilisateur étaient vides au moment de cette validation.
+
+Le **pipeline de synchronisation** reste volontairement local et protégé, tandis que le **catalogue résultant** existe aussi dans le cloud. Les restrictions des commandes ci-dessous ne remettent pas en cause cet état déployé. La préparation intermédiaire avant Phase 3 ajoute seulement des invariants de collections et préférences, validés localement, sans déploiement cloud ni modification du pipeline.
 
 ```text
 Snapshot Git exact → lecture TypeScript → normalisation FR → overrides JSON Git
@@ -10,7 +12,7 @@ Snapshot Git exact → lecture TypeScript → normalisation FR → overrides JSO
 → catalogue et structures automatiques hashées/versionnées → rapport
 ```
 
-Le même code assure import initial et synchronisations. Il ne modifie aucun profil, collection, élément, exemplaire, note ou partage. Les collections conservent leur version appliquée jusqu'à une future preview puis validation explicite. Les RPC et interfaces correspondantes restent hors Phase 2.
+Le même code assure import initial et synchronisations. Il ne modifie aucun profil, préférence utilisateur, collection, élément, exemplaire, note ou partage. Les collections conservent leur version appliquée jusqu'à une future preview puis validation explicite. Les RPC et interfaces correspondantes restent hors Phase 2.
 
 ## Code et commandes
 
@@ -173,27 +175,11 @@ La [migration de date de variante](../supabase/migrations/20260908083516_phase2_
 
 Les tests couvrent unités Vitest, intégration complète sur dataset synthétique hors ligne et schéma/RLS pgTAP. L'intégration vérifie notamment les IDs, corrections, données locales, disparitions/rétablissements, hashes, versions, conservation des données utilisateur et rollback après erreur SQL tardive.
 
-```sh
-npm ci
-npm run supabase:start
-npm run db:reset
-npm run db:test
-npm run db:lint
-npm run catalog:test:db
-npm run db:types
-npm run typecheck
-npm run build
-npm run lint
-npm test
-npm run db:reset
-npm run catalog:sync -- --snapshot <SHA_COMPLET> --dry-run
-# Lire le rapport, puis :
-npm run catalog:sync -- --snapshot <SHA_COMPLET> --apply
-npm run catalog:sync -- --snapshot <SHA_COMPLET> --apply
-npm run supabase:stop
-```
+La [validation locale du README](../README.md#validation-de-la-base-locale) distingue migration du volume existant, tests et reconstruction en base shadow. Les contrôles sont choisis selon la modification ; `build` inclut TypeScript et les types sont générés après stabilisation du schéma.
 
-`db:reset` détruit exclusivement les données locales ; il n'est pas nécessaire à une synchronisation normale. L'intégration attend une base sans catalogue réel et annule toutes les fixtures. Les tests peuvent consommer des séquences malgré rollback, d'où le reset avant la mesure reproductible du premier import. L'arrêt normal conserve le volume importé.
+L'intégration `catalog:test:db` attend une base sans catalogue réel et annule toutes les fixtures. Elle est réservée aux changements du pipeline qui le nécessitent. Pour une mesure reproductible du premier import, partir d'une base locale volontairement vide, fixer le SHA/référentiel/overrides/code, faire le dry-run, lire son rapport, puis appliquer deux fois les mêmes entrées pour vérifier l'idempotence. Les tests peuvent consommer des séquences malgré rollback ; une mesure d'IDs reproductibles exige donc un état initial connu.
+
+`db:reset` détruit exclusivement les données locales ; il n'est nécessaire ni à une synchronisation normale, ni à la préparation des préférences avant Phase 3. L'arrêt normal conserve le volume importé. Les rapports Phase 2 conservent leurs preuves historiques locales sans représenter l'état cloud actuel.
 
 ## Recherche de maintenance `catalog:find`
 
@@ -211,6 +197,10 @@ La CLI reçoit une seule chaîne libre entre guillemets. Elle affiche **Card**, 
 - `search-catalog.ts` est pur et sans import Node/SQL/CLI. Il expose `normalizeSearchText`, `tokenizeSearchQuery` et `searchCatalog(entries, query, { limit })`.
 - `search-catalog-db.ts` réutilise `connect()` et tous ses garde-fous locaux. Une seule projection SQL récupère les champs utiles ; les rattachements Pokémon et les nombres de variantes sont agrégés séparément pour éviter leur multiplication. Les Pokémon sont ordonnés par dex. Les cartes inactives restent recherchables pour la maintenance, avec leur état signalé dans la sortie. Toutes les variantes standard stockées sont comptées, quel que soit leur état d'activité ou de disponibilité ; les Jumbo sont exclues.
 - `catalog-find.ts` gère les arguments, erreurs, limites et colonnes terminal. La logique de matching n'y réside pas.
+
+Le moteur portable ne dépend pas non plus du réseau. La future recherche globale Carte doit en réutiliser autant que possible normalisation, tokenisation, matching, score et tri ; aucun second moteur divergent n'est créé. `search-catalog-db.ts`, dépendant de `pg`, demeure un adaptateur de maintenance locale et ne doit jamais être importé dans React. Le futur adaptateur frontend accède aux données via Supabase/Auth/RLS selon [05-ARCHITECTURE.md](05-ARCHITECTURE.md), avec des projections limitées au besoin.
+
+La recherche globale produit des Cartes uniques et applique le périmètre catalogue de l'application. Les compteurs Pokémon/Extension sont dérivés des Cartes et Variantes réellement concernées par leurs listings ; les totaux de maintenance incluant les données inactives ou non confirmées ne leur sont pas transposés aveuglément. Le tri de consultation Pokémon au niveau Carte ne modifie pas les ordres de Variantes, hashes et versions calculés par ce pipeline. Aucun compteur, illustration ou couleur Pokémon supplémentaire n'est persisté pour ces pages.
 
 `CatalogSearchEntry` contient `id` interne sous forme de chaîne, `card` copiable, `tcgdexId` nullable, `name` français nullable, `localId`, `isActive`, `variantCount`, les Pokémon `{ dexNumber, name }` réellement rattachés, et le set `{ tcgdexId, name, abbreviation, abbreviationFr, officialCardCount }`. Les champs nullable conservent l'absence source. Le résultat contient la requête, les termes normalisés, le total avant limite et les résultats `{ entry, score, matches }` ; chaque correspondance indique terme, champ, type et poids. La stratégie pourra évoluer derrière ce contrat sans dépendre du terminal.
 
@@ -266,6 +256,6 @@ Le [guide des overrides](../data/catalog-overrides/README.md#export-csv-pour-aud
 
 ## Points restant ouverts
 
-Restent à cadrer : déploiement/opt-in distant, cadence, CI, automatisation, seuils d'alerte, vérification historique de variantes rares, dates de promotions/coffrets absentes de la source, politique éventuelle des cameos, interface de maintenance et traitement visuel des images manquantes. La source et la maintenance manuelle des noms français d'espèces sont désormais cadrées et implémentées.
+Restent à cadrer : éventuel mode distant explicitement activé du pipeline, futurs workflows de déploiement, cadence, CI, automatisation, seuils d'alerte, vérification historique de variantes rares, dates de promotions/coffrets absentes de la source, politique éventuelle des cameos, interface de maintenance et traitement visuel des images manquantes. Le premier déploiement cloud Phase 2 est effectué ; la source et la maintenance manuelle des noms français d'espèces sont cadrées et implémentées.
 
-Auth, frontend métier, recherche UI, notifications et opérations de collections restent des phases ultérieures. Langage, cache, JSON/Zod, identité, stamps, FR, Jumbo, numéros, dates inconnues, ordre, transaction, dry-run, hash et version sont désormais implémentés et testés.
+Auth, frontend métier, recherche UI, notifications et opérations de collections restent à implémenter dans les phases ultérieures. Le comportement de recherche globale, des pages catalogue et des préférences est désormais validé dans les documents produit/UX ; son implémentation n'est pas ajoutée au pipeline. Langage, cache, JSON/Zod, identité, stamps, FR, Jumbo, numéros, dates inconnues, ordre, transaction, dry-run, hash et version sont implémentés et testés.

@@ -40,7 +40,7 @@ Les choix suivants sont figés pour la V1 :
 | Authentification | Supabase Auth |
 | Sécurité des données | PostgreSQL Row Level Security via Supabase |
 | Source Pokémon TCG | TCGdex / cards-database |
-| Catalogue applicatif | Catalogue local MY. dans PostgreSQL |
+| Catalogue applicatif | Catalogue MY. dans PostgreSQL, disponible localement et dans Supabase cloud |
 | Images Pokémon TCG | Assets ou CDN TCGdex utilisés directement |
 
 La V1 n'utilise ni Next.js ni un framework SSR équivalent. Ce choix répond au caractère authentifié et fortement interactif de l'application. Il pourra être réévalué si une future partie publique crée un besoin important de SEO ou de rendu serveur.
@@ -81,7 +81,9 @@ Vercel héberge le frontend compilé par Vite. La SPA React s'exécute dans le n
 
 MY. est une SPA React. Cette approche correspond à une application authentifiée et interactive centrée sur un dashboard, des collections, des listes, des grilles, des classeurs, des recherches et des panneaux de détail.
 
-La navigation applicative est gérée côté client avec React Router. Les routes pourront notamment représenter la homepage, la connexion, l'inscription, le dashboard, une collection et le profil. La Phase 0 prépare uniquement le routeur et une route temporaire de bootstrap.
+La navigation applicative est gérée côté client avec React Router. Les routes conceptuelles comprennent la homepage, les parcours d'authentification et pages légales, puis Dashboard, Pokémon catalogue, Extension catalogue, Carte catalogue, Collection, Profil et Paramètres. Ces sept dernières destinations restent authentifiées. Les chemins, slugs ou IDs exacts restent à définir pour garantir stabilité, accès direct et absence d'ambiguïté avec les IDs MY./TCGdex. Le frontend actuel conserve uniquement le routeur et la vue temporaire de bootstrap ; la Phase 3 Auth n'a pas commencé.
+
+Le futur layout authentifié porte le header permanent logo vers Dashboard / recherche globale / menu utilisateur. Le routeur et l'état de navigation conservent autant que possible page, vue, filtres et scroll lors du retour d'une fiche Carte. Précédente/Suivante réutilise l'ordre réel du contexte d'origine ; aucune séquence n'est fabriquée pour une arrivée globale sans liste. Le détail Variante est un composant contextuel commun aux pages Carte et aux collections, avec actions et données adaptées aux droits du contexte.
 
 Vercel devra permettre l'accès direct et le rafraîchissement des routes internes de la SPA. Le mécanisme précis de rewrite ou de fallback SPA sera défini et configuré lors du déploiement effectif. La présente décision d'hébergement n'ajoute aucune configuration de déploiement et ne modifie pas React Router.
 
@@ -116,6 +118,10 @@ Le socle de la Phase 0 distingue `src/app/` pour l'application, les providers et
 L'état local reste local lorsqu'il n'a pas besoin d'être partagé. Les données serveur sont traitées comme des données distantes. Aucun système lourd de gestion d'état global n'est imposé par défaut.
 
 TanStack Query est retenu pour les requêtes et le cache des données serveur. Son provider est préparé dès la Phase 0, sans requête métier ni gestionnaire d'état global supplémentaire. Zod est retenu pour valider les données et la configuration.
+
+Les préférences de vues sont des données serveur privées dans `public.user_preferences`, liées au profil et accessibles via Supabase sous RLS. Elles distinguent les modes d'ouverture des derniers modes explicitement sélectionnés, indépendamment pour catalogue et collections. Une ligne absente utilise les défauts SQL (`last_used`, avec `list` initial) jusqu'au premier enregistrement par le propriétaire. Aucun trigger de signup ni écran Paramètres n'est ajouté à la préparation SQL. Le futur client peut insérer puis modifier sa ligne ou effectuer un upsert ciblant `user_id`, en mettant à jour uniquement les colonnes autorisées.
+
+L'illustration spéciale Pokémon/Extension est choisie à l'ouverture et conservée dans l'état de consultation, sans tirage à chaque rerender ni nouvelle donnée métier couleur. Le choix précis de l'illustration reste ouvert.
 
 ## Hébergement frontend : Vercel
 
@@ -254,6 +260,8 @@ Le frontend ne doit pas charger tout le catalogue pertinent, décider seul de l'
 
 La création utilise le catalogue local MY. et une opération métier autoritative.
 
+PostgreSQL garantit déjà une seule collection automatique par propriétaire et cible Pokémon ou Set, ainsi qu'un nom d'au moins 3 caractères utiles après trim. La future opération de création respecte ces contraintes même en concurrence ; l'interface Créer/Ouvrir lit la collection personnelle correspondante sous RLS. Aucun nouveau droit de création automatique directe n'est ouvert au navigateur.
+
 ```text
 Cible Pokémon
 Pokémon → rattachements carte-Pokémon
@@ -280,7 +288,7 @@ La synchronisation du catalogue ne modifie jamais silencieusement une collection
 
 ### Flux de données
 
-Le dépôt `tcgdex/cards-database` est la source technique principale du pipeline. MY. utilise ensuite son catalogue PostgreSQL local pour les consultations, recherches et générations automatiques.
+Le dépôt `tcgdex/cards-database` est la source technique principale du pipeline. MY. utilise ensuite son propre catalogue PostgreSQL pour les consultations, recherches et générations automatiques. « Local MY. » désigne ici sa copie maîtrisée de la source TCGdex : le catalogue résultant est également chargé et vérifié dans Supabase cloud. Le pipeline de maintenance demeure volontairement limité à la base locale.
 
 ```text
 Snapshot cards-database identifié → synchronisation de confiance → catalogue local MY. → application
@@ -344,6 +352,7 @@ Supabase Storage pourra être envisagé plus tard pour de véritables fichiers p
 
 La recherche de la V1 repose sur PostgreSQL et Supabase pour :
 
+- la recherche globale authentifiée de navigation (Pokémon, Extensions, collections accessibles, Cartes) ;
 - la recherche interne aux collections ;
 - la recherche dans le catalogue ;
 - la recherche de Pokémon ;
@@ -355,7 +364,15 @@ Le navigateur ne doit pas charger tout le catalogue pour effectuer une recherche
 
 Le complément Phase 2 fournit un premier moteur portable dans `scripts/catalog/search-catalog.ts` : données simples typées, normalisation Unicode, tokenisation, correspondances multi-champs en AND, score explicable et tri déterministe. Il n'importe aucun module Node, accès DB ou affichage terminal. Le contrat `searchCatalog(entries, query, { limit })` retourne les entrées classées, leurs scores, les correspondances par terme et le total avant limite.
 
-Pour la maintenance actuelle, `search-catalog-db.ts` charge une projection compacte du catalogue PostgreSQL local, puis `catalog-find.ts` appelle le moteur et affiche les résultats. Cette lecture complète est limitée au processus CLI de maintenance ; elle ne définit pas la future stratégie de chargement du navigateur. Le choix du filtrage/pagination côté serveur et du transport public reste ouvert. Aucune API/RPC, recherche dans une collection, interface React ou recherche distante n'est créée. Le [pipeline catalogue](07-CATALOG-SYNC.md#recherche-de-maintenance-catalogfind) documente les règles et garanties de cet outil.
+Pour la maintenance actuelle, `search-catalog-db.ts` utilise `pg` et charge une projection compacte du catalogue PostgreSQL local, puis `catalog-find.ts` appelle le moteur et affiche les résultats. Cet adaptateur ne doit **jamais être importé dans React**. Sa lecture complète reste propre à la CLI ; le navigateur utilisera son accès aux données via Supabase/Auth/RLS avec des données filtrées, paginées et limitées.
+
+La future recherche Carte réutilisera autant que possible `search-catalog.ts` pour normalisation, tokenisation, matching, score et tri, sans second moteur divergent. Le moteur n'a aucune dépendance Node, SQL, réseau ou terminal. L'adaptateur Supabase futur doit préserver ses règles et sa pertinence, y compris lorsqu'il présélectionne des candidats. Une éventuelle extraction vers un module partagé ne doit pas copier la logique.
+
+L'orchestration globale applique les règles de [FEATURES](01-FEATURES.md) et [UX-UI](04-UX-UI.md) : seuil de 3 caractères, suggestions seules, maximum 10, ordre Pokémon/Extensions/Collections/Cartes et quotas 2/2/2 puis places restantes. Pokémon utilise le nom français ; Extension et Collection utilisent exclusivement leur nom, sans matching de leur contenu. Les collections candidates sont uniquement celles visibles par propriété ou partage ; la globalité ne contourne jamais la RLS. Le résultat Carte se déduplique au niveau `source_cards`, sans suggestion Variante.
+
+La projection, les requêtes, le cache TanStack Query, le debounce éventuel, les index et l'utilité d'une vue ou RPC optimisée restent à choisir lors de l'implémentation. Une vue/RPC éventuelle doit conserver les droits des tables sous-jacentes. Aucun mécanisme de recherche supplémentaire n'est nécessaire à la migration intermédiaire et aucune Vercel Function n'est justifiée par ce seul besoin. Le [pipeline catalogue](07-CATALOG-SYNC.md#recherche-de-maintenance-catalogfind) reste la référence de l'outil de maintenance.
+
+Les lectures Pokémon/Extension regroupent les Cartes uniques, respectivement par date de Carte et par numéro naturel ; la fiche Carte charge ensuite les Variantes. Les compteurs `card_count` et `variant_count` sont dérivés du même périmètre que les listings, sans dupliquer la source de vérité ni confondre `official_card_count` et total MY. Ces pages n'agrègent pas de progression personnelle. `physical_copies → user_id + variant_id` demeure inchangé.
 
 ## Vue classeur et temps réel
 
@@ -405,7 +422,7 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. distingue développement et production. La Phase 1 est validée et déployée sur Supabase cloud, avec ses trois migrations synchronisées Local / Remote selon le propriétaire. La Phase 2 reste locale ; son outil refuse toute base distante. Le staging et les futurs workflows de déploiement restent à cadrer.
+MY. distingue développement et production. La Phase 1 est terminée et déployée ; la Phase 2 est terminée, ses deux migrations et son catalogue sont également déployés dans Supabase cloud, selon la validation du propriétaire consignée dans le [README](../README.md). Le pipeline refuse toujours toute base distante. La migration intermédiaire des préférences et invariants de collections est préparée et validée localement, sans déploiement cloud dans cette tâche. Le staging et les futurs workflows de déploiement restent à cadrer.
 
 Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Les données de production ne doivent pas être utilisées inconsidérément pendant le développement.
 

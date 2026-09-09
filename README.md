@@ -8,13 +8,33 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phase 0 validée ; Phase 1 validée et déployée sur Supabase cloud ; Phase 2 implémentée et vérifiée localement.** Les trois migrations Phase 1 sont synchronisées Local / Remote, selon la validation du propriétaire : 12 tables cloud avec RLS et Security Advisor sans problème. Les migrations complémentaires Phase 2 et le catalogue réel restent exclusivement locaux.
+**Phase 0 validée ; Phase 1 terminée et déployée ; Phase 2 terminée, catalogue chargé et vérifié dans Supabase cloud.** Les cinq migrations déployées, selon la validation fournie par le propriétaire, sont :
 
-Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. Le frontend affiche toujours `MY.` et « Application initialisée » ; la Phase 3 / Auth, les RPC de collections et les interfaces métier n'ont pas commencé. Le cloud applicatif était vide au début de cette tâche, selon le propriétaire ; aucune écriture cloud Phase 2 n'a été effectuée.
+- `20260906082312_phase1_schema` ;
+- `20260906082313_phase1_security` ;
+- `20260906082314_harden_rls_auto_enable` ;
+- `20260906155043_phase2_catalog_pipeline` ;
+- `20260908083516_phase2_variant_release_dates`.
+
+| Catalogue cloud vérifié lors de cette validation | Lignes |
+|---|---:|
+| `pokemon` | 1 025 |
+| `tcg_series` | 18 |
+| `tcg_sets` | 188 |
+| `source_cards` | 19 907 |
+| `catalog_variants` | 31 904 |
+| `card_pokemon` | 16 820 |
+| `automatic_target_states` | 1 213 |
+
+Aucun nom français Pokémon ne manque et aucune date de Variante n'est NULL dans ce catalogue validé. `sm3.5-28` possède cinq variantes après override. Les tables utilisateur étaient encore vides à ce moment. Cet état cloud est celui transmis par le propriétaire ; la tâche intermédiaire n'effectue ni nouvelle vérification distante ni déploiement cloud.
+
+Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. **Le pipeline reste local/protégé ; le catalogue résultant existe également dans le cloud.** Le frontend affiche toujours `MY.` et « Application initialisée » ; la Phase 3 Auth, les RPC de collections et les interfaces métier n'ont pas commencé.
+
+Le cadrage Recherche globale / Catalogue / Navigation / Préférences est intégré dans les références produit, modèle, UX, architecture et SQL. La migration intermédiaire [20260909124950_pre_phase3_collection_preferences.sql](supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) prépare localement l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et les préférences de vues privées. **Cette sixième migration n'est pas déployée dans le cloud.** Le dépôt est préparé pour la Phase 3, sans signup, login, session, création automatique de profil ou nouvel écran métier.
 
 Le complément Phase 2 fournit les noms français des espèces via un référentiel PokéAPI généré manuellement et destiné au versionnement. Les 1 025 Pokémon locaux ont désormais un nom français, sans changement des 1 213 états de cible ; la seconde application est un noop fonctionnel. La synchronisation du catalogue utilise uniquement ce fichier local et ne contacte jamais PokéAPI.
 
-La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue local en lecture seule. Son moteur TypeScript pur est séparé de PostgreSQL et du terminal, pour une réutilisation future. Aucune interface de recherche ni API publique n'est ajoutée.
+La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue local en lecture seule. Son moteur `search-catalog.ts` est portable, sans Node, SQL, réseau ou terminal ; il doit être réutilisé autant que possible pour la future recherche Carte. L'adaptateur `search-catalog-db.ts` utilisant `pg` reste réservé à la maintenance et ne doit pas être importé dans React. Le futur frontend accédera aux données via Supabase/Auth/RLS. Aucune interface de recherche ni API supplémentaire n'est ajoutée.
 
 Chaque variante porte désormais sa date effective nullable et sa provenance persistée. Elle hérite de la date résolue de sa carte lorsqu'aucune date spécifique fiable n'est connue. Le classement Pokémon utilise cette date de variante ; le classement Set reste numéro puis variante. La [correction des dates de variantes](docs/reports/2026-09-08-PHASE2-VARIANT-DATES.md) conserve les preuves de migration du volume local, de stabilité des IDs et d'idempotence.
 
@@ -82,29 +102,29 @@ Les fichiers `.env` réels, `node_modules/`, `dist/`, les caches et l'état loca
 
 ## Validation de la base locale
 
-Après `npm ci`, démarrer Docker Desktop, puis exécuter :
+Après `npm ci`, démarrer Docker Desktop. Pour appliquer les migrations en attente au volume local existant puis vérifier le schéma :
 
 ```sh
 npm run supabase:start
-npm run db:reset
+node node_modules/supabase/dist/supabase.js migration up --local
 npm run db:test
 npm run db:lint
 npm run db:types
 npm run build
 npm run lint
 npm test
-npm run supabase:status
-npm run supabase:stop
 ```
 
 | Commande ajoutée | Usage |
 |---|---|
 | `npm run db:reset` | Reconstruit entièrement la base **locale**, en supprimant ses données, depuis les migrations |
-| `npm run db:test` | Exécute les cinq suites pgTAP via `supabase test db --local` |
+| `npm run db:test` | Exécute les six suites pgTAP via `supabase test db --local` |
 | `npm run db:lint` | Vérifie `public` et `private`, avec échec dès un avertissement SQL |
 | `npm run db:types` | Régénère `src/types/database.generated.ts` depuis `public` local ; le fichier existant est conservé si la CLI échoue |
 
-Les 325 assertions PostgreSQL comprennent les 258 assertions Phase 1, 49 assertions sur les stamps multiples, tables privées et permissions du pipeline, et 18 assertions ciblées sur les dates de variantes. Les fixtures sont annulées à la fin de chaque suite. Le lanceur copie temporairement la migration Automatic RLS à côté du test pour `pg_prove`, puis supprime cette copie ignorée. Aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif.
+Les 374 assertions PostgreSQL comprennent les 258 assertions du socle (avec la règle d'unicité Pokémon corrigée), 49 assertions sur le pipeline, 18 sur les dates de variantes et 49 sur l'unicité Extension, les noms, les préférences et leurs droits/RLS. Les fixtures sont annulées à la fin de chaque suite. Le lanceur copie temporairement la migration Automatic RLS à côté du test pour `pg_prove`, puis supprime cette copie ignorée. Aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif.
+
+Adapter les contrôles aux changements : tests ciblés pendant le développement, puis une seule passe globale pertinente. `build` inclut déjà `typecheck`. Régénérer les types une seule fois après stabilisation du schéma. Pour vérifier une reconstruction sans détruire le volume importé, `supabase db diff --local --schema public,private` compare le schéma à une base shadow reconstruite depuis les migrations. `db:reset` reste réservé à un besoin explicite de base locale vide ; `supabase:stop` conserve les données.
 
 La validation Phase 1 a réussi sur PostgreSQL 17 local : reconstruction depuis les migrations, 258 assertions pgTAP, lint SQL sans avertissement, contrôle de sécurité Supabase sans problème signalé et génération CLI des types. Les vérifications frontend restent `build`, `lint` et les 11 tests Vitest.
 
@@ -116,7 +136,7 @@ Les migrations sont détaillées dans [06-DATABASE.md](docs/06-DATABASE.md). Le 
 
 La procédure et les algorithmes sont définis dans [07-CATALOG-SYNC.md](docs/07-CATALOG-SYNC.md). `scripts/catalog/` utilise Node 24, TypeScript, Zod et `pg` (avec ses types). Le cache Git et les rapports résident dans `.cache/`, ignoré. Les corrections versionnées sont dans [data/catalog-overrides/](data/catalog-overrides/README.md) ; aucun override réel n'est ajouté par défaut.
 
-Le catalogue local vérifié contient 19 907 cartes, 31 904 variantes, 1 025 Pokémon et 188 sets. Le premier override réel, ajouté manuellement puis appliqué localement, porte Pikachu 28/73 à cinq variantes. Les mesures de l'import initial (31 900 variantes) restent dans le [rapport Phase 2](docs/reports/2026-09-06-PHASE2.md). La recherche n'applique aucune correction et ne change ni le catalogue ni les états de cible.
+Le catalogue local vérifié contient 19 907 cartes, 31 904 variantes, 1 025 Pokémon et 188 sets ; le catalogue cloud validé est détaillé plus haut. Le premier override réel porte Pikachu 28/73 à cinq variantes. Les mesures de l'import initial (31 900 variantes) restent dans le [rapport Phase 2](docs/reports/2026-09-06-PHASE2.md), qui constitue une preuve historique locale. La recherche n'applique aucune correction et ne change ni le catalogue ni les états de cible.
 
 | Commande | Usage |
 |---|---|
@@ -149,9 +169,9 @@ Le CSV est écrit dans `.cache/catalog-exports/catalog-find-<recherche-normalis�
 
 Workflow : **export de référence → audit humain → fichier séparé `*_override.csv` contenant uniquement les corrections souhaitées**. Ce fichier sert de liste manuelle ; aucun importeur CSV n'est créé et le CSV de référence n'est pas destiné à être modifié puis réimporté. Le [guide des overrides](data/catalog-overrides/README.md) détaille les clés et le [rapport d'export](docs/reports/2026-09-08-PHASE2-CATALOG-FIND-EXPORT.md) conserve les vérifications.
 
-Pour vérifier une reconstruction : démarrer Supabase, exécuter `db:reset`, `db:test`, `db:lint`, `catalog:test:db`, `db:types`, puis les contrôles TypeScript/build/lint/tests. Après les fixtures, refaire `db:reset`, lancer le dry-run au SHA choisi, lire son rapport, puis appliquer deux fois le même SHA afin de vérifier l'idempotence. Le deuxième apply ne doit changer aucune donnée fonctionnelle. Les rapports JSON complets sont dans `.cache/catalog-reports/`.
+Pour vérifier le pipeline lui-même, utiliser l'intégration synthétique `catalog:test:db` uniquement sur une base locale sans catalogue réel. Pour une mesure reproductible d'import initial sur une base volontairement reconstruite, fixer le SHA, lancer le dry-run, lire son rapport, puis appliquer deux fois les mêmes entrées : la seconde application ne doit changer aucune donnée fonctionnelle. Ces opérations ne sont pas nécessaires à une modification de préférences ou de contraintes utilisateur. Les rapports JSON complets sont dans `.cache/catalog-reports/`.
 
-`db:reset` supprime le catalogue local et ne sert pas à une synchronisation normale. `supabase:stop` conserve le volume importé. Le déploiement de la migration Phase 2 et du premier catalogue cloud sera effectué séparément après validation du propriétaire.
+`db:reset` supprime le catalogue local et ne sert pas à une synchronisation normale. `supabase:stop` conserve le volume importé. La Phase 2 et son catalogue sont déjà déployés dans le cloud ; le futur déploiement de la migration intermédiaire reste séparé et contrôlé avec le propriétaire.
 
 ## Documentation
 

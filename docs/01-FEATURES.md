@@ -18,6 +18,8 @@ La V1 permet principalement de :
 - gérer plusieurs exemplaires physiques d'une même carte ;
 - consulter une collection sous plusieurs vues ;
 - rechercher rapidement une carte ou un groupe de cartes dans une collection ;
+- naviguer par recherche globale vers les Pokémon, Extensions, collections accessibles et Cartes ;
+- explorer le catalogue et choisir ses préférences de vues ;
 - partager une collection avec un autre utilisateur en lecture seule.
 
 Ces fonctionnalités doivent rester simples à comprendre et rapides à utiliser.
@@ -37,6 +39,10 @@ Chaque utilisateur possède un identifiant public unique propre à MY., utilisé
 MY. génère automatiquement cet identifiant au format `MY-XXXXX-XXXXX-XXXXX-XXXXX`. Les 20 caractères aléatoires utilisent des lettres majuscules et des chiffres, sans `0`, `O`, `1`, `I` ni `L`. L'utilisateur ne le choisit pas et ne peut pas le modifier. Il est stocké en majuscules ; sa recherche et son unicité sont insensibles à la casse. Sa longueur et sa génération cryptographique rendent sa découverte par devinette déraisonnable. Aucun pseudo ou nom d'affichage supplémentaire n'est défini.
 
 ## Dashboard
+
+L'application métier reste authentifiée : Pokémon, Extensions, Cartes et collections ne sont pas accessibles sans session. Seuls la homepage, les parcours d'authentification et les pages légales nécessaires sont publics. Aucun catalogue public n'est prévu en V1.
+
+Le header authentifié permanent donne accès au Dashboard par le logo MY., à la recherche globale et au menu Profil / Paramètres / Déconnexion. Les collections restent le cœur de la gestion personnelle.
 
 Après connexion, l'utilisateur accède à son dashboard, point central d'accès aux collections. Celui-ci distingue clairement au minimum deux catégories, sans imposer encore leur présentation exacte dans l'interface.
 
@@ -77,7 +83,7 @@ Pour une collection automatique, il choisit ensuite un type de cible puis la cib
 - un Pokémon ;
 - une extension, c'est-à-dire un set précis.
 
-Une collection possède au minimum un nom. Aucune autre métadonnée ne doit être supposée tant qu'elle n'est pas cadrée.
+Une collection possède un nom d'au moins **3 caractères utiles après trim**, à la création comme au renommage, pour les collections libres et automatiques. L'interface et PostgreSQL garantissent cette règle. Aucune autre métadonnée ne doit être supposée tant qu'elle n'est pas cadrée.
 
 Le propriétaire peut modifier les informations générales de sa collection et, au minimum, son nom. Le type d'une collection ne doit pas être considéré comme modifiable après sa création sans cadrage spécifique.
 
@@ -98,6 +104,8 @@ La wishlist est seulement un exemple d'usage d'une collection libre et ne consti
 ## Collections automatiques
 
 Une collection automatique possède une cible. Deux types de cible sont proposés dans la V1 : Pokémon et Extension.
+
+Un utilisateur ne peut posséder qu'une seule collection automatique pour une même cible : une par Pokémon et une par Extension. Deux utilisateurs différents peuvent choisir la même cible ; les collections libres ne sont pas concernées. Cette unicité est garantie par PostgreSQL, y compris en cas de créations concurrentes.
 
 Le contenu automatique est généré depuis le catalogue local MY. selon des règles communes et reproductibles. Quel que soit le type de cible, la structure est matérialisée, les éléments automatiques sont fixes, l'ordre est stable, les ajouts manuels restent possibles et toute mise à jour structurelle nécessite une validation explicite.
 
@@ -213,6 +221,31 @@ Une note ou un commentaire libre peut être associé à chaque exemplaire. Il pe
 
 La longueur maximale et le format précis de ces notes ne sont pas encore définis.
 
+## Recherche globale et consultation du catalogue
+
+La recherche globale est une navigation par suggestions dynamiques, disponible partout après connexion à partir de **3 caractères**. Il n'existe ni bouton de lancement requis, ni page générale de résultats. Valider le champ ne sélectionne aucun résultat et ne navigue pas ; l'utilisateur choisit explicitement une suggestion. Sur mobile, cette validation ferme seulement le clavier et conserve les suggestions.
+
+| Catégorie, dans l'ordre d'affichage | Champs de correspondance | Maximum |
+|---|---|---:|
+| Pokémon | Nom français ; numéro Pokédex informatif | 2 |
+| Extensions | Nom de l'Extension uniquement | 2 |
+| Collections | Nom uniquement, parmi ses collections et celles partagées avec lui | 2 |
+| Cartes | Nom, Pokémon liés, numéro, Extension, abréviations, identifiants pertinents et métadonnées textuelles prises en charge par le moteur portable | Places restantes |
+
+Le total ne dépasse jamais **10 suggestions**. Chaque catégorie est triée par pertinence ; les trois premières ne dépassent pas leur quota pour remplir la liste. Le contenu d'une Extension ou d'une collection ne la fait pas correspondre à une recherche sur son nom. Une Carte apparaît une seule fois, indépendamment de ses variantes ; aucune suggestion globale ne cible directement une Variante ou une série/bloc. La recherche Carte conserve normalisation de casse/accents, préfixes, numéros, correspondances multi-champs et classement déterministe du moteur portable existant, détaillé dans [l'architecture](05-ARCHITECTURE.md#recherche-et-requêtes).
+
+Les pages catalogue Pokémon, Extension et Carte sont des pages de consultation. Elles utilisent **Liste / Cartes** ; Classeur reste réservé aux collections.
+
+- **Pokémon** : identité française et Pokédex, nombres de Cartes distinctes et de Variantes, illustration tirée d'une Carte spéciale, puis Cartes uniques classées chronologiquement au niveau Carte.
+- **Extension** : identité, série/bloc, date et informations génériques utiles, nombres de Cartes et Variantes, illustration tirée d'une Carte Pokémon spéciale, puis Cartes uniques par numéro naturel croissant.
+- **Carte** : informations de Carte, liens vers l'Extension et chacun des Pokémon associés, puis liste de ses Variantes. Une date spécifique de Variante ne remplace pas la date de Carte.
+
+Les pages catalogue n'affichent pas de progression ou statistiques personnelles. Les compteurs reflètent le catalogue réellement affiché et son périmètre français ; le nombre officiel du set demeure une information distincte. Pokémon et Extension proposent **Créer ma collection** en l'absence de collection automatique personnelle correspondante, sinon **Ouvrir ma collection**. Une collection partagée ne remplace pas celle du propriétaire courant.
+
+Cliquer une Carte ouvre sa fiche ; cliquer une Variante ouvre le détail contextuel commun au catalogue et aux collections. Les actions rapides `…` et celles du détail s'adaptent au contexte et aux droits. Retour restaure autant que possible la consultation précédente ; Précédente / Suivante suit la liste d'origine, sans inventer de séquence depuis une simple suggestion. Les interactions précises relèvent de [04-UX-UI.md](04-UX-UI.md).
+
+Cette recherche complète deux outils distincts : la recherche interne filtre la collection actuelle ; la recherche d'ajout permet de sélectionner la **Variante exacte** à ajouter à une collection.
+
 ## Recherche interne
 
 Chaque collection dispose d'une barre de recherche permettant de saisir un terme libre et de filtrer immédiatement les cartes de la collection actuelle.
@@ -241,7 +274,7 @@ Les trois vues de la V1 présentent la même collection et les mêmes données :
 - vue cartes ;
 - vue classeur.
 
-Changer de vue ne modifie jamais la structure de la collection. Le choix de la vue peut être mémorisé pour améliorer l'expérience, mais son niveau exact de persistance reste à définir.
+Changer de vue ne modifie jamais la structure de la collection. La préférence personnelle persistante définit la vue à l'ouverture, selon les règles de la page Paramètres ci-dessous.
 
 ### Vue liste
 
@@ -323,9 +356,24 @@ Le profil utilisateur de la V1 reste léger. Il permet de gérer au minimum :
 
 - les informations essentielles du compte ;
 - l'identifiant public utilisé pour le partage ;
-- les paramètres de base nécessaires au fonctionnement de MY.
+- l'accès aux Paramètres, qui constituent une page distincte.
 
 La gestion détaillée du profil et les fonctionnalités sociales avancées ne font pas partie de ce document.
+
+## Paramètres et préférences d'affichage
+
+La page Paramètres, accessible depuis le menu utilisateur, possède une section Affichage avec deux préférences persistantes et indépendantes :
+
+| Préférence | Valeurs fonctionnelles |
+|---|---|
+| Vue catalogue par défaut | Liste, Cartes, Dernier choix utilisé |
+| Vue collection par défaut | Liste, Cartes, Classeur, Dernier choix utilisé |
+
+Une vue fixe s'applique à chaque ouverture du contexte concerné. `Dernier choix utilisé` reprend le dernier mode explicitement sélectionné par l'utilisateur : un choix global pour toutes les pages catalogue, et un autre pour toutes les collections, sans mémorisation par Pokémon, Extension, Carte ou collection. La navigation Retour conserve toutefois la vue de la consultation en cours.
+
+Le stockage initial utilise `Dernier choix utilisé`, avec Liste en l'absence de choix antérieur, conformément à [06-DATABASE.md](06-DATABASE.md). Les préférences sont privées au compte et ne se partagent pas avec une collection. La persistance du format et du mode d'organisation du classeur reste ouverte.
+
+Seules ces préférences de vues sont validées. Thème clair/sombre/système, réglages Premium, pages globales de possession, doublons et statistiques personnelles globales restent hors de cette évolution.
 
 ## Principes UX fonctionnels
 

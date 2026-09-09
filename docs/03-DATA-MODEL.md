@@ -174,8 +174,9 @@ Chaque profil doit pouvoir contenir notamment :
 
 - l'identité interne de l'utilisateur ;
 - son identifiant public unique de partage ;
-- les informations de profil nécessaires à la V1 ;
-- d'éventuels paramètres utilisateur futurs.
+- les informations de profil nécessaires à la V1.
+
+Les préférences de vues appartiennent à une entité dédiée liée au profil, décrite ci-dessous ; elles ne transforment pas le profil en stockage générique de paramètres.
 
 L'identifiant public de partage est distinct de l'UUID Auth, généré automatiquement par MY. et immuable. Il suit le format `MY-XXXXX-XXXXX-XXXXX-XXXXX`, avec 20 caractères aléatoires cryptographiques, sans `0`, `O`, `1`, `I` ni `L`. Sa forme stockée est en majuscules ; sa recherche et son unicité ignorent la casse. Aucun pseudo supplémentaire n'est créé. Le mécanisme fiable de création du profil lors du signup reste réservé à la phase Auth.
 
@@ -191,6 +192,8 @@ Une collection appartient à exactement un utilisateur. Elle doit pouvoir conser
 - les informations nécessaires à son affichage.
 
 La V1 distingue les collections libres et les collections automatiques. Une collection automatique possède une cible dont le type est soit Pokémon, soit Set.
+
+Le nom de toute collection comporte au moins **3 caractères utiles après trim**, à la création et au renommage.
 
 ### Collections libres
 
@@ -208,6 +211,8 @@ Deux cas existent dans la V1 :
 - type Set : la collection référence un set cible et sélectionne les variantes françaises de toutes les cartes appartenant à cette extension.
 
 Une collection automatique ne peut pas cibler simultanément un Pokémon et un set. Une cible Set désigne une extension précise, non une série ou un bloc TCGdex.
+
+Le couple propriétaire + cible est unique pour chaque type automatique : au maximum une collection Pokémon par propriétaire/Pokémon et une collection Extension par propriétaire/Set. Cette règle ne concerne pas les collections libres et n'empêche pas deux propriétaires de choisir la même cible.
 
 Une collection par extension peut inclure toutes les catégories présentes dans le set, notamment les Pokémon, Dresseurs, Énergies et autres catégories.
 
@@ -386,13 +391,11 @@ L'existence d'un partage représente directement un accès actif dès confirmati
 
 ## Paramètres de vue et classeur
 
-Des préférences d'affichage peuvent être associées à une collection ou à l'utilisateur, notamment :
+Une entité **Préférences utilisateur**, liée à exactement un profil, conserve deux préférences : la vue catalogue par défaut (Liste, Cartes, Dernier choix utilisé) et la vue collection par défaut (Liste, Cartes, Classeur, Dernier choix utilisé). Un profil possède au maximum une ligne de préférences ; une ligne absente équivaut aux valeurs initiales documentées dans [06-DATABASE.md](06-DATABASE.md).
 
-- la vue liste, cartes ou classeur ;
-- le format de page du classeur ;
-- l'organisation continue ou par blocs.
+Chaque préférence distingue le choix d'ouverture du dernier mode réellement sélectionné. Ces deux derniers modes sont persistants et indépendants, globaux respectivement au catalogue et aux collections, sans relation avec une page ou une cible particulière. Une vue fixe s'applique à l'ouverture ; `Dernier choix utilisé` reprend le mode mémorisé. Le stockage initial choisit ce dernier comportement, avec Liste comme mode initial.
 
-Le niveau exact de persistance reste à définir avec l'UX. Ces préférences ne doivent jamais être confondues avec la structure de la collection : les modifier ne change aucun élément de collection.
+Seul le propriétaire lit et modifie ses préférences. Un partage de collection n'y donne aucun accès. Aucun réglage de thème ou Premium n'est ajouté. Le format du classeur et son organisation continue/par blocs restent des choix d'affichage dont la persistance est ouverte. Modifier l'affichage ne change aucun élément de collection.
 
 La pagination du classeur est dérivée de l'ordre des éléments, du format de page et du mode d'organisation. Il n'est pas nécessaire de persister une entité pour chaque page tant qu'aucun besoin ne le justifie.
 
@@ -402,7 +405,11 @@ En mode par blocs, le calcul doit forcer chaque série ou bloc à commencer sur 
 
 La recherche interne à une collection utilise les informations du catalogue liées aux variantes présentes dans cette collection. Ces informations peuvent provenir de la carte, de la variante, du set, de la série, de la rareté, du numéro, des noms français et d'autres métadonnées utiles.
 
-La stratégie exacte de recherche et d'indexation reste à définir.
+La recherche globale de navigation utilise quatre entités existantes : Pokémon par nom français, Set par nom, collections accessibles par nom et Cartes sources par les champs pris en charge par le moteur portable. Elle retourne une Carte source unique, jamais directement une Variante. Les variantes restent l'unité collectible des collections et des exemplaires ; la recherche d'ajout sélectionne une variante exacte. Aucun nouvel objet persistant de résultat de recherche n'est nécessaire. L'accès aux collections recherchées respecte propriété et partages.
+
+La projection et l'indexation de la future recherche Supabase restent à définir ; les règles portables de normalisation, tokenisation, matching, score et tri de `scripts/catalog/search-catalog.ts` servent de socle pour les Cartes.
+
+Les pages Pokémon et Extension regroupent leurs variantes sous des Cartes uniques. L'ordre Pokémon se base sur la date pertinente de **Carte**, contrairement à l'ordre variant-par-variant des collections automatiques ; l'ordre Extension suit le numéro naturel des Cartes. Ces consultations ne matérialisent aucune nouvelle collection ou structure automatique.
 
 ## Suppression et cycle de vie
 
@@ -422,7 +429,7 @@ Les exemplaires existent indépendamment des collections.
 
 Le comportement exact de suppression d'un compte sera défini avec l'authentification et les exigences légales.
 
-Les données personnelles exclusivement rattachées à l'utilisateur comprennent notamment son profil, ses collections, ses exemplaires, ses notes et ses partages. Le catalogue global ne dépend pas de la présence d'un utilisateur particulier.
+Les données personnelles exclusivement rattachées à l'utilisateur comprennent notamment son profil, ses préférences, ses collections, ses exemplaires, ses notes et ses partages. Le catalogue global ne dépend pas de la présence d'un utilisateur particulier.
 
 ## Données dérivées
 
@@ -436,6 +443,12 @@ Les informations suivantes doivent de préférence être calculées à partir de
 
 Des valeurs mises en cache peuvent être utilisées si nécessaire pour les performances, sans devenir des sources de vérité indépendantes.
 
+### Comptages catalogue Pokémon et Extension
+
+`card_count` compte les Cartes distinctes réellement concernées par le listing ; `variant_count` compte les Variantes correspondantes selon le même périmètre catalogue. Les rattachements multiples d'une Carte ne multiplient pas les comptages. Les règles d'activité et de disponibilité utilisées restent cohérentes avec le contenu présenté.
+
+Ces valeurs sont dérivées du catalogue, sans nouvelle source de vérité persistée. `tcg_sets.official_card_count` conserve le total officiel, qui peut différer du nombre de Cartes affichées par MY. Ces compteurs ne mesurent aucune possession ou progression personnelle.
+
 ### Progression d'une collection
 
 Le modèle calcule la progression en comparant le nombre de variantes possédées au nombre total de variantes présentes dans la collection. Tous les éléments de collection, automatiques comme manuels, contribuent au total. Une variante compte comme possédée dès que le propriétaire de la collection possède au moins un exemplaire correspondant.
@@ -447,6 +460,7 @@ Utilisateur
   ├── 1 → N Collections
   ├── 1 → N Exemplaires physiques
   └── 1 → 1 Profil MY.
+                └── 1 → 0..1 Préférences utilisateur
 
 Série 1 → N Sets
 Set 1 → N Cartes sources
@@ -471,6 +485,9 @@ Partage N → 1 Utilisateur destinataire
 Le futur modèle technique doit permettre de garantir autant que possible que :
 
 - une collection possède exactement un propriétaire ;
+- son nom contient au moins 3 caractères utiles après trim ;
+- un propriétaire possède au maximum une collection automatique pour une même cible Pokémon ou Set ;
+- les préférences de vues sont uniques par profil, privées et limitées aux valeurs autorisées ;
 - une collection libre ne possède pas de cible automatique ;
 - une collection automatique possède exactement un type de cible ;
 - une collection automatique de type Pokémon possède un Pokémon cible ;
@@ -537,7 +554,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
 - la nomenclature des conditions ;
 - les sociétés de grading et le format de leurs notes ;
-- le format et le niveau de persistance des préférences de vue ;
+- la persistance du format et du mode d'organisation du classeur ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;

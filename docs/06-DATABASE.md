@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable de Phase 1 est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue le socle Phase 1 déployé, les compléments locaux Phase 2 et les opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue les Phases 1 et 2 déployées dans le cloud, la préparation intermédiaire locale avant Phase 3 et les opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -16,9 +16,17 @@ Le socle stable de Phase 1 est implémenté dans les [migrations versionnées](.
 | [20260906082313_phase1_security.sql](../supabase/migrations/20260906082313_phase1_security.sql) | Permissions de table et de colonne, policies RLS, prédicat privé de propriété |
 | [20260906082314_harden_rls_auto_enable.sql](../supabase/migrations/20260906082314_harden_rls_auto_enable.sql) | Révocation conditionnelle des droits d'appel API sur Automatic RLS, sans désactiver son event trigger |
 
-La Phase 1 est validée et déployée dans Supabase cloud ; ses trois migrations sont synchronisées Local / Remote selon le propriétaire. La Phase 2 ajoute uniquement en local [20260906155043_phase2_catalog_pipeline.sql](../supabase/migrations/20260906155043_phase2_catalog_pipeline.sql), sans modifier les migrations déployées. Elle apporte les stamps multiples et trois tables privées. Le pipeline local alimente le catalogue et les états automatiques ; les RPC utilisateur et le frontend métier restent à développer.
+La Phase 1 est terminée et déployée dans Supabase cloud. La Phase 2 est également terminée : [20260906155043_phase2_catalog_pipeline.sql](../supabase/migrations/20260906155043_phase2_catalog_pipeline.sql) et [20260908083516_phase2_variant_release_dates.sql](../supabase/migrations/20260908083516_phase2_variant_release_dates.sql) y sont présentes, soit **cinq migrations cloud**. Le catalogue Phase 2 y a été chargé et vérifié selon la validation du propriétaire consignée dans le [README](../README.md#état-du-projet). Les tables utilisateur étaient encore vides lors de cette validation. Le pipeline reste local/protégé ; cette restriction ne décrit pas la localisation du catalogue résultant.
 
-La migration complémentaire [20260908083516_phase2_variant_release_dates.sql](../supabase/migrations/20260908083516_phase2_variant_release_dates.sql), créée avec la CLI, ajoute la date effective et sa provenance aux variantes. Elle conserve les IDs et backfille la valeur depuis les cartes. Faute de provenance historique persistée sur les cartes, le backfill utilise honnêtement `unknown`, même lorsque la date est connue ; la synchronisation suivante recalcule les provenances correctes. Cette migration reste exclusivement locale et fonctionne aussi lors d'une reconstruction complète depuis les migrations.
+La migration pipeline apporte les stamps multiples et trois tables privées, sans modifier les migrations précédentes. Les RPC utilisateur et le frontend métier restent à développer.
+
+La migration de dates de variantes, créée avec la CLI, ajoute la date effective et sa provenance aux variantes. Elle conserve les IDs et backfille la valeur depuis les cartes. Faute de provenance historique persistée sur les cartes, le backfill utilise honnêtement `unknown`, même lorsque la date est connue ; la synchronisation suivante recalcule les provenances correctes. Elle fonctionne aussi lors d'une reconstruction complète depuis les migrations. Le catalogue cloud validé ne comporte aucune date de Variante NULL ni nom français Pokémon manquant ; `sm3.5-28` possède cinq variantes après override.
+
+## Préparation SQL avant Phase 3
+
+La nouvelle migration [20260909124950_pre_phase3_collection_preferences.sql](../supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) ajoute l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et `user_preferences` avec RLS. Elle est appliquée et validée **localement uniquement** ; son déploiement cloud attend une décision séparée avec le propriétaire. Les cinq migrations déployées restent immuables.
+
+Elle n'écrit aucune donnée catalogue, ne refond pas `physical_copies` et n'ouvre aucune RPC de création automatique. Les contraintes s'appliquent aussi aux lignes existantes : un nom trop court ou un doublon provoque un échec transactionnel, sans renommage, suppression ou fusion automatique. Les tests couvrent les invariants et droits ; les types frontend sont régénérés depuis le schéma local final. Aucun mécanisme Auth, signup ou création automatique de profil n'est ajouté.
 
 ## Principes structurants
 
@@ -63,6 +71,7 @@ Le frontend ne doit jamais recevoir un accès général à ce périmètre privé
 Les principales entités utilisateur utilisent des UUID :
 
 - `profiles` ;
+- `user_preferences`, dont la clé est l'UUID du profil ;
 - `collections` ;
 - `collection_items` ;
 - `physical_copies` ;
@@ -87,13 +96,14 @@ Les identifiants TCGdex restent des références externes séparées. Ils ne son
 
 Les timestamps techniques utilisent `TIMESTAMPTZ`, avec `now()` à la création. Le trigger commun `private.set_updated_at()` impose `statement_timestamp()` à chaque mise à jour ; il fonctionne en `SECURITY INVOKER`, avec `search_path = ''`, sans droit d'appel direct pour les rôles API. `card_pokemon` ne possède pas de timestamps ; `collection_shares` conserve seulement `created_at` ; `automatic_target_states` conserve seulement `updated_at`. Les autres tables possèdent les deux timestamps.
 
-Les UUID utilisateur hors profil utilisent `gen_random_uuid()`. L'UUID du profil provient exclusivement d'Auth. Les IDs numériques utilisent `BIGINT GENERATED ALWAYS AS IDENTITY`.
+Les UUID des entités utilisateur indépendantes utilisent `gen_random_uuid()`. L'UUID du profil provient exclusivement d'Auth ; `user_preferences.user_id` réutilise cet UUID, sans nouvelle identité. Les IDs numériques utilisent `BIGINT GENERATED ALWAYS AS IDENTITY`.
 
 ## Vue relationnelle simplifiée
 
 ```text
 auth.users
     └── 1:1 profiles
+          ├── 1:0..1 user_preferences
           ├── 1:N collections
           │     ├── 1:N collection_items
           │     │     └── N:1 catalog_variants
@@ -126,6 +136,7 @@ tcg_sets ─ cible possible d'une collection automatique
 ### Données utilisateur
 
 - `profiles`
+- `user_preferences`
 - `collections`
 - `collection_items`
 - `physical_copies`
@@ -368,6 +379,35 @@ Un utilisateur Auth valide ne doit pas rester durablement sans profil MY. La cr�
 
 La Phase 1 ne crée aucun trigger `auth.users → profiles`. La FK `profiles.id → auth.users.id` utilise `ON DELETE RESTRICT`, sans décider d'une cascade de suppression de compte.
 
+## Préférences utilisateur
+
+### `user_preferences`
+
+Une petite table dédiée conserve les seules préférences de vues validées. Elle suit la convention existante **TEXT + CHECK**, avec colonnes explicites plutôt qu'un JSON libre, un système clé/valeur ou des enums PostgreSQL. Quelques préférences futures pourront être ajoutées par migration sans transformer `profiles` en fourre-tout.
+
+| Champ | Valeurs / rôle | Défaut |
+|---|---|---|
+| `user_id UUID` | PK et FK vers `profiles.id`, `ON DELETE CASCADE` | `auth.uid()` |
+| `catalog_default_view TEXT NOT NULL` | `list`, `cards`, `last_used` | `last_used` |
+| `collection_default_view TEXT NOT NULL` | `list`, `cards`, `binder`, `last_used` | `last_used` |
+| `last_catalog_view TEXT NOT NULL` | `list`, `cards` | `list` |
+| `last_collection_view TEXT NOT NULL` | `list`, `cards`, `binder` | `list` |
+| `created_at`, `updated_at TIMESTAMPTZ` | Timestamps techniques ; trigger commun `private.set_updated_at()` | `now()` à l'insertion |
+
+Les valeurs fonctionnelles sont Liste / Cartes / Classeur / Dernier choix utilisé. Les deux champs `last_*` sont nécessaires pour donner un sens persistant à `last_used` ; ils conservent le dernier mode **explicitement choisi**, même si la préférence d'ouverture est fixe. Le dernier mode catalogue est commun aux pages Pokémon, Extension et Carte ; le dernier mode collection est commun aux collections. Aucun état par page ou cible n'est ajouté.
+
+À une nouvelle ouverture, la future interface utilise la vue fixe choisie ou le champ `last_*` correspondant. Une ligne absente équivaut aux mêmes valeurs initiales : `last_used`, avec Liste initialement. La première sauvegarde peut créer la ligne ; aucune création anticipée au signup ni backfill des profils n'est effectué. Un upsert ciblant `user_id` est possible sous RLS en limitant sa mise à jour aux quatre champs de vues. Le retour dans une consultation restaure son contexte, sans écraser son état avec ces défauts.
+
+La PK indexe également la FK et le filtre de propriété. Supprimer un profil supprime sa seule ligne de préférences dépendante ; cela ne définit aucun workflow de suppression de compte et ne change pas la FK restrictive Auth/profil. Aucun thème, préférence Premium, format de classeur ou mode continu/par blocs n'est stocké par cette migration.
+
+### Permissions et RLS
+
+La RLS est explicitement activée. Les policies `SELECT`, `INSERT` et `UPDATE` sont limitées à `authenticated` et à `user_id = (select auth.uid())`. `UPDATE` possède `USING` et `WITH CHECK`. Un partage de collection n'accorde aucun accès aux préférences du propriétaire.
+
+Les grants autorisent la lecture de sa ligne, l'insertion de `user_id` et des quatre champs de vues, puis la modification des seuls champs de vues. Le choix explicite de `user_id` à l'insertion est contrôlé par RLS ; son transfert et la falsification des timestamps sont interdits par les grants de colonnes. Aucune suppression directe n'est accordée au client. `anon` et `PUBLIC` n'ont aucun accès ; `service_role` conserve uniquement les droits CRUD de maintenance, comme les autres tables utilisateur. Aucun nouveau helper `SECURITY DEFINER` ni RPC n'est créé.
+
+Ce contrôle associe [grants et RLS Supabase](https://supabase.com/docs/guides/database/postgres/row-level-security). La nouvelle table porte le total à 13 tables applicatives `public` et 3 tables privées en local, toutes avec RLS.
+
 ## Collections
 
 ### `collections`
@@ -390,6 +430,8 @@ Une collection appartient à exactement un utilisateur. La table conserve notamm
 
 Le type d'une collection est stable après sa création dans la V1.
 
+`collections_name_check` exige désormais `char_length(btrim(name, espaces_de_bord)) >= 3`. L'ensemble des espaces de bord correspond au trim JavaScript (espaces, tabulations, sauts de ligne et espaces Unicode concernés). Le contrôle compte les caractères, pas les octets UTF-8 ; il ne réécrit pas le nom stocké et conserve les espaces internes. Il s'applique aux créations et renommages libres comme automatiques ; `NOT NULL` reste en place.
+
 #### Contraintes de cible
 
 Les invariants suivants doivent être garantis par la base, et pas uniquement par React.
@@ -402,7 +444,12 @@ Les invariants suivants doivent être garantis par la base, et pas uniquement pa
 
 Une collection automatique possède exactement une cible compatible avec son type. Elle ne peut jamais référencer simultanément un Pokémon et un set.
 
-Aucune contrainte ne doit empêcher un utilisateur de créer plusieurs collections ayant la même cible.
+Un propriétaire possède **au maximum une collection automatique par cible**. Deux [index uniques partiels PostgreSQL](https://www.postgresql.org/docs/current/indexes-partial.html) garantissent :
+
+- `collections_owner_pokemon_unique` sur `(owner_id, target_pokemon_id)` lorsque `collection_type = 'automatic' AND automatic_target_type = 'pokemon'` ;
+- `collections_owner_set_unique` sur `(owner_id, target_set_id)` lorsque `collection_type = 'automatic' AND automatic_target_type = 'set'`.
+
+`collections_target_check` reste inchangée et garantit notamment les cibles non nulles compatibles couvertes par ces index. L'unicité s'applique aussi en concurrence et lors de mises à jour privilégiées. Les collections libres sont exclues ; des propriétaires différents peuvent utiliser la même cible. Aucun nom de collection unique n'est imposé.
 
 ### `collection_items`
 
@@ -592,7 +639,7 @@ Cette comparaison signale efficacement la disponibilité d'une mise à jour ; el
 
 Une opération conceptuelle telle que `create_automatic_collection(name, target_type, target_id)` doit :
 
-1. vérifier l'utilisateur et la cible ;
+1. vérifier l'utilisateur, le nom et la cible, ainsi que l'absence de collection automatique personnelle correspondante ;
 2. créer la collection ;
 3. lire l'état courant de la cible ;
 4. déterminer les variantes françaises éligibles ;
@@ -600,7 +647,7 @@ Une opération conceptuelle telle que `create_automatic_collection(name, target_
 6. attribuer leurs rangs et positions ;
 7. enregistrer la version appliquée.
 
-L'ensemble réussit ou échoue de manière atomique. Le frontend ne doit pas insérer librement lui-même l'ensemble des éléments automatiques.
+L'ensemble réussit ou échoue de manière atomique. Les index uniques arbitrent les créations concurrentes. Le frontend propose l'ouverture d'une collection personnelle déjà existante et ne doit pas insérer librement lui-même l'ensemble des éléments automatiques.
 
 ### Preview de mise à jour
 
@@ -692,6 +739,7 @@ La RLS est obligatoire sur toutes les tables utilisateur exposées par Supabase.
 | Ressource | Propriétaire ou utilisateur concerné | Destinataire d'un partage | Autre utilisateur |
 |---|---|---|---|
 | `profiles` | Lecture de son profil et modification des champs autorisés | Pas de parcours général | Aucun parcours général |
+| `user_preferences` | Lecture et sauvegarde de ses seules préférences | Aucun accès aux préférences du propriétaire | Aucun accès |
 | `collections` | Lecture, modification et suppression | Lecture seule de la collection partagée | Aucun accès |
 | `collection_items` | Gestion dans les limites fonctionnelles | Lecture seule des éléments partagés | Aucun accès |
 | `physical_copies` | Gestion de ses exemplaires | Lecture limitée aux exemplaires du propriétaire et aux variantes présentes dans la collection partagée | Aucun accès |
@@ -703,7 +751,7 @@ Un utilisateur anonyme n'accède pas aux données privées authentifiées. Un pr
 
 Les opérations structurantes peuvent être limitées aux RPC afin que la RLS et les contraintes ne soient pas contournées par une suite d'écritures directes.
 
-### Permissions effectivement accordées en Phase 1
+### Permissions effectivement accordées
 
 La matrice précédente décrit la cible fonctionnelle V1. Le socle SQL accorde actuellement :
 
@@ -711,6 +759,7 @@ La matrice précédente décrit la cible fonctionnelle V1. Le socle SQL accorde 
 |---|---|
 | Catalogue et états de cible | `SELECT` uniquement, policies de lecture authentifiée |
 | Profil | Lecture de sa propre ligne uniquement ; aucune insertion, modification ou suppression |
+| Préférences (complément avant Phase 3) | Lecture/insertion de sa ligne et modification des quatre champs de vues, sans transfert ni suppression directe |
 | Collections | Lecture si propriétaire ou destinataire ; insertion des seuls champs `name` et `collection_type`, limitée à `free` ; modification du seul `name` ; suppression par propriétaire |
 | Éléments | Lecture des collections accessibles ; aucune écriture directe, même pour le propriétaire |
 | Exemplaires | Lecture de ses lignes ou des seules variantes du propriétaire présentes dans une collection effectivement partagée ; insertion et édition des champs autorisés ; suppression de ses propres lignes |
@@ -718,7 +767,7 @@ La matrice précédente décrit la cible fonctionnelle V1. Le socle SQL accorde 
 
 Les insertions de collections et d'exemplaires attribuent le propriétaire depuis `auth.uid()`. Les grants de colonnes ne permettent de modifier ni les propriétaires, ni les IDs, ni les versions ou cibles automatiques, ni les timestamps techniques. Les policies `UPDATE` comprennent à la fois `USING` et `WITH CHECK`. Les contraintes et triggers restent applicables aux écritures privilégiées.
 
-`anon` n'a aucun grant applicatif. Les privilèges par défaut des nouveaux objets créés par `postgres` sont fermés ; les migrations futures devront accorder explicitement leurs droits. Les 12 tables activent la RLS explicitement. `service_role`, réservé à un environnement de confiance, reçoit `SELECT / INSERT / UPDATE / DELETE` et l'usage des seules séquences catalogue nécessaires, sans grant applicatif `TRUNCATE`, `TRIGGER` ou `CREATE`.
+`anon` n'a aucun grant applicatif, y compris sur le catalogue. Les privilèges par défaut des nouveaux objets créés par `postgres` sont fermés ; les migrations futures devront accorder explicitement leurs droits. Les 12 tables Phase 1, les 3 tables privées Phase 2 et la nouvelle table de préférences activent la RLS explicitement. `service_role`, réservé à un environnement de confiance, reçoit `SELECT / INSERT / UPDATE / DELETE` sur les tables applicatives et l'usage des seules séquences catalogue nécessaires, sans grant applicatif `TRUNCATE`, `TRIGGER` ou `CREATE`.
 
 Le seul helper `SECURITY DEFINER` est `private.owns_collection(uuid)`. Il renvoie uniquement si `auth.uid()` est propriétaire de la collection donnée, sans paramètre d'identité utilisateur. Il évite la récursion des policies entre collections et partages. Son `search_path` est vide et son `EXECUTE` est accordé uniquement à `authenticated` pour l'évaluation des policies par référence résolue. Aucun `USAGE` général sur `private` n'est accordé aux rôles API ; le helper ne constitue pas une RPC exposée. Les autres fonctions techniques sont `SECURITY INVOKER`, sans droits d'appel API.
 
@@ -774,6 +823,8 @@ Une vue ou requête peut produire `total_count`, `owned_count` et le pourcentage
 
 Une vue peut réunir les valeurs effectives nécessaires à l'affichage et à la recherche, à condition de préserver la traçabilité entre source et correction et de ne pas exposer les mécanismes privés.
 
+Pour Pokémon/Extension, `card_count` est le nombre de `source_cards` distinctes réellement affichées et `variant_count` le nombre de variantes correspondantes selon le même périmètre catalogue. Les agrégations doivent éviter de multiplier les variantes par les liens `card_pokemon`. `tcg_sets.official_card_count` reste le nombre officiel, distinct du total MY. Aucun compteur persistant, vue ou RPC supplémentaire n'est ajouté avant que les requêtes de lecture le justifient. Toute future vue exposée doit respecter Auth/RLS et les droits des tables sous-jacentes.
+
 ## Index
 
 Les index doivent répondre aux requêtes réelles ; toutes les colonnes ne sont pas indexées par défaut.
@@ -807,6 +858,8 @@ Les accès principaux concernent :
 
 L'unicité `(collection_id, variant_id)` fournit également un index utile.
 
+Les deux index uniques partiels propriétaire/cible automatique complètent ces accès. La PK `user_preferences(user_id)` suffit pour les lectures et modifications de préférences par propriétaire.
+
 ### Exemplaires et partages
 
 L'index `(user_id, variant_id)` de `physical_copies` est central pour la possession, le nombre d'exemplaires et la progression.
@@ -815,13 +868,13 @@ Les partages nécessitent des accès efficaces par `collection_id` et `recipient
 
 ## Recherche, classeur et préférences
 
-La recherche de la V1 repose sur PostgreSQL et utilise les informations pertinentes du catalogue : nom, set, série ou bloc, numéro, variante et autres champs validés.
+L'accès aux données des recherches de la V1 repose sur Supabase/PostgreSQL sous Auth/RLS. La recherche globale retourne des Cartes sources uniques, jamais des Variantes ; Pokémon utilise le nom français, Extension et Collection leur nom uniquement. La recherche interne filtre les variantes de la collection accessible ; la recherche d'ajout sélectionne la Variante exacte. La logique Carte portable de `scripts/catalog/search-catalog.ts` reste le socle de normalisation, tokenisation, matching, score et tri ; `search-catalog-db.ts` avec `pg` reste réservé à la maintenance locale.
 
 La première implémentation doit rester proportionnée au besoin. `pg_trgm`, les index GIN, des colonnes normalisées ou la recherche full-text ne seront ajoutés que si les mesures le justifient.
 
 Les pages du classeur ne sont pas persistées dans une table `binder_pages`. Elles sont calculées côté frontend à partir des `collection_items`, de leur ordre, du format de page et du mode continu ou par blocs. La hiérarchie variante → carte → set → série permet d'identifier les changements de bloc.
 
-Les préférences de vue, de format de classeur et de mode d'organisation ne justifient pas encore une grande table générique. Leur niveau de persistance reste ouvert.
+Les deux préférences de vues et leurs derniers modes sont persistés dans `user_preferences`. Le format de classeur et son mode d'organisation restent ouverts quant à leur persistance. Aucun stockage générique de réglages n'est ajouté.
 
 ## Synchronisation TCGdex
 
@@ -891,6 +944,9 @@ Les suites [de tests PostgreSQL](../supabase/tests/database/) de Phase 1 couvren
 
 Les tests de base devront notamment vérifier :
 
+- l'unicité automatique propriétaire/Pokémon et propriétaire/Extension, sans limiter les propriétaires différents ou les collections libres ;
+- le minimum de 3 caractères utiles après trim pour tous les noms de collections ;
+- les valeurs autorisées des préférences, leur lecture et modification par le propriétaire et leur isolation RLS ;
 - l'impossibilité de dupliquer une variante dans une collection ;
 - l'impossibilité d'une double cible automatique ;
 - l'absence de cible et de version sur une collection libre ;
@@ -917,6 +973,9 @@ Ils doivent vérifier les droits de lecture et d'écriture, ainsi que l'absence 
 Le futur SQL et les opérations métier doivent garantir autant que possible que :
 
 - une collection possède exactement un propriétaire ;
+- son nom contient au moins 3 caractères utiles après trim ;
+- une seule collection automatique existe par propriétaire et cible Pokémon ou Set ;
+- les préférences sont uniques par profil, contrôlées et privées au propriétaire ;
 - une collection libre n'a ni cible automatique ni version appliquée ;
 - une collection automatique possède exactement une cible Pokémon ou Set compatible ;
 - une variante apparaît au maximum une fois dans une collection ;
@@ -963,7 +1022,7 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code et les signatures finaux des RPC ;
-- les préférences de vue effectivement persistées ;
+- la persistance du format du classeur et du mode continu/par blocs ;
 - la politique de suppression complète d'un compte ;
 - la politique opérationnelle de sauvegarde ;
 - les besoins futurs éventuels d'historique ;

@@ -120,18 +120,94 @@ Homepage → Sign Up / Log In → Authentification → Dashboard
 
 La récupération de mot de passe, la validation d'adresse e-mail et les autres mécanismes précis dépendent du futur système d'authentification.
 
+Sans session, seuls la homepage, les parcours nécessaires à l'authentification et les pages légales nécessaires sont accessibles. Le footer donne notamment accès aux pages légales applicables (mentions légales, confidentialité/RGPD, cookies, droits d'auteur, conditions générales lorsque nécessaires). Le catalogue, les Pokémon, les Extensions, les Cartes et les collections restent authentifiés ; aucun parcours catalogue public n'est prévu.
+
 ## Navigation après connexion
 
-La navigation générale doit rester légère. MY. ne doit pas utiliser une grande sidebar permanente sans besoin futur clairement identifié.
+Le header authentifié est léger, permanent et accessible dans toute l'application. Il comporte trois zones :
 
-La structure privilégie :
+- **à gauche** : le logo MY., toujours visible, retourne au Dashboard ; aucun lien Dashboard supplémentaire n'est nécessaire ;
+- **au centre** : la recherche globale persistante, outil de navigation disponible depuis chaque écran authentifié ;
+- **à droite** : un menu utilisateur compact donnant accès à Profil, Paramètres et Déconnexion.
 
-- la marque ou le logo MY. ;
-- un accès au dashboard ;
-- un accès au profil ou au compte ;
-- les actions contextuelles de l'écran courant.
+MY. n'utilise pas de grande sidebar permanente. Les actions contextuelles restent proches du contenu concerné. La hauteur du header, la largeur du champ et l'icône exacte du menu restent des choix de design détaillé. Cartes, listes et classeurs conservent l'espace principal.
 
-Une barre supérieure discrète peut porter ces éléments, sans occuper inutilement la hauteur. Les cartes, listes et pages de classeur doivent conserver le maximum d'espace et rester le contenu dominant.
+## Recherche globale du header
+
+### Saisie et choix explicite
+
+La recherche agit comme un menu dynamique de navigation. Une même saisie interroge toutes les catégories sans sélection préalable. Avant **3 caractères saisis**, aucune recherche n'est déclenchée ; à partir de ce seuil, les suggestions se mettent à jour en direct.
+
+Il n'existe aucune action classique « lancer la recherche » ni page générale de résultats. Valider directement le champ ne navigue pas, ne choisit pas la première suggestion et n'en sélectionne aucune automatiquement. L'utilisateur active explicitement une suggestion.
+
+Sur mobile, valider depuis le clavier virtuel ferme le clavier, conserve les suggestions et ne navigue pas. Le résultat voulu reste accessible au toucher. Sans correspondance, le dropdown reste ouvert avec un état simple tel que `Aucun résultat pour « xyz »`.
+
+### Catégories et nombre de suggestions
+
+| Ordre | Catégorie | Recherche | Maximum |
+|---:|---|---|---:|
+| 1 | Pokémon | Nom français ; Pokédex affichable en complément | 2 |
+| 2 | Extensions | Nom de l'Extension uniquement | 2 |
+| 3 | Collections | Nom uniquement, collections personnelles et partagées accessibles | 2 |
+| 4 | Cartes | Champs catalogue du moteur portable, plusieurs termes pouvant correspondre à des champs différents | Places restantes |
+
+Le dropdown affiche au maximum **10 suggestions**, par pertinence dans chaque catégorie. Une catégorie absente laisse ses places aux Cartes ; Pokémon, Extensions et Collections ne dépassent jamais deux résultats chacune. Avec 2 + 2 + 2 suggestions, il reste 4 places Carte ; avec 1 + 0 + 1, il en reste 8.
+
+Le contenu d'une Extension ou d'une collection ne détermine pas sa correspondance. Une série/bloc n'est pas une catégorie de résultat. Les Cartes sont uniques : `Pikachu · 28/73 · Légendes Brillantes` est un résultat Carte, dont les variantes seront consultées dans la fiche. Aucune Variante n'est proposée directement dans cette recherche.
+
+### Lignes et accessibilité
+
+Chaque suggestion constitue directement une ligne interactive, sans sections intermédiaires à titres non cliquables. Les lignes restent modernes, aérées et sobres : information principale à gauche, **catégorie explicite à droite**, information secondaire seulement si utile, fond subtilement teinté et bordure ou accent de la même famille chromatique. Les états hover, focus et tactiles sont lisibles.
+
+Les catégories disposent de repères chromatiques ; une couleur évoquant le Pokémon peut être utilisée si le contraste le permet. La palette et la méthode de choix restent ouvertes, sans donnée métier couleur à maintenir manuellement pour chaque Pokémon. La couleur n'est jamais le seul repère. Le dropdown ne dépend pas de miniatures ou de logos obligatoires.
+
+Depuis le champ, `Tab` entre dans les suggestions ; les tabulations suivantes les parcourent. Une suggestion ayant le focus s'active par le comportement clavier standard approprié. Le focus doit être visible, les contrastes suffisants et les zones tactiles confortables.
+
+## Pages catalogue
+
+### Structure commune et neutralité
+
+Les pages Pokémon, Extension et Carte partagent un langage visuel : une partie haute présentant illustration, informations et actions pertinentes, puis une partie basse avec sélecteur **Liste / Cartes** et contenu associé. La vue **Classeur est réservée aux collections**.
+
+Ces pages sont informatives. Elles n'affichent pas de progression personnelle, pourcentage de complétion, total possédé ou statistiques personnelles. Les collections restent le cœur de la gestion personnelle ; de futures pages « Mes cartes », doublons ou statistiques globales ne sont pas ajoutées par ce cadrage. Le détail contextuel Variante permet les actions de possession autorisées sans transformer les en-têtes catalogue en tableaux de progression.
+
+### Page Pokémon
+
+La partie haute présente le nom français, le numéro Pokédex, le nombre de **Cartes distinctes**, le nombre de **Variantes correspondantes**, une Carte spéciale illustrative du Pokémon et l'action Créer/Ouvrir sa collection automatique.
+
+L'illustration provient d'une Carte réelle de ce Pokémon, choisie pour son intérêt visuel plutôt qu'une carte commune basique. Elle est choisie à l'ouverture et reste stable pendant toute la consultation, y compris lors des rerenders ; une visite ultérieure peut en présenter une autre.
+
+La partie basse affiche les Cartes liées au Pokémon, chacune une seule fois, en Liste ou Cartes, par ordre chronologique au niveau **Carte** selon sa date pertinente. Les variantes restent regroupées dans la fiche Carte : cette liste ne reproduit pas le tri par date de chaque Variante d'une collection automatique Pokémon.
+
+### Page Extension
+
+La partie haute présente le nom, la série/bloc, la date de sortie, les abréviations ou informations génériques pertinentes, les nombres de Cartes distinctes et de Variantes, une illustration et l'action Créer/Ouvrir sa collection automatique.
+
+L'illustration privilégie une **Carte Pokémon spéciale de l'Extension**, plutôt qu'une Énergie, un Objet ou une carte générique lorsqu'une Carte Pokémon spéciale pertinente existe. Elle est choisie à l'ouverture, stable pendant la consultation et peut changer lors d'une autre visite.
+
+La partie basse affiche chaque Carte une seule fois, en Liste ou Cartes, par **numéro naturel croissant**, selon l'ordre normalisé du catalogue MY. Cliquer une Carte ouvre sa fiche.
+
+### Compteurs et action de collection automatique
+
+Pour Pokémon comme Extension, `card_count` correspond aux Cartes distinctes réellement concernées par la liste et `variant_count` aux Variantes correspondantes selon le même périmètre catalogue. Ces nombres dérivés ne mesurent aucune possession. Le nombre officiel du set peut être présenté séparément si utile ; il ne remplace pas automatiquement le nombre réel de Cartes MY.
+
+Si l'utilisateur ne possède pas de collection automatique pour la cible, l'action propose `Créer ma collection…`. Si elle existe, l'action devient `Ouvrir ma collection…`. La règle d'une seule collection automatique par propriétaire et cible s'applique aussi depuis le Dashboard. Une collection reçue en partage ne compte pas comme une collection personnelle de cette cible.
+
+### Page Carte
+
+La partie haute présente l'image, le nom français, le numéro, l'Extension cliquable, la série/bloc, la rareté, la catégorie, la date de Carte et **tous les Pokémon associés**, chacun cliquable vers sa page. Une Carte multi-Pokémon permet donc de naviguer vers chacun d'eux. La provenance brute des dates et les identifiants internes restent hors de l'affichage courant sans intérêt utilisateur.
+
+La partie basse présente les **Variantes de cette Carte**, en Liste ou Cartes, avec les caractéristiques nécessaires pour les distinguer : type, subtype, foil, stamps et date effective si pertinente. Une date spécifique de Variante ne remplace jamais artificiellement la date de Carte en partie haute. Cliquer une Variante ouvre le détail contextuel commun décrit plus bas, sans nouvelle fiche complète distincte.
+
+### Actions rapides et navigation contextuelle
+
+Le clic principal sur une Carte ouvre sa fiche. Un menu secondaire `…` peut proposer les actions rapides pertinentes, comme ajouter à une collection ou ajouter un exemplaire, sans devenir un menu général. L'action doit identifier la Variante exacte lorsque nécessaire ; elle ne choisit pas arbitrairement une Variante derrière une Carte.
+
+La fiche Carte préserve son contexte d'arrivée. **Retour** restaure autant que possible la même page, la vue, les filtres, le scroll et le contexte de navigation. Ce retour dans une consultation en cours ne réapplique pas une préférence d'ouverture au détriment de l'état précédent.
+
+**Précédente / Suivante** suit la liste d'origine : ordre des Cartes Pokémon, ordre naturel de l'Extension ou ordre réel de la collection. Une arrivée par suggestion globale ou accès direct sans véritable liste ordonnée ne fabrique aucune séquence précédente/suivante.
+
+Sur mobile, le swipe horizontal est prévu pour cette même navigation lorsqu'elle existe. Son seuil évite une navigation involontaire pendant le scroll ; sens, seuil et animation légère restent des choix d'implémentation cohérents avec les conventions retenues.
 
 ## Dashboard
 
@@ -173,6 +249,8 @@ Une collection partagée affiche la progression réelle de son propriétaire et 
 ## Création d'une collection
 
 Le parcours de création reste court et évite tout wizard complexe.
+
+Le nom, libre ou automatique, exige au moins **3 caractères utiles après trim** ; la même validation s'applique au renommage. Une cible automatique déjà possédée conduit à l'ouverture de sa collection existante. PostgreSQL garantit ces invariants indépendamment de l'interface.
 
 ### Collection libre
 
@@ -242,7 +320,7 @@ Un résultat vide doit indiquer clairement qu'aucune carte ne correspond, permet
 
 ### Recherche dans le catalogue pour ajouter une carte
 
-La recherche interne ne doit pas être confondue avec la recherche dans le catalogue global MY. utilisée pour ajouter une carte.
+La recherche interne filtre uniquement la collection courante. Elle reste distincte de la recherche globale du header (navigation) et de la recherche de sélection utilisée pour ajouter une variante.
 
 Les résultats du catalogue doivent permettre d'identifier clairement :
 
@@ -265,6 +343,8 @@ Les trois vues de la V1 sont :
 - Classeur.
 
 Le changement de vue doit être direct et rapide. Il ne modifie jamais la structure de la collection.
+
+La vue à l'ouverture suit la préférence personnelle définie dans Paramètres. Un changement explicite de vue actualise le dernier choix collection, indépendamment du dernier choix catalogue.
 
 Une variante manquante reste présente dans la collection et demeure visible dans les vues pertinentes ; son absence d'exemplaire ne la retire jamais de la structure.
 
@@ -343,7 +423,7 @@ Le bloc actuellement consulté doit être identifiable et cette information peut
 
 ## Détail d'une variante
 
-Cliquer sur une variante depuis la vue Liste, Cartes ou Classeur ouvre son détail sans faire perdre inutilement le contexte ni la position dans la collection.
+Cliquer sur une variante depuis une collection (Liste, Cartes ou Classeur) ou depuis une fiche Carte catalogue ouvre le **même détail contextuel**, sans perdre inutilement le contexte ni la position d'origine.
 
 Le détail peut notamment afficher :
 
@@ -357,6 +437,8 @@ Le détail peut notamment afficher :
 - les actions liées aux exemplaires.
 
 Sur desktop et, lorsque pertinent, sur tablette large, un panneau latéral ou une interaction équivalente doit être privilégié afin de garder la collection visible. Sur mobile ou petit écran, le détail peut devenir une modal plein écran, une vue contextuelle ou une autre présentation adaptée. Son contenu fonctionnel reste identique.
+
+Les actions s'adaptent au contexte : ajouter un exemplaire, gérer ses exemplaires ou ajouter la Variante à une collection lorsque pertinent. Depuis une collection où la Variante est déjà présente, un bouton générique d'ajout ne doit pas occuper artificiellement la même place principale que dans le catalogue. Le contexte partagé demeure en lecture seule et montre les informations du propriétaire autorisées, sans actions d'édition redondantes ou désactivées en masse. Les exemplaires restent liés à l'utilisateur et à la Variante, même hors de toute collection.
 
 ## Gestion des exemplaires physiques
 
@@ -405,7 +487,7 @@ Une collection libre propose une action claire :
 
 `Ajouter une carte`
 
-Cette action ouvre la recherche du catalogue global. L'utilisateur sélectionne une variante existante et peut ensuite organiser librement les éléments.
+Cette action ouvre la recherche de sélection dans le catalogue, distincte de celle du header. L'utilisateur sélectionne une variante existante et peut ensuite organiser librement les éléments.
 
 Le drag and drop est une possibilité naturelle sur desktop. Une alternative adaptée au mobile doit être prévue si cette interaction n'est pas suffisante.
 
@@ -459,9 +541,24 @@ Le profil reste léger. Il permet notamment de :
 - consulter les informations essentielles du compte ;
 - consulter l'identifiant public de partage ;
 - copier facilement cet identifiant ;
-- accéder aux paramètres nécessaires.
+- rejoindre la page Paramètres, distincte du Profil.
 
 Le rôle de l'identifiant doit être compréhensible. MY. le génère au format `MY-XXXXX-XXXXX-XXXXX-XXXXX` ; il est consultable et copiable, sans choix ni modification par l'utilisateur. Les fonctionnalités sociales avancées ne font pas partie de la V1.
+
+## Paramètres et préférences de vues
+
+La page Paramètres est accessible depuis le menu utilisateur et distincte de la page Profil. Sa section **Affichage** propose :
+
+| Préférence | Choix |
+|---|---|
+| Vue catalogue par défaut | Liste, Cartes, Dernier choix utilisé |
+| Vue collection par défaut | Liste, Cartes, Classeur, Dernier choix utilisé |
+
+Une vue fixe s'applique à chaque nouvelle ouverture. `Dernier choix utilisé` mémorise le dernier mode explicitement sélectionné pour les prochaines consultations. Le choix catalogue est global à Pokémon, Extension et Carte ; le choix collection est global aux collections. Il n'y a pas de préférence par page, entité ou collection.
+
+Les deux préférences et leurs derniers modes sont persistés pour le compte. Initialement, `Dernier choix utilisé` reprend Liste, jusqu'au premier choix explicite. Les préférences d'un propriétaire ne s'imposent pas au destinataire d'un partage : ce dernier utilise ses propres choix de consultation.
+
+Le format du classeur et le mode continu/par blocs restent ouverts quant à leur persistance. Le thème clair/sombre/système et les réglages Premium sont seulement des possibilités futures ; ils ne sont pas ajoutés. Le design final des Paramètres reste à définir.
 
 ## États de l'interface
 
@@ -516,6 +613,7 @@ L'interface respecte les principes d'accessibilité de base suivants :
 - ne pas dépendre uniquement de la couleur ;
 - rendre les états compréhensibles sans hover ;
 - proposer des contrôles utilisables au tactile ;
+- assurer la navigation au clavier et un focus visible, notamment dans les suggestions ;
 - rendre possession, absence et lecture seule compréhensibles autrement que par la couleur.
 
 Ce document ne constitue pas un audit WCAG complet.
@@ -546,7 +644,11 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - la largeur et le design exacts du panneau latéral ;
 - le contenu exact d'une ligne de la vue Liste ;
 - le contenu exact d'une tuile de la vue Cartes ;
-- la persistance de la vue choisie, du format de classeur et du mode continu ou par blocs ;
+- la persistance du format de classeur et du mode continu ou par blocs ;
+- les dimensions du header et du champ, l'icône du menu utilisateur et le design final des Paramètres ;
+- la palette des suggestions, le mécanisme de couleur Pokémon et les animations du dropdown ;
+- les colonnes Liste et tuiles Cartes du catalogue, le choix précis des Cartes spéciales illustratives ;
+- le seuil du swipe et les animations précédente/suivante ;
 - le traitement exact d'une recherche dans la vue Classeur ;
 - le mécanisme de navigation rapide dans les grandes collections ;
 - le design du résumé de mise à jour ;
@@ -556,6 +658,6 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - le design system complet ;
 - les composants frontend et la bibliothèque UI éventuelle ;
 - l'organisation détaillée du frontend et son implémentation technique ;
-- le moteur de recherche et les détails techniques de performance.
+- la stratégie de requêtes, cache et debounce ; le socle métier portable de recherche Carte existe déjà.
 
 Ces éléments ne doivent pas être considérés comme décidés avant leur cadrage et leur validation.

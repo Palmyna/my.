@@ -568,6 +568,44 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          catalog_default_view: string
+          collection_default_view: string
+          created_at: string
+          last_catalog_view: string
+          last_collection_view: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          catalog_default_view?: string
+          collection_default_view?: string
+          created_at?: string
+          last_catalog_view?: string
+          last_collection_view?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          catalog_default_view?: string
+          collection_default_view?: string
+          created_at?: string
+          last_catalog_view?: string
+          last_collection_view?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
