@@ -2,7 +2,7 @@
 
 Réalisée le **9 septembre 2026**, sur `main`, depuis le dépôt propre `Palmyna/my.` au commit `2fb3763b3cc4eaa0a9da4398ee7bc5bb974b9138`.
 
-**Phase 3A implémentée et validée localement. Validation cloud encore à effectuer.** Aucun déploiement Supabase/Vercel, changement de configuration cloud, reset DB, rechargement catalogue ou démarrage des Phases 3B/3C. Aucun commit automatique.
+**Phase 3A implémentée et validée localement et dans Supabase cloud**, selon la validation cloud fournie ensuite par le propriétaire. L'implémentation initiale n'a effectué aucun déploiement Supabase/Vercel, changement de configuration cloud, reset DB, rechargement catalogue ou démarrage des Phases 3B/3C. Aucun commit automatique.
 
 ## Changements
 
@@ -24,7 +24,7 @@ Créée par la CLI standard : `supabase migration new phase3a_auth_identity`.
 - Backfill atomique des profils manquants, sous verrou temporaire des écritures Auth, sans modifier les profils existants.
 - Policy `require_mfa AS RESTRICTIVE FOR ALL TO authenticated`, `USING` et `WITH CHECK` exigeant `auth.jwt()->>'aal' = 'aal2'` sur les 13 tables `public`. Policies métier, grants, contraintes et maintenance privilégiée conservés.
 
-Seule cette nouvelle migration a été appliquée au volume **local**. Les six migrations antérieures, déjà présentes dans le cloud selon le propriétaire, sont inchangées. La génération des types a été exécutée une fois ; `database.generated.ts` est identique, car aucun type public n'a changé.
+Cette nouvelle migration a été appliquée au volume **local**, puis déployée et validée dans **Supabase cloud** par le propriétaire. Le cloud possède désormais les **sept migrations** listées dans le [README](../../README.md#état-du-projet). Les six migrations antérieures sont inchangées. La génération des types a été exécutée une fois ; `database.generated.ts` est identique, car aucun type public n'a changé.
 
 ## Fichiers principaux
 
@@ -77,16 +77,18 @@ CLI `2.116.0`, `supabase-js` `2.115.0`, serveur Auth local `v2.196.0`.
 - Expiration JWT préexistante de 3 600 secondes, rotation des refresh tokens et autres réglages inchangés. Aucun secret ajouté aux variables frontend ou à Git.
 - Sans `.env.local`, le bootstrap reste utilisable sans réseau. Avec configuration, le client restaure les sessions et traite les liens de confirmation/reset via le flux implicite Supabase de la SPA. Les chemins de retour définitifs restent le travail de 3B.
 
-## Actions cloud manuelles
+## Validation cloud
 
-À effectuer par le propriétaire avant de déclarer 3A validée dans le cloud :
+Validation fournie par le propriétaire après le push de `20260909184529_phase3a_auth_identity` ; cette mise à jour documentaire n'effectue aucune nouvelle intervention cloud :
 
-1. **Migrations** : vérifier l'historique des six migrations déjà déployées, puis appliquer uniquement `20260909184529_phase3a_auth_identity`. Ne pas réappliquer les six précédentes. Vérifier le trigger Auth/profil et les 13 policies restrictives ; si des comptes existent, contrôler le backfill et la stabilité de leurs identifiants MY.
-2. **Authentication → Sign In / Providers** : autoriser les inscriptions et le provider Email ; activer **Confirm email**. Conserver Anonymous, Phone, tous les providers OAuth/externes, Web3 et passkeys désactivés. MY. appelle seulement signup/password login ; aucun faux réglage indépendant de désactivation OTP/magic link natif n'est ajouté.
-3. **Authentication → Multi-Factor** : activer TOTP enrollment et verification ; conserver Phone/SMS et autres facteurs hors V1 désactivés. L'obligation pour tous est apportée par le frontend et la RLS `aal2`, y compris pour les comptes sans facteur.
-4. **Authentication → URL Configuration** : définir la véritable origine frontend de l'environnement comme Site URL et autoriser seulement ses URLs de retour nécessaires. Les routes exactes de confirmation/reset seront définies en 3B ; les adresses locales ci-dessus ne constituent pas une configuration de production.
-5. **Emails / SMTP / Templates** : vérifier l'expéditeur, le service d'envoi utilisable pour les destinataires prévus, la délivrabilité, les limites d'envoi et les modèles de confirmation/récupération avec des liens fonctionnels. Aucun fournisseur SMTP ni secret cloud n'est choisi ou configuré par cette tâche.
-6. **Sessions et validation réelle** : vérifier expiration des JWT et rotation des refresh tokens, puis tester un compte jetable de bout en bout, les refus Data API `aal1`, l'accès `aal2`, le reset et la procédure opérateur de récupération MFA. Contrôler les erreurs de trigger dans les logs Auth sans y consigner de secret.
+- Migration 3A déployée et validée ; **sept migrations cloud** au total.
+- Trigger Auth → profil présent et **13 policies `require_mfa`** présentes.
+- Catalogue intact à **31 904 variantes**, aucun utilisateur/profil/préférence parasite et aucun nouveau problème de sécurité bloquant.
+- Provider Email, inscriptions et **confirmation obligatoire de l'adresse email** activés.
+- **TOTP/App Authenticator activé**, maximum de facteurs MFA fixé à **1** : un seul facteur TOTP autorisé par utilisateur en V1.
+- Limitation des sessions **`aal1` activée à 15 minutes** ; **Phone/SMS MFA désactivé**. L'obligation d'accès MY. en `aal2` reste appliquée par les policies restrictives.
+
+Les URLs de retour pour confirmation email et récupération/réinitialisation du mot de passe sont volontairement reportées à la **Phase 3B**, lorsque les routes correspondantes existeront. Le projet n'est pas encore déployé sur Vercel ; le déploiement et la configuration des URLs de production Vercel sont réservés à la **phase finale de mise en production**. Aucune URL de production n'est documentée ici.
 
 ## Limites et points restant à valider
 
@@ -94,4 +96,4 @@ CLI `2.116.0`, `supabase-js` `2.115.0`, serveur Auth local `v2.196.0`.
 
 Les access tokens déjà émis restent potentiellement utilisables jusqu'à leur expiration après révocation ; les policies 3A contrôlent `aal` et n'ajoutent pas de contrôle de session serveur à chaque requête. Cette limite Supabase est documentée dans la procédure et doit être prise en compte par l'opérateur.
 
-Aucune contradiction produit ne bloque 3A locale. Les URLs des futurs écrans, la configuration réelle d'envoi email et la validation cloud restent à réaliser dans leurs étapes prévues. L'avertissement de taille du bundle reste non bloquant ; le découpage des futures pages pourra être traité avec le routing. Phase 3 dans son ensemble n'est pas terminée.
+Aucune contradiction produit ne bloque 3A, validée localement et dans Supabase cloud. Les URLs des futurs écrans et la configuration réelle d'envoi email restent à réaliser dans leurs étapes prévues. L'avertissement de taille du bundle reste non bloquant ; le découpage des futures pages pourra être traité avec le routing. Phase 3 dans son ensemble n'est pas terminée ; 3B n'est pas commencée.

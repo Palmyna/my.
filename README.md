@@ -8,14 +8,15 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phases 0 à 2 validées ; préparation des préférences déployée ; Phase 3A implémentée et validée localement.** La validation cloud de 3A reste à effectuer. Les six migrations déjà déployées, selon la validation fournie par le propriétaire, sont :
+**Phases 0 à 2 validées ; préparation des préférences déployée ; Phase 3A implémentée et validée localement et dans Supabase cloud.** Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
 
 - `20260906082312_phase1_schema` ;
 - `20260906082313_phase1_security` ;
 - `20260906082314_harden_rls_auto_enable` ;
 - `20260906155043_phase2_catalog_pipeline` ;
 - `20260908083516_phase2_variant_release_dates` ;
-- `20260909124950_pre_phase3_collection_preferences`.
+- `20260909124950_pre_phase3_collection_preferences` ;
+- `20260909184529_phase3a_auth_identity`.
 
 | Catalogue cloud vérifié lors de cette validation | Lignes |
 |---|---:|
@@ -33,7 +34,9 @@ Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, a
 
 Le cadrage Recherche globale / Catalogue / Navigation / Préférences est intégré dans les références produit, modèle, UX, architecture et SQL. La migration intermédiaire [20260909124950_pre_phase3_collection_preferences.sql](supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) assure l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et les préférences de vues privées. **Cette sixième migration est déjà déployée dans Supabase cloud**, selon le propriétaire ; l'ancien statut local était obsolète.
 
-La [Phase 3A](docs/reports/2026-09-09-PHASE3A-AUTH.md) ajoute email/mot de passe, confirmation email obligatoire, TOTP obligatoire et session MY. autorisée en `aal2`. La nouvelle migration [20260909184529_phase3a_auth_identity.sql](supabase/migrations/20260909184529_phase3a_auth_identity.sql), **locale uniquement**, crée automatiquement le profil depuis Auth et ajoute une restriction MFA aux 13 tables applicatives. Aucune ancienne migration ni configuration cloud n'a été modifiée.
+La [Phase 3A](docs/reports/2026-09-09-PHASE3A-AUTH.md) ajoute email/mot de passe, confirmation email obligatoire, TOTP obligatoire et session MY. autorisée en `aal2`. La migration [20260909184529_phase3a_auth_identity.sql](supabase/migrations/20260909184529_phase3a_auth_identity.sql), **déployée et validée dans Supabase cloud**, crée automatiquement le profil depuis Auth et ajoute une restriction MFA aux 13 tables applicatives. Aucune ancienne migration n'a été modifiée.
+
+La configuration Auth cloud est validée : provider Email et inscriptions activés, confirmation email obligatoire, TOTP/App Authenticator activé avec **un seul facteur par utilisateur en V1**, sessions `aal1` limitées à **15 minutes**, Phone/SMS MFA désactivé. Les URLs de retour de confirmation email et de récupération/réinitialisation du mot de passe seront finalisées en **Phase 3B**, lorsque les routes existeront.
 
 Le complément Phase 2 fournit les noms français des espèces via un référentiel PokéAPI généré manuellement et destiné au versionnement. Les 1 025 Pokémon locaux ont désormais un nom français, sans changement des 1 213 états de cible ; la seconde application est un noop fonctionnel. La synchronisation du catalogue utilise uniquement ce fichier local et ne contacte jamais PokéAPI.
 
@@ -41,7 +44,7 @@ La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue
 
 Chaque variante porte désormais sa date effective nullable et sa provenance persistée. Elle hérite de la date résolue de sa carte lorsqu'aucune date spécifique fiable n'est connue. Le classement Pokémon utilise cette date de variante ; le classement Set reste numéro puis variante. La [correction des dates de variantes](docs/reports/2026-09-08-PHASE2-VARIANT-DATES.md) conserve les preuves de migration du volume local, de stabilité des IDs et d'idempotence.
 
-**Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place.
+**Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place. Le déploiement Vercel et ses URLs de production sont réservés à la phase finale de mise en production.
 
 ## Développement local
 
@@ -176,7 +179,7 @@ Workflow : **export de référence → audit humain → fichier séparé `*_over
 
 Pour vérifier le pipeline lui-même, utiliser l'intégration synthétique `catalog:test:db` uniquement sur une base locale sans catalogue réel. Pour une mesure reproductible d'import initial sur une base volontairement reconstruite, fixer le SHA, lancer le dry-run, lire son rapport, puis appliquer deux fois les mêmes entrées : la seconde application ne doit changer aucune donnée fonctionnelle. Ces opérations ne sont pas nécessaires à une modification de préférences ou de contraintes utilisateur. Les rapports JSON complets sont dans `.cache/catalog-reports/`.
 
-`db:reset` supprime le catalogue local et ne sert pas à une synchronisation normale. `supabase:stop` conserve le volume importé. La Phase 2, son catalogue et la préparation des préférences sont déjà déployés dans le cloud ; seule la nouvelle migration 3A attend son déploiement contrôlé par le propriétaire.
+`db:reset` supprime le catalogue local et ne sert pas à une synchronisation normale. `supabase:stop` conserve le volume importé. La Phase 2, son catalogue, la préparation des préférences et la migration 3A sont déployés et validés dans Supabase cloud, selon le propriétaire.
 
 ## Documentation
 

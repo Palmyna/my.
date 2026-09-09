@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue les Phases 1 et 2 et la préparation des préférences déjà déployées dans le cloud, le socle Auth 3A validé localement et les opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue les Phases 1 et 2 et la préparation des préférences déjà déployées dans le cloud, le socle Auth 3A validé localement et dans Supabase cloud et les opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -24,13 +24,13 @@ La migration de dates de variantes, créée avec la CLI, ajoute la date effectiv
 
 ## Préparation SQL avant Phase 3
 
-La migration [20260909124950_pre_phase3_collection_preferences.sql](../supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) ajoute l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et `user_preferences` avec RLS. Elle est **déjà déployée dans Supabase cloud**, selon le propriétaire, ce qui porte le total à **six migrations cloud**. L'ancienne indication « locale uniquement » était obsolète. Ces six migrations restent immuables et ne sont pas redéployées en 3A.
+La migration [20260909124950_pre_phase3_collection_preferences.sql](../supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) ajoute l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et `user_preferences` avec RLS. Elle est **déjà déployée dans Supabase cloud**, selon le propriétaire, ce qui portait alors le total à **six migrations cloud**. L'ancienne indication « locale uniquement » était obsolète. Ces six migrations restent immuables et ne sont pas redéployées en 3A.
 
 Elle n'écrit aucune donnée catalogue, ne refond pas `physical_copies` et n'ouvre aucune RPC de création automatique. Les contraintes s'appliquent aussi aux lignes existantes : un nom trop court ou un doublon provoque un échec transactionnel, sans renommage, suppression ou fusion automatique. Les tests couvrent les invariants et droits ; les types frontend sont régénérés depuis le schéma local final. Aucun mécanisme Auth, signup ou création automatique de profil n'est ajouté.
 
 ## Phase 3A — Auth et identité
 
-La migration [20260909184529_phase3a_auth_identity.sql](../supabase/migrations/20260909184529_phase3a_auth_identity.sql), créée par `supabase migration new phase3a_auth_identity`, ajoute le trigger Auth/profil, le rattrapage des profils manquants et les restrictions MFA. Elle est appliquée et validée **localement uniquement**. Elle ne modifie aucune donnée catalogue, colonne Auth gérée par Supabase, grant métier ni ancienne migration ; elle ajoute un trigger sur `auth.users` et une fonction dans `private`.
+La migration [20260909184529_phase3a_auth_identity.sql](../supabase/migrations/20260909184529_phase3a_auth_identity.sql), créée par `supabase migration new phase3a_auth_identity`, ajoute le trigger Auth/profil, le rattrapage des profils manquants et les restrictions MFA. Elle est déployée et validée **localement et dans Supabase cloud**, portant le total à **sept migrations cloud**. La validation du propriétaire confirme le trigger Auth/profil, les 13 policies `require_mfa`, les 31 904 variantes intactes, l'absence d'utilisateur/profil/préférence parasite et de nouveau problème de sécurité bloquant. Elle ne modifie aucune donnée catalogue, colonne Auth gérée par Supabase, grant métier ni ancienne migration ; elle ajoute un trigger sur `auth.users` et une fonction dans `private`.
 
 La V1 utilise email/mot de passe, email confirmé obligatoire et TOTP obligatoire. La configuration Auth et la [procédure de récupération administrative](05-ARCHITECTURE.md#récupération-mfa-administrative) sont définies dans l'architecture. La présence d'un profil n'accorde pas l'accès : toutes les données applicatives nécessitent `aal2`.
 

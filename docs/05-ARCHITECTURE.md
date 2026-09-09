@@ -146,7 +146,7 @@ Flux éventuel, après cadrage : Navigateur → Vercel Functions → Supabase
 
 L'utilisation éventuelle de Vercel Functions ne peut être introduite qu'en réponse à un besoin réel, après cadrage et validation. Elle ne doit pas déplacer par défaut la logique backend de Supabase vers Vercel.
 
-Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place.
+Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place. Le déploiement Vercel et la configuration de ses URLs de production sont réservés à la phase finale de mise en production.
 
 ## Supabase et PostgreSQL
 
@@ -217,7 +217,11 @@ Les événements Auth, dont `INITIAL_SESSION`, `SIGNED_IN`, `SIGNED_OUT`, `TOKEN
 
 `supabase/config.toml` active signup global/email, confirmation email et enrollment/vérification TOTP. Téléphone/SMS, anonyme, providers externes et serveur OAuth restent désactivés. La Site URL est `http://localhost:5173` et les retours autorisés sont cette URL et `http://127.0.0.1:5173`. Les emails sont capturés localement sur `55324`. Les autres valeurs préexistantes, dont l'expiration JWT de 3 600 secondes et la politique de mot de passe, restent inchangées.
 
-Le cloud ne reprend pas automatiquement ces réglages. Le [rapport 3A](reports/2026-09-09-PHASE3A-AUTH.md#actions-cloud-manuelles) liste les vérifications Dashboard et la seule nouvelle migration à appliquer ultérieurement par le propriétaire.
+### Configuration Auth cloud validée
+
+Le cloud ne reprend pas automatiquement les réglages locaux. Selon la [validation 3A fournie par le propriétaire](reports/2026-09-09-PHASE3A-AUTH.md#validation-cloud), le provider Email, les inscriptions et la confirmation email obligatoire sont activés. TOTP/App Authenticator est activé avec **un seul facteur MFA par utilisateur en V1** ; les sessions `aal1` sont limitées à **15 minutes** et Phone/SMS MFA reste désactivé. L'accès MY. exige toujours `aal2`, notamment via les 13 policies restrictives déployées.
+
+Les URLs de retour de confirmation email et de récupération/réinitialisation du mot de passe seront finalisées en **Phase 3B**, lorsque leurs routes existeront. Aucune URL de production Vercel n'est définie à ce stade ; leur configuration attend la phase finale de mise en production.
 
 ### Récupération MFA administrative
 
@@ -484,7 +488,7 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. distingue développement et production. Les Phases 1 et 2, le catalogue et la migration intermédiaire des préférences sont déployés dans Supabase cloud, selon le propriétaire : six migrations, détaillées dans le [README](../README.md). Le pipeline refuse toujours toute base distante. La nouvelle migration Auth 3A est validée localement et reste à déployer séparément ; cette phase ne modifie pas le cloud. Le staging et les futurs workflows de déploiement restent à cadrer.
+MY. distingue développement et production. Les Phases 1 et 2, le catalogue, la migration intermédiaire des préférences et la migration Auth 3A sont déployés dans Supabase cloud, selon le propriétaire : sept migrations, détaillées dans le [README](../README.md). Le pipeline refuse toujours toute base distante. La Phase 3A est validée localement et dans Supabase cloud. Le staging et les futurs workflows de déploiement restent à cadrer.
 
 Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Les données de production ne doivent pas être utilisées inconsidérément pendant le développement.
 
