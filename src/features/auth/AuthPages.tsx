@@ -7,7 +7,7 @@ import { AuthForm, AuthLayout, EmailField, PasswordFields, SubmitButton, TotpFie
 import { fieldValue, passwordsMatch, useAuthTask } from './auth-ui'
 
 export function HomePage() {
-  return <AuthLayout title="Vos cartes. Votre collection." intro="Un espace à vous, pour vos collections de cartes Pokémon TCG.">
+  return <AuthLayout title="Vos cartes. Votre collection." intro="Un espace à vous, pour vos collections de cartes Pokémon.">
     <div className="home-actions"><Link className="button primary" to="/signup">Créer un compte</Link><Link className="button secondary" to="/login">Se connecter</Link></div>
   </AuthLayout>
 }
@@ -131,7 +131,7 @@ export function ResetPasswordPage() {
 export function DashboardPage() {
   const { profile, passwordChanged } = useAuth()
   return <AuthLayout title="Authentification réussie." intro="Bienvenue dans votre espace MY.">
-    {passwordChanged && <p className="feedback" role="status">Mot de passe modifié. Vous restez connecté.</p>}
+    {passwordChanged && <p className="feedback" role="status">Mot de passe modifié. Vous êtes connecté.</p>}
     <p className="hint">Votre identifiant MY.</p><p className="public-id">{profile?.public_id}</p><ExitAuth />
   </AuthLayout>
 }
