@@ -38,7 +38,11 @@ Le premier facteur V1 est exclusivement **email + mot de passe**, avec **confirm
 
 La **MFA TOTP par application Authenticator est obligatoire pour tous**. Après le premier facteur, un compte sans TOTP vérifié doit en enrôler un ; un compte déjà équipé doit répondre au challenge. L'accès à MY. requiert un email confirmé et une session `aal2`, sous contrôle frontend et RLS. SMS, passkeys et recovery codes ne font pas partie de la V1.
 
-La récupération/réinitialisation du mot de passe est prévue et ne dispense jamais de MFA. En cas de perte d'Authenticator, la récupération est administrative et manuelle : vérification de l'identité, suppression de l'ancien facteur, révocation des sessions, puis nouvelle connexion email/mot de passe et enrollment TOTP obligatoire. Aucun outil admin ni récupération MFA automatisée n'est intégré à l'application ; la procédure opérateur figure dans l'[architecture](05-ARCHITECTURE.md#récupération-mfa-administrative).
+Le clic de confirmation valide l'email, puis MY. termine l'éventuelle session technique créée par le lien. L'utilisateur voit « Adresse email confirmée » et doit se connecter par email/mot de passe avant la MFA. Ce lien n'est jamais une méthode de connexion finale.
+
+La récupération/réinitialisation du mot de passe impose la MFA **avant** toute saisie du nouveau mot de passe : le lien email ouvre une session technique, puis un challenge TOTP si un facteur vérifié existe, sinon enrollment et vérification. Une fois `aal2` atteint, l'utilisateur peut changer son mot de passe. Après succès, la session actuelle est conservée et l'accès MY. devient disponible ; aucune déconnexion ni nouvelle saisie immédiate du mot de passe n'est imposée. La demande d'email affiche une réponse générique sans confirmer l'existence du compte.
+
+En cas de perte d'Authenticator, la récupération est administrative et manuelle : vérification de l'identité, suppression de l'ancien facteur, révocation des sessions, puis nouvelle connexion email/mot de passe et enrollment TOTP obligatoire. Aucun outil admin ni récupération MFA automatisée n'est intégré à l'application ; la procédure opérateur figure dans l'[architecture](05-ARCHITECTURE.md#récupération-mfa-administrative).
 
 Chaque utilisateur possède un identifiant public unique propre à MY., utilisé notamment pour le partage de collections. Cet identifiant public reste distinct de l'UUID technique fourni par le système d'authentification.
 

@@ -1,18 +1,49 @@
-/* Présentation temporaire du bootstrap, sans design system. */
-:root {
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
-  color: #222;
-  background: #fff;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-}
-
-main {
-  max-width: 48rem;
-  margin: 4rem auto;
-  padding: 0 1.5rem;
-}
+@font-face { font-family: Poppins; src: url('./assets/fonts/poppins-latin.woff2') format('woff2'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: Poppins; src: url('./assets/fonts/poppins-latin-semibold.woff2') format('woff2'); font-style: normal; font-weight: 600; font-display: swap; }
+:root { font-family: Poppins, sans-serif; color: #fff; background: #181313; font-synthesis: none; line-height: 1.65; font-weight: 400; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input { font: inherit; }
+a { color: #fff; text-underline-offset: .25em; }
+a:hover { color: #ff969b; }
+button, a, input, summary { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid #ff969b; outline-offset: 5px; }
+h1:focus { outline: none; }
+.auth-layout { width: min(100%, 540px); margin: 0 auto; padding: 54px 30px 64px; }
+.brand { display: inline-flex; margin-bottom: 42px; }
+.brand img { width: 112px; height: auto; }
+.auth-panel { border-top: 1px solid #3c3333; padding-top: 32px; }
+.eyebrow { color: #ed7d83; font-size: .68rem; font-weight: 600; letter-spacing: .16em; margin-bottom: 14px; }
+h1 { font-size: clamp(1.85rem, 5vw, 2.3rem); line-height: 1.25; letter-spacing: -.035em; font-weight: 600; margin: 0 0 18px; }
+p { margin: 0 0 20px; }
+.intro { color: #c9bfc0; margin-bottom: 30px; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; font-size: .85rem; }
+input { width: 100%; min-height: 50px; border: 1px solid #68595b; border-radius: 8px; padding: 12px 14px; background: #231a1a; color: white; }
+input:hover { border-color: #a08b8d; }
+input:focus { border-color: #e42b35; }
+.button { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 50px; border-radius: 8px; padding: 12px 18px; border: 1px solid transparent; font-size: .9rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: background .15s; }
+.primary { background: #af2328; color: #fff; }
+.primary:hover { background: #931f1f; color: white; }
+.secondary { border-color: #68595b; background: #231a1a; color: #fff; }
+.secondary:hover { background: #3c3333; color: white; }
+button:disabled, fieldset:disabled { opacity: .65; cursor: wait; }
+.home-actions { display: grid; gap: 12px; margin-top: 34px; }
+.auth-footer { font-size: .8rem; color: #c9bfc0; text-align: center; margin: 24px 0 0; }
+.form-link { display: block; width: fit-content; margin: 0 0 24px auto; font-size: .8rem; }
+.hint { color: #c9bfc0; font-size: .76rem; }
+.field + .hint { margin-top: -10px; }
+.text-button { background: transparent; color: #fff; border: 0; text-decoration: underline; text-underline-offset: .25em; padding: 8px; cursor: pointer; }
+.feedback { background: #231a1a; border-left: 3px solid #ed7d83; padding: 14px 16px; font-size: .82rem; margin: 20px 0; }
+.error { color: #ffb9bd; }
+.totp-qr { display: block; width: 210px; max-width: 100%; height: auto; margin: 24px auto; padding: 10px; background: white; border-radius: 10px; }
+.manual-secret { font-size: .8rem; margin-bottom: 24px; }
+.manual-secret summary { cursor: pointer; text-decoration: underline; text-underline-offset: .25em; }
+.manual-secret p { margin-top: 16px; }
+.manual-secret code { display: block; overflow-wrap: anywhere; color: white; background: #231a1a; padding: 12px; user-select: all; }
+.totp-input { font-size: 1.4rem; letter-spacing: .3em; }
+.public-id, .email-address { overflow-wrap: anywhere; }
+.public-id { font-size: .88rem; font-weight: 600; }
+.loading { display: grid; min-height: 100dvh; place-content: center; padding: 24px; color: #c9bfc0; }
+@media (max-width: 540px) { .auth-layout { padding: 30px 24px 40px; } .brand { margin-bottom: 28px; } .brand img { width: 94px; } .auth-panel { padding-top: 26px; } }
+@media (prefers-reduced-motion: reduce) { .button { transition: none; } }

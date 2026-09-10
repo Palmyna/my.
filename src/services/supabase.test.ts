@@ -18,6 +18,6 @@ test('prépare le client à la demande et réutilise la même instance avec sess
   expect(client).not.toBeNull()
   expect(getSupabaseClient()).toBe(client)
   expect(fetchSpy).not.toHaveBeenCalled()
-  expect(client?.auth).toMatchObject({ persistSession: true, autoRefreshToken: true, detectSessionInUrl: true })
+  expect(client?.auth).toMatchObject({ persistSession: true, autoRefreshToken: true, detectSessionInUrl: false })
   await client?.auth.stopAutoRefresh()
 })

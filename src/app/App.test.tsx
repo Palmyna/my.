@@ -6,7 +6,7 @@ import { expect, test, vi } from 'vitest'
 import { App } from './App'
 import { AppProviders } from './AppProviders'
 
-test('affiche MY. sur la route initiale sans configuration Supabase ni appel réseau', () => {
+test('affiche MY. sur la route initiale sans configuration Supabase ni appel réseau', async () => {
   vi.stubEnv('VITE_SUPABASE_URL', '')
   vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', '')
   const fetchSpy = vi.fn(() => {
@@ -17,8 +17,9 @@ test('affiche MY. sur la route initiale sans configuration Supabase ni appel ré
   render(<StrictMode><App /></StrictMode>)
 
   expect(screen.getByRole('main')).toBeInTheDocument()
-  expect(screen.getByRole('heading', { level: 1, name: 'MY.' })).toBeVisible()
-  expect(screen.getByText('Application initialisée')).toBeVisible()
+  expect(await screen.findByRole('heading', { level: 1, name: 'Vos cartes. Votre collection.' })).toBeVisible()
+  expect(screen.getByRole('img', { name: 'MY.' })).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Créer un compte' })).toBeVisible()
   expect(fetchSpy).not.toHaveBeenCalled()
 })
 

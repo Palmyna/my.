@@ -188,13 +188,13 @@ Email + mot de passe → aucun TOTP vérifié : enrollment puis vérification
 
 Le profil MY. est créé dans la transaction d'insertion Auth, avant confirmation email, sans accorder d'accès applicatif anticipé. Le trigger et son backfill sont décrits dans [06-DATABASE.md](06-DATABASE.md#création-du-profil). Le profil ne contient ni mot de passe ni secret MFA.
 
-### Contrat frontend Auth de Phase 3A
+### Contrat frontend Auth des Phases 3A/3B
 
-`src/services/supabase.ts` fournit un seul client typé par `Database`. `persistSession`, `autoRefreshToken` et `detectSessionInUrl` sont activés. Le flux implicite standard de la SPA Supabase traite les liens de confirmation et de récupération à l'initialisation. Les futures pages pourront fournir une URL de retour explicitement autorisée ; aucun chemin 3B n'est figé ici.
+`src/services/supabase.ts` fournit un seul client typé par `Database`, avec `persistSession` et `autoRefreshToken` activés. En 3B, `detectSessionInUrl` est désactivé : l'état Auth consomme explicitement les callbacks implicites avant toute résolution d'accès MY. `auth-callback.ts` retire immédiatement les tokens/erreurs de l'URL, valide le type et la route attendus, puis transmet les tokens au service `setSession`. Les secrets du callback ne sont jamais placés dans l'état React ni journalisés. La confirmation termine cette session avec `signOut({ scope: 'local' })`, affiche son succès et impose le login email/mot de passe ; aucun profil ni MFA n'est chargé depuis ce lien. Les erreurs ferment l'accès et permettent de revenir à la connexion ou de demander un nouveau lien.
 
-`src/services/auth.ts` encapsule signup, login, logout, session, abonnement Auth, renvoi de confirmation, AAL, liste des facteurs, enrollment/challenge/vérification TOTP et récupération/réinitialisation du mot de passe. Le QR, l'URI et le secret d'enrollment restent uniquement dans la réponse destinée au futur écran : pas de cache global ni de journalisation. `getProfile()` exige email confirmé et TOTP vérifié avec `aal2`, puis lit sa propre ligne par UUID sous RLS. Il ne crée pas de profil de secours.
+`src/services/auth.ts` encapsule signup, login, logout, session, abonnement Auth, renvoi de confirmation, AAL, liste des facteurs, enrollment/challenge/vérification TOTP et récupération/réinitialisation du mot de passe. Le QR, l'URI et le secret d'enrollment restent uniquement dans l'état local de l'écran : pas de cache global ni de journalisation. Un nouvel enrollment remplace seulement les TOTP non vérifiés abandonnés ; aucun facteur vérifié n'est supprimé par l'interface. Chaque tentative de code crée un challenge neuf. `getProfile()` exige email confirmé et TOTP vérifié avec `aal2`, puis lit sa propre ligne par UUID sous RLS. Il ne crée pas de profil de secours.
 
-`AuthProvider`, intégré dans `AppProviders`, possède un seul état dérivé, lu par `useAuth()` via `useSyncExternalStore`. Supabase reste propriétaire de la session persistée ; aucun second stockage de tokens n'est ajouté. `useAuth()` expose `session`, `user`, `mfa`, `profile`, `pendingEmail`, `passwordRecovery`, `error`, `isAuthorized` et les actions pour 3B.
+`AuthProvider`, intégré dans `AppProviders`, possède un seul état dérivé, lu par `useAuth()` via `useSyncExternalStore`. Supabase reste propriétaire de la session persistée ; aucun second stockage de tokens n'est ajouté. `useAuth()` expose `session`, `user`, `mfa`, `profile`, `pendingEmail`, `passwordRecovery`, `emailConfirmed`, `passwordChanged`, `error`, `isAuthorized` et les actions. `AppRoutes` utilise exclusivement cet état pour rediriger vers login, enrollment, challenge, reset ou dashboard ; chargement et erreurs n'affichent aucun contenu privé.
 
 | État | Signification |
 | --- | --- |
@@ -204,6 +204,7 @@ Le profil MY. est créé dans la transaction d'insertion Auth, avant confirmatio
 | `email_confirmation_required` | Signup sans session ou email Auth non confirmé |
 | `mfa_enrollment_required` | Aucun TOTP vérifié, y compris après récupération administrative |
 | `mfa_challenge_required` | TOTP vérifié présent mais session pas encore `aal2` |
+| `password_reset_required` | Parcours recovery avec email confirmé/TOTP `aal2` ; nouveau mot de passe attendu, profil absent et `isAuthorized = false` |
 | `authorized` | Email confirmé, TOTP vérifié, `aal2` et profil chargé |
 | `error` | Résolution Auth/profil en échec ; accès fermé, réessai explicite disponible |
 
@@ -211,17 +212,28 @@ Un signup sans session produit un état d'attente email, sans prétendre prouver
 
 Les événements Auth, dont `INITIAL_SESSION`, `SIGNED_IN`, `SIGNED_OUT`, `TOKEN_REFRESHED`, `USER_UPDATED`, `PASSWORD_RECOVERY` et `MFA_CHALLENGE_VERIFIED`, provoquent une réévaluation. Le callback Auth reste synchrone ; les appels suivants sont différés pour éviter le verrou interne Supabase. Un numéro de révision ignore les réponses anciennes après logout ou changement de compte. L'abonnement et les tâches différées sont nettoyés, y compris sous StrictMode. Le cache TanStack Query est purgé lors des transitions ; les futures requêtes métier devront être activées uniquement lorsque `isAuthorized` vaut `true`.
 
-`requestPasswordReset()` prépare l'email et `updatePassword()` la modification. `passwordRecovery` signale le parcours dédié pour 3B et est réinitialisé après succès. Une session de récupération ne contourne jamais l'exigence `aal2` des données MY. La V1 n'expose ni `signInWithOtp` ni récupération MFA automatisée ; les endpoints email natifs Supabase couvrent aussi OTP/magic link, et aucun réglage indépendant de désactivation n'est inventé dans `config.toml`.
+`requestPasswordReset()` prépare l'email. Le callback `type=recovery` et l'événement `PASSWORD_RECOVERY` activent le même contexte central : enrollment si aucun TOTP vérifié, sinon challenge. Le formulaire et l'action d'état `updatePassword()` exigent `password_reset_required` ; le service vérifie également l'email et la MFA `aal2` avant `updateUser`. Aucune lecture de profil n'a lieu pendant la récupération, même après MFA, avant le succès du changement. Le contexte est conservé au refresh navigateur dans `sessionStorage` par le seul `session_id`, sans token/secret ; ce marqueur de navigation n'autorise jamais l'accès, qui reste vérifié par Auth et RLS. Il est effacé au logout ou après changement réussi. Après reset, la session courante reste active, le profil est chargé et l'utilisateur accède au dashboard sans se reconnecter.
+
+La V1 n'expose ni `signInWithOtp` ni récupération MFA automatisée ; les endpoints email natifs Supabase couvrent aussi OTP/magic link, et aucun réglage indépendant de désactivation n'est inventé dans `config.toml`.
 
 ### Configuration locale Auth
 
 `supabase/config.toml` active signup global/email, confirmation email et enrollment/vérification TOTP. Téléphone/SMS, anonyme, providers externes et serveur OAuth restent désactivés. La Site URL est `http://localhost:5173` et les retours autorisés sont cette URL et `http://127.0.0.1:5173`. Les emails sont capturés localement sur `55324`. Les autres valeurs préexistantes, dont l'expiration JWT de 3 600 secondes et la politique de mot de passe, restent inchangées.
 
+La Phase 3B fixe `max_enrolled_factors = 1` et ajoute ces retours exacts, construits par le frontend depuis l'origine courante :
+
+- `http://localhost:5173/auth/confirm-email`
+- `http://127.0.0.1:5173/auth/confirm-email`
+- `http://localhost:5173/reset-password`
+- `http://127.0.0.1:5173/reset-password`
+
+La [structure de configuration de la CLI 2.116.0](https://github.com/supabase/cli/blob/v2.116.0/apps/cli-go/pkg/config/auth.go) expose seulement `timebox` et `inactivity_timeout` pour les sessions, pas la durée spécifique `aal1`. Aucune clé TOML n'est inventée : les 15 minutes restent spécifiques à la configuration cloud. La politique locale conserve un minimum de 6 caractères sans règle de composition supplémentaire ; les erreurs de politique serveur sont affichées proprement.
+
 ### Configuration Auth cloud validée
 
 Le cloud ne reprend pas automatiquement les réglages locaux. Selon la [validation 3A fournie par le propriétaire](reports/2026-09-09-PHASE3A-AUTH.md#validation-cloud), le provider Email, les inscriptions et la confirmation email obligatoire sont activés. TOTP/App Authenticator est activé avec **un seul facteur MFA par utilisateur en V1** ; les sessions `aal1` sont limitées à **15 minutes** et Phone/SMS MFA reste désactivé. L'accès MY. exige toujours `aal2`, notamment via les 13 policies restrictives déployées.
 
-Les URLs de retour de confirmation email et de récupération/réinitialisation du mot de passe seront finalisées en **Phase 3B**, lorsque leurs routes existeront. Aucune URL de production Vercel n'est définie à ce stade ; leur configuration attend la phase finale de mise en production.
+Pour valider 3B contre le cloud, le propriétaire doit ajouter manuellement les quatre URLs locales ci-dessus dans Authentication → URL Configuration → Redirect URLs, puis utiliser les seules URL et clé publishable cloud dans son environnement frontend. La configuration de la Site URL doit être cohérente avec l'origine locale choisie pour ce test. Aucune modification cloud n'est effectuée par cette phase. Aucune URL de production Vercel n'est définie ; leur configuration attend la phase finale de mise en production.
 
 ### Récupération MFA administrative
 

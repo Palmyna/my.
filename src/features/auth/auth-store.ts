@@ -1,9 +1,10 @@
 import type { Session, User } from '@supabase/supabase-js'
 import type { AuthService, MfaState, Profile } from '../../services/auth'
+import type { EmailCallback, RecoveryContext } from './auth-callback'
 
 export type AuthStatus = 'initializing' | 'unconfigured' | 'signed_out'
   | 'email_confirmation_required' | 'mfa_enrollment_required' | 'mfa_challenge_required'
-  | 'authorized' | 'error'
+  | 'password_reset_required' | 'authorized' | 'error'
 
 export interface AuthState {
   status: AuthStatus
@@ -14,15 +15,19 @@ export interface AuthState {
   pendingEmail: string | null
   passwordRecovery: boolean
   error: Error | null
+  emailConfirmed: boolean
+  passwordChanged: boolean
 }
 
 const initialState: AuthState = {
   status: 'initializing', session: null, user: null, mfa: null, profile: null,
-  pendingEmail: null, passwordRecovery: false, error: null,
+  pendingEmail: null, passwordRecovery: false, error: null, emailConfirmed: false, passwordChanged: false,
 }
 
 // One external store per provider; Supabase remains the owner of persisted sessions.
-export function createAuthStore(getService: () => AuthService | null, clearData: () => void) {
+export function createAuthStore(getService: () => AuthService | null, clearData: () => void,
+  readCallback: () => EmailCallback = () => null,
+  recoveryContext?: RecoveryContext) {
   let state = initialState
   let service: AuthService | null = null
   let revision = 0
@@ -30,6 +35,9 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
   let currentUserId: string | null = null
   let timer: ReturnType<typeof setTimeout> | undefined
   const listeners = new Set<() => void>()
+  let callbackRead = false
+  let callbackPending = false
+  let callbackResult: Promise<{ kind: 'signup' | 'recovery'; session: Session | null }> | null = null
   const emit = (next: AuthState) => {
     state = next
     listeners.forEach(listener => listener())
@@ -54,11 +62,13 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       const auth = requireService()
       const mfa = await auth.getMfaState(session)
       if (!current()) return
-      const base = { ...initialState, session, user: mfa.user, mfa, passwordRecovery: state.passwordRecovery }
+      const base = { ...initialState, session, user: mfa.user, mfa, passwordRecovery: state.passwordRecovery, passwordChanged: state.passwordChanged }
       if (!mfa.user.email_confirmed_at) {
         emit({ ...base, status: 'email_confirmation_required' })
       } else if (mfa.requirement !== 'satisfied') {
         emit({ ...base, status: mfa.requirement === 'enrollment_required' ? 'mfa_enrollment_required' : 'mfa_challenge_required' })
+      } else if (base.passwordRecovery) {
+        emit({ ...base, status: 'password_reset_required' })
       } else {
         const profile = await auth.getProfile()
         if (current()) emit({ ...base, status: 'authorized', profile })
@@ -72,10 +82,12 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
     const ticket = invalidate()
     currentUserId = session?.user.id ?? null
     if (!session) {
-      emit({ ...initialState, status: 'signed_out' })
+      recoveryContext?.clear()
+      emit({ ...initialState, status: 'signed_out', emailConfirmed: state.emailConfirmed })
       return
     }
-    emit({ ...initialState, passwordRecovery: recovery })
+    if (recovery) recoveryContext?.save(session)
+    emit({ ...initialState, passwordRecovery: recovery || (recoveryContext?.has(session) ?? false), passwordChanged: state.passwordChanged })
     // Never await another Supabase Auth call inside onAuthStateChange's lock.
     timer = setTimeout(() => { void resolve(session, ticket) }, 0)
   }
@@ -83,8 +95,19 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
   async function restore() {
     const ticket = invalidate()
     const recovery = state.passwordRecovery
-    emit({ ...initialState, passwordRecovery: recovery })
+    emit({ ...initialState, passwordRecovery: recovery, passwordChanged: state.passwordChanged })
     try {
+      if (callbackResult) {
+        const result = await callbackResult
+        if (!active || ticket !== revision) return
+        callbackResult = null
+        callbackPending = false
+        if (result.kind === 'signup') {
+          recoveryContext?.clear()
+          emit({ ...initialState, status: 'signed_out', emailConfirmed: true })
+        } else accept(result.session, true)
+        return
+      }
       const session = await requireService().getSession()
       if (active && ticket === revision) accept(session, recovery)
     } catch (error) {
@@ -102,10 +125,19 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       active = true
       let unsubscribe: (() => void) | undefined
       try {
+        // Strip callback credentials even when the service is unconfigured.
+        const callback = callbackRead ? null : readCallback()
+        callbackRead = true
         service = getService()
         if (service) {
+          if (callback) {
+            callbackPending = true
+            callbackResult = 'error' in callback
+              ? Promise.reject(new Error('Lien email invalide ou expiré. Demandez un nouvel email.'))
+              : service.completeEmailCallback(callback.tokens, callback.kind).then(session => ({ kind: callback.kind, session }))
+          }
           unsubscribe = service.subscribe((event, session) => {
-            if (!active) return
+            if (!active || callbackPending) return
             const recovery = event === 'PASSWORD_RECOVERY'
               || (state.passwordRecovery && session !== null && session.user.id === currentUserId)
             accept(session, recovery)
@@ -133,6 +165,9 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       signIn: (email: string, password: string) => requireService().signIn(email, password),
       async signOut() {
         invalidate()
+        callbackResult = null
+        callbackPending = false
+        recoveryContext?.clear()
         emit(initialState)
         try {
           await requireService().signOut()
@@ -148,9 +183,11 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       resendConfirmation: (email: string, redirectTo?: string) => requireService().resendConfirmation(email, redirectTo),
       requestPasswordReset: (email: string, redirectTo?: string) => requireService().requestPasswordReset(email, redirectTo),
       async updatePassword(password: string) {
+        if (state.status !== 'password_reset_required') throw new Error('Validez le MFA du parcours de récupération avant de continuer.')
         const result = await requireService().updatePassword(password)
         if (active) {
-          emit({ ...state, passwordRecovery: false })
+          recoveryContext?.clear()
+          emit({ ...state, passwordRecovery: false, passwordChanged: true })
           await restore()
         }
         return result

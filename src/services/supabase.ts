@@ -14,7 +14,8 @@ export function getSupabaseClient() {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      // The Auth store consumes email callbacks before resolving any MY. access.
+      detectSessionInUrl: false,
     },
   })
 

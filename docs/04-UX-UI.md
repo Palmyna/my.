@@ -63,7 +63,7 @@ L'interface privilégie :
 - une hiérarchie visuelle forte ;
 - une place importante accordée aux cartes Pokémon.
 
-MY. doit rester identifiable sans que la marque surcharge chaque écran. Le logo SVG existant sera fourni lors de la phase d'implémentation concernée ; ce document n'en définit ni une création ni un remplacement.
+MY. doit rester identifiable sans que la marque surcharge chaque écran. Le logo SVG existant `src/assets/brand/my-logo.svg` est utilisé sans modification par les écrans Auth 3B.
 
 ## Responsive
 
@@ -118,7 +118,13 @@ Le parcours général est :
 Homepage → Sign Up / Log In → Authentification → Dashboard
 ```
 
-La récupération de mot de passe, la validation d'adresse e-mail et les autres mécanismes précis dépendent du futur système d'authentification.
+La Phase 3B fournit la homepage, `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/confirm-email`, `/auth/mfa/enroll` et `/auth/mfa/challenge`. `/dashboard` affiche uniquement la réussite de l'authentification, l'identifiant MY. chargé et la déconnexion ; le shell authentifié et les collections restent hors 3B.
+
+Après inscription, un écran invite à consulter les emails et permet un renvoi générique. Le lien confirme l'adresse puis termine sa session technique : « Adresse email confirmée » propose de se connecter par email/mot de passe, avant enrollment ou challenge TOTP.
+
+La récupération affiche une réponse générique à la demande d'email. Le lien ouvre le parcours MFA, avec enrollment si aucun facteur n'est vérifié, sinon challenge. Le formulaire du nouveau mot de passe n'apparaît qu'après `aal2`. Après succès, la session est conservée et le dashboard temporaire affiche « Mot de passe modifié. Vous restez connecté. ».
+
+Les écrans utilisent Poppins, la palette sombre/rouge/blanc, des labels explicites, un focus visible et des contrôles adaptés au mobile. Le QR et la clé manuelle restent dans l'écran d'enrollment, sans persistance. Une configuration abandonnée peut être recommencée ; seuls les facteurs TOTP non vérifiés sont remplacés. Les erreurs et liens expirés offrent une reprise, sans contenu privé pendant la résolution de session.
 
 Sans session, seuls la homepage, les parcours nécessaires à l'authentification et les pages légales nécessaires sont accessibles. Le footer donne notamment accès aux pages légales applicables (mentions légales, confidentialité/RGPD, cookies, droits d'auteur, conditions générales lorsque nécessaires). Le catalogue, les Pokémon, les Extensions, les Cartes et les collections restent authentifiés ; aucun parcours catalogue public n'est prévu.
 

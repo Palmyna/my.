@@ -53,6 +53,17 @@ export function createAuthService(client: SupabaseClient<Database>) {
       const { error } = await auth.signOut()
       if (error) throw error
     },
+    async completeEmailCallback(tokens: { access_token: string; refresh_token: string }, kind: 'signup' | 'recovery') {
+      const data = unwrap(await auth.setSession(tokens))
+      if (!data.session || !data.user?.email_confirmed_at) throw new Error('Lien email invalide ou expiré.')
+      if (kind === 'signup') {
+        // End only the technical callback session, without logging out other devices.
+        const { error } = await auth.signOut({ scope: 'local' })
+        if (error) throw error
+        return null
+      }
+      return data.session
+    },
     getSession,
     subscribe(callback: (event: AuthChangeEvent, session: Session | null) => void) {
       const { data } = auth.onAuthStateChange(callback)
@@ -64,6 +75,12 @@ export function createAuthService(client: SupabaseClient<Database>) {
       return unwrap(await auth.mfa.listFactors())
     },
     async enrollTotp(friendlyName?: string) {
+      const { all } = unwrap(await auth.mfa.listFactors())
+      if (all.some(factor => factor.status === 'verified')) throw new Error('Un Authenticator est déjà configuré. Reprenez la connexion.')
+      // An abandoned setup has no retrievable secret. Replace only unverified TOTP.
+      for (const factor of all.filter(factor => factor.factor_type === 'totp' && factor.status === 'unverified')) {
+        unwrap(await auth.mfa.unenroll({ factorId: factor.id }))
+      }
       // QR/secret are returned to the caller only, never cached in shared Auth state.
       return unwrap(await auth.mfa.enroll({ factorType: 'totp', issuer: 'MY.', ...(friendlyName ? { friendlyName } : {}) }))
     },
@@ -80,7 +97,12 @@ export function createAuthService(client: SupabaseClient<Database>) {
       return unwrap(await auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : {}))
     },
     async updatePassword(password: string) {
-      // Auth's recovery session can update a password; RLS still requires aal2 for MY. data.
+      const session = await getSession()
+      if (!session) throw new Error('Session requise pour modifier le mot de passe.')
+      const mfa = await getMfaState(session)
+      if (!mfa.user.email_confirmed_at || mfa.requirement !== 'satisfied') {
+        throw new Error('MFA TOTP aal2 requis avant de modifier le mot de passe.')
+      }
       return unwrap(await auth.updateUser({ password }))
     },
     async getProfile() {

@@ -162,7 +162,14 @@ site_url = "http://localhost:5173"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:5173", "http://127.0.0.1:5173"]
+additional_redirect_urls = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5173/auth/confirm-email",
+  "http://127.0.0.1:5173/auth/confirm-email",
+  "http://localhost:5173/reset-password",
+  "http://127.0.0.1:5173/reset-password",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -298,7 +305,7 @@ auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 # MY. V1: mandatory TOTP; application data additionally requires aal2 through RLS.
 [auth.mfa]
 # Control how many MFA factors can be enrolled at once per user.
-max_enrolled_factors = 10
+max_enrolled_factors = 1
 
 # Control MFA via App Authenticator (TOTP)
 [auth.mfa.totp]

@@ -8,7 +8,7 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phases 0 à 2 validées ; préparation des préférences déployée ; Phase 3A implémentée et validée localement et dans Supabase cloud.** Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
+**Phases 0 à 2 validées ; préparation des préférences déployée ; Phase 3A validée localement et dans Supabase cloud ; Phase 3B implémentée et validée localement.** Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
 
 - `20260906082312_phase1_schema` ;
 - `20260906082313_phase1_security` ;
@@ -30,13 +30,15 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 Aucun nom français Pokémon ne manque et aucune date de Variante n'est NULL dans ce catalogue validé. `sm3.5-28` possède cinq variantes après override. Les tables utilisateur étaient encore vides à ce moment. Cet état cloud est celui transmis par le propriétaire ; la tâche intermédiaire n'effectue ni nouvelle vérification distante ni déploiement cloud.
 
-Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. **Le pipeline reste local/protégé ; le catalogue résultant existe également dans le cloud.** Le frontend affiche toujours `MY.` et « Application initialisée ». Le socle Auth de Phase 3A est disponible ; les écrans Auth, le routing public/protégé et le shell des Phases 3B/3C, les RPC de collections et les interfaces métier restent à construire.
+Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. **Le pipeline reste local/protégé ; le catalogue résultant existe également dans le cloud.** La [Phase 3B](docs/reports/2026-09-10-PHASE3B-AUTH-UI.md) ajoute les écrans Auth et le routing public/protégé sur le socle 3A, avec un dashboard temporaire minimal. Le shell de Phase 3C, les RPC de collections et les interfaces métier restent à construire.
 
 Le cadrage Recherche globale / Catalogue / Navigation / Préférences est intégré dans les références produit, modèle, UX, architecture et SQL. La migration intermédiaire [20260909124950_pre_phase3_collection_preferences.sql](supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) assure l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et les préférences de vues privées. **Cette sixième migration est déjà déployée dans Supabase cloud**, selon le propriétaire ; l'ancien statut local était obsolète.
 
 La [Phase 3A](docs/reports/2026-09-09-PHASE3A-AUTH.md) ajoute email/mot de passe, confirmation email obligatoire, TOTP obligatoire et session MY. autorisée en `aal2`. La migration [20260909184529_phase3a_auth_identity.sql](supabase/migrations/20260909184529_phase3a_auth_identity.sql), **déployée et validée dans Supabase cloud**, crée automatiquement le profil depuis Auth et ajoute une restriction MFA aux 13 tables applicatives. Aucune ancienne migration n'a été modifiée.
 
-La configuration Auth cloud est validée : provider Email et inscriptions activés, confirmation email obligatoire, TOTP/App Authenticator activé avec **un seul facteur par utilisateur en V1**, sessions `aal1` limitées à **15 minutes**, Phone/SMS MFA désactivé. Les URLs de retour de confirmation email et de récupération/réinitialisation du mot de passe seront finalisées en **Phase 3B**, lorsque les routes existeront.
+La configuration Auth cloud est validée : provider Email et inscriptions activés, confirmation email obligatoire, TOTP/App Authenticator activé avec **un seul facteur par utilisateur en V1**, sessions `aal1` limitées à **15 minutes**, Phone/SMS MFA désactivé. Les URLs de retour sont définies en **Phase 3B** ; leur ajout au cloud et la validation cloud 3B restent manuels.
+
+Routes 3B : `/`, `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/confirm-email`, `/auth/mfa/enroll`, `/auth/mfa/challenge` et `/dashboard`. La confirmation termine la session technique du lien et impose une connexion email/mot de passe. La récupération impose enrollment ou challenge TOTP **avant** le nouveau mot de passe, puis conserve la session après succès. Les données MY. restent fermées pendant ces parcours.
 
 Le complément Phase 2 fournit les noms français des espèces via un référentiel PokéAPI généré manuellement et destiné au versionnement. Les 1 025 Pokémon locaux ont désormais un nom français, sans changement des 1 213 états de cible ; la seconde application est un noop fonctionnel. La synchronisation du catalogue utilise uniquement ce fichier local et ne contacte jamais PokéAPI.
 
@@ -79,7 +81,7 @@ Les tests frontend utilisent React Testing Library, jest-dom et jsdom, avec des 
 - `src/types/` : variables Vite et `database.generated.ts`, généré par la CLI Supabase ;
 - `src/test/` : configuration commune des tests ; les tests restent à côté du code testé.
 
-`src/features/auth/` contient le provider Auth, son état unique et `useAuth`. `src/components/` accueillera les composants partagés au premier besoin. `main.tsx` se limite au montage React ; le QueryClient reste stable pendant la vie des providers. Les changements Auth purgent son cache pour éviter de conserver des données privées après perte d'accès ou changement de compte.
+`src/features/auth/` contient le provider Auth, son état unique, `useAuth`, les callbacks email et les écrans Auth. La présentation utilise le logo existant et Poppins 400/600 servis localement depuis `src/assets/fonts/`, avec leur licence OFL. `main.tsx` se limite au montage React ; le QueryClient reste stable pendant la vie des providers. Les changements Auth purgent son cache pour éviter de conserver des données privées après perte d'accès ou changement de compte.
 
 ## Supabase local et variables d'environnement
 
@@ -104,7 +106,7 @@ Pour activer Auth localement, copier `.env.example` vers `.env.local`, puis rens
 
 Ces valeurs sont publiques dans le navigateur. N'y placer aucun secret, clé privilégiée, mot de passe PostgreSQL ou token. Redémarrer Vite après modification. Zod valide ces deux valeurs au premier appel à `getSupabaseClient()` depuis le provider Auth ; sans configuration, cette fonction retourne `null` et le bootstrap reste utilisable sans réseau. Avec configuration, le client unique restaure/persiste les sessions, renouvelle les tokens et traite les liens de confirmation/reset. Le provider commence en `initializing` et ne charge le profil qu'après email confirmé et TOTP `aal2`.
 
-La Site URL locale est `http://localhost:5173`, avec `http://127.0.0.1:5173` également autorisée. Les emails sont capturés par le serveur mail local sur `55324`. Les destinations exactes des écrans seront ajoutées en 3B ; aucune route de callback ou page Auth n'est créée en 3A. Après modification de `config.toml`, redémarrer Supabase avec `supabase:stop` puis `supabase:start`, en conservant les volumes.
+La Site URL locale est `http://localhost:5173`, avec `http://127.0.0.1:5173` également autorisée. Les retours exacts `/auth/confirm-email` et `/reset-password` sont autorisés pour ces deux origines ; le frontend construit les liens depuis son origine courante. Les emails sont capturés par Mailpit sur `55324`. `max_enrolled_factors = 1` aligne le local sur la V1. La CLI 2.116.0 n'expose pas la durée propre à `aal1` dans `config.toml` : les 15 minutes restent un réglage cloud. Après modification de `config.toml`, redémarrer Supabase avec `supabase:stop` puis `supabase:start`, en conservant les volumes.
 
 Les fichiers `.env` réels, `node_modules/`, `dist/`, les caches et l'état local Supabase sont ignorés par Git. `.env.example`, `supabase/config.toml`, `package-lock.json`, les migrations, les tests SQL et les types générés sont versionnés. Aucun seed applicatif ni Edge Function n'est présent.
 

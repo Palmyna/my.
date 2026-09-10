@@ -45,6 +45,9 @@ describe('Auth email et session', () => {
     const auth = createAuthService(mock.client)
     await auth.resendConfirmation('a@example.test')
     await auth.requestPasswordReset('a@example.test', 'http://localhost:5173')
+    await expect(auth.updatePassword('new-password')).rejects.toThrow('aal2')
+    expect(mock.auth.updateUser).not.toHaveBeenCalled()
+    mock.authorize()
     await auth.updatePassword('new-password')
     expect(mock.auth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'a@example.test', options: {} })
     expect(mock.auth.resetPasswordForEmail).toHaveBeenCalledWith('a@example.test', { redirectTo: 'http://localhost:5173' })
@@ -54,6 +57,17 @@ describe('Auth email et session', () => {
 })
 
 describe('TOTP et profil', () => {
+  test('un enrollment abandonné remplace uniquement les TOTP non vérifiés', async () => {
+    const mock = mockAuthClient()
+    mock.mfa.listFactors.mockResolvedValue({ data: { all: [{ ...totpFactor, status: 'unverified' }] }, error: null })
+    await createAuthService(mock.client).enrollTotp()
+    expect(mock.mfa.unenroll).toHaveBeenCalledWith({ factorId: totpFactor.id })
+    expect(mock.mfa.enroll).toHaveBeenCalledOnce()
+    mock.mfa.listFactors.mockResolvedValue({ data: { all: [totpFactor] }, error: null })
+    await expect(createAuthService(mock.client).enrollTotp()).rejects.toThrow('déjà configuré')
+    expect(mock.mfa.unenroll).toHaveBeenCalledOnce()
+    expect(mock.mfa.enroll).toHaveBeenCalledOnce()
+  })
   test.each([
     { level: 'aal1', factors: [], requirement: 'enrollment_required' },
     { level: 'aal1', factors: [{ ...totpFactor, status: 'unverified' }], requirement: 'enrollment_required' },
@@ -74,6 +88,7 @@ describe('TOTP et profil', () => {
     const mock = mockAuthClient()
     const auth = createAuthService(mock.client)
     expect(await auth.listFactors()).toMatchObject({ totp: [totpFactor] })
+    mock.mfa.listFactors.mockResolvedValue({ data: { all: [], totp: [] }, error: null })
     expect(await auth.enrollTotp('Téléphone')).toMatchObject({ id: 'new-factor', totp: { qr_code: 'qr-image', secret: 'test-secret' } })
     expect(mock.mfa.enroll).toHaveBeenCalledWith({ factorType: 'totp', issuer: 'MY.', friendlyName: 'Téléphone' })
     expect(await auth.challengeTotp('new-factor')).toMatchObject({ id: 'challenge-id' })

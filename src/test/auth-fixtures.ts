@@ -29,11 +29,13 @@ export function mockAuthClient() {
     enroll: vi.fn().mockResolvedValue({ data: { id: 'new-factor', type: 'totp', totp: { qr_code: 'qr-image', secret: 'test-secret', uri: 'otpauth://test' } }, error: null }),
     challenge: vi.fn().mockResolvedValue({ data: { id: 'challenge-id', type: 'totp', expires_at: 1 }, error: null }),
     verify: vi.fn().mockResolvedValue({ data: session, error: null }),
+    unenroll: vi.fn().mockResolvedValue({ data: { id: 'unverified-id' }, error: null }),
   }
   const auth = {
     signUp: vi.fn().mockResolvedValue({ data: { user: confirmedUser, session: null }, error: null }),
     signInWithPassword: vi.fn().mockResolvedValue({ data: { user: confirmedUser, session }, error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
+    setSession: vi.fn().mockResolvedValue({ data: { session, user: confirmedUser }, error: null }),
     getSession: vi.fn().mockResolvedValue({ data: { session }, error: null }),
     getUser: vi.fn().mockResolvedValue({ data: { user: confirmedUser }, error: null }),
     onAuthStateChange: vi.fn((callback: (event: AuthChangeEvent, value: Session | null) => void) => {
