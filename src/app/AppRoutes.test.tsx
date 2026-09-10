@@ -29,11 +29,11 @@ function setup(path = '/', mode: 'out' | 'aal1' | 'aal2' | 'enroll' = 'out', cal
 }
 const change = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label, { exact: true }), { target: { value } })
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
-async function heading(name: string) { expect(await screen.findByRole('heading', { name })).toBeVisible() }
+async function heading(name: string | RegExp) { expect(await screen.findByRole('heading', { name })).toBeVisible() }
 const tokenCallback = (kind: 'signup' | 'recovery'): EmailCallback => ({ kind, tokens: { access_token: 'test', refresh_token: 'test' } })
 
 test.each([
-  ['/', 'out', 'Vos cartes. Votre collection.', '/'],
+  ['/', 'out', /Bienvenue sur MY\./, '/'],
   ['/dashboard', 'out', 'Heureux de vous retrouver.', '/login'],
   ['/dashboard', 'aal1', 'Confirmez que c’est vous.', '/auth/mfa/challenge'],
   ['/login', 'enroll', 'Sécurisez votre compte.', '/auth/mfa/enroll'],
@@ -45,7 +45,26 @@ test.each([
   expect(screen.queryByText(profile.public_id)).not.toBeInTheDocument()
   await heading(title)
   expect(screen.getByTestId('path')).toHaveTextContent(finalPath)
+  if (finalPath === '/') expect(screen.getByRole('link', { name: 'Connexion', exact: true })).toBeVisible()
+  else expect(screen.queryByRole('link', { name: 'Connexion', exact: true })).not.toBeInTheDocument()
   if (mode !== 'aal2') expect(mock.from).not.toHaveBeenCalled()
+})
+
+test('accueil puis connexion et inscription partagent la disposition publique', async () => {
+  setup()
+  await heading(/Bienvenue sur MY\./)
+  expect(screen.getByRole('img', { name: 'MY.' })).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Connexion', exact: true })).toBeVisible()
+  fireEvent.click(screen.getByRole('link', { name: 'Se connecter' }))
+  await heading('Heureux de vous retrouver.')
+  expect(screen.queryByRole('img', { name: 'MY.' })).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Adresse email')).toBeVisible()
+  expect(screen.queryByRole('link', { name: 'Connexion', exact: true })).not.toBeInTheDocument()
+  expect(screen.getByRole('contentinfo')).toHaveTextContent('Conditions d’utilisation')
+  fireEvent.click(screen.getByRole('link', { name: 'Inscrivez-vous dès maintenant !' }))
+  await heading('Bienvenue chez MY.')
+  expect(screen.getByLabelText('Confirmer le mot de passe')).toBeVisible()
+  expect(screen.queryByRole('link', { name: 'Connexion', exact: true })).not.toBeInTheDocument()
 })
 
 test('signup valide, attente email et renvoi générique', async () => {
@@ -153,7 +172,7 @@ test.each(['enroll', 'aal1'] as const)('recovery %s impose MFA avant reset et co
   expect(mock.from).not.toHaveBeenCalled()
   change('Nouveau mot de passe', 'new-password'); change('Confirmer le mot de passe', 'new-password'); press('Enregistrer le mot de passe')
   await heading('Authentification réussie.')
-  expect(screen.getByRole('status')).toHaveTextContent('Vous restez connecté')
+  expect(screen.getByRole('status')).toHaveTextContent('Vous êtes connecté')
   expect(mock.auth.signOut).not.toHaveBeenCalled()
   expect(mock.auth.updateUser).toHaveBeenCalledOnce()
 })

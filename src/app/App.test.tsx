@@ -17,9 +17,11 @@ test('affiche MY. sur la route initiale sans configuration Supabase ni appel ré
   render(<StrictMode><App /></StrictMode>)
 
   expect(screen.getByRole('main')).toBeInTheDocument()
-  expect(await screen.findByRole('heading', { level: 1, name: 'Vos cartes. Votre collection.' })).toBeVisible()
+  expect(await screen.findByRole('heading', { level: 1, name: /Bienvenue sur MY\./ })).toBeVisible()
   expect(screen.getByRole('img', { name: 'MY.' })).toBeVisible()
-  expect(screen.getByRole('link', { name: 'Créer un compte' })).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Se connecter' })).toBeVisible()
+  expect(screen.getByRole('banner')).toContainElement(screen.getByRole('link', { name: 'Connexion' }))
+  expect(screen.getByRole('contentinfo')).toHaveTextContent('Conditions d’utilisation')
   expect(fetchSpy).not.toHaveBeenCalled()
 })
 

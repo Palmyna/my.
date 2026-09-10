@@ -2,15 +2,22 @@ import { type FormEvent, type PropsWithChildren } from 'react'
 import { Link } from 'react-router'
 import logo from '../../assets/brand/my-logo.svg'
 
-export function AuthLayout({ title, intro, children }: PropsWithChildren<{ title: string; intro?: string }>) {
-  return <main className="auth-layout">
-    <Link className="brand" to="/" aria-label="MY. — Accueil"><img src={logo} alt="MY." /></Link>
-    <section className="auth-panel" aria-labelledby="page-title">
-      <div className="eyebrow">VOTRE ESPACE MY.</div>
-      <h1 id="page-title" tabIndex={-1}>{title}</h1>
-      {intro && <p className="intro">{intro}</p>}{children}
-    </section>
-  </main>
+export function AuthLayout({ title, intro, home = false, children }: PropsWithChildren<{ title: string; intro?: string; home?: boolean }>) {
+  return <div className="public-shell">
+    <header className="site-header">
+      <Link className="brand" to="/" aria-label="MY. — Accueil"><img src={logo} alt="" /></Link>
+      {home && <Link className="button header-login" to="/login">Connexion</Link>}
+    </header>
+    <main className={`auth-layout${home ? ' home-layout' : ''}`}>
+      <section className="auth-panel" aria-labelledby="page-title">
+        {home && <img className="home-logo" src={logo} alt="MY." />}
+        <h1 id="page-title" tabIndex={-1}>{title}</h1>
+        {intro && <p className="intro">{intro}</p>}{children}
+      </section>
+      <div className="welcome-art" aria-hidden="true" />
+    </main>
+    <footer className="site-footer">Conditions d’utilisation</footer>
+  </div>
 }
 
 export function AuthForm({ busy, error, submit, children }: PropsWithChildren<{

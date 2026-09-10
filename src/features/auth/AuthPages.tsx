@@ -7,8 +7,8 @@ import { AuthForm, AuthLayout, EmailField, PasswordFields, SubmitButton, TotpFie
 import { fieldValue, passwordsMatch, useAuthTask } from './auth-ui'
 
 export function HomePage() {
-  return <AuthLayout title="Vos cartes. Votre collection." intro="Un espace à vous, pour vos collections de cartes Pokémon.">
-    <div className="home-actions"><Link className="button primary" to="/signup">Créer un compte</Link><Link className="button secondary" to="/login">Se connecter</Link></div>
+  return <AuthLayout home title={'Bienvenue sur MY.\nle gestionnaire de collection\nde cartes à collectionner ultime !'}>
+    <Link className="button home-login" to="/login">Se connecter</Link>
   </AuthLayout>
 }
 
@@ -20,7 +20,7 @@ export function LoginPage() {
       <EmailField /><PasswordFields /><Link className="form-link" to="/forgot-password">Mot de passe oublié ?</Link>
       <SubmitButton busy={task.busy}>Se connecter</SubmitButton>
     </AuthForm>
-    <p className="auth-footer">Pas encore de compte ? <Link to="/signup">Créer un compte</Link></p>
+    <p className="auth-footer">Pas encore de compte ? <Link to="/signup">Inscrivez-vous dès maintenant !</Link></p>
     <p className="auth-footer"><Link to="/auth/confirm-email">Renvoyer l’email de confirmation</Link></p>
   </AuthLayout>
 }
@@ -146,4 +146,3 @@ export function AuthProblemPage({ unconfigured = false }: { unconfigured?: boole
     {task.error && <p role="alert">{task.error}</p>}<Link className="form-link" to="/">Revenir à l’accueil</Link>
   </AuthLayout>
 }
-
