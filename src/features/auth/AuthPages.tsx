@@ -5,6 +5,7 @@ import { authRedirectUrl } from './auth-callback'
 import { useAuth } from './auth-context'
 import { AuthForm, AuthLayout, EmailField, PasswordFields, SubmitButton, TotpField } from './AuthLayout'
 import { fieldValue, passwordsMatch, useAuthTask } from './auth-ui'
+import { SignOutButton } from './SignOutButton'
 
 export function HomePage() {
   return <AuthLayout home title={'Bienvenue sur MY.\nle gestionnaire de collection\nde cartes à collectionner ultime !'}>
@@ -72,13 +73,6 @@ export function ForgotPasswordPage() {
   </AuthLayout>
 }
 
-function ExitAuth() {
-  const { actions } = useAuth()
-  const task = useAuthTask()
-  return <div className="auth-footer"><button className="text-button" disabled={task.busy} onClick={() => task.run(() => actions.signOut())}>Se déconnecter</button>
-    {task.error && <p role="alert">{task.error}</p>}</div>
-}
-
 export function MfaEnrollPage() {
   const { actions, passwordRecovery } = useAuth()
   const [enrollment, setEnrollment] = useState<Awaited<ReturnType<AuthService['enrollTotp']>> | null>(null)
@@ -97,7 +91,7 @@ export function MfaEnrollPage() {
         setEnrollment(null)
       })}><TotpField /><SubmitButton busy={task.busy}>Valider mon Authenticator</SubmitButton></AuthForm>
     </>}
-    <p className="hint">Un seul Authenticator est associé à votre compte. Conservez-en l’accès.</p><ExitAuth />
+    <p className="hint">Un seul Authenticator est associé à votre compte. Conservez-en l’accès.</p><SignOutButton />
   </AuthLayout>
 }
 
@@ -113,7 +107,7 @@ export function MfaChallengePage() {
       const challenge = await actions.challengeTotp(factor.id)
       await actions.verifyTotp(factor.id, challenge.id, fieldValue(data, 'code'))
     })}><TotpField /><SubmitButton busy={task.busy}>Vérifier le code</SubmitButton></AuthForm>
-    <p className="hint">Authenticator perdu ? Contactez l’administrateur pour une récupération manuelle de votre accès.</p><ExitAuth />
+    <p className="hint">Authenticator perdu ? Contactez l’administrateur pour une récupération manuelle de votre accès.</p><SignOutButton />
   </AuthLayout>
 }
 
@@ -124,15 +118,7 @@ export function ResetPasswordPage() {
     <AuthForm {...task} submit={data => {
       if (!passwordsMatch(data)) { task.setError('Les mots de passe ne correspondent pas.'); return }
       task.run(() => actions.updatePassword(fieldValue(data, 'password')))
-    }}><PasswordFields fresh /><SubmitButton busy={task.busy}>Enregistrer le mot de passe</SubmitButton></AuthForm><ExitAuth />
-  </AuthLayout>
-}
-
-export function DashboardPage() {
-  const { profile, passwordChanged } = useAuth()
-  return <AuthLayout title="Authentification réussie." intro="Bienvenue dans votre espace MY.">
-    {passwordChanged && <p className="feedback" role="status">Mot de passe modifié. Vous êtes connecté.</p>}
-    <p className="hint">Votre identifiant MY.</p><p className="public-id">{profile?.public_id}</p><ExitAuth />
+    }}><PasswordFields fresh /><SubmitButton busy={task.busy}>Enregistrer le mot de passe</SubmitButton></AuthForm><SignOutButton />
   </AuthLayout>
 }
 
@@ -142,7 +128,7 @@ export function AuthProblemPage({ unconfigured = false }: { unconfigured?: boole
   return <AuthLayout title={unconfigured ? 'Connexion indisponible.' : 'Impossible de continuer.'} intro={unconfigured
     ? 'Le service de connexion n’est pas encore configuré.'
     : 'Votre session ou votre lien email n’a pas pu être validé. Le lien peut être invalide, expiré ou déjà utilisé.'}>
-    {!unconfigured && <><button className="button secondary" disabled={task.busy} onClick={() => task.run(actions.refresh)}>Réessayer</button><ExitAuth /></>}
+    {!unconfigured && <><button className="button secondary" disabled={task.busy} onClick={() => task.run(actions.refresh)}>Réessayer</button><SignOutButton /></>}
     {task.error && <p role="alert">{task.error}</p>}<Link className="form-link" to="/">Revenir à l’accueil</Link>
   </AuthLayout>
 }

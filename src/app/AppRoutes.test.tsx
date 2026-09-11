@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useEffect } from 'react'
 import { MemoryRouter, useLocation } from 'react-router'
 import { expect, test, vi } from 'vitest'
@@ -14,10 +14,11 @@ function Harness({ store, path }: { store: AuthStore; path: string }) {
   return <AuthContext value={store}><MemoryRouter initialEntries={[path]}><AppRoutes /><Path /></MemoryRouter></AuthContext>
 }
 function Path() { return <span data-testid="path">{useLocation().pathname}</span> }
-function setup(path = '/', mode: 'out' | 'aal1' | 'aal2' | 'enroll' = 'out', callback: EmailCallback = null) {
+function setup(path = '/', mode: 'out' | 'aal1' | 'aal2' | 'enroll' | 'email' = 'out', callback: EmailCallback = null) {
   const mock = mockAuthClient()
   if (mode === 'out') mock.auth.getSession.mockResolvedValue({ data: { session: null }, error: null })
   if (mode === 'aal2') mock.authorize()
+  if (mode === 'email') mock.auth.getUser.mockResolvedValue({ data: { user: { ...confirmedUser, email_confirmed_at: undefined } }, error: null })
   if (mode === 'enroll') {
     mock.auth.getUser.mockResolvedValue({ data: { user: { ...confirmedUser, factors: [] } }, error: null })
     mock.mfa.listFactors.mockResolvedValue({ data: { all: [], totp: [] }, error: null })
@@ -31,13 +32,14 @@ const change = (label: string, value: string) => fireEvent.change(screen.getByLa
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 async function heading(name: string | RegExp) { expect(await screen.findByRole('heading', { name })).toBeVisible() }
 const tokenCallback = (kind: 'signup' | 'recovery'): EmailCallback => ({ kind, tokens: { access_token: 'test', refresh_token: 'test' } })
+const protectedPages = [['/dashboard', 'Dashboard'], ['/profile', 'Profil'], ['/settings', 'Paramètres']] as const
 
 test.each([
   ['/', 'out', /Bienvenue sur MY\./, '/'],
   ['/dashboard', 'out', 'Heureux de vous retrouver.', '/login'],
   ['/dashboard', 'aal1', 'Confirmez que c’est vous.', '/auth/mfa/challenge'],
   ['/login', 'enroll', 'Sécurisez votre compte.', '/auth/mfa/enroll'],
-  ['/signup', 'aal2', 'Authentification réussie.', '/dashboard'],
+  ['/signup', 'aal2', 'Dashboard', '/dashboard'],
   ['/inconnue', 'out', 'Cette page n’existe pas.', '/inconnue'],
   ['/reset-password', 'out', 'Demandez un nouveau lien.', '/reset-password'],
 ] as const)('restauration %s (%s) sans flash privé', async (path, mode, title, finalPath) => {
@@ -45,26 +47,95 @@ test.each([
   expect(screen.queryByText(profile.public_id)).not.toBeInTheDocument()
   await heading(title)
   expect(screen.getByTestId('path')).toHaveTextContent(finalPath)
-  if (finalPath === '/') expect(screen.getByRole('link', { name: 'Connexion', exact: true })).toBeVisible()
-  else expect(screen.queryByRole('link', { name: 'Connexion', exact: true })).not.toBeInTheDocument()
+  if (finalPath === '/') expect(screen.getByRole('link', { name: 'Connexion' })).toBeVisible()
+  else expect(screen.queryByRole('link', { name: 'Connexion' })).not.toBeInTheDocument()
   if (mode !== 'aal2') expect(mock.from).not.toHaveBeenCalled()
+})
+
+test.each(protectedPages)('restaure directement %s en aal2 dans le shell authentifié', async (path, title) => {
+  setup(path, 'aal2')
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+  await heading(title)
+  expect(screen.getByTestId('path')).toHaveTextContent(path)
+  expect(screen.getByRole('link', { name: 'MY. — Dashboard' })).toHaveAttribute('href', '/dashboard')
+  expect(screen.queryByRole('link', { name: 'MY. — Accueil' })).not.toBeInTheDocument()
+  expect(within(screen.getByRole('navigation')).getByRole('link', { name: title })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('heading', { name: title })).toHaveFocus()
+  expect(document.title).toBe(`${title} — MY.`)
+})
+
+test.each(protectedPages.flatMap(([path]) => [
+  [path, 'out', 'Heureux de vous retrouver.', '/login'],
+  [path, 'aal1', 'Confirmez que c’est vous.', '/auth/mfa/challenge'],
+  [path, 'enroll', 'Sécurisez votre compte.', '/auth/mfa/enroll'],
+  [path, 'email', 'Consultez votre boîte email.', '/auth/confirm-email'],
+] as const))('protège %s pour une session %s', async (path, mode, title, target) => {
+  const { mock } = setup(path, mode)
+  await heading(title)
+  expect(screen.getByTestId('path')).toHaveTextContent(target)
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+  expect(mock.from).not.toHaveBeenCalled()
+})
+
+test.each(['/', '/login', '/signup', '/forgot-password', '/auth/confirm-email', '/auth/mfa/enroll', '/auth/mfa/challenge', '/reset-password'])('redirige la route publique/Auth %s vers le Dashboard en aal2', async path => {
+  setup(path, 'aal2')
+  await heading('Dashboard')
+  expect(screen.getByTestId('path')).toHaveTextContent('/dashboard')
+  expect(screen.getByRole('navigation')).toBeVisible()
+})
+
+test('navigue entre les trois pages sans remonter le shell ni recréer l’abonnement Auth', async () => {
+  const { mock } = setup('/dashboard', 'aal2')
+  await heading('Dashboard')
+  const header = screen.getByRole('banner')
+  const navigation = screen.getByRole('navigation')
+  for (const [path, title] of [protectedPages[1], protectedPages[2], protectedPages[0]]) {
+    fireEvent.click(within(navigation).getByRole('link', { name: title }))
+    await heading(title)
+    expect(screen.getByTestId('path')).toHaveTextContent(path)
+    expect(screen.getByRole('banner')).toBe(header)
+    expect(screen.getByRole('navigation')).toBe(navigation)
+    expect(within(navigation).getByRole('link', { name: title })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('heading', { name: title })).toHaveFocus()
+    expect(document.title).toBe(`${title} — MY.`)
+  }
+  expect(mock.auth.onAuthStateChange).toHaveBeenCalledOnce()
+  expect(mock.listenerCount()).toBe(1)
+})
+
+test.each(protectedPages)('interdit %s pendant la récupération même en aal2', async path => {
+  const { mock } = setup(path, 'aal2', tokenCallback('recovery'))
+  await heading('Un nouveau départ.')
+  expect(screen.getByTestId('path')).toHaveTextContent('/reset-password')
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+  expect(mock.from).not.toHaveBeenCalled()
+})
+
+test.each(protectedPages)('retire immédiatement le shell de %s si le refresh revient en aal1', async (path, title) => {
+  const { mock } = setup(path, 'aal2')
+  await heading(title)
+  mock.mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({ data: { currentLevel: 'aal1', nextLevel: 'aal2', currentAuthenticationMethods: [] }, error: null })
+  act(() => mock.emit('TOKEN_REFRESHED', session))
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+  await heading('Confirmez que c’est vous.')
+  expect(screen.getByTestId('path')).toHaveTextContent('/auth/mfa/challenge')
 })
 
 test('accueil puis connexion et inscription partagent la disposition publique', async () => {
   setup()
   await heading(/Bienvenue sur MY\./)
   expect(screen.getByRole('img', { name: 'MY.' })).toBeVisible()
-  expect(screen.getByRole('link', { name: 'Connexion', exact: true })).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Connexion' })).toBeVisible()
   fireEvent.click(screen.getByRole('link', { name: 'Se connecter' }))
   await heading('Heureux de vous retrouver.')
   expect(screen.queryByRole('img', { name: 'MY.' })).not.toBeInTheDocument()
   expect(screen.getByLabelText('Adresse email')).toBeVisible()
-  expect(screen.queryByRole('link', { name: 'Connexion', exact: true })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Connexion' })).not.toBeInTheDocument()
   expect(screen.getByRole('contentinfo')).toHaveTextContent('Conditions d’utilisation')
   fireEvent.click(screen.getByRole('link', { name: 'Inscrivez-vous dès maintenant !' }))
   await heading('Bienvenue chez MY.')
   expect(screen.getByLabelText('Confirmer le mot de passe')).toBeVisible()
-  expect(screen.queryByRole('link', { name: 'Connexion', exact: true })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Connexion' })).not.toBeInTheDocument()
 })
 
 test('signup valide, attente email et renvoi générique', async () => {
@@ -128,7 +199,7 @@ test.each(['enroll', 'aal1', 'aal2'] as const)('login email/password mène à %s
     return Promise.resolve({ data: { session, user: confirmedUser }, error: null })
   })
   press('Se connecter')
-  await heading(mode === 'aal2' ? 'Authentification réussie.' : mode === 'enroll' ? 'Sécurisez votre compte.' : 'Confirmez que c’est vous.')
+  await heading(mode === 'aal2' ? 'Dashboard' : mode === 'enroll' ? 'Sécurisez votre compte.' : 'Confirmez que c’est vous.')
 })
 test.each(['enroll', 'aal1'] as const)('TOTP %s : erreur, nouvel essai puis aal2 uniquement', async mode => {
   const { mock, store } = setup('/dashboard', mode)
@@ -150,7 +221,7 @@ test.each(['enroll', 'aal1'] as const)('TOTP %s : erreur, nouvel essai puis aal2
     return Promise.resolve({ data: session, error: null })
   })
   change('Code à 6 chiffres', '123456'); press(mode === 'enroll' ? 'Valider mon Authenticator' : 'Vérifier le code')
-  await heading('Authentification réussie.')
+  await heading('Dashboard')
   expect(mock.mfa.challenge).toHaveBeenCalledTimes(2)
   expect(screen.queryByText('test-secret')).not.toBeInTheDocument()
 })
@@ -171,28 +242,31 @@ test.each(['enroll', 'aal1'] as const)('recovery %s impose MFA avant reset et co
   await heading('Un nouveau départ.')
   expect(mock.from).not.toHaveBeenCalled()
   change('Nouveau mot de passe', 'new-password'); change('Confirmer le mot de passe', 'new-password'); press('Enregistrer le mot de passe')
-  await heading('Authentification réussie.')
+  await heading('Dashboard')
   expect(screen.getByRole('status')).toHaveTextContent('Vous êtes connecté')
   expect(mock.auth.signOut).not.toHaveBeenCalled()
   expect(mock.auth.updateUser).toHaveBeenCalledOnce()
 })
-test('logout purge immédiatement le profil et le cache avant retour public', async () => {
-  const { mock, clearData } = setup('/dashboard', 'aal2')
-  await heading('Authentification réussie.')
-  expect(screen.getByText(profile.public_id)).toBeVisible()
+test.each(protectedPages)('logout depuis %s purge immédiatement le shell, le profil et le cache avant retour public', async (path, title) => {
+  const { mock, clearData } = setup(path, 'aal2')
+  await heading(title)
+  expect(screen.getByRole('navigation')).toBeVisible()
+  if (path === '/dashboard') expect(screen.getByText(profile.public_id)).toBeVisible()
   clearData.mockClear(); press('Se déconnecter')
   expect(screen.queryByText(profile.public_id)).not.toBeInTheDocument()
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
   await heading('Heureux de vous retrouver.')
   expect(clearData).toHaveBeenCalled()
   expect(mock.auth.signOut).toHaveBeenCalledOnce()
 })
-test('une restauration lente ne rend jamais de contenu privé', async () => {
+test.each(protectedPages)('une restauration lente sur %s ne rend jamais de contenu privé', async path => {
   const mock = mockAuthClient()
   let finish!: (result: { data: { session: typeof session }; error: null }) => void
   mock.auth.getSession.mockReturnValue(new Promise(resolve => { finish = resolve }))
   const store = createAuthStore(() => createAuthService(mock.client), vi.fn())
-  render(<Harness store={store} path="/dashboard" />)
+  render(<Harness store={store} path={path} />)
   expect(screen.getByRole('status')).toHaveTextContent('Chargement')
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
   expect(mock.from).not.toHaveBeenCalled()
   act(() => finish({ data: { session }, error: null }))
   await waitFor(() => expect(store.getSnapshot().status).toBe('mfa_challenge_required'))

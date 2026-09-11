@@ -9,7 +9,11 @@ a:hover { color: #ff969b; }
 button, a, input, summary { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 3px solid #ff969b; outline-offset: 5px; }
 h1:focus { outline: none; }
-.public-shell { display: flex; flex-direction: column; min-height: 100dvh; }
+.public-shell, .authenticated-shell { display: flex; flex-direction: column; min-height: 100dvh; }
+.authenticated-content { width: min(100% - 48px, 1264px); margin: 0 auto; padding: 40px 0; flex: 1; }
+.authenticated-nav { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-bottom: 40px; }
+.authenticated-nav a[aria-current="page"] { font-weight: 600; text-decoration-thickness: 2px; }
+.authenticated-actions { max-width: 320px; }
 .site-header { display: flex; align-items: flex-start; justify-content: space-between; min-height: 96px; padding: 28px 21px 14px; }
 .brand { display: inline-flex; }
 .brand img { display: block; width: 60px; height: auto; filter: brightness(0) invert(1); }
