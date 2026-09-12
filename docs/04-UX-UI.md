@@ -542,14 +542,43 @@ Elle reste strictement en lecture seule. L'interface doit :
 
 ## Profil utilisateur
 
-Le profil reste léger. Il permet notamment de :
+La route `/profile` devient l'unique page **Profil / gestion du compte** de la V1. Elle reste légère, sobre, moderne et cohérente avec la direction visuelle de MY. Elle n'ajoute aucun pseudo, nom d'affichage, avatar, bio, information publique supplémentaire ou fonction sociale avancée.
 
-- consulter les informations essentielles du compte ;
-- consulter l'identifiant public de partage ;
-- copier facilement cet identifiant ;
-- rejoindre la page Paramètres, distincte du Profil.
+Profil et Paramètres restent deux destinations distinctes du menu `Mon compte`. **Aucun lien ni raccourci vers Paramètres ne figure dans la page Profil.**
 
-Le rôle de l'identifiant doit être compréhensible. MY. le génère au format `MY-XXXXX-XXXXX-XXXXX-XXXXX` ; il est consultable et copiable, sans choix ni modification par l'utilisateur. Les fonctionnalités sociales avancées ne font pas partie de la V1.
+La page peut regrouper visuellement identité MY., sécurité du compte et suppression en bas de page. Ces ensembles fonctionnels ne figent ni les titres visibles, ni une mise en page pixel-perfect.
+
+### Identité MY.
+
+La page affiche l'email actuel, l'identifiant public MY. et la date de création du compte, par exemple `Membre depuis le 9 septembre 2026`. Cette date provient du compte Supabase Auth, selon le [modèle](03-DATA-MODEL.md#utilisateur-et-profil-my), sans duplication dans le profil.
+
+L'identifiant, généré automatiquement, unique et immuable au format `MY-XXXXX-XXXXX-XXXXX-XXXXX`, apparaît dans un **champ en lecture seule**, avec **à droite un bouton de copie représentant deux feuilles/pages superposées**. Le rôle de cet identifiant de partage reste compréhensible. Le bouton copie directement sa valeur complète dans le presse-papiers.
+
+Le champ possède un libellé et reste sélectionnable ; le bouton est accessible au clavier, avec un focus visible et un nom accessible tel que `Copier l'identifiant MY.`. Un retour léger, par exemple `Copié !`, confirme uniquement une copie réussie et est annoncé aux technologies d'assistance sans déplacer le focus. Si la copie échoue, l'interface le signale et laisse possible la sélection/copie manuelle. L'icône seule et la couleur ne portent pas toute l'information.
+
+### Sécurité du compte
+
+Les actions de changement d'email et de mot de passe partent directement de Profil. Chacune commence par une **nouvelle vérification du mot de passe actuel puis du TOTP Authenticator actuel**, même lorsque la session est déjà autorisée en `aal2`. Une courte explication donne le sens de cette vérification pour l'action sensible. Aucun formulaire de nouvelle valeur n'est autorisé avant sa réussite.
+
+- **Email** : après vérification des deux facteurs, saisie de la nouvelle adresse, puis confirmations gérées par Supabase Auth. L'interface indique l'attente et les boîtes email à consulter selon le mécanisme sécurisé applicable ; elle ne présente pas la nouvelle adresse comme courante avant finalisation par Auth.
+- **Mot de passe** : après vérification des deux facteurs, saisie du nouveau mot de passe puis retour de succès après la modification effective. L'utilisateur connecté n'a pas à passer par `Mot de passe oublié` ; ce parcours de récupération existant conserve son comportement pour les personnes ayant oublié leur mot de passe.
+- **Authenticator** : afficher simplement le statut, par exemple `Authenticator configuré`. Un bouton tel que `Modifier` peut ouvrir uniquement une modale ou un message expliquant qu'il faut contacter MY. pour modifier/remplacer l'Authenticator. Aucun remplacement automatique, désactivation de la MFA obligatoire ou suppression de facteur n'est proposé depuis Profil.
+
+Le moyen de contact final reste ouvert. Aucun formulaire support, adresse email support définitive, ticket ou procédure automatisée n'est ajouté. La récupération en cas de perte d'Authenticator reste administrative et manuelle.
+
+### Suppression du compte
+
+Tout en bas de Profil, un lien ou une action sobre telle que `Supprimer mon compte` permet la suppression définitive. Une couleur d'alerte peut être utilisée avec un libellé explicite. **Aucun gros bloc ni libellé utilisateur `Zone dangereuse` n'est affiché** ; ce terme peut uniquement rester interne si utile.
+
+Le parcours comporte au minimum, dans cet ordre :
+
+1. une confirmation explicite expliquant le caractère définitif et les conséquences : compte, profil, préférences, collections possédées et leurs éléments/partages, accès reçus et exemplaires physiques supprimés ; les destinataires perdent l'accès aux collections disparues ;
+2. la ré-authentification complète par mot de passe actuel puis nouveau challenge TOTP actuel ;
+3. une validation finale explicite avant destruction.
+
+La confirmation distingue les données supprimées du catalogue global et des données d'autrui préservés. Une simple session ouverte ne suffit jamais. Le parcours permet l'annulation avant la validation finale et ne présente la suppression comme réussie qu'après son achèvement effectif.
+
+Les formulaires, messages et éventuelles modales conservent des labels explicites, des erreurs accessibles et une gestion cohérente du focus au clavier et avec les technologies d'assistance. Les textes définitifs des modales, le choix exact modale/message, les intitulés de groupes et les détails visuels restent ouverts ; les étapes et garanties fonctionnelles sont fixées.
 
 ## Paramètres et préférences de vues
 
@@ -594,7 +623,7 @@ Le feedback ne doit pas interrompre inutilement le parcours.
 
 ## Confirmations et actions destructrices
 
-Les confirmations sont réservées aux actions réellement sensibles, notamment la suppression d'une collection, le retrait d'un partage et les autres opérations destructrices importantes.
+Les confirmations sont réservées aux actions réellement sensibles, notamment la suppression d'une collection, le retrait d'un partage et la suppression du compte. Cette dernière suit le parcours renforcé défini dans [Profil](#suppression-du-compte), avec confirmation des conséquences, ré-authentification complète et validation finale.
 
 Les actions courantes ne doivent pas être ralenties par des confirmations inutiles. Les actions destructrices doivent être visuellement distinctes des actions normales et placées de manière à éviter les déclenchements accidentels.
 
@@ -639,6 +668,8 @@ Ce document ne constitue pas un audit WCAG complet.
 Les sujets suivants seront définis lors du design détaillé ou de l'implémentation :
 
 - les wireframes et maquettes pixel-perfect ;
+- les textes définitifs des modales du Profil, ses intitulés de groupes et ses détails visuels, dans le respect des parcours validés ;
+- le moyen de contact final pour demander un remplacement d'Authenticator et la forme exacte de son message d'information ;
 - les dimensions, espacements, tailles typographiques et rayons exacts ;
 - le design précis des boutons, formulaires et tuiles du dashboard ;
 - la représentation graphique exacte de la progression ;

@@ -38,7 +38,7 @@ Le premier facteur V1 est exclusivement **email + mot de passe**, avec **confirm
 
 La **MFA TOTP par application Authenticator est obligatoire pour tous**. Après le premier facteur, un compte sans TOTP vérifié doit en enrôler un ; un compte déjà équipé doit répondre au challenge. L'accès à MY. requiert un email confirmé et une session `aal2`, sous contrôle frontend et RLS. SMS, passkeys et recovery codes ne font pas partie de la V1.
 
-Le clic de confirmation valide l'email, puis MY. termine l'éventuelle session technique créée par le lien. L'utilisateur voit « Adresse email confirmée » et doit se connecter par email/mot de passe avant la MFA. Ce lien n'est jamais une méthode de connexion finale.
+Le clic de confirmation après inscription valide l'email, puis MY. termine l'éventuelle session technique créée par le lien. L'utilisateur voit « Adresse email confirmée » et doit se connecter par email/mot de passe avant la MFA. Ce lien n'est jamais une méthode de connexion finale. Le changement d'adresse depuis Profil suit le parcours distinct décrit ci-dessous.
 
 La récupération/réinitialisation du mot de passe impose la MFA **avant** toute saisie du nouveau mot de passe : le lien email ouvre une session technique, puis un challenge TOTP si un facteur vérifié existe, sinon enrollment et vérification. Une fois `aal2` atteint, l'utilisateur peut changer son mot de passe. Après succès, la session actuelle est conservée et l'accès MY. devient disponible ; aucune déconnexion ni nouvelle saisie immédiate du mot de passe n'est imposée. La demande d'email affiche une réponse générique sans confirmer l'existence du compte.
 
@@ -362,13 +362,57 @@ La suppression retire également l'accès à tous les utilisateurs avec lesquels
 
 ## Profil utilisateur
 
-Le profil utilisateur de la V1 reste léger. Il permet de gérer au minimum :
+La route `/profile` devient la page **Profil / gestion du compte** de la V1. Elle reste légère et privée : aucun pseudo, nom d'affichage, avatar, bio, information publique supplémentaire ou fonctionnalité sociale avancée n'est ajouté.
 
-- les informations essentielles du compte ;
-- l'identifiant public utilisé pour le partage ;
-- l'accès aux Paramètres, qui constituent une page distincte.
+Profil et Paramètres sont deux destinations distinctes du menu `Mon compte`. La page Profil ne contient aucun lien ni raccourci vers Paramètres.
 
-La gestion détaillée du profil et les fonctionnalités sociales avancées ne font pas partie de ce document.
+### Informations du compte
+
+La page présente au minimum :
+
+- l'adresse email actuelle du compte ;
+- l'identifiant public MY., généré automatiquement, unique, immuable et copiable ;
+- la date de création du compte, par exemple « Membre depuis le 9 septembre 2026 ».
+
+L'identifiant conserve le format `MY-XXXXX-XXXXX-XXXXX-XXXXX` et n'est jamais modifiable. L'email et la date de création du compte proviennent d'Auth, sans nouvelle donnée dupliquée dans le profil ; leurs sources sont précisées dans le [modèle de données](03-DATA-MODEL.md#utilisateur-et-profil-my). L'affichage en lecture seule et la copie accessible sont définis dans l'[UX](04-UX-UI.md#profil-utilisateur).
+
+### Ré-authentification des actions sensibles
+
+Pour **chaque changement d'email, changement volontaire de mot de passe ou suppression du compte**, MY. exige une ré-authentification fraîche et complète : vérification du **mot de passe actuel**, puis d'un **nouveau challenge TOTP avec l'Authenticator actuel**. Elle protège notamment une session restée ouverte sur un appareil accessible à quelqu'un d'autre.
+
+Une session déjà `aal2` permet l'accès normal à MY., mais ne suffit jamais à autoriser ces actions. La nouvelle vérification des deux facteurs est requise pour l'opération demandée ; un échec ne l'autorise pas. La méthode technique finale reste ouverte dans l'[architecture](05-ARCHITECTURE.md#ré-authentification-fraîche-des-actions-sensibles), sans mécanisme de mots de passe ou de TOTP maison.
+
+### Modification de l'adresse email
+
+L'utilisateur peut modifier son adresse directement depuis Profil. Après la ré-authentification complète, il saisit la nouvelle adresse ; Supabase Auth gère la demande et ses confirmations sécurisées. Le changement n'est final qu'après les confirmations requises, dont celle de la nouvelle adresse. L'interface distingue la demande en attente de l'adresse réellement devenue courante.
+
+L'email reste exclusivement une donnée Auth : aucun champ email n'est créé dans `profiles`. Les capacités et réglages Supabase, notamment la confirmation sur l'ancienne et la nouvelle adresse, sont documentés dans l'[architecture](05-ARCHITECTURE.md#changement-demail-et-de-mot-de-passe).
+
+### Modification volontaire du mot de passe
+
+Un utilisateur connecté peut changer son mot de passe depuis Profil, après une nouvelle vérification du mot de passe actuel et du TOTP actuel, puis saisie du nouveau mot de passe. Supabase Auth effectue la modification.
+
+Ce parcours est distinct de `Mot de passe oublié`. La récupération par email déjà livrée reste inchangée pour une personne ayant réellement oublié son mot de passe ; elle conserve ses propres règles de MFA avant réinitialisation, sans exiger le mot de passe oublié.
+
+### Authenticator
+
+La MFA TOTP reste obligatoire pour tous. Profil affiche son statut, par exemple `Authenticator configuré`. Une action telle que `Modifier` peut ouvrir uniquement une modale ou un message demandant de contacter MY. pour modifier/remplacer l'Authenticator.
+
+La V1 ne propose aucun remplacement automatique du facteur depuis Profil. Le moyen de contact final reste à choisir : aucun formulaire support, adresse support définitive, ticket ou procédure automatisée supplémentaire n'est défini. La récupération en cas de perte d'Authenticator reste la procédure administrative manuelle existante.
+
+### Suppression définitive du compte
+
+La V1 permet à l'utilisateur de supprimer définitivement son compte MY. Le parcours exige au minimum :
+
+1. une confirmation explicite présentant les conséquences de la suppression ;
+2. une ré-authentification complète par mot de passe actuel puis TOTP actuel ;
+3. une validation finale explicite avant toute destruction.
+
+La suppression efface le profil MY., les préférences, les collections possédées et leurs éléments/partages, les relations donnant à cet utilisateur des accès reçus, ses exemplaires physiques avec leurs notes et informations de grading, puis le compte Supabase Auth. Ses collections partagées deviennent inaccessibles aux destinataires puisqu'elles disparaissent. Retirer ses accès reçus ne supprime pas les collections des autres propriétaires ni leurs autres partages.
+
+Le catalogue global — Pokémon, séries, Extensions, Cartes, Variantes et données de référence associées — et les données appartenant aux autres utilisateurs sont préservés. Le [modèle](03-DATA-MODEL.md#suppression-dun-compte), l'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) et la [base de données](06-DATABASE.md#suppression-dun-compte) précisent ce périmètre et les contraintes techniques à traiter avant implémentation.
+
+L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuelles exigences légales ou rétentions particulières nécessitent un cadrage spécifique ; aucune durée ni exception de conservation n'est décidée ici.
 
 ## Paramètres et préférences d'affichage
 
@@ -404,6 +448,7 @@ Les fonctionnalités avancées ne doivent pas rendre ces actions inutilement com
 Une confirmation explicite est requise pour les opérations sensibles ou destructrices, notamment :
 
 - la suppression d'une collection ;
+- la suppression définitive du compte, avec les deux confirmations et la ré-authentification complète décrites dans Profil ;
 - le retrait d'un partage lorsqu'il risque d'interrompre un accès en cours ;
 - les futures opérations destructrices.
 
@@ -446,7 +491,10 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - la liste définitive des champs utilisés par la recherche ;
 - le comportement exact de la recherche dans la vue classeur ;
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
-- la gestion détaillée du profil ;
+- le moyen de contact final pour modifier/remplacer l'Authenticator ;
+- les textes UX définitifs des modales et le design détaillé du Profil, dont le périmètre fonctionnel est cadré ;
+- la méthode technique finale de ré-authentification fraîche et le workflow SQL/RPC exact de suppression du compte ;
+- les éventuelles exigences légales ou rétentions particulières liées à la suppression, à cadrer spécifiquement ;
 - le design détaillé du dashboard et des vues ;
 - le responsive et l'accessibilité ;
 - les détails d'implémentation non figés par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;

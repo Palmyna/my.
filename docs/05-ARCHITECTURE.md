@@ -85,7 +85,7 @@ La navigation applicative est gérée côté client avec React Router. Les route
 
 `AuthenticatedHeader` conserve le logo blanc vers `/dashboard` et lui associe le nom de la page à la même hauteur visuelle, avec un écart de 8 px. Le grand champ de recherche, centré dans l'espace disponible, reste uniquement visuel (sans requête, suggestion ni moteur). Le bouton « Mon compte » porte l'initiale de l'email ; son menu accessible propose Profil, Paramètres et Déconnexion via l'action Auth existante. Il se ferme au clic extérieur, avec Escape, en quittant le menu au clavier ou lors d'une navigation. Les micro-animations respectent la préférence de réduction des mouvements. Sur tablette et mobile, la recherche passe sur une seconde ligne ; le logo et le texte diminuent ensemble et le bouton se compacte sur mobile. Les boutons reprennent le dégradé rouge du logo, sans bordure, et les inputs utilisent un halo de focus. La navigation et la déconnexion temporaires ont été retirées du contenu du shell.
 
-Les trois pages partagent une largeur de lecture maximale de 720 px dans le contenu du shell, des espacements adaptés à l'écran et un `h1` accessible, focalisé lors de la navigation. Dashboard conserve le message éventuel après changement de mot de passe et l'identifiant public MY. ; Profil et Paramètres restent des placeholders sans édition ni réglage métier. Le footer reste commun. Les validations de clôture sont consignées dans le [rapport Phase 3C](reports/2026-09-12-PHASE3C-SHELL.md).
+Les trois pages partagent une largeur de lecture maximale de 720 px dans le contenu du shell, des espacements adaptés à l'écran et un `h1` accessible, focalisé lors de la navigation. Dashboard conserve le message éventuel après changement de mot de passe et l'identifiant public MY. ; dans l'implémentation livrée en Phase 3C, Profil et Paramètres restent des placeholders sans édition ni réglage métier. Le footer reste commun. Les validations de clôture sont consignées dans le [rapport Phase 3C](reports/2026-09-12-PHASE3C-SHELL.md). La Phase 4 cadre désormais la cible Profil/gestion du compte décrite ci-dessous ; son implémentation n'a pas commencé. Profil et Paramètres restent accessibles séparément par `Mon compte`, sans raccourci vers Paramètres dans Profil.
 
 Pour les futures pages métier, le routeur et l'état de navigation devront conserver autant que possible page, vue, filtres et scroll lors du retour d'une fiche Carte. Précédente/Suivante réutilisera l'ordre réel du contexte d'origine ; aucune séquence ne sera fabriquée pour une arrivée globale sans liste. Le détail Variante sera un composant contextuel commun aux pages Carte et aux collections, avec actions et données adaptées aux droits du contexte.
 
@@ -263,6 +263,46 @@ commit;
 
 ## Sécurité et contrôle d'accès
 
+### Profil et gestion du compte — cible Phase 4
+
+Le périmètre fonctionnel et UX de `/profile` est cadré dans [01-FEATURES.md](01-FEATURES.md#profil-utilisateur) et [04-UX-UI.md](04-UX-UI.md#profil-utilisateur). Cette cible n'est pas encore implémentée ; le contrat Auth des Phases 3A/3B ci-dessus décrit toujours le code existant.
+
+L'email courant et la date de création du compte se lisent sur l'utilisateur renvoyé par Supabase Auth : `user.email` et `user.created_at`, ce dernier correspondant à `auth.users.created_at`, selon la [référence de l'utilisateur Auth](https://supabase.com/docs/guides/auth/users#the-user-object). `profiles.public_id` fournit l'identifiant MY. ; `profiles.created_at` reste la date technique de la ligne applicative, notamment lors d'un backfill. Aucune duplication d'email ou de date d'inscription, aucun accès direct du navigateur à `auth.users` et aucun champ social ne sont nécessaires.
+
+Le statut Authenticator provient du facteur TOTP vérifié géré par Auth. L'éventuelle action `Modifier` de Profil affiche seulement l'information de contact MY. ; elle n'appelle aucune API de remplacement ou de suppression de facteur. Le contact définitif reste ouvert et la procédure administrative existante est conservée.
+
+### Ré-authentification fraîche des actions sensibles
+
+L'accès normal à MY. exige email confirmé, facteur TOTP vérifié et `aal2`. **Modifier l'email, modifier volontairement le mot de passe ou supprimer le compte exige en plus une nouvelle vérification du mot de passe actuel puis d'un challenge TOTP actuel pour chaque opération.** Une session `aal2` restaurée ou renouvelée ne constitue pas cette preuve fraîche.
+
+Supabase fournit le premier facteur par `signInWithPassword` et la vérification TOTP par `mfa.challenge`/`mfa.verify`, ou [leur combinaison `challengeAndVerify`](https://supabase.com/docs/reference/javascript/auth-mfa-challengeandverify). Ces capacités ne fixent pas ici l'orchestration finale : celle-ci devra lier les vérifications réussies au même compte et à l'action demandée, gérer les échecs et transitions de session sans ouvrir prématurément les données MY., et ne conserver ni mot de passe ni code TOTP dans un stockage persistant, un cache de données ou un log.
+
+**Limite native à prendre en compte :** [`reauthenticate()`](https://supabase.com/docs/reference/javascript/auth-reauthenticate) envoie un OTP/nonce par email ou téléphone ; ce n'est pas une vérification mot de passe + TOTP. Le réglage `Secure password change` peut dispenser de nonce une session créée depuis moins de 24 heures. La [sécurité des mots de passe Supabase](https://supabase.com/docs/guides/auth/password-security) documente aussi `current_password` lorsque l'exigence serveur correspondante est activée ; ce champ est présent dans le client installé, mais ne vérifie pas à lui seul un nouveau TOTP. Aucun de ces mécanismes ne doit être présenté comme satisfaisant automatiquement la contrainte MY.
+
+La méthode finale, la preuve de fraîcheur et sa validation côté Auth/serveur restent à préciser avant implémentation. Un simple booléen React ou le claim `aal2` ne suffit pas. La RLS des tables applicatives ne contrôle pas les endpoints natifs Auth de changement d'email/mot de passe ; ajouter un endpoint MY. protégé ne ferme pas à lui seul ces autres accès. La faisabilité du contrôle requis doit donc être vérifiée sur les API réellement accessibles et la version Auth utilisée, y compris par appel direct avec une session déjà ouverte. Aucune protection serveur supplémentaire n'est réputée livrée par ce cadrage.
+
+### Changement d'email et de mot de passe
+
+Après la ré-authentification complète, Supabase Auth reste responsable de la mutation via [`updateUser`](https://supabase.com/docs/reference/javascript/auth-updateuser), sans mise à jour SQL directe de ses données internes ni email applicatif dans `profiles`.
+
+Pour l'email, le client Supabase documente le mécanisme `Secure email change` : confirmation sur l'ancienne **et** la nouvelle adresse lorsqu'il est activé. Le [fichier local versionné](../supabase/config.toml) contient déjà `auth.email.double_confirm_changes = true` ; ce comportement est conservé. Une demande acceptée n'est pas un changement final : MY. attend les confirmations exigées par Auth et relit l'utilisateur avant de présenter la nouvelle adresse comme courante. Les retours de changement d'email devront être traités explicitement ; le callback de confirmation d'inscription existant ne constitue pas automatiquement leur parcours. Les routes de retour exactes restent à définir.
+
+Pour le mot de passe, la saisie de la nouvelle valeur suit la vérification complète et la mutation respecte la politique Auth effective. Le local contient actuellement `secure_password_change = false` ; aucun réglage n'est modifié par cette tâche. La disponibilité et la configuration effective des options de protection devront être vérifiées lors de l'implémentation, puis en production à son étape prévue ; les réglages cloud non attestés ne sont pas déduits du local.
+
+Le changement volontaire depuis Profil est distinct du recovery livré : la récupération par email, sa MFA avant nouveau mot de passe et le maintien de session après succès restent inchangés. Toute option globale envisagée devra être vérifiée contre ce parcours, qui ne peut pas exiger un mot de passe oublié.
+
+### Suppression du compte — contraintes d'orchestration
+
+La suppression définitive exige confirmation des conséquences, ré-authentification fraîche mot de passe + TOTP, puis validation finale explicite. Elle doit être exécutée par une opération contrôlée côté base/backend, ciblant uniquement l'identité authentifiée et vérifiée ; React n'orchestre pas une suite de suppressions privilégiées.
+
+Le [périmètre relationnel et les FK existantes](06-DATABASE.md#suppression-dun-compte) imposent de traiter les données dépendantes. `profiles.id → auth.users.id` est en `ON DELETE RESTRICT` : un simple effacement Auth ne supprime pas automatiquement le compte MY. complet. La suppression doit couvrir collections possédées et leurs éléments/partages, accès reçus, exemplaires, préférences, profil et compte Auth, tout en préservant catalogue et données d'autrui.
+
+L'API administrative [`auth.admin.deleteUser`](https://supabase.com/docs/reference/javascript/auth-admin-deleteuser) requiert un environnement serveur de confiance et une clé privilégiée, jamais React ou `VITE_*`. Sa suppression physique correspond au besoin ; son mode de suppression douce ne doit pas être assimilé à un effacement intégral. Son articulation avec les opérations SQL reste à choisir, sans supposer qu'un appel HTTP Auth et une transaction SQL séparée sont atomiques.
+
+Avant implémentation, le workflow détaillé devra couvrir l'ordre des dépendances, la concurrence, les échecs partiels et la reprise, ainsi que la fin des sessions et la purge des données privées côté client. Aucun succès complet ne doit être annoncé tant que les données applicatives visées et le compte Auth ne sont pas effectivement supprimés. Le choix SQL/RPC/serveur exact reste ouvert ; aucune nouvelle fonction, policy ou migration n'est définie par ce seul cadrage.
+
+La [documentation Supabase sur la suppression](https://supabase.com/docs/guides/auth/managing-user-data#deleting-users) précise que les JWT déjà émis peuvent rester valides jusqu'à expiration, même après suppression de l'utilisateur. Le workflow doit intégrer cette limite et vérifier les garanties de retrait d'accès ; la RLS actuelle ne contrôle pas l'existence de `session_id`. Supabase signale aussi qu'un propriétaire d'objets Storage ne peut pas être supprimé tant que ces objets subsistent ; aucun stockage utilisateur de ce type n'est prévu actuellement dans MY. Les éventuelles exigences légales/rétentions particulières restent à cadrer séparément, sans durée ou exception inventée.
+
 ### Row Level Security
 
 La Row Level Security PostgreSQL constitue la fondation de la sécurité des données utilisateur. Les règles doivent conceptuellement garantir que :
@@ -310,11 +350,13 @@ Les opérations simples et autorisées pourront être réalisées directement de
 
 - consulter ses collections ou une collection partagée ;
 - gérer ses exemplaires ;
-- modifier une note ou son profil ;
+- modifier une note et consulter son profil ;
 - consulter le catalogue ;
 - effectuer une recherche.
 
 Ces accès restent protégés par Auth, la RLS et les contraintes de la base.
+
+Aucun champ de `profiles` n'est éditable par l'utilisateur dans la V1 cadrée. Les changements d'email/mot de passe relèvent d'Auth et de la ré-authentification fraîche décrite ci-dessus ; la suppression du compte relève d'une orchestration contrôlée.
 
 ### Opérations autoritatives
 
@@ -611,6 +653,10 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 
 - les extensions futures du socle SQL, des index et des policies RLS de Phase 1 ;
 - le code final des fonctions RPC métier ;
+- la méthode finale de ré-authentification fraîche mot de passe + TOTP et la preuve côté Auth/serveur pour chaque action sensible ;
+- le traitement et les routes exactes des confirmations de changement d'email, selon les capacités et réglages Auth effectifs ;
+- le workflow SQL/RPC/serveur exact de suppression du compte, sa reprise sur erreur et le traitement des sessions/JWT résiduels ;
+- le moyen de contact final pour le remplacement d'Authenticator et les éventuelles exigences légales/rétentions particulières ;
 - la bibliothèque d'interface éventuelle ;
 - le découpage détaillé des futures fonctionnalités dans la structure initialisée ;
 - le staging éventuel et la stratégie de production au-delà du développement Supabase local ;

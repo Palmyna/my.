@@ -170,11 +170,22 @@ Cette conservation protège les collections et exemplaires existants. Le pipelin
 
 L'authentification fournit l'identité technique du compte. Le modèle applicatif associe à cette identité un profil MY. contenant les informations fonctionnelles propres au produit.
 
-Chaque profil doit pouvoir contenir notamment :
+Le profil conserve l'identité applicative nécessaire à la V1 :
 
 - l'identité interne de l'utilisateur ;
 - son identifiant public unique de partage ;
-- les informations de profil nécessaires à la V1.
+- ses timestamps techniques.
+
+La page Profil rassemble des données de deux sources, sans les fusionner dans `profiles` :
+
+| Information présentée | Source de vérité |
+|---|---|
+| Email actuel | Utilisateur Supabase Auth (`user.email`) |
+| Identifiant public MY. | Profil MY. (`profiles.public_id`) |
+| Date de création du compte | Supabase Auth (`auth.users.created_at`, exposé comme `user.created_at`) |
+| Statut Authenticator | Facteur TOTP vérifié géré par Supabase Auth |
+
+La date « Membre depuis… » utilise la création du **compte Auth**, et non `profiles.created_at`, qui date la création de la ligne applicative et peut être postérieur en cas de backfill. Aucun champ de date d'inscription supplémentaire ni champ email n'est ajouté dans `profiles`. Aucun pseudo, nom d'affichage, avatar, bio ou autre information publique n'est prévu.
 
 Les préférences de vues appartiennent à une entité dédiée liée au profil, décrite ci-dessous ; elles ne transforment pas le profil en stockage générique de paramètres.
 
@@ -429,9 +440,21 @@ Les exemplaires existent indépendamment des collections.
 
 ### Suppression d'un compte
 
-Le comportement exact de suppression d'un compte sera défini avec l'authentification et les exigences légales.
+La Phase 4 fixe la suppression **définitive** du compte Auth et de ses données applicatives, après les confirmations et la ré-authentification fraîche mot de passe + TOTP définies dans les [fonctionnalités](01-FEATURES.md#suppression-définitive-du-compte).
 
-Les données personnelles exclusivement rattachées à l'utilisateur comprennent notamment son profil, ses préférences, ses collections, ses exemplaires, ses notes et ses partages. Le catalogue global ne dépend pas de la présence d'un utilisateur particulier.
+Le périmètre comprend :
+
+- le profil MY. et ses préférences ;
+- toutes les collections possédées, avec leurs éléments et partages ;
+- les relations de partage dont l'utilisateur est destinataire, qui lui donnaient accès aux collections d'autres propriétaires ;
+- tous ses exemplaires physiques, y compris hors collection, avec leurs notes et informations propres ;
+- l'identité Supabase Auth.
+
+Les destinataires perdent l'accès aux collections supprimées. Les collections reçues appartiennent à autrui : seule la relation avec le compte supprimé disparaît, jamais ces collections, leurs éléments, leurs exemplaires ou les autres partages. La suppression des exemplaires du compte est propre à cette opération ; supprimer une collection seule continue à les conserver.
+
+Le catalogue global, ses Pokémon, séries, Extensions, Cartes, Variantes et références associées sont préservés, ainsi que toutes les données des autres utilisateurs hors des relations de partage devenues sans objet. Aucune suppression ne remonte des données personnelles vers le catalogue.
+
+Les dépendances physiques et les contraintes d'orchestration sont définies dans [06-DATABASE.md](06-DATABASE.md#suppression-dun-compte) et [05-ARCHITECTURE.md](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration). Le workflow SQL/RPC exact et les éventuelles exigences légales/rétentions particulières restent ouverts ; le périmètre fonctionnel de suppression est validé.
 
 ## Données dérivées
 
@@ -547,7 +570,7 @@ Dans la V1, aucune donnée d'abonnement, de facturation, de paiement, de quota o
 Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, dans les limites du [schéma PostgreSQL / Supabase](06-DATABASE.md) :
 
 - les futures fonctions métier, vues et extensions du socle SQL de Phase 1 ;
-- la suppression complète d'un compte ;
+- le workflow technique exact de suppression du compte et les éventuelles exigences légales/rétentions particulières, sans remettre en question le périmètre fonctionnel validé ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;

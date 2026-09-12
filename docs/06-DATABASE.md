@@ -34,6 +34,8 @@ La migration [20260909184529_phase3a_auth_identity.sql](../supabase/migrations/2
 
 La V1 utilise email/mot de passe, email confirmé obligatoire et TOTP obligatoire. La configuration Auth et la [procédure de récupération administrative](05-ARCHITECTURE.md#récupération-mfa-administrative) sont définies dans l'architecture. La présence d'un profil n'accorde pas l'accès : toutes les données applicatives nécessitent `aal2`.
 
+La Phase 4 est cadrée fonctionnellement et prête pour implémentation. Les sections Profil et suppression ci-dessous distinguent ses contraintes validées du schéma actuel ; aucun SQL, grant, RPC ou réglage Supabase de Phase 4 n'est encore implémenté.
+
 ## Principes structurants
 
 PostgreSQL via Supabase est la source de vérité persistante de MY. Le modèle sépare strictement :
@@ -362,10 +364,11 @@ La clé primaire de `profiles` est le même UUID que `auth.users.id`. La table c
 
 - `id` ;
 - `public_id` ;
-- les seules informations de profil nécessaires à MY. ;
-- les timestamps pertinents.
+- `created_at` et `updated_at`, timestamps techniques de la ligne applicative.
 
-Elle ne duplique pas le mot de passe, les informations internes Supabase ou les données Auth sans besoin fonctionnel.
+La page Profil lit l'email courant via `user.email` et la date de création du compte via `user.created_at`, exposés par Supabase Auth. La source de cette date est **`auth.users.created_at`** ; `profiles.created_at` date seulement l'insertion du profil et peut différer lors d'un backfill. Il ne faut ni remplacer sa valeur historique, ni ajouter une seconde date d'inscription. Les [sources des informations du Profil](03-DATA-MODEL.md#utilisateur-et-profil-my) distinguent les données Auth de `profiles.public_id`.
+
+Aucun email, mot de passe, secret/statut MFA dupliqué, pseudo, nom d'affichage, avatar ou bio n'est ajouté dans `profiles`. Le client consulte son utilisateur via Auth, sans accès SQL direct à `auth.users`. Les changements d'email et de mot de passe restent gérés par Auth selon les [contraintes de Phase 4](05-ARCHITECTURE.md#changement-demail-et-de-mot-de-passe).
 
 ### Identifiant public MY.
 
@@ -387,7 +390,7 @@ Le helper est dans le schéma non exposé `private`, sans `EXECUTE` pour PUBLIC,
 
 La migration verrouille brièvement les écritures sur `auth.users` pour installer le trigger et backfiller les identités existantes sans profil dans une transaction. Les profils existants, leurs IDs publics et leurs timestamps sont conservés. Le backfill réutilise également le générateur, avec reprise limitée sur la même collision. Aucune préférence n'est créée d'avance.
 
-La FK `profiles.id → auth.users.id` conserve `ON DELETE RESTRICT`, sans définir une cascade ou un parcours de suppression de compte. La suppression administrative d'un facteur MFA ne touche ni le profil ni ses données.
+La FK `profiles.id → auth.users.id` conserve `ON DELETE RESTRICT`. Le socle 3A ne définit aucune cascade Auth/profil ni parcours de suppression du compte ; les contraintes de la future orchestration sont désormais [cadrées ci-dessous](#suppression-dun-compte). La suppression administrative d'un facteur MFA ne touche ni le profil ni ses données.
 
 ## Préférences utilisateur
 
@@ -571,7 +574,31 @@ Elle ne supprime jamais les `physical_copies` de son propriétaire.
 
 Retirer un élément manuel supprime uniquement son `collection_item`. Supprimer un exemplaire supprime uniquement la ligne `physical_copies` concernée.
 
-Le comportement complet de suppression d'un compte reste ouvert et devra être défini avec l'authentification et les obligations applicables.
+### Suppression d'un compte
+
+La Phase 4 valide l'effacement définitif du compte et de toutes les données applicatives qui lui appartiennent. Cette opération exige les confirmations et la nouvelle vérification **mot de passe actuel + TOTP actuel** définies dans les [fonctionnalités](01-FEATURES.md#suppression-définitive-du-compte). Une session `aal2` existante n'est pas suffisante. Aucun droit de suppression directe de `profiles` ou de `user_preferences` n'est ouvert au navigateur par ce cadrage.
+
+Les dépendances suivantes existent dans la [migration de schéma Phase 1](../supabase/migrations/20260906082312_phase1_schema.sql) et la [migration des préférences](../supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) :
+
+| FK actuelle | Règle `ON DELETE` | Conséquence pour le compte supprimé |
+|---|---|---|
+| `profiles.id → auth.users.id` | `RESTRICT` | Le profil doit être traité avant l'effacement Auth avec le schéma actuel |
+| `collections.owner_id → profiles.id` | `RESTRICT` | Les collections possédées doivent être supprimées avant le profil |
+| `physical_copies.user_id → profiles.id` | `RESTRICT` | Tous les exemplaires du compte doivent être supprimés, même hors collection |
+| `collection_shares.recipient_user_id → profiles.id` | `RESTRICT` | Les relations donnant les accès reçus doivent être supprimées avant le profil |
+| `user_preferences.user_id → profiles.id` | `CASCADE` | La suppression du profil supprime ses préférences |
+| `collection_items.collection_id → collections.id` | `CASCADE` | La suppression d'une collection possédée supprime tous ses éléments |
+| `collection_shares.collection_id → collections.id` | `CASCADE` | La suppression d'une collection possédée supprime tous ses partages |
+
+Il faut donc couvrir les deux sens du partage : collections possédées partagées à autrui, et relations dont le compte supprimé est destinataire. Supprimer un accès reçu conserve la collection de l'autre propriétaire, ses éléments, ses exemplaires et ses autres destinataires. Les collections possédées supprimées deviennent inaccessibles à leurs destinataires.
+
+Les notes, conditions et informations de grading disparaissent avec les `physical_copies` du compte. Aucun exemplaire d'autrui n'est visé, même s'il référence la même Variante. La suppression d'une collection seule continue à conserver les exemplaires ; seule la suppression complète du compte les efface tous.
+
+**Préservation obligatoire :** aucune suppression dans `pokemon`, `tcg_series`, `tcg_sets`, `source_cards`, `catalog_variants`, `card_pokemon`, `automatic_target_states` ou les tables privées du pipeline. Les FK d'éléments/exemplaires vers les Variantes et de collections vers leurs cibles ne justifient aucune suppression du catalogue. Les données des autres comptes sont préservées, hors les seules relations de partage devenues sans objet.
+
+Ces règles imposent une orchestration contrôlée, avec un périmètre fondé sur l'UUID Auth vérifié, et non sur un propriétaire fourni librement par le client. Un simple `delete auth.users` ou une suite de suppressions frontend ne constitue pas le workflow. L'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) fixe les contraintes de privilèges, de sessions/JWT, d'échecs partiels et de reprise à résoudre avant implémentation.
+
+Le SQL/RPC exact, l'articulation avec la suppression administrative Auth, les garanties transactionnelles et la maîtrise des écritures concurrentes restent à cadrer techniquement. Les éventuelles évolutions de FK devront être motivées et versionnées dans de nouvelles migrations ; aucune migration historique n'est modifiée. Les exigences légales/rétentions particulières restent ouvertes à un cadrage spécifique, sans durée ou exception ajoutée ici.
 
 ## Progression
 
@@ -748,7 +775,7 @@ La RLS est obligatoire sur toutes les tables utilisateur exposées par Supabase.
 
 | Ressource | Propriétaire ou utilisateur concerné | Destinataire d'un partage | Autre utilisateur |
 |---|---|---|---|
-| `profiles` | Lecture de son profil et modification des champs autorisés | Pas de parcours général | Aucun parcours général |
+| `profiles` | Lecture de son profil uniquement ; aucune édition utilisateur | Pas de parcours général | Aucun parcours général |
 | `user_preferences` | Lecture et sauvegarde de ses seules préférences | Aucun accès aux préférences du propriétaire | Aucun accès |
 | `collections` | Lecture, modification et suppression | Lecture seule de la collection partagée | Aucun accès |
 | `collection_items` | Gestion dans les limites fonctionnelles | Lecture seule des éléments partagés | Aucun accès |
@@ -787,6 +814,8 @@ Chaque table applicative `public` porte une policy `require_mfa AS RESTRICTIVE F
 
 Cette restriction s'ajoute par **ET** aux policies métier permissives existantes, selon le [mécanisme MFA/RLS Supabase](https://supabase.com/docs/guides/auth/auth-mfa#database). `aal1`, claim absent ou autre valeur : lectures invisibles, insertions refusées, mises à jour/suppressions sans ligne accessible. `aal2` n'accorde pas de droit supplémentaire : propriété, partage en lecture seule et restrictions de colonnes continuent à s'appliquer. Les appels Auth d'enrollment/challenge restent disponibles à `aal1`.
 
+Le claim `aal2` exprime le niveau de session ; ces policies ne prouvent pas une nouvelle vérification du mot de passe et du TOTP pour une action sensible. La [ré-authentification fraîche de Phase 4](05-ARCHITECTURE.md#ré-authentification-fraîche-des-actions-sensibles) devra être contrôlée dans le chemin autoritatif de chaque opération. La RLS applicative ne protège pas directement les mutations natives Supabase Auth ; aucune garantie supplémentaire n'est attribuée aux policies existantes.
+
 `service_role` conserve ses grants et `BYPASSRLS`. Le pipeline PostgreSQL privilégié et les trois tables privées restent inchangés ; aucune fonction privilégiée n'est exposée dans `public`. Toute future table ou RPC devra préserver cette frontière, notamment une RPC `SECURITY DEFINER` qui contournerait normalement la RLS. Les JWT déjà émis restent soumis à leur expiration après une révocation administrative ; voir la procédure opérateur.
 
 ### Automatic RLS existant
@@ -813,7 +842,7 @@ Les opérations simples peuvent être effectuées directement via Supabase lorsq
 - lire une collection autorisée ;
 - lire et gérer ses exemplaires ;
 - modifier une note ;
-- modifier les champs autorisés de son profil ;
+- consulter son profil, sans champ éditable dans la V1 ;
 - renommer sa collection.
 
 Les opérations touchant plusieurs lignes ou des invariants importants restent centralisées, notamment :
@@ -823,6 +852,7 @@ Les opérations touchant plusieurs lignes ou des invariants importants restent c
 - appliquer une mise à jour ;
 - effectuer une réorganisation structurelle complexe ;
 - partager par identifiant public ;
+- supprimer définitivement son compte, avec les contraintes de ré-authentification et d'orchestration définies ci-dessus ;
 - éventuellement ajouter ou retirer un élément lorsque l'ordre ou l'origine exigent un contrôle renforcé.
 
 ## Vues dérivées
@@ -969,6 +999,7 @@ Les tests de base devront notamment vérifier :
 - l'impossibilité d'une double cible automatique ;
 - l'absence de cible et de version sur une collection libre ;
 - la conservation des exemplaires après suppression d'une collection ;
+- la suppression complète du seul compte visé, y compris exemplaires hors collection, préférences et partages dans les deux sens, avec préservation du catalogue et des données d'autrui ;
 - la conversion manuel vers automatique sans doublon ;
 - le retrait automatique sans suppression d'exemplaire ;
 - la progression incluant les éléments manuels ;
@@ -985,6 +1016,8 @@ Les scénarios de sécurité doivent couvrir au minimum :
 - le processus privilégié de synchronisation.
 
 Ils doivent vérifier les droits de lecture et d'écriture, ainsi que l'absence d'accès transversal aux profils, collections et exemplaires.
+
+Lors de l'implémentation de Phase 4, les vérifications de bout en bout devront aussi couvrir le refus d'une action sensible avec seulement une ancienne session `aal2`, l'échec de chaque facteur, la confirmation effective du nouvel email, la préservation du recovery existant et les erreurs/reprises de suppression.
 
 ## Invariants principaux
 
@@ -1040,7 +1073,8 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code et les signatures finaux des RPC ;
 - la persistance du format du classeur et du mode continu/par blocs ;
-- la politique de suppression complète d'un compte ;
+- le workflow SQL/RPC exact de suppression complète du compte et sa coordination avec Auth, dans le périmètre fonctionnel validé ;
+- le contrôle autoritatif de la ré-authentification fraîche et les éventuelles exigences légales/rétentions particulières ;
 - la politique opérationnelle de sauvegarde ;
 - les besoins futurs éventuels d'historique ;
 - le modèle Premium post-V1.

@@ -8,7 +8,7 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phases 0 à 3 terminées et validées.** La prochaine grande phase est la **Phase 4 — Profil et gestion du compte**, encore à cadrer. La [roadmap globale](docs/08-ROADMAP.md) définit l'ordre des grandes phases jusqu'à la V1 et accueillera les évolutions après V1.
+**Phases 0 à 3 terminées et validées.** La **Phase 4 — Profil et gestion du compte** est désormais **cadrée fonctionnellement et prête pour implémentation**. Ses décisions sont intégrées aux sources de vérité ; cette étape est strictement documentaire et aucune implémentation de Phase 4 n'a commencé. La [roadmap globale](docs/08-ROADMAP.md) définit l'ordre des grandes phases jusqu'à la V1 et accueillera les évolutions après V1.
 
 La préparation des préférences est déployée ; le socle Auth est validé localement et dans Supabase cloud ; les écrans Auth et le shell authentifié sont validés localement. Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
 

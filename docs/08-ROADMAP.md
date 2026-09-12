@@ -17,13 +17,13 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est la prochaine grande phase ; son cadrage n'a pas commencé.**
+**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est cadrée fonctionnellement et prête pour implémentation.** Son cadrage documentaire est intégré aux références ; aucune implémentation de Phase 4 n'a encore commencé.
 
 | Grandes phases | Statut |
 |---|---|
 | 0 à 2 — Fondations, base de données et catalogue | Terminées |
 | 3 — Authentification et socle applicatif authentifié | Terminée |
-| 4 — Profil et gestion du compte | À cadrer — prochaine phase |
+| 4 — Profil et gestion du compte | Cadrée fonctionnellement — prête pour implémentation |
 | 5 — Dashboard, création et gestion des collections | Planifiée |
 | 6 — Cœur fonctionnel des collections | Planifiée |
 | 7 — Vues, catalogue, recherche globale et préférences | Planifiée |
@@ -71,15 +71,23 @@ La recherche du header est encore un champ visuel sans requête ni suggestion. L
 
 ### Phase 4 — Profil et gestion du compte
 
-**Statut : À CADRER — PROCHAINE PHASE**
+**Statut : CADRÉE FONCTIONNELLEMENT — PRÊTE POUR IMPLÉMENTATION**
 
 L'objectif est de terminer le bloc utilisateur/compte après l'authentification, avant de construire le Dashboard et la gestion des collections.
 
-Le Profil minimal doit devenir un espace léger permettant de consulter les informations essentielles du compte, de consulter et copier l'identifiant public MY. et de rejoindre les Paramètres, conformément aux besoins déjà documentés.
+Transformer `/profile` en page légère de Profil / gestion du compte :
 
-**Le contenu exact du Profil, les possibilités d'édition et les actions de gestion du compte restent à cadrer.** Les éventuelles actions de mot de passe ou de sécurité depuis cet espace ne sont pas décidées par cette roadmap. Les parcours Auth déjà livrés restent acquis.
+- email actuel, identifiant public MY. immuable et copiable, date de création du compte ;
+- changement d'email et changement volontaire de mot de passe ;
+- statut Authenticator et information de contact pour son remplacement, sans workflow automatique ;
+- suppression définitive du compte et de ses données propres, avec préservation du catalogue et des données d'autrui ;
+- nouvelle ré-authentification mot de passe actuel + TOTP actuel pour chacune des trois actions sensibles, même avec une session déjà `aal2`, et confirmations renforcées pour la suppression.
 
-Profil et Paramètres restent distincts. L'interface des préférences de vues est prévue en Phase 7. Cette entrée fixe la place et l'objectif général de la Phase 4, sans en commencer le cadrage fonctionnel.
+Les [fonctionnalités](01-FEATURES.md#profil-utilisateur), l'[UX](04-UX-UI.md#profil-utilisateur), le [modèle](03-DATA-MODEL.md#utilisateur-et-profil-my), l'[architecture](05-ARCHITECTURE.md#profil-et-gestion-du-compte--cible-phase-4) et la [base de données](06-DATABASE.md#suppression-dun-compte) portent le cadrage validé et ses contraintes. Les parcours Auth et la récupération administrative MFA déjà livrés restent acquis.
+
+Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. L'interface des préférences de vues reste prévue en Phase 7. Aucun profil social n'est ajouté.
+
+Le moyen de contact final, les textes UX et détails visuels, la méthode technique de ré-authentification, le workflow SQL/RPC exact de suppression et les éventuelles exigences légales/rétentions particulières restent explicitement ouverts dans leurs références. Le périmètre fonctionnel est validé ; les garanties techniques doivent être résolues avant leur implémentation. La phase n'est pas encore livrée et la Phase 5 n'a pas commencé.
 
 ### Phase 5 — Dashboard, création et gestion des collections
 
