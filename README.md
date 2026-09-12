@@ -8,7 +8,9 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phases 0 à 2 validées ; préparation des préférences déployée ; Phase 3A validée localement et dans Supabase cloud ; Phase 3B validée localement ; Phase 3C terminée et validée localement.** Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
+**Phases 0 à 3 terminées et validées.** La prochaine grande phase est la **Phase 4 — Profil et gestion du compte**, encore à cadrer. La [roadmap globale](docs/08-ROADMAP.md) définit l'ordre des grandes phases jusqu'à la V1 et accueillera les évolutions après V1.
+
+La préparation des préférences est déployée ; le socle Auth est validé localement et dans Supabase cloud ; les écrans Auth et le shell authentifié sont validés localement. Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
 
 - `20260906082312_phase1_schema` ;
 - `20260906082313_phase1_security` ;
@@ -195,3 +197,4 @@ Les documents du dossier `docs/` constituent le cadre de référence des étapes
 - [Architecture technique de la V1](docs/05-ARCHITECTURE.md)
 - [Schéma PostgreSQL / Supabase de la V1](docs/06-DATABASE.md)
 - [Pipeline catalogue et synchronisation TCGdex](docs/07-CATALOG-SYNC.md)
+- [Roadmap globale et évolution du projet](docs/08-ROADMAP.md)

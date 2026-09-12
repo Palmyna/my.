@@ -10,6 +10,7 @@ Ce document définit le cadre général applicable à tout agent intervenant sur
 - Ne pas inventer de décisions produit, UX, fonctionnelles ou techniques lorsqu'un point n'est pas encore cadré.
 - Lorsqu'un élément nécessaire à l'implémentation est ambigu, contradictoire ou absent de la documentation, le signaler plutôt que prendre arbitrairement une décision structurante.
 - Maintenir la documentation à jour lorsque l'implémentation fait évoluer un élément déjà documenté.
+- Maintenir la [roadmap globale](docs/08-ROADMAP.md) lorsque l'état, l'ordre ou le périmètre des grandes phases évolue, sans y reporter le découpage opérationnel.
 - Garder en permanence le code et la documentation cohérents.
 
 ## Principes de réalisation
