@@ -2,7 +2,7 @@
 
 Réalisée le **10 septembre 2026** sur `main`, dans `Palmyna/my.`, à partir du socle 3A validé localement et dans Supabase cloud.
 
-**Phase 3B implémentée et validée localement.** La validation cloud reste à effectuer manuellement par le propriétaire. Aucune modification Supabase cloud, migration SQL, synchronisation catalogue, déploiement Vercel ou implémentation de Phase 3C. Aucun commit automatique.
+**Phase 3B implémentée et validée localement.** Le workflow validé utilise Supabase local uniquement pour le développement et les tests ; le cloud est réservé à la future production avec Vercel. Aucune modification Supabase cloud, migration SQL, synchronisation catalogue, déploiement Vercel ou implémentation de Phase 3C pendant cette phase. Aucun commit automatique.
 
 ## Changements et fichiers
 
@@ -35,12 +35,12 @@ Réalisée le **10 septembre 2026** sur `main`, dans `Palmyna/my.`, à partir du
 
 Les callbacks implicites sont consommés explicitement par le store : `detectSessionInUrl = false`, suppression immédiate des paramètres sensibles de l'URL, validation du type et du chemin, puis API Supabase. Les événements restent différés hors du verrou Auth ; la révision, le nettoyage des listeners et la purge TanStack Query de 3A sont conservés. Les 13 policies RLS exigent toujours `aal2`. Aucune autorisation ne dépend de `user_metadata`.
 
-## Configuration locale et actions cloud manuelles
+## Configuration locale et séparation des environnements
 
 - `auth.mfa.max_enrolled_factors` passe de **10 à 1** ; TOTP reste activé, Phone/SMS désactivé, confirmation email obligatoire.
 - La politique locale reste à 6 caractères minimum, sans composition supplémentaire. JWT et autres paramètres préexistants inchangés.
 - La [CLI 2.116.0](https://github.com/supabase/cli/blob/v2.116.0/apps/cli-go/pkg/config/auth.go) n'expose pas la durée propre à `aal1` dans sa structure `sessions` : aucune clé inventée. Les **15 minutes** restent configurées côté cloud selon la validation 3A du propriétaire.
-- Le frontend construit ses retours depuis l'origine courante. Ces quatre URLs exactes ont été ajoutées localement et devront être ajoutées **manuellement au cloud** dans Authentication → URL Configuration → Redirect URLs pour tester 3B contre ce cloud :
+- Le frontend construit ses retours depuis l'origine courante. Ces quatre URLs exactes ont été ajoutées **uniquement à la configuration locale** :
 
 ```text
 http://localhost:5173/auth/confirm-email
@@ -49,7 +49,7 @@ http://localhost:5173/reset-password
 http://127.0.0.1:5173/reset-password
 ```
 
-Le propriétaire choisira une Site URL cohérente avec l'origine locale utilisée et exécutera les parcours de validation avec les seules URL/clé publishable cloud dans son environnement frontend. Les réglages Email, confirmation, TOTP, maximum 1, limite `aal1` de 15 minutes et Phone/SMS désactivé déjà validés en 3A doivent être conservés. Aucun utilisateur cloud n'a été créé pour ces tests.
+Les parcours de développement et de test utilisent les seules URL/clé publishable locales. Aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée aux Redirect URLs du cloud. Celui-ci reste la future instance de production associée à Vercel ; les réglages Email, confirmation, TOTP, maximum 1, limite `aal1` de 15 minutes et Phone/SMS désactivé déjà validés en 3A sont conservés. Aucun utilisateur cloud n'a été créé pour ces tests.
 
 Aucune URL Vercel n'est définie. Vercel, SMTP de production et URLs de production restent réservés à la phase finale.
 
@@ -85,6 +85,6 @@ Un `.env.local` ignoré a été préparé avec uniquement l'URL et la clé publi
 
 ## Points restants
 
-La validation cloud 3B et l'ajout manuel des Redirect URLs restent à la charge du propriétaire. La limite `aal1` de 15 minutes n'est pas reproduite par cette version de la configuration CLI locale. Les limites de révocation des JWT et la récupération MFA administrative documentées en 3A restent applicables.
+La validation de développement reste locale ; les Site URL et Redirect URLs de production seront configurées lors de la mise en production, sans retours localhost dans le cloud. La limite `aal1` de 15 minutes n'est pas reproduite par cette version de la configuration CLI locale. Les limites de révocation des JWT et la récupération MFA administrative documentées en 3A restent applicables.
 
-Aucun blocage local connu. Phase 3C non commencée ; Phase 3 dans son ensemble non terminée.
+Aucun blocage local connu à la clôture de 3B. La Phase 3C, réalisée ensuite, est décrite dans son [rapport de clôture](2026-09-12-PHASE3C-SHELL.md) ; les interfaces métier restent hors périmètre de ces phases.

@@ -8,7 +8,7 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phases 0 à 2 validées ; préparation des préférences déployée ; Phase 3A validée localement et dans Supabase cloud ; Phase 3B implémentée et validée localement.** Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
+**Phases 0 à 2 validées ; préparation des préférences déployée ; Phase 3A validée localement et dans Supabase cloud ; Phase 3B validée localement ; Phase 3C terminée et validée localement.** Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
 
 - `20260906082312_phase1_schema` ;
 - `20260906082313_phase1_security` ;
@@ -30,13 +30,13 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 Aucun nom français Pokémon ne manque et aucune date de Variante n'est NULL dans ce catalogue validé. `sm3.5-28` possède cinq variantes après override. Les tables utilisateur étaient encore vides à ce moment. Cet état cloud est celui transmis par le propriétaire ; la tâche intermédiaire n'effectue ni nouvelle vérification distante ni déploiement cloud.
 
-Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. **Le pipeline reste local/protégé ; le catalogue résultant existe également dans le cloud.** La [Phase 3B](docs/reports/2026-09-10-PHASE3B-AUTH-UI.md) ajoute les écrans Auth et le routing public/protégé sur le socle 3A, avec un dashboard temporaire minimal. Le shell de Phase 3C, les RPC de collections et les interfaces métier restent à construire.
+Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. **Le pipeline reste local/protégé ; le catalogue résultant existe également dans le cloud.** La [Phase 3B](docs/reports/2026-09-10-PHASE3B-AUTH-UI.md) ajoute les écrans Auth et le routing public/protégé sur le socle 3A. La [Phase 3C](docs/reports/2026-09-12-PHASE3C-SHELL.md) finalise le shell authentifié, son header et les pages minimales `/dashboard`, `/profile` et `/settings`. La recherche du header reste visuelle ; les RPC de collections et les interfaces métier restent à construire.
 
 Le cadrage Recherche globale / Catalogue / Navigation / Préférences est intégré dans les références produit, modèle, UX, architecture et SQL. La migration intermédiaire [20260909124950_pre_phase3_collection_preferences.sql](supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) assure l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et les préférences de vues privées. **Cette sixième migration est déjà déployée dans Supabase cloud**, selon le propriétaire ; l'ancien statut local était obsolète.
 
 La [Phase 3A](docs/reports/2026-09-09-PHASE3A-AUTH.md) ajoute email/mot de passe, confirmation email obligatoire, TOTP obligatoire et session MY. autorisée en `aal2`. La migration [20260909184529_phase3a_auth_identity.sql](supabase/migrations/20260909184529_phase3a_auth_identity.sql), **déployée et validée dans Supabase cloud**, crée automatiquement le profil depuis Auth et ajoute une restriction MFA aux 13 tables applicatives. Aucune ancienne migration n'a été modifiée.
 
-La configuration Auth cloud est validée : provider Email et inscriptions activés, confirmation email obligatoire, TOTP/App Authenticator activé avec **un seul facteur par utilisateur en V1**, sessions `aal1` limitées à **15 minutes**, Phone/SMS MFA désactivé. Les URLs de retour sont définies en **Phase 3B** ; leur ajout au cloud et la validation cloud 3B restent manuels.
+La configuration Auth cloud est validée : provider Email et inscriptions activés, confirmation email obligatoire, TOTP/App Authenticator activé avec **un seul facteur par utilisateur en V1**, sessions `aal1` limitées à **15 minutes**, Phone/SMS MFA désactivé. **Développement et tests utilisent Supabase local uniquement.** Les URLs de retour locales définies en 3B restent locales : aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud. Supabase cloud est réservé à la future instance de production avec Vercel ; ses Site URL et Redirect URLs de production seront configurées lors de la mise en production.
 
 Routes 3B : `/`, `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/confirm-email`, `/auth/mfa/enroll`, `/auth/mfa/challenge` et `/dashboard`. La confirmation termine la session technique du lien et impose une connexion email/mot de passe. La récupération impose enrollment ou challenge TOTP **avant** le nouveau mot de passe, puis conserve la session après succès. Les données MY. restent fermées pendant ces parcours.
 
@@ -75,13 +75,13 @@ Les tests frontend utilisent React Testing Library, jest-dom et jsdom, avec des 
 
 ## Organisation du frontend
 
-- `src/app/` : composition de l'application, providers, routes et vue temporaire ;
+- `src/app/` : composition de l'application, providers, routes, shell et header authentifiés ;
 - `src/services/` : accès aux services, dont la préparation du client Supabase ;
 - `src/lib/` : logique et utilitaires partagés, dont la validation d'environnement ;
 - `src/types/` : variables Vite et `database.generated.ts`, généré par la CLI Supabase ;
 - `src/test/` : configuration commune des tests ; les tests restent à côté du code testé.
 
-`src/features/auth/` contient le provider Auth, son état unique, `useAuth`, les callbacks email et les écrans Auth. La présentation utilise le logo existant et Poppins 400/600 servis localement depuis `src/assets/fonts/`, avec leur licence OFL. `main.tsx` se limite au montage React ; le QueryClient reste stable pendant la vie des providers. Les changements Auth purgent son cache pour éviter de conserver des données privées après perte d'accès ou changement de compte.
+`src/features/auth/` contient le provider Auth, son état unique, `useAuth`, les callbacks email et les écrans Auth. `src/features/dashboard/`, `profile/` et `settings/` contiennent les pages minimales du shell. La présentation utilise le logo existant et Poppins 400/600 servis localement depuis `src/assets/fonts/`, avec leur licence OFL. `main.tsx` se limite au montage React ; le QueryClient reste stable pendant la vie des providers. Les changements Auth purgent son cache pour éviter de conserver des données privées après perte d'accès ou changement de compte.
 
 ## Supabase local et variables d'environnement
 

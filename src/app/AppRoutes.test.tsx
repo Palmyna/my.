@@ -62,6 +62,19 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
   expect(screen.getByRole('button', { name: 'Mon compte' })).toHaveAttribute('aria-haspopup', 'menu')
   expect(within(screen.getByRole('main')).queryByRole('navigation')).not.toBeInTheDocument()
   expect(within(screen.getByRole('main')).queryByRole('button')).not.toBeInTheDocument()
+  const page = screen.getByRole('region', { name: title })
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+  expect(page).toContainElement(screen.getByRole('heading', { level: 1, name: title }))
+  expect(screen.getByRole('main')).toContainElement(page)
+  expect(screen.getByRole('contentinfo')).toHaveTextContent('Conditions d’utilisation')
+  if (path === '/dashboard') {
+    expect(within(page).getByRole('term')).toHaveTextContent('Votre identifiant MY.')
+    expect(within(page).getByRole('definition')).toHaveTextContent(profile.public_id)
+    expect(within(page).queryByRole('status')).not.toBeInTheDocument()
+  } else {
+    expect(within(page).queryByRole('textbox')).not.toBeInTheDocument()
+    expect(within(page).queryByText(profile.public_id)).not.toBeInTheDocument()
+  }
   expect(screen.getByRole('heading', { name: title })).toHaveFocus()
   expect(document.title).toBe(`${title} — MY.`)
 })
@@ -249,6 +262,7 @@ test.each(['enroll', 'aal1'] as const)('recovery %s impose MFA avant reset et co
   change('Nouveau mot de passe', 'new-password'); change('Confirmer le mot de passe', 'new-password'); press('Enregistrer le mot de passe')
   await heading('Dashboard')
   expect(screen.getByRole('status')).toHaveTextContent('Vous êtes connecté')
+  expect(within(screen.getByRole('region', { name: 'Dashboard' })).getByRole('definition')).toHaveTextContent(profile.public_id)
   expect(mock.auth.signOut).not.toHaveBeenCalled()
   expect(mock.auth.updateUser).toHaveBeenCalledOnce()
 })
