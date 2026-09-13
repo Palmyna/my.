@@ -7,6 +7,9 @@ export function authErrorMessage(error: unknown) {
     case 'email_not_confirmed': return 'Confirmez votre adresse email avant de vous connecter.'
     case 'weak_password': return 'Choisissez un mot de passe plus robuste pour respecter la politique de sécurité.'
     case 'same_password': return 'Choisissez un mot de passe différent du précédent.'
+    case 'email_exists':
+    case 'email_address_invalid': return 'Cette adresse email ne peut pas être utilisée. Vérifiez-la ou choisissez une autre adresse.'
+    case 'insufficient_aal': return 'Terminez la vérification avec votre Authenticator avant de continuer.'
     case 'over_email_send_rate_limit':
     case 'over_request_rate_limit': return 'Trop de tentatives. Patientez un instant avant de réessayer.'
     case 'mfa_verification_failed':

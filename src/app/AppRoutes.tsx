@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { useAuth } from '../features/auth/auth-context'
 import { AuthLayout } from '../features/auth/AuthLayout'
-import { AuthProblemPage, ConfirmEmailPage, ForgotPasswordPage, HomePage, LoginPage, MfaChallengePage, MfaEnrollPage, ResetPasswordPage, SignupPage } from '../features/auth/AuthPages'
+import { AuthProblemPage, ConfirmEmailPage, ConfirmEmailChangePage, ForgotPasswordPage, HomePage, LoginPage, MfaChallengePage, MfaEnrollPage, ResetPasswordPage, SignupPage } from '../features/auth/AuthPages'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { ProfilePage } from '../features/profile/ProfilePage'
 import { SettingsPage } from '../features/settings/SettingsPage'
@@ -18,6 +18,8 @@ export function AppRoutes() {
   if (auth.status === 'initializing') return <main className="loading" role="status">Chargement de votre session…</main>
   if (auth.status === 'error') return <AuthProblemPage />
   if (auth.status === 'unconfigured' && location.pathname !== '/') return <AuthProblemPage unconfigured />
+  // Public callback result only: this page grants no access to MY. data, even at aal1.
+  if (location.pathname === '/auth/confirm-email-change') return <ConfirmEmailChangePage />
   const target = auth.status === 'mfa_enrollment_required' ? '/auth/mfa/enroll'
     : auth.status === 'mfa_challenge_required' ? '/auth/mfa/challenge'
     : auth.status === 'password_reset_required' ? '/reset-password' : null

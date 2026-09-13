@@ -73,6 +73,18 @@ export function ForgotPasswordPage() {
   </AuthLayout>
 }
 
+export function ConfirmEmailChangePage() {
+  const { emailChangeResult, isAuthorized } = useAuth()
+  const confirmed = emailChangeResult === 'confirmed'
+  return <AuthLayout title={confirmed ? 'Adresse email modifiée' : 'Confirmez les deux adresses email.'}
+    intro={confirmed
+      ? 'Votre nouvelle adresse est validée. Connectez-vous avec cette adresse et votre mot de passe.'
+      : 'Ouvrez les liens reçus sur votre adresse actuelle et votre nouvelle adresse. Le changement reste en attente tant que les deux confirmations ne sont pas terminées.'}>
+    {!confirmed && <p className="hint">Si votre ancienne boîte email est inaccessible, une récupération manuelle après vérification d’identité sera nécessaire. Aucun contournement automatique n’est proposé.</p>}
+    <Link className="button primary" to={isAuthorized ? '/profile' : '/login'}>{isAuthorized ? 'Revenir au profil' : 'Se connecter'}</Link>
+  </AuthLayout>
+}
+
 export function MfaEnrollPage() {
   const { actions, passwordRecovery } = useAuth()
   const [enrollment, setEnrollment] = useState<Awaited<ReturnType<AuthService['enrollTotp']>> | null>(null)

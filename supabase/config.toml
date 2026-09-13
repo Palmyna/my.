@@ -167,6 +167,8 @@ additional_redirect_urls = [
   "http://127.0.0.1:5173",
   "http://localhost:5173/auth/confirm-email",
   "http://127.0.0.1:5173/auth/confirm-email",
+  "http://localhost:5173/auth/confirm-email-change",
+  "http://127.0.0.1:5173/auth/confirm-email-change",
   "http://localhost:5173/reset-password",
   "http://127.0.0.1:5173/reset-password",
 ]
@@ -234,6 +236,8 @@ double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
 enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
+# Distinct from requiring current_password. CLI 2.116.0 cannot enable that requirement;
+# see docs/reports/2026-09-13-PHASE4B2-ACCOUNT-AUTH.md. Do not substitute a nonce check.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
 max_frequency = "1s"

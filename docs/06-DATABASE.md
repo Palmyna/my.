@@ -34,7 +34,7 @@ La migration [20260909184529_phase3a_auth_identity.sql](../supabase/migrations/2
 
 La V1 utilise email/mot de passe, email confirmé obligatoire et TOTP obligatoire. La configuration Auth et la [procédure de récupération administrative](05-ARCHITECTURE.md#récupération-mfa-administrative) sont définies dans l'architecture. La présence d'un profil n'accorde pas l'accès : toutes les données applicatives nécessitent `aal2`.
 
-La Phase 4 est cadrée fonctionnellement ; le [blocage du contrôle autoritatif de ré-authentification](05-ARCHITECTURE.md#ré-authentification-fraîche-des-actions-sensibles) reste à résoudre avant implémentation. Les sections Profil et suppression ci-dessous distinguent ses contraintes validées du schéma actuel ; aucun SQL, grant, RPC ou réglage Supabase de Phase 4 n'est encore implémenté.
+La Phase 4 est cadrée et en cours d'implémentation. Les [protections des actions du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) distinguent email/mot de passe gérés par Auth et future suppression renforcée côté serveur MY. Aucun SQL, grant, RPC ni schéma de Phase 4 n'est ajouté ; le changement d'email et son callback sont livrés localement, le réglage du mot de passe actuel reste un blocage local ciblé.
 
 ## Principes structurants
 
@@ -814,7 +814,7 @@ Chaque table applicative `public` porte une policy `require_mfa AS RESTRICTIVE F
 
 Cette restriction s'ajoute par **ET** aux policies métier permissives existantes, selon le [mécanisme MFA/RLS Supabase](https://supabase.com/docs/guides/auth/auth-mfa#database). `aal1`, claim absent ou autre valeur : lectures invisibles, insertions refusées, mises à jour/suppressions sans ligne accessible. `aal2` n'accorde pas de droit supplémentaire : propriété, partage en lecture seule et restrictions de colonnes continuent à s'appliquer. Les appels Auth d'enrollment/challenge restent disponibles à `aal1`.
 
-Le claim `aal2` exprime le niveau de session ; ces policies ne prouvent pas une nouvelle vérification du mot de passe et du TOTP pour une action sensible. La [ré-authentification fraîche de Phase 4](05-ARCHITECTURE.md#ré-authentification-fraîche-des-actions-sensibles) devra être contrôlée dans le chemin autoritatif de chaque opération. La RLS applicative ne protège pas directement les mutations natives Supabase Auth ; aucune garantie supplémentaire n'est attribuée aux policies existantes.
+Le claim `aal2` exprime le niveau de session ; les policies MFA/RLS restent inchangées. Les mutations natives Auth suivent les [protections du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) : mot de passe actuel exigé côté Auth pour le changement volontaire, double confirmation Secure Email Change pour l'email. Leur contrôle ne relève pas d'une RPC ou d'une policy applicative. Le TOTP frais reste réservé à la future suppression via l'opération serveur MY. ; aucune table de preuve ou permission temporaire n'est ajoutée.
 
 `service_role` conserve ses grants et `BYPASSRLS`. Le pipeline PostgreSQL privilégié et les trois tables privées restent inchangés ; aucune fonction privilégiée n'est exposée dans `public`. Toute future table ou RPC devra préserver cette frontière, notamment une RPC `SECURITY DEFINER` qui contournerait normalement la RLS. Les JWT déjà émis restent soumis à leur expiration après une révocation administrative ; voir la procédure opérateur.
 
@@ -1017,7 +1017,7 @@ Les scénarios de sécurité doivent couvrir au minimum :
 
 Ils doivent vérifier les droits de lecture et d'écriture, ainsi que l'absence d'accès transversal aux profils, collections et exemplaires.
 
-Lors de l'implémentation de Phase 4, les vérifications de bout en bout devront aussi couvrir le refus d'une action sensible avec seulement une ancienne session `aal2`, l'échec de chaque facteur, la confirmation effective du nouvel email, la préservation du recovery existant et les erreurs/reprises de suppression.
+Les vérifications de Phase 4 distinguent : refus serveur du changement volontaire sans mot de passe actuel ou avec une valeur incorrecte ; changement d'email final uniquement après les deux confirmations, dans chaque ordre ; maintien du recovery sans ancien mot de passe ; puis, pour la future suppression, refus d'une simple session `aal2`, échec de chaque facteur et erreurs/reprises. Le [rapport local](reports/2026-09-13-PHASE4B2-ACCOUNT-AUTH.md) distingue les preuves acquises du blocage du réglage de mot de passe.
 
 ## Invariants principaux
 
@@ -1074,7 +1074,7 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 - le code et les signatures finaux des RPC ;
 - la persistance du format du classeur et du mode continu/par blocs ;
 - le workflow SQL/RPC exact de suppression complète du compte et sa coordination avec Auth, dans le périmètre fonctionnel validé ;
-- le contrôle autoritatif de la ré-authentification fraîche et les éventuelles exigences légales/rétentions particulières ;
+- le contrôle autoritatif de la ré-authentification fraîche pour la suppression et les éventuelles exigences légales/rétentions particulières ;
 - la politique opérationnelle de sauvegarde ;
 - les besoins futurs éventuels d'historique ;
 - le modèle Premium post-V1.

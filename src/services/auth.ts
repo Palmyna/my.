@@ -53,10 +53,16 @@ export function createAuthService(client: SupabaseClient<Database>) {
       const { error } = await auth.signOut()
       if (error) throw error
     },
-    async completeEmailCallback(tokens: { access_token: string; refresh_token: string }, kind: 'signup' | 'recovery') {
+    async completeEmailCallback(tokens: { access_token: string; refresh_token: string }, kind: 'signup' | 'recovery' | 'email_change') {
       const data = unwrap(await auth.setSession(tokens))
       if (!data.session || !data.user?.email_confirmed_at) throw new Error('Lien email invalide ou expiré.')
-      if (kind === 'signup') {
+      if (kind === 'email_change') {
+        const { user } = unwrap(await auth.getUser(data.session.access_token))
+        if (!user?.email_confirmed_at || user.new_email || user.id !== data.user.id) {
+          throw new Error('Le changement d’adresse email n’est pas confirmé.')
+        }
+      }
+      if (kind !== 'recovery') {
         // End only the technical callback session, without logging out other devices.
         const { error } = await auth.signOut({ scope: 'local' })
         if (error) throw error
@@ -95,6 +101,17 @@ export function createAuthService(client: SupabaseClient<Database>) {
     },
     async requestPasswordReset(email: string, redirectTo?: string) {
       return unwrap(await auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : {}))
+    },
+    async requestEmailChange(email: string, emailRedirectTo: string) {
+      const session = await getSession()
+      if (!session) throw new Error('Session requise pour modifier l’adresse email.')
+      const mfa = await getMfaState(session)
+      if (!mfa.user.email_confirmed_at || mfa.requirement !== 'satisfied') {
+        throw new Error('Email confirmé et MFA TOTP aal2 requis pour modifier l’adresse email.')
+      }
+      // Auth owns email/new_email and enforces Secure Email Change on both addresses.
+      // No frontend password or fresh-TOTP check can protect the native update endpoint.
+      return unwrap(await auth.updateUser({ email }, { emailRedirectTo }))
     },
     async updatePassword(password: string) {
       const session = await getSession()

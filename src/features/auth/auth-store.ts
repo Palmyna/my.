@@ -17,11 +17,13 @@ export interface AuthState {
   error: Error | null
   emailConfirmed: boolean
   passwordChanged: boolean
+  emailChangeResult: 'pending' | 'confirmed' | null
 }
 
 const initialState: AuthState = {
   status: 'initializing', session: null, user: null, mfa: null, profile: null,
   pendingEmail: null, passwordRecovery: false, error: null, emailConfirmed: false, passwordChanged: false,
+  emailChangeResult: null,
 }
 
 // One external store per provider; Supabase remains the owner of persisted sessions.
@@ -37,7 +39,7 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
   const listeners = new Set<() => void>()
   let callbackRead = false
   let callbackPending = false
-  let callbackResult: Promise<{ kind: 'signup' | 'recovery'; session: Session | null }> | null = null
+  let callbackResult: Promise<{ kind: 'signup' | 'recovery' | 'email_change' | 'email_change_pending'; session: Session | null }> | null = null
   const emit = (next: AuthState) => {
     state = next
     listeners.forEach(listener => listener())
@@ -62,7 +64,7 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       const auth = requireService()
       const mfa = await auth.getMfaState(session)
       if (!current()) return
-      const base = { ...initialState, session, user: mfa.user, mfa, passwordRecovery: state.passwordRecovery, passwordChanged: state.passwordChanged }
+      const base = { ...initialState, session, user: mfa.user, mfa, passwordRecovery: state.passwordRecovery, passwordChanged: state.passwordChanged, emailChangeResult: state.emailChangeResult }
       if (!mfa.user.email_confirmed_at) {
         emit({ ...base, status: 'email_confirmation_required' })
       } else if (mfa.requirement !== 'satisfied') {
@@ -83,11 +85,11 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
     currentUserId = session?.user.id ?? null
     if (!session) {
       recoveryContext?.clear()
-      emit({ ...initialState, status: 'signed_out', emailConfirmed: state.emailConfirmed })
+      emit({ ...initialState, status: 'signed_out', emailConfirmed: state.emailConfirmed, emailChangeResult: state.emailChangeResult })
       return
     }
     if (recovery) recoveryContext?.save(session)
-    emit({ ...initialState, passwordRecovery: recovery || (recoveryContext?.has(session) ?? false), passwordChanged: state.passwordChanged })
+    emit({ ...initialState, passwordRecovery: recovery || (recoveryContext?.has(session) ?? false), passwordChanged: state.passwordChanged, emailChangeResult: state.emailChangeResult })
     // Never await another Supabase Auth call inside onAuthStateChange's lock.
     timer = setTimeout(() => { void resolve(session, ticket) }, 0)
   }
@@ -95,7 +97,7 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
   async function restore() {
     const ticket = invalidate()
     const recovery = state.passwordRecovery
-    emit({ ...initialState, passwordRecovery: recovery, passwordChanged: state.passwordChanged })
+    emit({ ...initialState, passwordRecovery: recovery, passwordChanged: state.passwordChanged, emailChangeResult: state.emailChangeResult })
     try {
       if (callbackResult) {
         const result = await callbackResult
@@ -105,6 +107,12 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
         if (result.kind === 'signup') {
           recoveryContext?.clear()
           emit({ ...initialState, status: 'signed_out', emailConfirmed: true })
+        } else if (result.kind === 'email_change') {
+          recoveryContext?.clear()
+          emit({ ...initialState, status: 'signed_out', emailChangeResult: 'confirmed' })
+        } else if (result.kind === 'email_change_pending') {
+          emit({ ...state, emailChangeResult: 'pending' })
+          accept(result.session, recovery)
         } else accept(result.session, true)
         return
       }
@@ -134,7 +142,9 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
             callbackPending = true
             callbackResult = 'error' in callback
               ? Promise.reject(new Error('Lien email invalide ou expiré. Demandez un nouvel email.'))
-              : service.completeEmailCallback(callback.tokens, callback.kind).then(session => ({ kind: callback.kind, session }))
+              : callback.kind === 'email_change_pending'
+                ? service.getSession().then(session => ({ kind: callback.kind, session }))
+                : service.completeEmailCallback(callback.tokens, callback.kind).then(session => ({ kind: callback.kind, session }))
           }
           unsubscribe = service.subscribe((event, session) => {
             if (!active || callbackPending) return
@@ -182,6 +192,11 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       verifyTotp: (factorId: string, challengeId: string, code: string) => requireService().verifyTotp(factorId, challengeId, code),
       resendConfirmation: (email: string, redirectTo?: string) => requireService().resendConfirmation(email, redirectTo),
       requestPasswordReset: (email: string, redirectTo?: string) => requireService().requestPasswordReset(email, redirectTo),
+      async requestEmailChange(email: string, redirectTo: string) {
+        if (state.status !== 'authorized') throw new Error('Connectez-vous et terminez la vérification MFA avant de continuer.')
+        // USER_UPDATED re-resolves user.email/new_email through Auth; no optimistic email copy.
+        return requireService().requestEmailChange(email, redirectTo)
+      },
       async updatePassword(password: string) {
         if (state.status !== 'password_reset_required') throw new Error('Validez le MFA du parcours de récupération avant de continuer.')
         const result = await requireService().updatePassword(password)

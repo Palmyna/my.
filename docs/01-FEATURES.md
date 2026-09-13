@@ -376,21 +376,27 @@ La page présente au minimum :
 
 L'identifiant conserve le format `MY-XXXXX-XXXXX-XXXXX-XXXXX` et n'est jamais modifiable. L'email et la date de création du compte proviennent d'Auth, sans nouvelle donnée dupliquée dans le profil ; leurs sources sont précisées dans le [modèle de données](03-DATA-MODEL.md#utilisateur-et-profil-my). L'affichage en lecture seule et la copie accessible sont définis dans l'[UX](04-UX-UI.md#profil-utilisateur).
 
-### Ré-authentification des actions sensibles
+### Protection des actions sensibles
 
-Pour **chaque changement d'email, changement volontaire de mot de passe ou suppression du compte**, MY. exige une ré-authentification fraîche et complète : vérification du **mot de passe actuel**, puis d'un **nouveau challenge TOTP avec l'Authenticator actuel**. Elle protège notamment une session restée ouverte sur un appareil accessible à quelqu'un d'autre.
+L'accès normal à MY. conserve email confirmé, facteur TOTP vérifié et session `aal2`. La décision finale V1 distingue les protections supplémentaires réellement imposées pour chaque action :
 
-Une session déjà `aal2` permet l'accès normal à MY., mais ne suffit jamais à autoriser ces actions. La nouvelle vérification des deux facteurs est requise pour l'opération demandée ; un échec ne l'autorise pas. La méthode technique finale reste ouverte dans l'[architecture](05-ARCHITECTURE.md#ré-authentification-fraîche-des-actions-sensibles), sans mécanisme de mots de passe ou de TOTP maison.
+- **Mot de passe** : session `aal2` et mot de passe actuel exigé et vérifié par Supabase Auth côté serveur.
+- **Email** : session `aal2`, Secure Email Change et confirmation de l'adresse actuelle **et** de la nouvelle adresse.
+- **Suppression** : confirmations explicites, mot de passe actuel puis nouveau challenge TOTP frais et opération privilégiée côté serveur contrôlée par MY.
+
+Aucun nouveau TOTP par opération n'est ajouté pour email/mot de passe. La limite native établie lors de la vérification précédente est prise en compte ; aucun booléen, délai ou preuve frontend ne simule cette protection. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) distingue les garanties livrées des éléments restant à implémenter.
 
 ### Modification de l'adresse email
 
-L'utilisateur peut modifier son adresse directement depuis Profil. Après la ré-authentification complète, il saisit la nouvelle adresse ; Supabase Auth gère la demande et ses confirmations sécurisées. Le changement n'est final qu'après les confirmations requises, dont celle de la nouvelle adresse. L'interface distingue la demande en attente de l'adresse réellement devenue courante.
+L'utilisateur connecté en `aal2` peut demander une nouvelle adresse depuis Profil, sans saisie de mot de passe ni nouveau challenge TOTP. Supabase Auth exige les confirmations de l'ancienne **et** de la nouvelle adresse. Confirmer une seule adresse, dans l'un ou l'autre ordre, ne finalise pas le changement. L'interface distingue l'adresse courante de la demande en attente.
+
+Si l'ancienne boîte email est inaccessible, l'utilisateur ne peut pas terminer seul ce parcours. Une future procédure manuelle de récupération/support après vérification d'identité devra traiter ce cas ; le contact reste à définir. Secure Email Change reste activé, sans bypass automatique ni endpoint admin exposé au frontend.
 
 L'email reste exclusivement une donnée Auth : aucun champ email n'est créé dans `profiles`. Les capacités et réglages Supabase, notamment la confirmation sur l'ancienne et la nouvelle adresse, sont documentés dans l'[architecture](05-ARCHITECTURE.md#changement-demail-et-de-mot-de-passe).
 
 ### Modification volontaire du mot de passe
 
-Un utilisateur connecté peut changer son mot de passe depuis Profil, après une nouvelle vérification du mot de passe actuel et du TOTP actuel, puis saisie du nouveau mot de passe. Supabase Auth effectue la modification.
+Un utilisateur connecté en `aal2` peut changer son mot de passe depuis Profil en fournissant son mot de passe actuel et un nouveau mot de passe. Supabase Auth doit refuser côté serveur l'absence du mot de passe actuel ou une valeur incorrecte. Aucun nouveau challenge TOTP ni nonce email supplémentaire n'est ajouté à ce parcours V1. Sa disponibilité dépend de l'activation et de la validation de cette exigence serveur, selon l'architecture.
 
 Ce parcours est distinct de `Mot de passe oublié`. La récupération par email déjà livrée reste inchangée pour une personne ayant réellement oublié son mot de passe ; elle conserve ses propres règles de MFA avant réinitialisation, sans exiger le mot de passe oublié.
 

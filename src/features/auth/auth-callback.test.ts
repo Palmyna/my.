@@ -5,6 +5,7 @@ import { browserRecoveryContext, readEmailCallback, authRedirectUrl } from './au
 beforeEach(() => { sessionStorage.clear() })
 test.each([
   ['/auth/confirm-email', 'signup'], ['/reset-password', 'recovery'],
+  ['/auth/confirm-email-change', 'email_change'],
 ])('consomme et nettoie le callback %s sans persister les tokens', (path, kind) => {
   window.history.replaceState(null, '', `${path}#access_token=test-token&refresh_token=test-refresh&type=${kind}`)
   const storage = vi.spyOn(Storage.prototype, 'setItem')
@@ -18,10 +19,21 @@ test.each([
   '/auth/confirm-email#access_token=secret&type=signup',
   '/dashboard#access_token=secret&refresh_token=secret&type=signup',
   '/reset-password?code=secret',
+  '/auth/confirm-email-change?error=denied#message=untrusted',
+  '/auth/confirm-email-change#access_token=secret&refresh_token=secret&type=signup',
+  '/auth/confirm-email#access_token=secret&refresh_token=secret&type=email_change',
 ])('refuse le lien invalide, expiré ou hors route et efface ses données : %s', url => {
   window.history.replaceState(null, '', url)
   expect(readEmailCallback()).toEqual({ error: true })
   expect(window.location.hash + window.location.search).toBe('')
+})
+test('la première confirmation email est un avis sans session ni persistance', () => {
+  window.history.replaceState(null, '', '/auth/confirm-email-change#message=Confirmation%20link%20accepted&sb=')
+  const storage = vi.spyOn(Storage.prototype, 'setItem')
+  expect(readEmailCallback()).toEqual({ kind: 'email_change_pending' })
+  expect(window.location.hash + window.location.search).toBe('')
+  expect(storage).not.toHaveBeenCalled()
+  expect(readEmailCallback()).toBeNull()
 })
 test('retours email basés sur l’origine courante', () => {
   expect(authRedirectUrl('/reset-password')).toBe(`${window.location.origin}/reset-password`)

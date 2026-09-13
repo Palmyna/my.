@@ -558,13 +558,15 @@ Le champ possède un libellé et reste sélectionnable ; le bouton est accessibl
 
 ### Sécurité du compte
 
-Les actions de changement d'email et de mot de passe partent directement de Profil. Chacune commence par une **nouvelle vérification du mot de passe actuel puis du TOTP Authenticator actuel**, même lorsque la session est déjà autorisée en `aal2`. Une courte explication donne le sens de cette vérification pour l'action sensible. Aucun formulaire de nouvelle valeur n'est autorisé avant sa réussite.
+Les actions de changement d'email et de mot de passe partent directement de Profil pour un utilisateur autorisé en `aal2`. Leurs contrôles correspondent aux protections natives Supabase : aucun nouveau challenge TOTP propre à l'opération ni étape de ré-authentification frontend artificielle.
 
-- **Email** : après vérification des deux facteurs, saisie de la nouvelle adresse, puis confirmations gérées par Supabase Auth. L'interface indique l'attente et les boîtes email à consulter selon le mécanisme sécurisé applicable ; elle ne présente pas la nouvelle adresse comme courante avant finalisation par Auth.
-- **Mot de passe** : après vérification des deux facteurs, saisie du nouveau mot de passe puis retour de succès après la modification effective. L'utilisateur connecté n'a pas à passer par `Mot de passe oublié` ; ce parcours de récupération existant conserve son comportement pour les personnes ayant oublié leur mot de passe.
+- **Email** : saisie de la nouvelle adresse, sans demander mot de passe ou TOTP. L'interface invite à confirmer les liens reçus sur l'ancienne **et** la nouvelle adresse et distingue `user.email` de `user.new_email`. Un seul lien confirmé laisse le changement en attente. Si l'ancienne boîte est inaccessible, une récupération manuelle après vérification d'identité sera nécessaire ; aucun contournement automatique n'est proposé.
+- **Mot de passe** : saisie du mot de passe actuel et du nouveau mot de passe ; Supabase vérifie le premier côté serveur. Le succès suit uniquement la mutation effective. Aucun nonce email supplémentaire n'est ajouté. Le parcours `Mot de passe oublié` conserve son comportement pour les personnes ayant oublié leur mot de passe.
 - **Authenticator** : afficher simplement le statut, par exemple `Authenticator configuré`. Un bouton tel que `Modifier` peut ouvrir uniquement une modale ou un message expliquant qu'il faut contacter MY. pour modifier/remplacer l'Authenticator. Aucun remplacement automatique, désactivation de la MFA obligatoire ou suppression de facteur n'est proposé depuis Profil.
 
 Le moyen de contact final reste ouvert. Aucun formulaire support, adresse email support définitive, ticket ou procédure automatisée n'est ajouté. La récupération en cas de perte d'Authenticator reste administrative et manuelle.
+
+Le callback `/auth/confirm-email-change` réutilise le traitement Auth existant. Après le premier lien, il affiche une invitation à terminer les deux confirmations, sans annoncer un changement définitif. Après le dernier lien, le service relit l'utilisateur Auth, termine uniquement la session technique du lien et affiche `Adresse email modifiée`, avec retour à la connexion sur la nouvelle adresse. Ce résultat est distinct de la confirmation d'inscription. Aucun paramètre sensible du callback ne reste dans l'URL. Ces écrans minimaux sont livrés avant la page Profil finale et ses formulaires.
 
 ### Suppression du compte
 

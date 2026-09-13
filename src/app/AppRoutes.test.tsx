@@ -194,6 +194,23 @@ test('confirmation termine la session du lien et reste sans MFA ni profil', asyn
   fireEvent.click(screen.getByRole('link', { name: 'Se connecter' }))
   await heading('Heureux de vous retrouver.')
 })
+
+test.each(['out', 'aal1', 'aal2'] as const)('callback email partiel en %s affiche une attente sans formulaire ni faux succès', async mode => {
+  const { mock } = setup('/auth/confirm-email-change', mode, { kind: 'email_change_pending' })
+  await heading('Confirmez les deux adresses email.')
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  expect(screen.queryByText('Adresse email modifiée')).not.toBeInTheDocument()
+  expect(mock.auth.setSession).not.toHaveBeenCalled()
+  expect(mock.mfa.challenge).not.toHaveBeenCalled()
+})
+
+test('callback email final relit Auth et affiche un résultat distinct du signup', async () => {
+  const { mock } = setup('/auth/confirm-email-change', 'aal2', { kind: 'email_change', tokens: session })
+  await heading('Adresse email modifiée')
+  expect(screen.getByRole('link', { name: 'Se connecter' })).toHaveAttribute('href', '/login')
+  expect(mock.from).not.toHaveBeenCalled()
+  expect(mock.auth.signOut).toHaveBeenCalledWith({ scope: 'local' })
+})
 test.each([true, false])('callback expiré ou erreur de session reste récupérable : %s', async invalid => {
   const mock = mockAuthClient()
   mock.auth.setSession.mockResolvedValue({ data: null, error: new Error('Expired') })

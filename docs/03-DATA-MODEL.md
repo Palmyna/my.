@@ -181,6 +181,7 @@ La page Profil rassemble des données de deux sources, sans les fusionner dans `
 | Information présentée | Source de vérité |
 |---|---|
 | Email actuel | Utilisateur Supabase Auth (`user.email`) |
+| Demande d'email en attente | Supabase Auth (`user.new_email`, absent ou vide sans demande) |
 | Identifiant public MY. | Profil MY. (`profiles.public_id`) |
 | Date de création du compte | Supabase Auth (`auth.users.created_at`, exposé comme `user.created_at`) |
 | Statut Authenticator | Facteur TOTP vérifié géré par Supabase Auth |
