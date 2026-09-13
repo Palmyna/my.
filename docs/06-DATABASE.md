@@ -34,7 +34,7 @@ La migration [20260909184529_phase3a_auth_identity.sql](../supabase/migrations/2
 
 La V1 utilise email/mot de passe, email confirmé obligatoire et TOTP obligatoire. La configuration Auth et la [procédure de récupération administrative](05-ARCHITECTURE.md#récupération-mfa-administrative) sont définies dans l'architecture. La présence d'un profil n'accorde pas l'accès : toutes les données applicatives nécessitent `aal2`.
 
-La Phase 4 est cadrée fonctionnellement et prête pour implémentation. Les sections Profil et suppression ci-dessous distinguent ses contraintes validées du schéma actuel ; aucun SQL, grant, RPC ou réglage Supabase de Phase 4 n'est encore implémenté.
+La Phase 4 est cadrée fonctionnellement ; le [blocage du contrôle autoritatif de ré-authentification](05-ARCHITECTURE.md#ré-authentification-fraîche-des-actions-sensibles) reste à résoudre avant implémentation. Les sections Profil et suppression ci-dessous distinguent ses contraintes validées du schéma actuel ; aucun SQL, grant, RPC ou réglage Supabase de Phase 4 n'est encore implémenté.
 
 ## Principes structurants
 

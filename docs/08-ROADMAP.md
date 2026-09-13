@@ -17,13 +17,13 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est cadrée fonctionnellement et prête pour implémentation.** Son cadrage documentaire est intégré aux références ; aucune implémentation de Phase 4 n'a encore commencé.
+**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est cadrée fonctionnellement, avec un blocage technique à résoudre avant implémentation.** Son cadrage documentaire est intégré aux références ; le [contrôle autoritatif de ré-authentification](05-ARCHITECTURE.md#ré-authentification-fraîche-des-actions-sensibles) reste bloquant. Aucune fonctionnalité de Phase 4 n'est livrée.
 
 | Grandes phases | Statut |
 |---|---|
 | 0 à 2 — Fondations, base de données et catalogue | Terminées |
 | 3 — Authentification et socle applicatif authentifié | Terminée |
-| 4 — Profil et gestion du compte | Cadrée fonctionnellement — prête pour implémentation |
+| 4 — Profil et gestion du compte | Cadrée fonctionnellement — blocage technique avant implémentation |
 | 5 — Dashboard, création et gestion des collections | Planifiée |
 | 6 — Cœur fonctionnel des collections | Planifiée |
 | 7 — Vues, catalogue, recherche globale et préférences | Planifiée |
@@ -71,7 +71,7 @@ La recherche du header est encore un champ visuel sans requête ni suggestion. L
 
 ### Phase 4 — Profil et gestion du compte
 
-**Statut : CADRÉE FONCTIONNELLEMENT — PRÊTE POUR IMPLÉMENTATION**
+**Statut : CADRÉE FONCTIONNELLEMENT — BLOCAGE TECHNIQUE AVANT IMPLÉMENTATION**
 
 L'objectif est de terminer le bloc utilisateur/compte après l'authentification, avant de construire le Dashboard et la gestion des collections.
 
