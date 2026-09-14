@@ -416,7 +416,7 @@ La V1 permet à l'utilisateur de supprimer définitivement son compte MY. Le par
 
 La suppression efface le profil MY., les préférences, les collections possédées et leurs éléments/partages, les relations donnant à cet utilisateur des accès reçus, ses exemplaires physiques avec leurs notes et informations de grading, puis le compte Supabase Auth. Ses collections partagées deviennent inaccessibles aux destinataires puisqu'elles disparaissent. Retirer ses accès reçus ne supprime pas les collections des autres propriétaires ni leurs autres partages.
 
-Le catalogue global — Pokémon, séries, Extensions, Cartes, Variantes et données de référence associées — et les données appartenant aux autres utilisateurs sont préservés. Le [modèle](03-DATA-MODEL.md#suppression-dun-compte), l'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) et la [base de données](06-DATABASE.md#suppression-dun-compte) précisent ce périmètre et les contraintes techniques à traiter avant implémentation.
+Le catalogue global — Pokémon, séries, Extensions, Cartes, Variantes et données de référence associées — et les données appartenant aux autres utilisateurs sont préservés. Le [modèle](03-DATA-MODEL.md#suppression-dun-compte), l'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) et la [base de données](06-DATABASE.md#suppression-dun-compte) précisent le backend livré et validé localement. La présentation dans Profil et l'intégration UX finale restent à réaliser.
 
 L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuelles exigences légales ou rétentions particulières nécessitent un cadrage spécifique ; aucune durée ni exception de conservation n'est décidée ici.
 
@@ -499,7 +499,7 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
 - le moyen de contact final pour modifier/remplacer l'Authenticator ;
 - les textes UX définitifs des modales et le design détaillé du Profil, dont le périmètre fonctionnel est cadré ;
-- la méthode technique finale de ré-authentification fraîche et le workflow SQL/RPC exact de suppression du compte ;
+- l'intégration UX finale du parcours de suppression, dont le backend est livré localement ;
 - les éventuelles exigences légales ou rétentions particulières liées à la suppression, à cadrer spécifiquement ;
 - le design détaillé du dashboard et des vues ;
 - le responsive et l'accessibilité ;

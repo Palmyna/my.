@@ -395,6 +395,10 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
+[functions.delete-account]
+# User JWT is verified by Auth inside the function (also supports asymmetric keys).
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

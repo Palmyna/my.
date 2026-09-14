@@ -14,6 +14,7 @@ export default defineConfig([
   },
   {
     files: ['**/*.{ts,tsx}'],
+    ignores: ['supabase/functions/**/index.ts'],
     extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
@@ -21,6 +22,11 @@ export default defineConfig([
         tsconfigRootDir: import.meta.dirname,
       },
     },
+  },
+  {
+    files: ['supabase/functions/**/index.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: { globals: { Deno: 'readonly' } },
   },
   {
     files: ['src/**/*.{ts,tsx}'],

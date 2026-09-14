@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est cadrée et en cours d'implémentation.** Les protections email/mot de passe reposent sur les mécanismes natifs Supabase ; la suppression renforcée reste à implémenter. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) précise les capacités livrées et les limites locales restantes. La page Profil finale n'est pas encore livrée.
+**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est cadrée et en cours d'implémentation.** Le changement d'email et le backend de suppression renforcée sont livrés localement. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) précise leurs garanties. La page Profil, l'intégration UX et la validation finale restent à réaliser ; le changement volontaire de mot de passe attend sa validation ciblée cloud en clôture de phase.
 
 | Grandes phases | Statut |
 |---|---|
@@ -89,7 +89,7 @@ Les [fonctionnalités](01-FEATURES.md#profil-utilisateur), l'[UX](04-UX-UI.md#pr
 
 Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. L'interface des préférences de vues reste prévue en Phase 7. Aucun profil social n'est ajouté.
 
-Le moyen de contact final, les textes UX et détails visuels, la vérification renforcée et le workflow serveur exact de suppression, ainsi que les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. L'implémentation des services et protections natives du compte se poursuit. La phase n'est pas encore livrée et la Phase 5 n'a pas commencé.
+Le moyen de contact final, les textes UX et détails visuels, ainsi que les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Les services email et le backend de suppression sont validés localement. La page Profil, l'intégration des parcours sensibles et la validation finale restent à réaliser. Le changement volontaire de mot de passe reste non livré, avec validation ciblée cloud prévue à la clôture de cette phase avant la Phase 5. La phase n'est pas encore terminée et la Phase 5 n'a pas commencé.
 
 ### Phase 5 — Dashboard, création et gestion des collections
 

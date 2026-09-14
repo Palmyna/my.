@@ -455,7 +455,7 @@ Les destinataires perdent l'accès aux collections supprimées. Les collections 
 
 Le catalogue global, ses Pokémon, séries, Extensions, Cartes, Variantes et références associées sont préservés, ainsi que toutes les données des autres utilisateurs hors des relations de partage devenues sans objet. Aucune suppression ne remonte des données personnelles vers le catalogue.
 
-Les dépendances physiques et les contraintes d'orchestration sont définies dans [06-DATABASE.md](06-DATABASE.md#suppression-dun-compte) et [05-ARCHITECTURE.md](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration). Le workflow SQL/RPC exact et les éventuelles exigences légales/rétentions particulières restent ouverts ; le périmètre fonctionnel de suppression est validé.
+Les dépendances physiques et l'orchestration livrée localement sont définies dans [06-DATABASE.md](06-DATABASE.md#suppression-dun-compte) et [05-ARCHITECTURE.md](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration). Une Edge Function vérifie l'identité et les deux facteurs frais ; le nettoyage applicatif rejoint la transaction de suppression Auth via un trigger privé, sans nouvelle table ni changement des FK. Les éventuelles exigences légales/rétentions particulières restent ouvertes.
 
 ## Données dérivées
 
@@ -571,7 +571,7 @@ Dans la V1, aucune donnée d'abonnement, de facturation, de paiement, de quota o
 Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, dans les limites du [schéma PostgreSQL / Supabase](06-DATABASE.md) :
 
 - les futures fonctions métier, vues et extensions du socle SQL de Phase 1 ;
-- le workflow technique exact de suppression du compte et les éventuelles exigences légales/rétentions particulières, sans remettre en question le périmètre fonctionnel validé ;
+- les éventuelles exigences légales/rétentions particulières liées à la suppression, sans remettre en question le périmètre fonctionnel validé ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;

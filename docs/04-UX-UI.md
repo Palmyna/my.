@@ -582,6 +582,8 @@ La confirmation distingue les données supprimées du catalogue global et des do
 
 Les formulaires, messages et éventuelles modales conservent des labels explicites, des erreurs accessibles et une gestion cohérente du focus au clavier et avec les technologies d'assistance. Les textes définitifs des modales, le choix exact modale/message, les intitulés de groupes et les détails visuels restent ouverts ; les étapes et garanties fonctionnelles sont fixées.
 
+Le backend de suppression est livré localement ; aucun écran, formulaire ou branchement Profil n'est ajouté à ce stade. Son [contrat final](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) reçoit les saisies et les deux intentions explicites, puis refait lui-même les vérifications Auth. L'intégration ultérieure devra purger session/cache privés après succès. Un échec de destruction après révocation des sessions conserve toutes les données et impose une nouvelle connexion pour réessayer ; une réponse réseau perdue ne doit jamais être présentée comme un succès certain.
+
 ## Paramètres et préférences de vues
 
 La page Paramètres est accessible depuis le menu utilisateur et distincte de la page Profil. Sa section **Affichage** propose :

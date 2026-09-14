@@ -8,7 +8,7 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phases 0 à 3 terminées et validées.** La **Phase 4 — Profil et gestion du compte** est **cadrée et en cours d'implémentation**. La décision V1 issue de la [vérification Auth](docs/reports/2026-09-13-PHASE4B1-REAUTH.md), conservée comme historique, distingue les protections natives email/mot de passe de la future suppression renforcée. Le [socle de changement d'email et ses callbacks](docs/reports/2026-09-13-PHASE4B2-ACCOUNT-AUTH.md) est livré localement. Le changement volontaire de mot de passe reste bloqué spécifiquement par l'activation du réglage serveur avec la CLI locale ; aucune protection frontend seule n'est livrée. La suppression et la page Profil finale restent à implémenter. La [roadmap globale](docs/08-ROADMAP.md) définit l'ordre des grandes phases jusqu'à la V1 et accueillera les évolutions après V1.
+**Phases 0 à 3 terminées et validées.** La **Phase 4 — Profil et gestion du compte** est **cadrée et en cours d'implémentation**. Le [socle de changement d'email](docs/reports/2026-09-13-PHASE4B2-ACCOUNT-AUTH.md) et le [backend de suppression sécurisée](docs/reports/2026-09-14-PHASE4B3-ACCOUNT-DELETION.md) sont livrés et validés localement. La page Profil et l'intégration UX finale restent à construire. Le changement volontaire de mot de passe reste non livré, en attente de validation ciblée cloud à la clôture de la Phase 4, avant la Phase 5 ; le propriétaire confirme que la CLI 2.117.0 ne résout pas sa limitation locale. La [vérification initiale Auth](docs/reports/2026-09-13-PHASE4B1-REAUTH.md) reste conservée. La [roadmap globale](docs/08-ROADMAP.md) définit l'ordre des grandes phases jusqu'à la V1.
 
 La préparation des préférences est déployée ; le socle Auth est validé localement et dans Supabase cloud ; les écrans Auth et le shell authentifié sont validés localement. Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
 
@@ -19,6 +19,8 @@ La préparation des préférences est déployée ; le socle Auth est validé loc
 - `20260908083516_phase2_variant_release_dates` ;
 - `20260909124950_pre_phase3_collection_preferences` ;
 - `20260909184529_phase3a_auth_identity`.
+
+Une huitième migration, [20260914102414_phase4b3_account_deletion.sql](supabase/migrations/20260914102414_phase4b3_account_deletion.sql), est appliquée **localement uniquement** : nettoyage transactionnel lors d'une suppression Auth et retrait d'accès des JWT résiduels. Elle n'est pas déployée dans le cloud.
 
 | Catalogue cloud vérifié lors de cette validation | Lignes |
 |---|---:|
@@ -74,6 +76,8 @@ La stack installée comprend React 19, TypeScript 6, Vite 8, React Router 8, Tan
 | `npm run test:watch` | Tests Vitest en mode interactif |
 
 Les tests frontend utilisent React Testing Library, jest-dom et jsdom, avec des mocks Supabase pour Auth et MFA. Le projet Vitest `catalog` utilise Node pour les tests du pipeline. Aucun test unitaire ne requiert le dataset réel ni une base distante. `npm test -- --project frontend` exécute uniquement la suite frontend.
+
+Le projet Vitest `functions` couvre le handler de suppression (`npm test -- --project functions`). Son point d'entrée Deno est vérifiable avec `deno check --config supabase/functions/delete-account/deno.json supabase/functions/delete-account/index.ts`. Après démarrage local, `npx supabase functions serve delete-account` sert l'Edge Function et `node scripts/test-account-deletion.js` vérifie le parcours réel avec nettoyage des fixtures. Le contrat serveur est décrit dans l'[architecture](docs/05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration).
 
 ## Organisation du frontend
 

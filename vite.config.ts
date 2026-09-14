@@ -7,6 +7,7 @@ export default defineConfig({
     projects: [
       { extends: true, test: { name: 'frontend', include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', setupFiles: ['./src/test/setup.ts'] } },
       { extends: true, test: { name: 'catalog', include: ['scripts/catalog/**/*.test.ts'], environment: 'node' } },
+      { extends: true, test: { name: 'functions', include: ['supabase/functions/**/*.test.ts'], environment: 'node' } },
     ],
     clearMocks: true,
     restoreMocks: true,

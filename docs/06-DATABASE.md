@@ -34,7 +34,7 @@ La migration [20260909184529_phase3a_auth_identity.sql](../supabase/migrations/2
 
 La V1 utilise email/mot de passe, email confirmé obligatoire et TOTP obligatoire. La configuration Auth et la [procédure de récupération administrative](05-ARCHITECTURE.md#récupération-mfa-administrative) sont définies dans l'architecture. La présence d'un profil n'accorde pas l'accès : toutes les données applicatives nécessitent `aal2`.
 
-La Phase 4 est cadrée et en cours d'implémentation. Les [protections des actions du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) distinguent email/mot de passe gérés par Auth et future suppression renforcée côté serveur MY. Aucun SQL, grant, RPC ni schéma de Phase 4 n'est ajouté ; le changement d'email et son callback sont livrés localement, le réglage du mot de passe actuel reste un blocage local ciblé.
+La Phase 4 est cadrée et en cours d'implémentation. Les [protections des actions du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) distinguent email/mot de passe gérés par Auth et suppression renforcée côté serveur MY. Le changement d'email et le backend de suppression sont livrés localement. La nouvelle migration [20260914102414_phase4b3_account_deletion.sql](../supabase/migrations/20260914102414_phase4b3_account_deletion.sql) ajoute le trigger privé de nettoyage et les restrictions RLS contre les JWT d'un compte supprimé, sans table ni FK supplémentaire. Elle porte le total local à **huit migrations**, sans déploiement cloud. Le changement volontaire de mot de passe attend sa validation cloud ciblée à la clôture de Phase 4.
 
 ## Principes structurants
 
@@ -390,7 +390,7 @@ Le helper est dans le schéma non exposé `private`, sans `EXECUTE` pour PUBLIC,
 
 La migration verrouille brièvement les écritures sur `auth.users` pour installer le trigger et backfiller les identités existantes sans profil dans une transaction. Les profils existants, leurs IDs publics et leurs timestamps sont conservés. Le backfill réutilise également le générateur, avec reprise limitée sur la même collision. Aucune préférence n'est créée d'avance.
 
-La FK `profiles.id → auth.users.id` conserve `ON DELETE RESTRICT`. Le socle 3A ne définit aucune cascade Auth/profil ni parcours de suppression du compte ; les contraintes de la future orchestration sont désormais [cadrées ci-dessous](#suppression-dun-compte). La suppression administrative d'un facteur MFA ne touche ni le profil ni ses données.
+La FK `profiles.id → auth.users.id` conserve `ON DELETE RESTRICT`. Le socle 3A crée le profil ; la suppression complète est désormais prise en charge par le [trigger et l'orchestration dédiés](#suppression-dun-compte) de Phase 4. La suppression administrative d'un facteur MFA ne touche ni le profil ni ses données.
 
 ## Préférences utilisateur
 
@@ -596,9 +596,15 @@ Les notes, conditions et informations de grading disparaissent avec les `physica
 
 **Préservation obligatoire :** aucune suppression dans `pokemon`, `tcg_series`, `tcg_sets`, `source_cards`, `catalog_variants`, `card_pokemon`, `automatic_target_states` ou les tables privées du pipeline. Les FK d'éléments/exemplaires vers les Variantes et de collections vers leurs cibles ne justifient aucune suppression du catalogue. Les données des autres comptes sont préservées, hors les seules relations de partage devenues sans objet.
 
-Ces règles imposent une orchestration contrôlée, avec un périmètre fondé sur l'UUID Auth vérifié, et non sur un propriétaire fourni librement par le client. Un simple `delete auth.users` ou une suite de suppressions frontend ne constitue pas le workflow. L'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) fixe les contraintes de privilèges, de sessions/JWT, d'échecs partiels et de reprise à résoudre avant implémentation.
+L'[Edge Function dédiée](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) vérifie la session initiale, refait l'authentification mot de passe et un nouveau challenge/vérification TOTP sur la même identité, exige la confirmation finale, puis révoque les sessions et appelle Auth Admin en suppression physique. Aucun UUID cible libre, secret privilégié ou nettoyage SQL n'est envoyé au navigateur.
 
-Le SQL/RPC exact, l'articulation avec la suppression administrative Auth, les garanties transactionnelles et la maîtrise des écritures concurrentes restent à cadrer techniquement. Les éventuelles évolutions de FK devront être motivées et versionnées dans de nouvelles migrations ; aucune migration historique n'est modifiée. Les exigences légales/rétentions particulières restent ouvertes à un cadrage spécifique, sans durée ou exception ajoutée ici.
+Le trigger `auth_user_deleting_account`, `BEFORE DELETE ON auth.users`, appelle `private.delete_account_data_for_auth_user()`. Cette fonction sans argument utilise uniquement `OLD.id`. Elle verrouille le profil avec `FOR UPDATE`, retire les partages reçus, supprime les collections possédées (cascades éléments/partages), les exemplaires, puis le profil (cascade préférences). Les index FK existants couvrent ces recherches. Les FK restent inchangées et continuent à refuser les références orphelines ; le verrou du parent fait attendre les nouvelles références concurrentes.
+
+Le nettoyage et la suppression Auth font partie de **la même transaction**. Aucune RPC publique ni transaction de nettoyage séparée n'est nécessaire. Une FK bloquante lors du dernier DELETE restaure également les collections, éléments, partages et exemplaires déjà traités ; ce cas est testé via pgTAP et via le véritable Auth Admin. Une suppression privilégiée répétée ne modifie plus rien. L'Edge Function refuse le JWT d'un utilisateur déjà supprimé. En cas d'échec SQL, la révocation préalable des sessions reste effective : l'utilisateur peut se reconnecter et recommencer une vérification complète. Les courses ou deadlocks SQL échouent sans destruction partielle.
+
+La fonction de trigger est `SECURITY DEFINER` avec `search_path = ''` et aucun `EXECUTE` pour PUBLIC, anon, authenticated, service_role ou supabase_auth_admin. Son identité vient du DELETE Auth privilégié, comme l'identité du trigger de création vient d'Auth ; elle ne dépend pas d'un `auth.uid()` administratif absent. Les rôles navigateur ne peuvent supprimer ni `auth.users` ni `profiles` et ne peuvent appeler le trigger. Les administrateurs Auth demeurent des opérateurs de confiance : une suppression physique administrative déclenche le même nettoyage.
+
+Le [rapport local](reports/2026-09-14-PHASE4B3-ACCOUNT-DELETION.md) consigne les preuves d'atomicité, de préservation des autres comptes et du catalogue. Les exigences légales/rétentions particulières restent ouvertes à un cadrage spécifique, sans durée ou exception ajoutée ici. Aucune migration historique n'est modifiée.
 
 ## Progression
 
@@ -814,7 +820,9 @@ Chaque table applicative `public` porte une policy `require_mfa AS RESTRICTIVE F
 
 Cette restriction s'ajoute par **ET** aux policies métier permissives existantes, selon le [mécanisme MFA/RLS Supabase](https://supabase.com/docs/guides/auth/auth-mfa#database). `aal1`, claim absent ou autre valeur : lectures invisibles, insertions refusées, mises à jour/suppressions sans ligne accessible. `aal2` n'accorde pas de droit supplémentaire : propriété, partage en lecture seule et restrictions de colonnes continuent à s'appliquer. Les appels Auth d'enrollment/challenge restent disponibles à `aal1`.
 
-Le claim `aal2` exprime le niveau de session ; les policies MFA/RLS restent inchangées. Les mutations natives Auth suivent les [protections du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) : mot de passe actuel exigé côté Auth pour le changement volontaire, double confirmation Secure Email Change pour l'email. Leur contrôle ne relève pas d'une RPC ou d'une policy applicative. Le TOTP frais reste réservé à la future suppression via l'opération serveur MY. ; aucune table de preuve ou permission temporaire n'est ajoutée.
+Le claim `aal2` exprime le niveau de session ; les policies MFA/propriété existantes restent inchangées. Les mutations natives Auth suivent les [protections du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) : mot de passe actuel exigé côté Auth pour le changement volontaire, double confirmation Secure Email Change pour l'email. Leur contrôle ne relève pas d'une RPC ou d'une policy applicative. Le TOTP frais est imposé par l'Edge Function de suppression ; aucune table de preuve ou permission temporaire n'est ajoutée.
+
+La suppression ajoute `require_my_profile AS RESTRICTIVE FOR ALL TO authenticated` aux mêmes 13 tables. `USING` et `WITH CHECK` appellent `(select private.has_my_profile())` : un test stable, sans argument, de la présence du profil de `auth.uid()`. Son `SECURITY DEFINER` évite une récursion RLS et son `search_path` est vide. Seul authenticated reçoit `EXECUTE`, sans `USAGE` général du schéma privé, suivant le modèle du prédicat de propriété existant. Après suppression du profil, un JWT `aal2` résiduel ne peut plus lire les données ni écrire, y compris dans le catalogue. Ce prédicat ne constitue pas une vérification générale de révocation par `session_id` pour les comptes qui existent encore.
 
 `service_role` conserve ses grants et `BYPASSRLS`. Le pipeline PostgreSQL privilégié et les trois tables privées restent inchangés ; aucune fonction privilégiée n'est exposée dans `public`. Toute future table ou RPC devra préserver cette frontière, notamment une RPC `SECURITY DEFINER` qui contournerait normalement la RLS. Les JWT déjà émis restent soumis à leur expiration après une révocation administrative ; voir la procédure opérateur.
 
@@ -826,7 +834,7 @@ La migration de durcissement vérifie `to_regprocedure('public.rls_auto_enable()
 
 `SECURITY DEFINER` ne doit pas être utilisé par défaut. Lorsqu'une fonction en a réellement besoin, elle doit :
 
-- vérifier explicitement `auth.uid()` lorsque l'opération est liée à un utilisateur ;
+- vérifier explicitement `auth.uid()` lorsque l'opération est liée à un utilisateur appelant ; pour un trigger interne Auth sans droit d'appel, tirer l'identité exclusivement de `NEW.id`/`OLD.id` ;
 - limiter strictement son action et ses paramètres ;
 - fixer un `search_path` sûr ;
 - disposer de droits d'exécution restreints ;
@@ -1017,7 +1025,7 @@ Les scénarios de sécurité doivent couvrir au minimum :
 
 Ils doivent vérifier les droits de lecture et d'écriture, ainsi que l'absence d'accès transversal aux profils, collections et exemplaires.
 
-Les vérifications de Phase 4 distinguent : refus serveur du changement volontaire sans mot de passe actuel ou avec une valeur incorrecte ; changement d'email final uniquement après les deux confirmations, dans chaque ordre ; maintien du recovery sans ancien mot de passe ; puis, pour la future suppression, refus d'une simple session `aal2`, échec de chaque facteur et erreurs/reprises. Le [rapport local](reports/2026-09-13-PHASE4B2-ACCOUNT-AUTH.md) distingue les preuves acquises du blocage du réglage de mot de passe.
+Les vérifications de Phase 4 distinguent : refus serveur du changement volontaire sans mot de passe actuel ou avec une valeur incorrecte ; changement d'email final uniquement après les deux confirmations, dans chaque ordre ; maintien du recovery sans ancien mot de passe ; et suppression avec refus d'une simple session `aal2`, échec de chaque facteur et erreurs/reprises. Le [rapport email/mot de passe](reports/2026-09-13-PHASE4B2-ACCOUNT-AUTH.md) reste historique. Les [tests de suppression](../supabase/tests/database/009_account_deletion.test.sql) et le [script d'intégration](../scripts/test-account-deletion.js) couvrent le backend réellement livré, ses privilèges, rollback, partages dans les deux sens et JWT résiduels ; leurs résultats figurent dans le [rapport de réalisation](reports/2026-09-14-PHASE4B3-ACCOUNT-DELETION.md).
 
 ## Invariants principaux
 
@@ -1073,8 +1081,7 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code et les signatures finaux des RPC ;
 - la persistance du format du classeur et du mode continu/par blocs ;
-- le workflow SQL/RPC exact de suppression complète du compte et sa coordination avec Auth, dans le périmètre fonctionnel validé ;
-- le contrôle autoritatif de la ré-authentification fraîche pour la suppression et les éventuelles exigences légales/rétentions particulières ;
+- les éventuelles exigences légales/rétentions particulières liées à la suppression ;
 - la politique opérationnelle de sauvegarde ;
 - les besoins futurs éventuels d'historique ;
 - le modèle Premium post-V1.
