@@ -366,6 +366,8 @@ La route `/profile` devient la page **Profil / gestion du compte** de la V1. Ell
 
 Profil et Paramètres sont deux destinations distinctes du menu `Mon compte`. La page Profil ne contient aucun lien ni raccourci vers Paramètres.
 
+**Livré en Phase 4C :** la page Profil présente l'identité MY., la date d'inscription, le changement d'email et le statut Authenticator, avec les sources existantes d'Auth et du profil. Le [rapport de réalisation](reports/2026-09-14-PHASE4C-PROFILE.md) précise les validations locales. Les parcours de mot de passe volontaire et de suppression décrits ci-dessous restent à terminer en 4D et au checkpoint cloud ; aucun contrôle inactif ne les simule dans la page actuelle.
+
 ### Informations du compte
 
 La page présente au minimum :
@@ -405,6 +407,8 @@ Ce parcours est distinct de `Mot de passe oublié`. La récupération par email 
 La MFA TOTP reste obligatoire pour tous. Profil affiche son statut, par exemple `Authenticator configuré`. Une action telle que `Modifier` peut ouvrir uniquement une modale ou un message demandant de contacter MY. pour modifier/remplacer l'Authenticator.
 
 La V1 ne propose aucun remplacement automatique du facteur depuis Profil. Le moyen de contact final reste à choisir : aucun formulaire support, adresse support définitive, ticket ou procédure automatisée supplémentaire n'est défini. La récupération en cas de perte d'Authenticator reste la procédure administrative manuelle existante.
+
+La page livrée affiche directement l'information de contact MY., sans bouton `Modifier` qui suggérerait une action disponible.
 
 ### Suppression définitive du compte
 

@@ -61,7 +61,7 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
   expect(screen.queryByRole('link', { name: 'MY. — Accueil' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Mon compte' })).toHaveAttribute('aria-haspopup', 'menu')
   expect(within(screen.getByRole('main')).queryByRole('navigation')).not.toBeInTheDocument()
-  expect(within(screen.getByRole('main')).queryByRole('button')).not.toBeInTheDocument()
+  if (path !== '/profile') expect(within(screen.getByRole('main')).queryByRole('button')).not.toBeInTheDocument()
   const page = screen.getByRole('region', { name: title })
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   expect(page).toContainElement(screen.getByRole('heading', { level: 1, name: title }))
@@ -71,6 +71,9 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
     expect(within(page).getByRole('term')).toHaveTextContent('Votre identifiant MY.')
     expect(within(page).getByRole('definition')).toHaveTextContent(profile.public_id)
     expect(within(page).queryByRole('status')).not.toBeInTheDocument()
+  } else if (path === '/profile') {
+    expect(within(page).getByLabelText('Identifiant MY.')).toHaveValue(profile.public_id)
+    expect(within(page).getByRole('textbox', { name: 'Nouvelle adresse email' })).toBeVisible()
   } else {
     expect(within(page).queryByRole('textbox')).not.toBeInTheDocument()
     expect(within(page).queryByText(profile.public_id)).not.toBeInTheDocument()
@@ -90,6 +93,28 @@ test.each(protectedPages.flatMap(([path]) => [
   expect(screen.getByTestId('path')).toHaveTextContent(target)
   expect(screen.queryByRole('button', { name: 'Mon compte' })).not.toBeInTheDocument()
   expect(mock.from).not.toHaveBeenCalled()
+})
+
+test('le formulaire Profil retrouve la demande en attente après le rechargement USER_UPDATED', async () => {
+  const { mock } = setup('/profile', 'aal2')
+  await heading('Profil')
+  const pendingUser = { ...confirmedUser, new_email: 'next@example.test' }
+  mock.auth.updateUser.mockImplementation(() => {
+    mock.auth.getUser.mockResolvedValue({ data: { user: pendingUser }, error: null })
+    mock.emit('USER_UPDATED', { ...session, user: pendingUser })
+    return Promise.resolve({ data: { user: pendingUser }, error: null })
+  })
+  change('Nouvelle adresse email', pendingUser.new_email)
+  press('Demander le changement')
+  expect(await screen.findByText('Changement en attente')).toBeVisible()
+  expect(screen.getByText(confirmedUser.email!)).toBeVisible()
+  expect(screen.getByText(/Nouvelle adresse demandée/)).toHaveTextContent(pendingUser.new_email)
+  expect(screen.getByTestId('path')).toHaveTextContent('/profile')
+  expect(screen.getByRole('heading', { name: 'Profil' })).toHaveFocus()
+  expect(screen.getByLabelText('Identifiant MY.')).toHaveValue(profile.public_id)
+  expect(mock.auth.updateUser).toHaveBeenCalledOnce()
+  expect(mock.auth.onAuthStateChange).toHaveBeenCalledOnce()
+  expect(mock.mfa.challenge).not.toHaveBeenCalled()
 })
 
 test.each(['/', '/login', '/signup', '/forgot-password', '/auth/confirm-email', '/auth/mfa/enroll', '/auth/mfa/challenge', '/reset-password'])('redirige la route publique/Auth %s vers le Dashboard en aal2', async path => {

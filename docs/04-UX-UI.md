@@ -548,6 +548,10 @@ Profil et Paramètres restent deux destinations distinctes du menu `Mon compte`.
 
 La page peut regrouper visuellement identité MY., sécurité du compte et suppression en bas de page. Ces ensembles fonctionnels ne figent ni les titres visibles, ni une mise en page pixel-perfect.
 
+**Réalisation Phase 4C :** trois sections sobres — Identité MY., Adresse email, Authenticator — reprennent le shell, Poppins et les styles existants. L'identifiant est dans un champ multiligne en lecture seule avec bouton de copie à droite ; les adresses peuvent revenir à la ligne. Les données absentes ont un message explicite, sans valeur de remplacement inventée. Les retours de copie et d'email sont locaux et accessibles. Le `h1` unique conserve le focus de navigation géré par `AppRoutes`. Le [rapport 4C](reports/2026-09-14-PHASE4C-PROFILE.md) consigne les contrôles responsive et clavier.
+
+Le formulaire email est intégré : validation native de l'adresse, refus de l'adresse courante, désactivation pendant l'envoi, message d'erreur réutilisant Auth et possibilité de réessayer. L'attente issue de `user.new_email` reste visible après le rechargement Auth, distincte de l'adresse actuelle, sans supposer quelle confirmation manque. L'information de contact pour l'Authenticator est affichée directement, sans bouton `Modifier` inactif. Les contrôles de mot de passe volontaire et de suppression sont omis en 4C ; leur UX ci-dessous reste une cible pour 4D et le checkpoint cloud.
+
 ### Identité MY.
 
 La page affiche l'email actuel, l'identifiant public MY. et la date de création du compte, par exemple `Membre depuis le 9 septembre 2026`. Cette date provient du compte Supabase Auth, selon le [modèle](03-DATA-MODEL.md#utilisateur-et-profil-my), sans duplication dans le profil.
@@ -566,7 +570,7 @@ Les actions de changement d'email et de mot de passe partent directement de Prof
 
 Le moyen de contact final reste ouvert. Aucun formulaire support, adresse email support définitive, ticket ou procédure automatisée n'est ajouté. La récupération en cas de perte d'Authenticator reste administrative et manuelle.
 
-Le callback `/auth/confirm-email-change` réutilise le traitement Auth existant. Après le premier lien, il affiche une invitation à terminer les deux confirmations, sans annoncer un changement définitif. Après le dernier lien, le service relit l'utilisateur Auth, termine uniquement la session technique du lien et affiche `Adresse email modifiée`, avec retour à la connexion sur la nouvelle adresse. Ce résultat est distinct de la confirmation d'inscription. Aucun paramètre sensible du callback ne reste dans l'URL. Ces écrans minimaux sont livrés avant la page Profil finale et ses formulaires.
+Le callback `/auth/confirm-email-change` réutilise le traitement Auth existant. Après le premier lien, il affiche une invitation à terminer les deux confirmations, sans annoncer un changement définitif. Après le dernier lien, le service relit l'utilisateur Auth, termine uniquement la session technique du lien et affiche `Adresse email modifiée`, avec retour à la connexion sur la nouvelle adresse. Ce résultat est distinct de la confirmation d'inscription. Aucun paramètre sensible du callback ne reste dans l'URL. Ces écrans minimaux livrés en 4B.2 restent inchangés lors de l'intégration du formulaire Profil en 4C.
 
 ### Suppression du compte
 
@@ -582,7 +586,7 @@ La confirmation distingue les données supprimées du catalogue global et des do
 
 Les formulaires, messages et éventuelles modales conservent des labels explicites, des erreurs accessibles et une gestion cohérente du focus au clavier et avec les technologies d'assistance. Les textes définitifs des modales, le choix exact modale/message, les intitulés de groupes et les détails visuels restent ouverts ; les étapes et garanties fonctionnelles sont fixées.
 
-Le backend de suppression est livré localement ; aucun écran, formulaire ou branchement Profil n'est ajouté à ce stade. Son [contrat final](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) reçoit les saisies et les deux intentions explicites, puis refait lui-même les vérifications Auth. L'intégration ultérieure devra purger session/cache privés après succès. Un échec de destruction après révocation des sessions conserve toutes les données et impose une nouvelle connexion pour réessayer ; une réponse réseau perdue ne doit jamais être présentée comme un succès certain.
+Le backend de suppression est livré localement ; aucun écran, formulaire ou branchement de suppression depuis Profil n'est livré en 4C. Son [contrat final](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) reçoit les saisies et les deux intentions explicites, puis refait lui-même les vérifications Auth. L'intégration ultérieure devra purger session/cache privés après succès. Un échec de destruction après révocation des sessions conserve toutes les données et impose une nouvelle connexion pour réessayer ; une réponse réseau perdue ne doit jamais être présentée comme un succès certain.
 
 ## Paramètres et préférences de vues
 

@@ -17,6 +17,22 @@ h1:focus { outline: none; }
 .my-identity { margin: 32px 0 0; }
 .my-identity dt { color: #c9bfc0; font-size: .875rem; }
 .my-identity .public-id { margin: 6px 0 0; font-size: 1rem; }
+.profile-section { margin-top: 32px; padding-top: 28px; border-top: 1px solid #68595b; }
+.profile-section h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 16px; }
+.profile-membership { color: #c9bfc0; font-size: .9rem; }
+.profile-label, .profile-details dt { display: block; margin-bottom: 8px; color: #c9bfc0; font-size: .85rem; }
+.profile-copy { display: grid; grid-template-columns: minmax(0, 1fr) 50px; gap: 12px; align-items: start; margin-bottom: 10px; }
+.profile-copy textarea { width: 100%; min-width: 0; resize: none; font-family: inherit; line-height: 1.65; padding: 12px 14px; border: 1px solid #68595b; border-radius: 8px; background: #231a1a; color: #fff; }
+.profile-copy .button { padding: 12px; }
+.profile-copy svg { width: 24px; height: 24px; }
+.profile-copy-feedback:empty { margin: 0; }
+.profile-details { margin: 0 0 24px; }
+.profile-details dd { margin: 0; }
+.profile-section .feedback { margin: 0 0 24px; }
+.profile-section .feedback p { margin: 8px 0 0; }
+.profile-section form + .feedback { margin: 20px 0 0; }
+.profile-section form .button { width: fit-content; }
+.profile-authenticator { margin-bottom: 8px; font-weight: 600; }
 .site-header { display: flex; align-items: flex-start; justify-content: space-between; min-height: 96px; padding: 28px 21px 14px; }
 .authenticated-header { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; gap: 24px; align-items: center; }
 .header-identity { display: flex; align-items: center; gap: 8px; justify-self: start; white-space: nowrap; }
@@ -98,6 +114,7 @@ button:disabled, fieldset:disabled { opacity: .65; cursor: wait; }
   .site-footer { padding: 28px 24px; min-height: 80px; }
 }
 @media (max-width: 600px) {
+  .profile-section form .button { width: 100%; }
   .header-identity .brand img { width: 52px; }
   .header-page-name { font-size: 1.755rem; }
   .user-menu-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
