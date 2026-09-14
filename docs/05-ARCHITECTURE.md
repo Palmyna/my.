@@ -47,6 +47,8 @@ La V1 n'utilise ni Next.js ni un framework SSR équivalent. Ce choix répond au 
 
 ## Architecture générale
 
+Architecture cible ; l'hébergement Vercel n'est pas encore configuré :
+
 ```text
 Utilisateur
     ↓
@@ -73,7 +75,7 @@ Processus de synchronisation dans un environnement de confiance
                 Catalogue local MY.
 ```
 
-Vercel héberge le frontend compilé par Vite. La SPA React s'exécute dans le navigateur et accède directement à Supabase pour les opérations applicatives simples, sous contrôle Auth et RLS. Supabase reste le backend principal ; aucune logique backend n'est déplacée vers Vercel. TCGdex alimente le catalogue local, mais n'est pas interrogé à chaque consultation utilisateur.
+Vercel hébergera le frontend compilé par Vite lors de la mise en production. La SPA React s'exécute dans le navigateur et accède directement à Supabase pour les opérations applicatives simples, sous contrôle Auth et RLS. Supabase reste le backend principal ; aucune logique backend n'est déplacée vers Vercel. TCGdex alimente le catalogue local, mais n'est pas interrogé à chaque consultation utilisateur.
 
 ## Frontend
 
@@ -581,13 +583,17 @@ Les URL, clés publiques et autres paramètres sont injectés par environnement.
 
 Le dépôt GitHub est la source de référence du code et de la configuration versionnée. Il doit contenir le frontend, les scripts, les migrations, la documentation et la configuration non secrète. Aucun secret ne doit y être commité.
 
-Lors du déploiement effectif, Vercel construira et déploiera le frontend depuis GitHub selon le flux prévu :
+`dev` est la branche GitHub par défaut et la branche normale de développement et d'intégration. `main` représente l'état stable et la future production. Les changements validés passent de `dev` vers `main` par Pull Request, sans push direct sur `main` dans le workflow normal.
+
+Un GitHub Ruleset actif protège `main` : suppression et force-push bloqués, Pull Request obligatoire avant merge, sans approbation exigée actuellement. Seul le merge classique est autorisé.
+
+Vercel n'est pas encore configuré et aucun déploiement Vercel n'est en place. Lors de la phase finale de mise en production, à la fin du développement V1, Vercel devra utiliser `main` comme branche de production selon le flux prévu :
 
 ```text
-Push GitHub → build Vite sur Vercel → frontend statique déployé sur Vercel
+PR dev → main fusionnée → build Vite sur Vercel → frontend statique de production sur Vercel
 ```
 
-La branche de production, la configuration Vercel et les règles détaillées restent à définir. Les previews de branches ou de pull requests pourront être utilisées ultérieurement lorsqu'elles apportent une valeur réelle, sans provoquer volontairement un grand nombre de builds inutiles. Ce flux n'est pas encore configuré.
+La configuration détaillée de Vercel reste à réaliser. L'utilisation éventuelle de previews pour `dev` ou les Pull Requests sera décidée lors de cette configuration, selon leur valeur réelle et sans multiplier inutilement les builds. Ni ce flux de production ni les previews ne sont configurés à ce stade.
 
 ### Migrations PostgreSQL
 
@@ -688,7 +694,7 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 - la fréquence et le déclencheur de l'automatisation future du pipeline décrit dans [07-CATALOG-SYNC.md](07-CATALOG-SYNC.md) ;
 - les éventuels usages d'Edge Functions au-delà de la suppression de compte déjà livrée ;
 - la politique détaillée de sauvegarde ;
-- la branche de production et l'automatisation CI ;
+- l'automatisation CI ;
 - les seuils précis de passage aux offres payantes ;
 - le modèle Premium et un éventuel fournisseur de paiement.
 

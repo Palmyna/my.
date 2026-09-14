@@ -52,6 +52,10 @@ Chaque variante porte désormais sa date effective nullable et sa provenance per
 
 **Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place. Le déploiement Vercel et ses URLs de production sont réservés à la phase finale de mise en production.
 
+## Workflow Git
+
+`dev` est la branche GitHub par défaut et la branche de développement et d'intégration. `main` représente l'état stable et sera la branche de production Vercel ; les changements validés y passent par Pull Request depuis `dev`. Vercel reste non configuré et non déployé à ce stade.
+
 ## Développement local
 
 Prérequis : Git, Node.js **24.20.0** (ou une version 24.x plus récente) et npm **11.19.0** (ou une version 11.x plus récente). Le fichier `.nvmrc` indique la version de référence de Node.
