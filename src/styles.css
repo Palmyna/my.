@@ -42,6 +42,9 @@ h1:focus { outline: none; }
 .profile-section form + .feedback { margin: 20px 0 0; }
 .profile-section form .button { width: fit-content; }
 .profile-authenticator { margin-bottom: 8px; font-size: .95rem; font-weight: 600; }
+.profile-authenticator-info { margin-top: 24px; padding-top: 20px; border-top: 1px solid #514344; }
+.profile-authenticator-info .hint { margin-bottom: 0; }
+.profile-password form .feedback { margin: 20px 0 0; }
 .site-header { display: flex; align-items: flex-start; justify-content: space-between; min-height: 82px; padding: 28px 21px 0 21px; position: sticky; top: 0; background: #231a1a; }
 .authenticated-header { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; gap: 24px; align-items: center; }
 .header-identity { display: flex; align-items: center; gap: 8px; justify-self: start; white-space: nowrap; }

@@ -17,12 +17,14 @@ export interface AuthState {
   error: Error | null
   emailConfirmed: boolean
   passwordChanged: boolean
+  accountPasswordChange: 'idle' | 'pending' | 'success'
   emailChangeResult: 'pending' | 'confirmed' | null
 }
 
 const initialState: AuthState = {
   status: 'initializing', session: null, user: null, mfa: null, profile: null,
   pendingEmail: null, passwordRecovery: false, error: null, emailConfirmed: false, passwordChanged: false,
+  accountPasswordChange: 'idle',
   emailChangeResult: null,
 }
 
@@ -35,6 +37,7 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
   let revision = 0
   let active = false
   let currentUserId: string | null = null
+  let identityRevision = 0
   let timer: ReturnType<typeof setTimeout> | undefined
   const listeners = new Set<() => void>()
   let callbackRead = false
@@ -73,7 +76,7 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
         emit({ ...base, status: 'password_reset_required' })
       } else {
         const profile = await auth.getProfile()
-        if (current()) emit({ ...base, status: 'authorized', profile })
+        if (current()) emit({ ...base, status: 'authorized', profile, accountPasswordChange: state.accountPasswordChange })
       }
     } catch (error) {
       if (current()) fail(error)
@@ -82,6 +85,9 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
 
   function accept(session: Session | null, recovery = false) {
     const ticket = invalidate()
+    const sameUser = session !== null && session.user.id === currentUserId
+    if (!sameUser) identityRevision += 1
+    const accountPasswordChange = sameUser ? state.accountPasswordChange : 'idle'
     currentUserId = session?.user.id ?? null
     if (!session) {
       recoveryContext?.clear()
@@ -89,7 +95,7 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       return
     }
     if (recovery) recoveryContext?.save(session)
-    emit({ ...initialState, passwordRecovery: recovery || (recoveryContext?.has(session) ?? false), passwordChanged: state.passwordChanged, emailChangeResult: state.emailChangeResult })
+    emit({ ...initialState, passwordRecovery: recovery || (recoveryContext?.has(session) ?? false), passwordChanged: state.passwordChanged, accountPasswordChange, emailChangeResult: state.emailChangeResult })
     // Never await another Supabase Auth call inside onAuthStateChange's lock.
     timer = setTimeout(() => { void resolve(session, ticket) }, 0)
   }
@@ -97,7 +103,7 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
   async function restore() {
     const ticket = invalidate()
     const recovery = state.passwordRecovery
-    emit({ ...initialState, passwordRecovery: recovery, passwordChanged: state.passwordChanged, emailChangeResult: state.emailChangeResult })
+    emit({ ...initialState, passwordRecovery: recovery, passwordChanged: state.passwordChanged, accountPasswordChange: state.accountPasswordChange, emailChangeResult: state.emailChangeResult })
     try {
       if (callbackResult) {
         const result = await callbackResult
@@ -157,6 +163,8 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       } catch (error) { fail(error) }
       return () => {
         active = false
+        identityRevision += 1
+        state = { ...state, accountPasswordChange: 'idle' }
         invalidate()
         unsubscribe?.()
       }
@@ -174,6 +182,7 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       },
       signIn: (email: string, password: string) => requireService().signIn(email, password),
       async signOut() {
+        identityRevision += 1
         invalidate()
         callbackResult = null
         callbackPending = false
@@ -196,6 +205,25 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
         if (state.status !== 'authorized') throw new Error('Connectez-vous et terminez la vérification MFA avant de continuer.')
         // USER_UPDATED re-resolves user.email/new_email through Auth; no optimistic email copy.
         return requireService().requestEmailChange(email, redirectTo)
+      },
+      clearPasswordChangeFeedback() {
+        if (state.accountPasswordChange !== 'pending') emit({ ...state, accountPasswordChange: 'idle' })
+      },
+      async changePassword(currentPassword: string, password: string) {
+        if (state.status !== 'authorized') throw new Error('Connectez-vous et terminez la vérification MFA avant de continuer.')
+        if (state.accountPasswordChange === 'pending') throw new Error('Changement de mot de passe en cours.')
+        const ticket = identityRevision
+        emit({ ...state, accountPasswordChange: 'pending' })
+        try {
+          const result = await requireService().changePassword(currentPassword, password)
+          // Presentation only: survive USER_UPDATED/remount without storing either password.
+          // A late response must never publish feedback in a different account/session lifecycle.
+          if (active && ticket === identityRevision) emit({ ...state, accountPasswordChange: 'success' })
+          return result
+        } catch (error) {
+          if (active && ticket === identityRevision) emit({ ...state, accountPasswordChange: 'idle' })
+          throw error
+        }
       },
       async updatePassword(password: string) {
         if (state.status !== 'password_reset_required') throw new Error('Validez le MFA du parcours de récupération avant de continuer.')

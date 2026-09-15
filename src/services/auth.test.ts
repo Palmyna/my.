@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest'
 import { confirmedUser, mockAuthClient, profile, session, totpFactor } from '../test/auth-fixtures'
 import { createAuthService } from './auth'
+import { authErrorMessage } from '../features/auth/auth-ui'
 
 describe('Auth email et session', () => {
   test('signup transmet uniquement email/mot de passe et attend la confirmation', async () => {
@@ -53,6 +54,66 @@ describe('Auth email et session', () => {
     expect(mock.auth.resetPasswordForEmail).toHaveBeenCalledWith('a@example.test', { redirectTo: 'http://localhost:5173' })
     expect(mock.auth.updateUser).toHaveBeenCalledWith({ password: 'new-password' })
     expect(mock.from).not.toHaveBeenCalled()
+  })
+})
+
+describe('changement volontaire du mot de passe — contrat SDK simulé', () => {
+  test.each(['session absente', 'email non confirmé', 'aal1', 'TOTP absent', 'TOTP non vérifié'])('refuse avant mutation : %s', async condition => {
+    const mock = mockAuthClient()
+    mock.authorize()
+    if (condition === 'session absente') mock.auth.getSession.mockResolvedValue({ data: { session: null }, error: null })
+    if (condition === 'email non confirmé') mock.auth.getUser.mockResolvedValue({ data: { user: { ...confirmedUser, email_confirmed_at: undefined } }, error: null })
+    if (condition === 'aal1') mock.mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({ data: { currentLevel: 'aal1', nextLevel: 'aal2' }, error: null })
+    if (condition.startsWith('TOTP')) mock.auth.getUser.mockResolvedValue({ data: { user: { ...confirmedUser, factors: condition === 'TOTP absent' ? [] : [{ ...totpFactor, status: 'unverified' }] } }, error: null })
+    const error = await createAuthService(mock.client).changePassword('current-password', 'new-password').catch((cause: unknown) => cause)
+    expect(error).toBeInstanceOf(Error)
+    expect(authErrorMessage(error)).toContain(condition === 'session absente' ? 'session a expiré' : condition === 'email non confirmé' ? 'Confirmez votre adresse email' : 'Authenticator')
+    expect(mock.auth.updateUser).not.toHaveBeenCalled()
+    expect(mock.auth.signInWithPassword).not.toHaveBeenCalled()
+    expect(mock.mfa.challenge).not.toHaveBeenCalled()
+  })
+  test('transmet exactement les deux mots de passe sans vérifier le mot de passe actuel côté client', async () => {
+    const mock = mockAuthClient()
+    mock.authorize()
+    expect(await createAuthService(mock.client).changePassword(' current-password ', ' new-password ')).toEqual({ user: confirmedUser })
+    expect(mock.auth.getUser).toHaveBeenCalledExactlyOnceWith(session.access_token)
+    expect(mock.mfa.getAuthenticatorAssuranceLevel).toHaveBeenCalledExactlyOnceWith(session.access_token)
+    expect(mock.auth.updateUser).toHaveBeenCalledExactlyOnceWith({ password: ' new-password ', current_password: ' current-password ' })
+    expect(mock.auth.signInWithPassword).not.toHaveBeenCalled()
+    expect(mock.auth.signOut).not.toHaveBeenCalled()
+    expect(mock.auth.resetPasswordForEmail).not.toHaveBeenCalled()
+    expect(mock.auth.setSession).not.toHaveBeenCalled()
+    expect(mock.mfa.challenge).not.toHaveBeenCalled()
+    expect(mock.mfa.verify).not.toHaveBeenCalled()
+    expect(mock.from).not.toHaveBeenCalled()
+  })
+  test.each([
+    ['current_password_mismatch', 'Le mot de passe actuel est incorrect.'],
+    ['current_password_required', 'Saisissez votre mot de passe actuel.'],
+    ['weak_password', 'plus robuste'],
+    ['same_password', 'différent du précédent'],
+    ['session_not_found', 'session a expiré'],
+    ['session_expired', 'session a expiré'],
+    ['bad_jwt', 'session a expiré'],
+    ['insufficient_aal', 'Authenticator'],
+    ['over_request_rate_limit', 'Trop de tentatives'],
+    ['unknown', 'Impossible de terminer cette action'],
+  ])('propage et traduit le code simulé %s sans texte brut', async (code, message) => {
+    const mock = mockAuthClient()
+    mock.authorize()
+    const error = Object.assign(new Error('sensitive payload'), { code })
+    mock.auth.updateUser.mockResolvedValue({ data: null, error })
+    await expect(createAuthService(mock.client).changePassword('current-password', 'new-password')).rejects.toBe(error)
+    expect(authErrorMessage(error)).toContain(message)
+    expect(authErrorMessage(error)).not.toContain('sensitive payload')
+  })
+  test('une session refusée par getUser ne parvient pas à updateUser', async () => {
+    const mock = mockAuthClient()
+    mock.authorize()
+    const error = Object.assign(new Error('revoked'), { code: 'session_not_found' })
+    mock.auth.getUser.mockResolvedValue({ data: { user: null }, error })
+    await expect(createAuthService(mock.client).changePassword('current-password', 'new-password')).rejects.toBe(error)
+    expect(mock.auth.updateUser).not.toHaveBeenCalled()
   })
 })
 

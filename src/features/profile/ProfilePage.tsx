@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AuthForm, SubmitButton } from '../auth/AuthLayout'
 import { authRedirectUrl } from '../auth/auth-callback'
 import { useAuth } from '../auth/auth-context'
-import { fieldValue, useAuthTask } from '../auth/auth-ui'
+import { fieldValue, passwordsMatch, useAuthTask } from '../auth/auth-ui'
 
 function membershipDate(createdAt: string | undefined) {
   if (!createdAt) return null
@@ -96,6 +96,59 @@ function EmailChange() {
   </section>
 }
 
+function PasswordChange() {
+  const { isAuthorized, accountPasswordChange, actions } = useAuth()
+  const task = useAuthTask()
+  const currentInput = useRef<HTMLInputElement>(null)
+  const busy = task.busy || accountPasswordChange === 'pending'
+
+  useEffect(() => {
+    if (accountPasswordChange === 'success') currentInput.current?.form?.reset()
+  }, [accountPasswordChange])
+
+  function submit(data: FormData) {
+    actions.clearPasswordChangeFeedback()
+    const currentPassword = fieldValue(data, 'current_password')
+    const password = fieldValue(data, 'password')
+    if (!currentPassword || !password || !fieldValue(data, 'confirmation')) {
+      task.setError('Renseignez les trois champs de mot de passe.')
+      return
+    }
+    if (password.length < 6) {
+      task.setError('Le nouveau mot de passe doit contenir au moins 6 caractères.')
+      return
+    }
+    if (!passwordsMatch(data)) {
+      task.setError('Les mots de passe ne correspondent pas.')
+      return
+    }
+    if (password === currentPassword) {
+      task.setError('Choisissez un mot de passe différent du précédent.')
+      return
+    }
+    task.run(() => actions.changePassword(currentPassword, password))
+  }
+
+  if (!isAuthorized) return <p className="feedback" role="status">Les données du compte sont indisponibles. Le changement de mot de passe est momentanément inaccessible.</p>
+
+  return <div className="profile-password">
+    <AuthForm busy={busy} error={task.error} submit={submit}>
+      <label className="field">Mot de passe actuel
+        <input ref={currentInput} name="current_password" type="password" autoComplete="current-password" required />
+      </label>
+      <label className="field">Nouveau mot de passe
+        <input name="password" type="password" autoComplete="new-password" minLength={6} required aria-describedby="profile-password-hint" />
+      </label>
+      <p id="profile-password-hint" className="hint">Au moins 6 caractères. Privilégiez un mot de passe unique.</p>
+      <label className="field">Confirmer le nouveau mot de passe
+        <input name="confirmation" type="password" autoComplete="new-password" required />
+      </label>
+      <SubmitButton busy={busy}>Modifier le mot de passe</SubmitButton>
+    </AuthForm>
+    {accountPasswordChange === 'success' && <p className="feedback" role="status">Mot de passe modifié.</p>}
+  </div>
+}
+
 export function ProfilePage() {
   const { user, profile, mfa } = useAuth()
   const memberSince = membershipDate(user?.created_at)
@@ -109,10 +162,13 @@ export function ProfilePage() {
       {profile?.public_id ? <PublicIdentity key={profile.public_id} publicId={profile.public_id} /> : <p className="feedback" role="status">Identifiant MY. indisponible.</p>}
     </section>
     <EmailChange key={user?.id} />
-    <section className="profile-section" aria-labelledby="authenticator-title">
-      <h2 id="authenticator-title">Authenticator</h2>
-      <p className="profile-authenticator">{!mfa ? 'Statut Authenticator indisponible.' : mfa.verifiedFactors.length > 0 ? 'Authenticator configuré' : 'Aucun Authenticator vérifié.'}</p>
-      <p className="hint">Pour modifier ou remplacer votre Authenticator, il est nécessaire de contacter un administrateur.</p>
+    <section className="profile-section" aria-labelledby="security-title">
+      <h2 id="security-title">Sécurité du compte</h2>
+      <PasswordChange key={user?.id} />
+      <div className="profile-authenticator-info">
+        <p className="profile-authenticator">{!mfa ? 'Statut Authenticator indisponible.' : mfa.verifiedFactors.length > 0 ? 'Authenticator configuré' : 'Aucun Authenticator vérifié.'}</p>
+        <p className="hint">Pour modifier ou remplacer votre Authenticator, il est nécessaire de contacter un administrateur.</p>
+      </div>
     </section>
   </section>
 }

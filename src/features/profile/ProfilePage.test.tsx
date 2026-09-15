@@ -208,14 +208,14 @@ test('ne présente pas un facteur non vérifié comme configuré', async () => {
   expect(screen.queryByText('Authenticator configuré')).not.toBeInTheDocument()
 })
 
-test('reste dans 4C : aucun Paramètres, mot de passe, TOTP automatique ni suppression', async () => {
+test('reste dans 4D.1 : aucun Paramètres, TOTP automatique ni suppression', async () => {
   const fetch = vi.fn()
   vi.stubGlobal('fetch', fetch)
   const { mock } = await setup()
   const page = screen.getByRole('region', { name: 'Profil' })
   expect(within(page).queryByRole('link')).not.toBeInTheDocument()
-  expect(within(page).queryByLabelText(/mot de passe|code/i)).not.toBeInTheDocument()
-  expect(within(page).queryByRole('button', { name: /modifier|supprimer|configurer/i })).not.toBeInTheDocument()
+  expect(within(page).queryByLabelText(/code/i)).not.toBeInTheDocument()
+  expect(within(page).queryByRole('button', { name: /supprimer|configurer|remplacer/i })).not.toBeInTheDocument()
   changeEmail()
   submit()
   await screen.findByText(/Demande envoyée/)
@@ -225,4 +225,106 @@ test('reste dans 4C : aucun Paramètres, mot de passe, TOTP automatique ni suppr
   expect(mock.mfa.unenroll).not.toHaveBeenCalled()
   expect(mock.mfa.challenge).not.toHaveBeenCalled()
   expect(fetch).not.toHaveBeenCalled()
+})
+
+const passwordLabels = ['Mot de passe actuel', 'Nouveau mot de passe', 'Confirmer le nouveau mot de passe']
+function fillPasswords(current = 'current-password', password = 'new-password', confirmation = password) {
+  passwordLabels.forEach((label, index) => fireEvent.change(screen.getByLabelText(label, { exact: true }), { target: { value: [current, password, confirmation][index] } }))
+}
+const submitPassword = () => fireEvent.click(screen.getByRole('button', { name: 'Modifier le mot de passe' }))
+
+test('ordonne identité, email, sécurité et intègre l’Authenticator secondaire', async () => {
+  await setup()
+  expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Identité MY.', 'Adresse email', 'Sécurité du compte'])
+  const security = screen.getByRole('region', { name: 'Sécurité du compte' })
+  expect(within(security).getByText('Authenticator configuré')).toBeVisible()
+  expect(within(security).getByText(/contacter un administrateur/)).toBeVisible()
+  expect(screen.queryByRole('region', { name: 'Authenticator' })).not.toBeInTheDocument()
+  passwordLabels.forEach((label, index) => {
+    const input = within(security).getByLabelText(label, { exact: true })
+    expect(input).toBeRequired()
+    expect(input).toHaveAttribute('type', 'password')
+    expect(input).toHaveAttribute('autocomplete', index === 0 ? 'current-password' : 'new-password')
+  })
+  expect(screen.getByLabelText('Nouveau mot de passe', { exact: true })).toHaveAttribute('minlength', '6')
+})
+
+test.each(passwordLabels)('le champ requis %s bloque la soumission native et directe', async label => {
+  const { mock } = await setup()
+  fillPasswords()
+  const input = screen.getByLabelText(label, { exact: true })
+  fireEvent.change(input, { target: { value: '' } })
+  submitPassword()
+  expect(input).toBeInvalid()
+  fireEvent.submit(input.closest('form')!)
+  expect(screen.getByRole('alert')).toHaveTextContent('Renseignez les trois champs')
+  expect(mock.auth.updateUser).not.toHaveBeenCalled()
+})
+
+test.each([
+  ['current-password', 'new-password', 'different-password', 'ne correspondent pas'],
+  ['current-password', 'short', 'short', 'au moins 6 caractères'],
+  ['current-password', 'current-password', 'current-password', 'différent du précédent'],
+])('validation frontend sans appel Auth : %s / %s / %s', async (current, password, confirmation, message) => {
+  const { mock } = await setup()
+  fillPasswords(current, password, confirmation)
+  fireEvent.submit(screen.getByLabelText('Mot de passe actuel').closest('form')!)
+  expect(screen.getByRole('alert')).toHaveTextContent(message)
+  expect(mock.auth.updateUser).not.toHaveBeenCalled()
+})
+
+test('attend le vrai résultat SDK, bloque le doublon, vide les champs et conserve la session', async () => {
+  const { mock, store } = await setup()
+  let finish!: (value: Awaited<ReturnType<typeof mock.auth.updateUser>>) => void
+  mock.auth.updateUser.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  fillPasswords(' current-password ', 'simple')
+  submitPassword()
+  const input = screen.getByLabelText('Mot de passe actuel')
+  expect(input.closest('form')).toHaveAttribute('aria-busy', 'true')
+  passwordLabels.forEach(label => expect(screen.getByLabelText(label, { exact: true })).toBeDisabled())
+  expect(screen.getByRole('button', { name: 'Un instant…' })).toBeDisabled()
+  expect(screen.queryByText('Mot de passe modifié.')).not.toBeInTheDocument()
+  fireEvent.submit(input.closest('form')!)
+  await waitFor(() => expect(mock.auth.updateUser).toHaveBeenCalledExactlyOnceWith({ password: 'simple', current_password: ' current-password ' }))
+  await act(async () => {
+    finish({ data: { user: confirmedUser }, error: null })
+    await Promise.resolve()
+  })
+  expect(await screen.findByText('Mot de passe modifié.')).toHaveAttribute('role', 'status')
+  passwordLabels.forEach(label => {
+    expect(screen.getByLabelText(label, { exact: true })).toHaveValue('')
+    expect(screen.getByLabelText(label, { exact: true })).toBeEnabled()
+  })
+  expect(store.getSnapshot()).toMatchObject({ status: 'authorized', session, passwordRecovery: false, passwordChanged: false })
+  expect(mock.auth.signInWithPassword).not.toHaveBeenCalled()
+  expect(mock.auth.signOut).not.toHaveBeenCalled()
+  expect(mock.auth.resetPasswordForEmail).not.toHaveBeenCalled()
+  expect(mock.mfa.challenge).not.toHaveBeenCalled()
+  expect(mock.mfa.verify).not.toHaveBeenCalled()
+})
+
+test.each([
+  ['current_password_mismatch', 'Le mot de passe actuel est incorrect.'],
+  ['weak_password', 'plus robuste'],
+  ['session_not_found', 'session a expiré'],
+  ['insufficient_aal', 'Authenticator'],
+  ['over_request_rate_limit', 'Trop de tentatives'],
+  ['unknown', 'Impossible de terminer cette action'],
+])('présente le refus SDK simulé %s et permet le retry', async (code, message) => {
+  const { mock } = await setup()
+  mock.auth.updateUser.mockResolvedValueOnce({ data: null, error: Object.assign(new Error('sensitive payload'), { code }) })
+  fillPasswords()
+  submitPassword()
+  expect(await screen.findByRole('alert')).toHaveTextContent(message)
+  expect(screen.queryByText('Mot de passe modifié.')).not.toBeInTheDocument()
+  expect(screen.queryByText(/sensitive payload/)).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Mot de passe actuel')).toBeEnabled()
+  submitPassword()
+  expect(await screen.findByText('Mot de passe modifié.')).toBeVisible()
+  expect(mock.auth.updateUser).toHaveBeenCalledTimes(2)
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  fillPasswords('next-password', 'another-password', 'mismatch')
+  submitPassword()
+  expect(screen.queryByText('Mot de passe modifié.')).not.toBeInTheDocument()
+  expect(mock.auth.updateUser).toHaveBeenCalledTimes(2)
 })

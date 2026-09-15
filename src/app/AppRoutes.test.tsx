@@ -52,6 +52,40 @@ test.each([
   if (mode !== 'aal2') expect(mock.from).not.toHaveBeenCalled()
 })
 
+test('le succès password reste visible sur /profile après le démontage USER_UPDATED', async () => {
+  const { mock, store } = setup('/profile', 'aal2')
+  await heading('Profil')
+  let finish!: (value: Awaited<ReturnType<typeof mock.auth.updateUser>>) => void
+  mock.auth.updateUser.mockImplementation(() => {
+    mock.emit('USER_UPDATED', session)
+    return new Promise(resolve => { finish = resolve })
+  })
+  change('Mot de passe actuel', 'current-password')
+  change('Nouveau mot de passe', 'new-password')
+  change('Confirmer le nouveau mot de passe', 'new-password')
+  press('Modifier le mot de passe')
+  await waitFor(() => expect(mock.auth.updateUser).toHaveBeenCalledOnce())
+  await heading('Profil')
+  expect(screen.queryByText('Mot de passe modifié.')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Mot de passe actuel')).toBeDisabled()
+  fireEvent.submit(screen.getByLabelText('Mot de passe actuel').closest('form')!)
+  expect(mock.auth.updateUser).toHaveBeenCalledOnce()
+  await act(async () => {
+    finish({ data: { user: confirmedUser }, error: null })
+    await Promise.resolve()
+  })
+  expect(await screen.findByText('Mot de passe modifié.')).toHaveAttribute('role', 'status')
+  expect(screen.getByTestId('path')).toHaveTextContent('/profile')
+  expect(screen.getByLabelText('Mot de passe actuel')).toHaveValue('')
+  expect(screen.getByLabelText('Nouveau mot de passe', { exact: true })).toHaveValue('')
+  expect(screen.getByLabelText('Confirmer le nouveau mot de passe')).toHaveValue('')
+  expect(store.getSnapshot()).toMatchObject({ status: 'authorized', passwordRecovery: false, passwordChanged: false })
+  expect(mock.auth.signInWithPassword).not.toHaveBeenCalled()
+  expect(mock.auth.signOut).not.toHaveBeenCalled()
+  expect(mock.auth.resetPasswordForEmail).not.toHaveBeenCalled()
+  expect(mock.mfa.challenge).not.toHaveBeenCalled()
+})
+
 test.each(protectedPages)('restaure directement %s en aal2 dans le shell authentifié', async (path, title) => {
   setup(path, 'aal2')
   expect(screen.queryByRole('button', { name: 'Mon compte' })).not.toBeInTheDocument()

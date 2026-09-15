@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est cadrée et en cours d'implémentation.** Le Profil est construit avec changement d'email intégré et statut Authenticator affiché ; le backend de suppression renforcée est livré localement. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) précise leurs garanties. L'UX de suppression et la validation finale restent à réaliser ; le changement volontaire de mot de passe attend sa validation ciblée cloud en clôture de phase.
+**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est cadrée et en cours d'implémentation.** Le Profil comprend identité MY., changement d'email et section Sécurité avec formulaire de mot de passe volontaire et statut Authenticator ; le backend de suppression renforcée est livré localement. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) précise les garanties validées et restantes. L'UX de suppression et la validation finale restent à réaliser ; la vérification serveur du mot de passe actuel attend sa validation ciblée cloud en clôture de phase.
 
 | Grandes phases | Statut |
 |---|---|
@@ -89,7 +89,7 @@ Les [fonctionnalités](01-FEATURES.md#profil-utilisateur), l'[UX](04-UX-UI.md#pr
 
 Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. L'interface des préférences de vues reste prévue en Phase 7. Aucun profil social n'est ajouté.
 
-Le moyen de contact final, les textes UX et détails visuels des parcours restants, ainsi que les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Le Profil est construit avec changement d'email intégré et statut Authenticator affiché ; le backend de suppression est validé localement. L'UX de suppression et la validation finale restent à réaliser. Le changement volontaire de mot de passe reste non livré, avec validation ciblée cloud prévue à la clôture de cette phase avant la Phase 5. La phase n'est pas encore terminée et la Phase 5 n'a pas commencé.
+Le moyen de contact final, les textes UX et détails visuels des parcours restants, ainsi que les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Le Profil comprend les formulaires email et mot de passe volontaire ainsi que le statut Authenticator ; le backend de suppression est validé localement. L'UX de suppression et la validation finale restent à réaliser. Formulaire et contrat du changement de mot de passe sont validés localement ; la vérification serveur du mot de passe actuel reste à valider sur Cloud à la clôture de cette phase avant la Phase 5. La phase n'est pas encore terminée et la Phase 5 n'a pas commencé.
 
 ### Phase 5 — Dashboard, création et gestion des collections
 

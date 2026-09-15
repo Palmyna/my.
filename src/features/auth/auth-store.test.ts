@@ -222,6 +222,64 @@ test('demande email uniquement depuis le compte autorisé et relecture des évé
   stop()
 })
 
+test('le changement volontaire exige authorized et reste distinct du recovery', async () => {
+  const { mock, store, stop } = setup()
+  await settle()
+  await expect(store.actions.changePassword('current-password', 'new-password')).rejects.toThrow('MFA')
+  mock.authorize()
+  mock.emit('PASSWORD_RECOVERY', session)
+  await settle()
+  expect(store.getSnapshot().status).toBe('password_reset_required')
+  await expect(store.actions.changePassword('current-password', 'new-password')).rejects.toThrow('MFA')
+  expect(mock.auth.updateUser).not.toHaveBeenCalled()
+  stop()
+})
+
+test('un succès volontaire survit à USER_UPDATED sans changer le contexte recovery ni autoriser un autre compte', async () => {
+  const { mock, store, stop } = setup()
+  mock.authorize()
+  await settle()
+  mock.auth.updateUser.mockImplementation(() => {
+    mock.emit('USER_UPDATED', session)
+    return Promise.resolve({ data: { user: confirmedUser }, error: null })
+  })
+  await store.actions.changePassword('current-password', 'new-password')
+  await settle()
+  expect(store.getSnapshot()).toMatchObject({ status: 'authorized', accountPasswordChange: 'success', passwordRecovery: false, passwordChanged: false, session })
+  mock.emit('TOKEN_REFRESHED', session)
+  await settle()
+  expect(store.getSnapshot().accountPasswordChange).toBe('success')
+  store.actions.clearPasswordChangeFeedback()
+  expect(store.getSnapshot().accountPasswordChange).toBe('idle')
+  await expect(store.actions.updatePassword('recovery-password')).rejects.toThrow('récupération')
+  expect(mock.auth.signOut).not.toHaveBeenCalled()
+  expect(mock.mfa.challenge).not.toHaveBeenCalled()
+  stop()
+})
+
+test.each(['logout', 'autre compte', 'arrêt'])('une réponse password tardive après %s ne publie aucun succès', async mode => {
+  const { mock, store, stop } = setup()
+  mock.authorize()
+  await settle()
+  let finish!: (value: Awaited<ReturnType<typeof mock.auth.updateUser>>) => void
+  mock.auth.updateUser.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  const task = store.actions.changePassword('current-password', 'new-password')
+  await settle()
+  if (mode === 'logout') {
+    mock.emit('SIGNED_OUT', null)
+    mock.emit('SIGNED_IN', session)
+  } else if (mode === 'autre compte') {
+    const other = { ...confirmedUser, id: 'other-user' }
+    mock.auth.getUser.mockResolvedValue({ data: { user: other }, error: null })
+    mock.emit('SIGNED_IN', { ...session, user: other })
+  } else stop()
+  await settle()
+  finish({ data: { user: confirmedUser }, error: null })
+  await task
+  expect(store.getSnapshot().accountPasswordChange).toBe('idle')
+  stop()
+})
+
 test.each([false, true])('un avis de confirmation partielle ne crée pas de session ni de droits : session existante %s', async present => {
   const mock = mockAuthClient()
   if (!present) mock.auth.getSession.mockResolvedValue({ data: { session: null }, error: null })
