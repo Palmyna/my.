@@ -20,7 +20,7 @@ async function setup(user: User = confirmedUser) {
   mock.single.mockResolvedValue({ data: { ...profile, created_at: '2026-09-14T12:00:00Z' }, error: null })
   const store = createAuthStore(() => createAuthService(mock.client), vi.fn(), () => null)
   render(<Harness store={store} />)
-  await screen.findByLabelText('Identifiant MY.')
+  await screen.findByLabelText('MY.ID')
   return { mock, store }
 }
 
@@ -39,9 +39,9 @@ test('présente les vraies sources, la date Auth française et un identifiant im
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Profil')
   expect(screen.getByText(confirmedUser.email!)).toBeVisible()
-  expect(screen.getByLabelText('Identifiant MY.')).toHaveValue(profile.public_id)
-  expect(screen.getByLabelText('Identifiant MY.')).toHaveAttribute('readonly')
-  expect(screen.getByLabelText('Identifiant MY.')).toHaveAttribute('type', 'text')
+  expect(screen.getByLabelText('MY.ID')).toHaveValue(profile.public_id)
+  expect(screen.getByLabelText('MY.ID')).toHaveAttribute('readonly')
+  expect(screen.getByLabelText('MY.ID')).toHaveAttribute('type', 'text')
   expect(screen.getByText('3 février 2020')).toHaveAttribute('datetime', '2020-02-03T12:00:00Z')
   expect(screen.queryByText(/14 septembre 2026/)).not.toBeInTheDocument()
   expect(screen.getByText('Authenticator configuré')).toBeVisible()
@@ -62,7 +62,9 @@ test('copie la valeur entière, annonce brièvement le succès et conserve le fo
     expect(screen.getByRole('status')).toHaveTextContent('Identifiant MY. copié !')
     expect(writeText).toHaveBeenCalledExactlyOnceWith(profile.public_id)
     expect(copyButton()).toHaveFocus()
-    act(() => vi.advanceTimersByTime(2200))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2200)
+    })
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
     expect(copyButton()).toBeEnabled()
     expect(copyButton()).toHaveFocus()
@@ -78,7 +80,7 @@ test.each(['absent', 'refusé'])('la copie %s laisse le champ sélectionnable et
   await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Copie automatique impossible'))
   expect(screen.getByText(/Copie automatique impossible/, { selector: 'p' })).toBeVisible()
   expect(screen.queryByText('Identifiant MY. copié !')).not.toBeInTheDocument()
-  const field = screen.getByLabelText<HTMLInputElement>('Identifiant MY.')
+  const field = screen.getByLabelText<HTMLInputElement>('MY.ID')
   field.focus()
   field.select()
   expect(field).toHaveFocus()

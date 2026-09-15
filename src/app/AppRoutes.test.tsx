@@ -72,7 +72,7 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
     expect(within(page).getByRole('definition')).toHaveTextContent(profile.public_id)
     expect(within(page).queryByRole('status')).not.toBeInTheDocument()
   } else if (path === '/profile') {
-    expect(within(page).getByLabelText('Identifiant MY.')).toHaveValue(profile.public_id)
+    expect(within(page).getByLabelText('MY.ID')).toHaveValue(profile.public_id)
     expect(within(page).getByRole('textbox', { name: 'Nouvelle adresse email' })).toBeVisible()
   } else {
     expect(within(page).queryByRole('textbox')).not.toBeInTheDocument()
@@ -111,7 +111,7 @@ test('le formulaire Profil retrouve la demande en attente après le rechargement
   expect(screen.getByText(/Nouvelle adresse demandée/)).toHaveTextContent(pendingUser.new_email)
   expect(screen.getByTestId('path')).toHaveTextContent('/profile')
   expect(screen.getByRole('heading', { name: 'Profil' })).toHaveFocus()
-  expect(screen.getByLabelText('Identifiant MY.')).toHaveValue(profile.public_id)
+  expect(screen.getByLabelText('MY.ID')).toHaveValue(profile.public_id)
   expect(mock.auth.updateUser).toHaveBeenCalledOnce()
   expect(mock.auth.onAuthStateChange).toHaveBeenCalledOnce()
   expect(mock.mfa.challenge).not.toHaveBeenCalled()
