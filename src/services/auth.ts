@@ -1,5 +1,6 @@
 import { AuthError, AuthSessionMissingError, type AuthChangeEvent, type Session, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
+import { AccountDeletionError, invokeAccountDeletion, type AccountDeletionInput } from './account-deletion'
 
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type AuthService = ReturnType<typeof createAuthService>
@@ -49,9 +50,22 @@ export function createAuthService(client: SupabaseClient<Database>) {
     async signIn(email: string, password: string) {
       return unwrap(await auth.signInWithPassword({ email, password }))
     },
-    async signOut() {
-      const { error } = await auth.signOut()
+    async signOut(scope?: 'local') {
+      const { error } = await (scope ? auth.signOut({ scope }) : auth.signOut())
       if (error) throw error
+    },
+    async deleteAccount(input: AccountDeletionInput) {
+      try {
+        const session = await getSession()
+        if (!session) throw new AccountDeletionError('authentication_required')
+        const mfa = await getMfaState(session)
+        if (mfa.user.id !== session.user.id) throw new AccountDeletionError('identity_mismatch')
+        if (!mfa.user.email_confirmed_at || mfa.requirement !== 'satisfied') throw new AccountDeletionError('authorized_account_required')
+        if (mfa.verifiedFactors.length !== 1) throw new AccountDeletionError('verified_totp_required')
+      } catch (error) {
+        throw error instanceof AccountDeletionError ? error : new AccountDeletionError('service_unavailable')
+      }
+      return invokeAccountDeletion(client, input)
     },
     async completeEmailCallback(tokens: { access_token: string; refresh_token: string }, kind: 'signup' | 'recovery' | 'email_change') {
       const data = unwrap(await auth.setSession(tokens))

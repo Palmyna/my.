@@ -8,7 +8,9 @@ import { fieldValue, passwordsMatch, useAuthTask } from './auth-ui'
 import { SignOutButton } from './SignOutButton'
 
 export function HomePage() {
+  const { accountDeleted } = useAuth()
   return <AuthLayout home title={'Bienvenue sur MY.\nle gestionnaire de collection\nde cartes à collectionner ultime !'}>
+    {accountDeleted && <p className="feedback" role="status">Votre compte a été définitivement supprimé.</p>}
     <Link className="button home-login" to="/login">Se connecter</Link>
   </AuthLayout>
 }

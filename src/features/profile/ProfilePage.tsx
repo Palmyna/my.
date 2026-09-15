@@ -3,6 +3,7 @@ import { AuthForm, SubmitButton } from '../auth/AuthLayout'
 import { authRedirectUrl } from '../auth/auth-callback'
 import { useAuth } from '../auth/auth-context'
 import { fieldValue, passwordsMatch, useAuthTask } from '../auth/auth-ui'
+import { AccountDeletion } from './AccountDeletion'
 
 function membershipDate(createdAt: string | undefined) {
   if (!createdAt) return null
@@ -170,5 +171,6 @@ export function ProfilePage() {
         <p className="hint">Pour modifier ou remplacer votre Authenticator, il est nécessaire de contacter un administrateur.</p>
       </div>
     </section>
+    <AccountDeletion />
   </section>
 }

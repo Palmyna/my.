@@ -38,7 +38,7 @@ export function AppRoutes() {
         <Route path="/auth/mfa/challenge" element={auth.status === 'mfa_challenge_required' ? <MfaChallengePage /> : <Navigate to="/login" replace />} />
         <Route path="/reset-password" element={auth.status === 'password_reset_required' ? <ResetPasswordPage /> : <AuthLayout title="Demandez un nouveau lien." intro="Ouvrez le lien reçu par email pour réinitialiser votre mot de passe."><Link className="button primary" to="/forgot-password">Recevoir un lien</Link></AuthLayout>} />
       </Route>
-      <Route element={auth.isAuthorized ? <AuthenticatedLayout /> : <Navigate to="/login" replace />}>
+      <Route element={auth.isAuthorized ? <AuthenticatedLayout /> : <Navigate to={auth.accountDeleted ? '/' : '/login'} replace />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />

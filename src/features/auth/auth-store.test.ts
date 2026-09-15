@@ -2,6 +2,70 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createAuthService } from '../../services/auth'
 import { confirmedUser, mockAuthClient, profile, session } from '../../test/auth-fixtures'
 import { createAuthStore } from './auth-store'
+import { AccountDeletionError, type AccountDeletionInput } from '../../services/account-deletion'
+
+const deletionInput: AccountDeletionInput = { currentPassword: 'secret-only-local', totpCode: '654321', confirmConsequences: true, confirmDeletion: true }
+
+test('suppression refuse un store non autorisé sans appeler le service', async () => {
+  const { store, mock, stop } = setup()
+  await settle()
+  await expect(store.actions.deleteAccount(deletionInput)).rejects.toMatchObject({ code: 'authorized_account_required' })
+  expect(mock.functions.invoke).not.toHaveBeenCalled()
+  stop()
+})
+
+test('suppression protège les doubles appels et ne conserve aucun secret dans le snapshot', async () => {
+  const { store, mock, stop, clearData } = setup()
+  mock.authorize(); await settle()
+  let finish!: (value: unknown) => void
+  mock.functions.invoke.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  const pending = store.actions.deleteAccount(deletionInput)
+  await settle()
+  expect(JSON.stringify(store.getSnapshot())).not.toContain(deletionInput.currentPassword)
+  expect(JSON.stringify(store.getSnapshot())).not.toContain(deletionInput.totpCode)
+  await expect(store.actions.deleteAccount(deletionInput)).rejects.toBeInstanceOf(AccountDeletionError)
+  clearData.mockClear()
+  finish({ data: { deleted: true }, error: null }); await pending
+  expect(clearData).toHaveBeenCalledTimes(1)
+  expect(store.getSnapshot()).toMatchObject({ status: 'signed_out', session: null, user: null, profile: null, mfa: null, accountDeleted: true })
+  await store.actions.refresh(); await settle()
+  expect(store.getSnapshot().status).toBe('signed_out')
+  expect(mock.functions.invoke).toHaveBeenCalledTimes(1)
+  stop()
+})
+
+test('un refus après SIGNED_OUT reste visible puis reprend Auth à la fermeture', async () => {
+  const { store, mock, stop } = setup()
+  mock.authorize(); await settle()
+  let failRequest!: (value: unknown) => void
+  mock.functions.invoke.mockImplementation(() => new Promise((_resolve, reject) => { failRequest = reject }))
+  const pending = store.actions.deleteAccount(deletionInput)
+  const refused = expect(pending).rejects.toMatchObject({ code: 'uncertain' })
+  await settle()
+  mock.emit('SIGNED_OUT', null)
+  failRequest(new Error('network')); await refused
+  expect(store.getSnapshot().status).toBe('authorized')
+  await expect(store.actions.deleteAccount(deletionInput)).rejects.toMatchObject({ code: 'authentication_required' })
+  store.actions.resumeAuthAfterDeletion()
+  expect(store.getSnapshot()).toMatchObject({ status: 'signed_out', accountDeleted: false })
+  stop()
+})
+
+test('une réponse tardive ne déconnecte pas un autre compte arrivé pendant la suppression', async () => {
+  const { store, mock, stop } = setup()
+  mock.authorize(); await settle()
+  let finish!: (value: unknown) => void
+  mock.functions.invoke.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  const pending = store.actions.deleteAccount(deletionInput); await settle()
+  const other = { ...confirmedUser, id: 'other-user' }
+  mock.auth.getUser.mockResolvedValue({ data: { user: other }, error: null })
+  mock.emit('SIGNED_IN', { ...session, user: other })
+  finish({ data: { deleted: true }, error: null }); await pending; await settle()
+  expect(mock.auth.signOut).not.toHaveBeenCalled()
+  expect(store.getSnapshot().user?.id).toBe(other.id)
+  expect(store.getSnapshot().accountDeleted).toBe(false)
+  stop()
+})
 
 beforeEach(() => { vi.useFakeTimers() })
 afterEach(() => { vi.useRealTimers() })

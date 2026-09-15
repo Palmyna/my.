@@ -1,5 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js'
 import type { AuthService, MfaState, Profile } from '../../services/auth'
+import { AccountDeletionError, type AccountDeletionInput } from '../../services/account-deletion'
 import type { EmailCallback, RecoveryContext } from './auth-callback'
 
 export type AuthStatus = 'initializing' | 'unconfigured' | 'signed_out'
@@ -19,6 +20,7 @@ export interface AuthState {
   passwordChanged: boolean
   accountPasswordChange: 'idle' | 'pending' | 'success'
   emailChangeResult: 'pending' | 'confirmed' | null
+  accountDeleted: boolean
 }
 
 const initialState: AuthState = {
@@ -26,6 +28,7 @@ const initialState: AuthState = {
   pendingEmail: null, passwordRecovery: false, error: null, emailConfirmed: false, passwordChanged: false,
   accountPasswordChange: 'idle',
   emailChangeResult: null,
+  accountDeleted: false,
 }
 
 // One external store per provider; Supabase remains the owner of persisted sessions.
@@ -38,6 +41,10 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
   let active = false
   let currentUserId: string | null = null
   let identityRevision = 0
+  let deletionRunning = false
+  let deferredDeletionSession: { session: Session | null; recovery: boolean } | null = null
+  let deletedUserId: string | null = null
+  let dismissedToken: string | null = null
   let timer: ReturnType<typeof setTimeout> | undefined
   const listeners = new Set<() => void>()
   let callbackRead = false
@@ -84,6 +91,8 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
   }
 
   function accept(session: Session | null, recovery = false) {
+    deferredDeletionSession = null
+    if (session && (session.user.id === deletedUserId || session.access_token === dismissedToken)) session = null
     const ticket = invalidate()
     const sameUser = session !== null && session.user.id === currentUserId
     if (!sameUser) identityRevision += 1
@@ -91,7 +100,7 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
     currentUserId = session?.user.id ?? null
     if (!session) {
       recoveryContext?.clear()
-      emit({ ...initialState, status: 'signed_out', emailConfirmed: state.emailConfirmed, emailChangeResult: state.emailChangeResult })
+      emit({ ...initialState, status: 'signed_out', emailConfirmed: state.emailConfirmed, emailChangeResult: state.emailChangeResult, accountDeleted: state.accountDeleted })
       return
     }
     if (recovery) recoveryContext?.save(session)
@@ -101,9 +110,10 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
   }
 
   async function restore() {
+    if (deletionRunning) return
     const ticket = invalidate()
     const recovery = state.passwordRecovery
-    emit({ ...initialState, passwordRecovery: recovery, passwordChanged: state.passwordChanged, accountPasswordChange: state.accountPasswordChange, emailChangeResult: state.emailChangeResult })
+    emit({ ...initialState, passwordRecovery: recovery, passwordChanged: state.passwordChanged, accountPasswordChange: state.accountPasswordChange, emailChangeResult: state.emailChangeResult, accountDeleted: state.accountDeleted })
     try {
       if (callbackResult) {
         const result = await callbackResult
@@ -127,6 +137,21 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
     } catch (error) {
       if (active && ticket === revision) fail(error)
     }
+  }
+
+  function leaveDeletedAccount(deleted: boolean) {
+    identityRevision += 1
+    dismissedToken = state.session?.access_token ?? null
+    if (deleted) deletedUserId = currentUserId
+    currentUserId = null
+    callbackResult = null
+    callbackPending = false
+    deferredDeletionSession = null
+    // Invalidate in-flight reads and purge the existing cache even if secondary cleanup fails.
+    try { invalidate() } catch { /* Confirmed deletion must remain terminal. */ }
+    try { recoveryContext?.clear() } catch { /* Browser storage may be unavailable. */ }
+    emit({ ...initialState, status: 'signed_out', accountDeleted: deleted })
+    void requireService().signOut('local').catch(() => { /* Auth is already invalidated in memory. */ })
   }
 
   return {
@@ -156,6 +181,9 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
             if (!active || callbackPending) return
             const recovery = event === 'PASSWORD_RECOVERY'
               || (state.passwordRecovery && session !== null && session.user.id === currentUserId)
+            // Revocation/refresh must not unmount the inert modal before its result arrives.
+            // On refusal, resume this event when the user closes the result; retries recheck Auth.
+            if (deletionRunning) { deferredDeletionSession = { session, recovery }; return }
             accept(session, recovery)
           })
           void restore()
@@ -170,6 +198,35 @@ export function createAuthStore(getService: () => AuthService | null, clearData:
       }
     },
     actions: {
+      async deleteAccount(input: AccountDeletionInput) {
+        if (state.status !== 'authorized') throw new AccountDeletionError('authorized_account_required')
+        if (deferredDeletionSession && deferredDeletionSession.session?.user.id !== currentUserId) throw new AccountDeletionError('authentication_required')
+        if (deletionRunning) throw new AccountDeletionError('service_unavailable')
+        const ticket = identityRevision
+        deletionRunning = true
+        try {
+          const result = await requireService().deleteAccount(input)
+          if (result.deleted !== true) throw new AccountDeletionError('uncertain')
+          if (active && ticket === identityRevision) {
+            // Do not locally sign out an account switched in another tab during the request.
+            if (deferredDeletionSession?.session && deferredDeletionSession.session.user.id !== currentUserId) {
+              const next = deferredDeletionSession
+              deletedUserId = currentUserId
+              deferredDeletionSession = null
+              deletionRunning = false
+              accept(next.session, next.recovery)
+            } else leaveDeletedAccount(true)
+          }
+          return result
+        } finally { deletionRunning = false }
+      },
+      reconnectAfterDeletion() { leaveDeletedAccount(false) },
+      resumeAuthAfterDeletion() {
+        if (deletionRunning || !deferredDeletionSession) return
+        const next = deferredDeletionSession
+        deferredDeletionSession = null
+        accept(next.session, next.recovery)
+      },
       async signUp(email: string, password: string, redirectTo?: string) {
         const auth = requireService()
         const ticket = revision

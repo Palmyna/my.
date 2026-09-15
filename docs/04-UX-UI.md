@@ -546,11 +546,11 @@ La route `/profile` devient l'unique page **Profil / gestion du compte** de la V
 
 Profil et Paramètres restent deux destinations distinctes du menu `Mon compte`. **Aucun lien ni raccourci vers Paramètres ne figure dans la page Profil.**
 
-La hiérarchie livrée est **Identité MY. → Adresse email → Sécurité du compte**. L'action de suppression en bas de page reste une cible de 4D.2, sans contrôle ajouté en 4D.1.
+La hiérarchie livrée est **Identité MY. → Adresse email → Sécurité du compte**. L'action discrète `Supprimer mon compte`, livrée en 4D.2, suit la section Sécurité tout en bas de page.
 
 **Réalisation Phases 4C et 4D.1 :** trois sections sobres — Identité MY., Adresse email, Sécurité du compte — reprennent le shell, Poppins et les styles existants, avec des contours discrets et des espacements réguliers. L'identifiant apparaît sous le libellé `MY.ID`, dans un input texte en lecture seule de hauteur standard, aligné avec le bouton de copie à droite ; les adresses peuvent revenir à la ligne. Les données absentes ont un message explicite, sans valeur de remplacement inventée. Les retours sont accessibles. Le `h1` unique conserve le focus de navigation géré par `AppRoutes`. Les [rapports 4C](reports/2026-09-14-PHASE4C-PROFILE.md) et [4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) consignent les contrôles responsive et clavier.
 
-Le formulaire email est conservé : validation native de l'adresse, refus de l'adresse courante, désactivation pendant l'envoi, message d'erreur réutilisant Auth et possibilité de réessayer. L'attente issue de `user.new_email` reste visible après le rechargement Auth, distincte de l'adresse actuelle, sans supposer quelle confirmation manque. La section Sécurité présente le formulaire de mot de passe comme action principale, suivi d'une séparation fine et de l'information Authenticator, sans carte imbriquée ni bouton administratif. Aucun contrôle de suppression n'est ajouté.
+Le formulaire email est conservé : validation native de l'adresse, refus de l'adresse courante, désactivation pendant l'envoi, message d'erreur réutilisant Auth et possibilité de réessayer. L'attente issue de `user.new_email` reste visible après le rechargement Auth, distincte de l'adresse actuelle, sans supposer quelle confirmation manque. La section Sécurité présente le formulaire de mot de passe comme action principale, suivi d'une séparation fine et de l'information Authenticator, sans carte imbriquée ni bouton administratif. La suppression dispose de son action séparée après cette section.
 
 ### Identité MY.
 
@@ -579,14 +579,14 @@ Tout en bas de Profil, un lien ou une action sobre telle que `Supprimer mon comp
 Le parcours comporte au minimum, dans cet ordre :
 
 1. une confirmation explicite expliquant le caractère définitif et les conséquences : compte, profil, préférences, collections possédées et leurs éléments/partages, accès reçus et exemplaires physiques supprimés ; les destinataires perdent l'accès aux collections disparues ;
-2. la ré-authentification complète par mot de passe actuel puis nouveau challenge TOTP actuel ;
+2. la saisie du mot de passe actuel et d'un code Authenticator à six chiffres ; le serveur effectuera la ré-authentification et créera le challenge TOTP lors de l'appel final ;
 3. une validation finale explicite avant destruction.
 
 La confirmation distingue les données supprimées du catalogue global et des données d'autrui préservés. Une simple session ouverte ne suffit jamais. Le parcours permet l'annulation avant la validation finale et ne présente la suppression comme réussie qu'après son achèvement effectif.
 
-Les formulaires, messages et éventuelles modales conservent des labels explicites, des erreurs accessibles et une gestion cohérente du focus au clavier et avec les technologies d'assistance. Les textes définitifs des modales, le choix exact modale/message, les intitulés de groupes et les détails visuels restent ouverts ; les étapes et garanties fonctionnelles sont fixées.
+La modal native livrée possède un titre et une description accessibles, un focus initial, un fond inerte natif et un bouclage explicite de Tab/Maj+Tab et une restitution du focus au bouton d'ouverture après fermeture. La case de conséquences conditionne Continuer ; les champs password et code à six chiffres acceptent les gestionnaires de mots de passe et le collage. Le bouton final est `Supprimer définitivement mon compte`, sans texte à recopier. Annuler, Retour, Échap et le clic hors modal sont disponibles avant l'envoi. Pendant l'appel final, tous les contrôles, la navigation SPA et le retour navigateur sont bloqués ; quitter/recharger la page déclenche la protection native du navigateur. La modal utilise un scroll interne sur petits écrans.
 
-Le backend de suppression est livré localement ; aucun écran, formulaire ou branchement de suppression depuis Profil n'est livré en 4C. Son [contrat final](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) reçoit les saisies et les deux intentions explicites, puis refait lui-même les vérifications Auth. L'intégration ultérieure devra purger session/cache privés après succès. Un échec de destruction après révocation des sessions conserve toutes les données et impose une nouvelle connexion pour réessayer ; une réponse réseau perdue ne doit jamais être présentée comme un succès certain.
+La [réalisation 4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) branche cette modal au [contrat final](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) existant : aucun contrôle d'identité serveur n'est simulé dans React. Un mauvais mot de passe ou TOTP ramène à la saisie avec focus sur le champ concerné et conséquences conservées. Un échec de révocation ou de suppression indique que le compte n'a pas été supprimé et exige une reconnexion. Réseau, timeout et réponse illisible sont présentés comme incertains, sans relance automatique. Seul `{ deleted: true }` provoque la purge Auth/cache et le retour à l'accueil avec confirmation ; un échec du nettoyage SDK secondaire ne transforme pas ce succès en échec.
 
 ## Paramètres et préférences de vues
 

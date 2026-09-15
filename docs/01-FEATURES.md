@@ -366,7 +366,7 @@ La route `/profile` devient la page **Profil / gestion du compte** de la V1. Ell
 
 Profil et Paramètres sont deux destinations distinctes du menu `Mon compte`. La page Profil ne contient aucun lien ni raccourci vers Paramètres.
 
-**Livré localement en Phases 4C et 4D.1 :** le Profil présente, dans l'ordre, **Identité MY.**, **Adresse email**, puis **Sécurité du compte**. L'identité et le changement d'email 4C sont conservés ; la section Sécurité ajoute le changement volontaire du mot de passe et accueille le statut Authenticator comme information secondaire. Les [rapports 4C](reports/2026-09-14-PHASE4C-PROFILE.md) et [4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) précisent les validations locales. L'UX de suppression reste à réaliser en 4D.2 et les garanties serveur à valider sur Cloud en 4D.3. La Phase 4 reste en cours.
+**Livré localement en Phases 4C, 4D.1 et 4D.2 :** le Profil présente, dans l'ordre, **Identité MY.**, **Adresse email**, puis **Sécurité du compte**. L'identité et le changement d'email 4C sont conservés ; la section Sécurité ajoute le changement volontaire du mot de passe et accueille le statut Authenticator comme information secondaire. Les [rapports 4C](reports/2026-09-14-PHASE4C-PROFILE.md) et [4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) précisent les validations locales. La [suppression 4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) est intégrée en bas de Profil. Seul le checkpoint Cloud final 4D.3 reste à réaliser. La Phase 4 reste en cours.
 
 ### Informations du compte
 
@@ -415,12 +415,12 @@ La page livrée affiche directement l'information de contact administratif, sans
 La V1 permet à l'utilisateur de supprimer définitivement son compte MY. Le parcours exige au minimum :
 
 1. une confirmation explicite présentant les conséquences de la suppression ;
-2. une ré-authentification complète par mot de passe actuel puis TOTP actuel ;
+2. la saisie du mot de passe actuel et du TOTP actuel, vérifiés côté serveur lors de l'appel final ;
 3. une validation finale explicite avant toute destruction.
 
 La suppression efface le profil MY., les préférences, les collections possédées et leurs éléments/partages, les relations donnant à cet utilisateur des accès reçus, ses exemplaires physiques avec leurs notes et informations de grading, puis le compte Supabase Auth. Ses collections partagées deviennent inaccessibles aux destinataires puisqu'elles disparaissent. Retirer ses accès reçus ne supprime pas les collections des autres propriétaires ni leurs autres partages.
 
-Le catalogue global — Pokémon, séries, Extensions, Cartes, Variantes et données de référence associées — et les données appartenant aux autres utilisateurs sont préservés. Le [modèle](03-DATA-MODEL.md#suppression-dun-compte), l'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) et la [base de données](06-DATABASE.md#suppression-dun-compte) précisent le backend livré et validé localement. La présentation dans Profil et l'intégration UX finale restent à réaliser.
+Le catalogue global — Pokémon, séries, Extensions, Cartes, Variantes et données de référence associées — et les données appartenant aux autres utilisateurs sont préservés. Le [modèle](03-DATA-MODEL.md#suppression-dun-compte), l'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) et la [base de données](06-DATABASE.md#suppression-dun-compte) précisent le backend livré et validé localement. La présentation et l'intégration sont livrées localement en [4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md). Le succès explicite entraîne la purge Auth/cache et le retour à l'accueil public. Une réponse perdue reste incertaine et invite à se reconnecter pour vérifier l'état du compte.
 
 L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuelles exigences légales ou rétentions particulières nécessitent un cadrage spécifique ; aucune durée ni exception de conservation n'est décidée ici.
 
@@ -502,8 +502,6 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - le comportement exact de la recherche dans la vue classeur ;
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
 - le moyen de contact final pour modifier/remplacer l'Authenticator ;
-- les textes UX définitifs des modales et le design détaillé du Profil, dont le périmètre fonctionnel est cadré ;
-- l'intégration UX finale du parcours de suppression, dont le backend est livré localement ;
 - les éventuelles exigences légales ou rétentions particulières liées à la suppression, à cadrer spécifiquement ;
 - le design détaillé du dashboard et des vues ;
 - le responsive et l'accessibilité ;

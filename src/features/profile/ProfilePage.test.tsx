@@ -208,14 +208,15 @@ test('ne présente pas un facteur non vérifié comme configuré', async () => {
   expect(screen.queryByText('Authenticator configuré')).not.toBeInTheDocument()
 })
 
-test('reste dans 4D.1 : aucun Paramètres, TOTP automatique ni suppression', async () => {
+test('conserve le périmètre Profil et place la suppression après la sécurité', async () => {
   const fetch = vi.fn()
   vi.stubGlobal('fetch', fetch)
   const { mock } = await setup()
   const page = screen.getByRole('region', { name: 'Profil' })
   expect(within(page).queryByRole('link')).not.toBeInTheDocument()
   expect(within(page).queryByLabelText(/code/i)).not.toBeInTheDocument()
-  expect(within(page).queryByRole('button', { name: /supprimer|configurer|remplacer/i })).not.toBeInTheDocument()
+  expect(within(page).queryByRole('button', { name: /configurer|remplacer/i })).not.toBeInTheDocument()
+  expect(within(page).getByRole('button', { name: 'Supprimer mon compte' })).toBeVisible()
   changeEmail()
   submit()
   await screen.findByText(/Demande envoyée/)
