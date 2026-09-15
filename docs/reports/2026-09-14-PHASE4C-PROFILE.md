@@ -88,3 +88,28 @@ L'aperçu est arrêté, l'onglet de test fermé, la taille temporaire du navigat
 **Vérifiés mais inchangés :** `AGENTS.md`, `docs/03-DATA-MODEL.md`, `docs/06-DATABASE.md`, rapports historiques 4B.2/4B.3, shell/header et routes de production, services/provider/store/callbacks/helpers Auth, schéma/migrations/types générés, backend de suppression, dépendances et lockfile.
 
 Aucun autre fichier versionné modifié. Aucun travail fonctionnel Paramètres, Dashboard, recherche, catalogue, collections ou Phase 5. Aucun changement Supabase Cloud, déploiement Vercel, commit ou push.
+
+## Complément du 15 septembre 2026 — Finitions UI et reprise
+
+Ce complément décrit les retouches postérieures à la livraison ci-dessus, au commit `b638a6d`. Il ne change ni les sources de données, ni le parcours email, ni le périmètre fonctionnel de 4C.
+
+L'identifiant utilise désormais un **input texte en lecture seule**, de même hauteur que les autres champs et le bouton de copie (**50 px**). Après réussite, le pictogramme devient une coche sur fond vert pendant **2,2 secondes**, puis revient à son état normal. Le succès est annoncé par une région `status` masquée visuellement ; aucun message de succès séparé ne déplace le contenu. En cas d'échec, le texte d'aide explique la sélection/copie manuelle. Le temporisateur est nettoyé lorsque l'état change ou que le composant est démonté.
+
+Les trois sections ont des contours discrets, des espacements réguliers, des champs alignés et des états hover/pressed avec transitions courtes respectant la réduction des mouvements. Aucun composant UI tiers ou système visuel supplémentaire. Les retouches manuelles intervenues pendant l'interruption sont conservées, notamment le libellé **`MY.ID`**, le contact « un administrateur » et les ajustements CSS du header et du focus.
+
+### Vérifications et limites à la reprise
+
+Avant l'interruption, le contrôle navigateur de l'aperçu avec service Auth simulé a vérifié les largeurs **320, 390, 768, 1 024 et 1 440 px**, sans débordement horizontal, ainsi que les hauteurs de contrôles, la coche temporaire, le retour à l'état initial, la sélection complète au clavier et l'absence d'erreur console. Un input reste sur une seule ligne : sur petit écran, son contenu peut défiler à l'intérieur du champ, avec sélection et copie de la valeur complète. L'aperçu et ses fichiers temporaires ont été nettoyés. Ce contrôle visuel précède les dernières retouches manuelles ; il n'a pas été rejoué à la reprise.
+
+Les anciens processus de lint/build interrompus n'étant plus accessibles, seuls les contrôles finaux et les deux fichiers de tests concernés ont été relancés sur l'état actuel :
+
+| Commande | Résultat du 15 septembre |
+|---|---|
+| `npm test -- --project frontend src/features/profile/ProfilePage.test.tsx src/app/AppRoutes.test.tsx` | **61 réussis, 19 échoués, 80 tests** : 17 échecs Profil et 2 échecs AppRoutes recherchent encore le libellé `Identifiant MY.` au lieu de `MY.ID` |
+| `npm run lint` | **1 erreur**, `@typescript-eslint/no-floating-promises`, dans `ProfilePage.test.tsx:65`, sur l'appel `act` du test du temporisateur |
+| `npm run build`, avec typecheck | **Réussi**, 276 modules ; JS principal **576,03 kB / 165,16 kB gzip** |
+| `git diff --check` | **Réussi** ; avertissements Git de conversion LF/CRLF, sans erreur de whitespace |
+
+Il reste à aligner les sélecteurs de labels dans les deux fichiers de tests sur `MY.ID`, corriger le traitement du retour d'`act` dans le test de copie, puis revérifier ces tests et le lint. Le résultat antérieur de 80 tests réussis ne valide donc pas les dernières retouches manuelles. Les tests et l'interface ne sont pas modifiés pendant cette reprise, limitée aux vérifications et à ce complément documentaire.
+
+Documentation ajustée : `docs/04-UX-UI.md` et le présent rapport. Aucun changement Auth/backend, nouvelle dépendance, migration, opération Cloud, commit ou push. Les suites PostgreSQL, catalogue et suppression ne sont pas relancées.

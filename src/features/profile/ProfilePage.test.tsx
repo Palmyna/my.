@@ -41,34 +41,49 @@ test('présente les vraies sources, la date Auth française et un identifiant im
   expect(screen.getByText(confirmedUser.email!)).toBeVisible()
   expect(screen.getByLabelText('Identifiant MY.')).toHaveValue(profile.public_id)
   expect(screen.getByLabelText('Identifiant MY.')).toHaveAttribute('readonly')
+  expect(screen.getByLabelText('Identifiant MY.')).toHaveAttribute('type', 'text')
   expect(screen.getByText('3 février 2020')).toHaveAttribute('datetime', '2020-02-03T12:00:00Z')
   expect(screen.queryByText(/14 septembre 2026/)).not.toBeInTheDocument()
   expect(screen.getByText('Authenticator configuré')).toBeVisible()
   expect(screen.getByRole('textbox', { name: 'Nouvelle adresse email' })).toHaveAttribute('autocomplete', 'email')
 })
 
-test('copie la valeur entière, annonce le succès et conserve le focus', async () => {
+test('copie la valeur entière, annonce brièvement le succès et conserve le focus', async () => {
   const writeText = vi.fn().mockResolvedValue(undefined)
   clipboard({ writeText })
   await setup()
-  copyButton().focus()
-  fireEvent.click(copyButton())
-  expect(await screen.findByText('Identifiant MY. copié !')).toHaveAttribute('role', 'status')
-  expect(writeText).toHaveBeenCalledExactlyOnceWith(profile.public_id)
-  expect(copyButton()).toHaveFocus()
+  vi.useFakeTimers()
+  try {
+    copyButton().focus()
+    await act(async () => {
+      fireEvent.click(copyButton())
+      await Promise.resolve()
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('Identifiant MY. copié !')
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(profile.public_id)
+    expect(copyButton()).toHaveFocus()
+    act(() => vi.advanceTimersByTime(2200))
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(copyButton()).toBeEnabled()
+    expect(copyButton()).toHaveFocus()
+  } finally {
+    vi.useRealTimers()
+  }
 })
 
 test.each(['absent', 'refusé'])('la copie %s laisse le champ sélectionnable et explique le repli manuel', async mode => {
   clipboard(mode === 'absent' ? undefined : { writeText: vi.fn().mockRejectedValue(new Error('Permission denied')) })
   await setup()
   fireEvent.click(copyButton())
-  expect(await screen.findByText(/Copie automatique impossible/)).toHaveAttribute('role', 'status')
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Copie automatique impossible'))
+  expect(screen.getByText(/Copie automatique impossible/, { selector: 'p' })).toBeVisible()
   expect(screen.queryByText('Identifiant MY. copié !')).not.toBeInTheDocument()
-  const field = screen.getByLabelText<HTMLTextAreaElement>('Identifiant MY.')
+  const field = screen.getByLabelText<HTMLInputElement>('Identifiant MY.')
   field.focus()
   field.select()
   expect(field).toHaveFocus()
-  expect(field.selectionEnd - field.selectionStart).toBe(profile.public_id.length)
+  expect(field.selectionStart).toBe(0)
+  expect(field.selectionEnd).toBe(profile.public_id.length)
 })
 
 test('demande le changement via Auth et le callback existant, sans anticiper l’email courant', async () => {

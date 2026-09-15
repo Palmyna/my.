@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AuthForm, SubmitButton } from '../auth/AuthLayout'
 import { authRedirectUrl } from '../auth/auth-callback'
 import { useAuth } from '../auth/auth-context'
@@ -13,39 +13,45 @@ function membershipDate(createdAt: string | undefined) {
 }
 
 function PublicIdentity({ publicId }: { publicId: string }) {
-  const [feedback, setFeedback] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'success' | 'error'>('idle')
   const running = useRef(false)
+  const feedback = copyState === 'success' ? 'Identifiant MY. copié !'
+    : copyState === 'error' ? 'Copie automatique impossible. Sélectionnez l’identifiant dans le champ pour le copier manuellement.' : ''
+
+  useEffect(() => {
+    if (copyState !== 'success') return
+    const timer = window.setTimeout(() => setCopyState('idle'), 2200)
+    return () => window.clearTimeout(timer)
+  }, [copyState])
 
   async function copy() {
     if (running.current) return
     running.current = true
-    setBusy(true)
-    setFeedback('')
+    setCopyState('copying')
     try {
       if (!navigator.clipboard?.writeText) throw new Error('Clipboard indisponible')
       await navigator.clipboard.writeText(publicId)
-      setFeedback('Identifiant MY. copié !')
+      setCopyState('success')
     } catch {
-      setFeedback('Copie automatique impossible. Sélectionnez l’identifiant dans le champ pour le copier manuellement.')
+      setCopyState('error')
     } finally {
       running.current = false
-      setBusy(false)
     }
   }
 
   return <div>
-    <label className="profile-label" htmlFor="public-id">Identifiant MY.</label>
+    <label className="profile-label" htmlFor="public-id">MY.ID</label>
     <div className="profile-copy">
-      <textarea id="public-id" className="public-id" value={publicId} readOnly rows={2} spellCheck={false} aria-describedby="public-id-hint copy-feedback" />
-      <button className="button" type="button" onClick={() => { void copy() }} disabled={busy} aria-label="Copier l’identifiant MY.">
+      <input id="public-id" className="public-id" type="text" value={publicId} readOnly spellCheck={false} aria-describedby="public-id-hint" />
+      <button className="button profile-copy-button" data-state={copyState} type="button" onClick={() => { void copy() }} disabled={copyState === 'copying'} aria-label="Copier l’identifiant MY.">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-          <rect x="8" y="8" width="12" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+          {copyState === 'success' ? <path d="m5 12 4 4L19 6" strokeLinecap="round" strokeLinejoin="round" />
+            : <><rect x="8" y="8" width="12" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></>}
         </svg>
       </button>
     </div>
-    <p id="public-id-hint" className="hint">Votre identifiant de partage, unique et permanent.</p>
-    <p id="copy-feedback" className="profile-copy-feedback hint" role="status">{feedback}</p>
+    <p id="public-id-hint" className={`hint${copyState === 'error' ? ' error' : ''}`}>{copyState === 'error' ? feedback : 'Votre identifiant de partage, unique et permanent.'}</p>
+    <span className="visually-hidden" role="status" aria-atomic="true">{feedback}</span>
   </div>
 }
 
@@ -106,7 +112,7 @@ export function ProfilePage() {
     <section className="profile-section" aria-labelledby="authenticator-title">
       <h2 id="authenticator-title">Authenticator</h2>
       <p className="profile-authenticator">{!mfa ? 'Statut Authenticator indisponible.' : mfa.verifiedFactors.length > 0 ? 'Authenticator configuré' : 'Aucun Authenticator vérifié.'}</p>
-      <p className="hint">Pour modifier ou remplacer votre Authenticator, il est nécessaire de contacter MY.</p>
+      <p className="hint">Pour modifier ou remplacer votre Authenticator, il est nécessaire de contacter un administrateur.</p>
     </section>
   </section>
 }
