@@ -9,6 +9,7 @@ export function authErrorMessage(error: unknown) {
     case 'email_not_confirmed': return 'Confirmez votre adresse email avant de vous connecter.'
     case 'weak_password': return 'Choisissez un mot de passe plus robuste pour respecter la politique de sécurité.'
     case 'same_password': return 'Choisissez un mot de passe différent du précédent.'
+    case 'current_password_invalid':
     case 'current_password_mismatch': return 'Le mot de passe actuel est incorrect.'
     case 'current_password_required': return 'Saisissez votre mot de passe actuel.'
     case 'email_exists':

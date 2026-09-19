@@ -17,14 +17,14 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est cadrée et en cours d'implémentation.** Le Profil comprend identité MY., changement d'email et section Sécurité avec formulaire de mot de passe volontaire et statut Authenticator ; le backend de suppression renforcée est livré localement. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) précise les garanties validées et restantes. L'[UX de suppression](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) est livrée localement. Il reste uniquement le checkpoint Cloud final (4D.3), dont la vérification serveur du mot de passe actuel, pour clôturer la Phase 4.
+**Les Phases 0 à 4 sont terminées et validées.** Le Profil et la gestion du compte sont livrés ; les garanties serveur de mot de passe, recovery, MFA et suppression sont confirmées dans le [checkpoint Cloud final](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md). La prochaine étape est **Phase 5 — Dashboard, création et gestion des collections**, non commencée.
 
 | Grandes phases | Statut |
 |---|---|
 | 0 à 2 — Fondations, base de données et catalogue | Terminées |
 | 3 — Authentification et socle applicatif authentifié | Terminée |
-| 4 — Profil et gestion du compte | Cadrée — implémentation en cours |
-| 5 — Dashboard, création et gestion des collections | Planifiée |
+| 4 — Profil et gestion du compte | Terminée |
+| 5 — Dashboard, création et gestion des collections | Prochaine phase — non commencée |
 | 6 — Cœur fonctionnel des collections | Planifiée |
 | 7 — Vues, catalogue, recherche globale et préférences | Planifiée |
 | 8 — Mise à jour des collections automatiques | Planifiée |
@@ -33,7 +33,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 Le socle SQL, le catalogue et le socle Auth sont déployés et validés dans Supabase cloud ; les écrans Auth et le shell sont validés localement. Le détail des migrations et des validations reste dans le README et les rapports.
 
-**Développement et tests utilisent Supabase local uniquement. Supabase cloud est réservé à la future production avec Vercel.** Aucun déploiement Vercel n'est en place. Les URLs de production seront configurées lors de la mise en production ; aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud.
+**Le développement et les tests courants utilisent Supabase local ; les checkpoints Cloud ponctuels exigent une autorisation explicite et des fixtures temporaires. Supabase cloud reste réservé à la future production avec Vercel.** Aucun déploiement Vercel n'est en place. Les URLs de production seront configurées lors de la mise en production ; aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud.
 
 ## Roadmap V1
 
@@ -71,7 +71,7 @@ La recherche du header est encore un champ visuel sans requête ni suggestion. �
 
 ### Phase 4 — Profil et gestion du compte
 
-**Statut : CADRÉE — IMPLÉMENTATION EN COURS**
+**Statut : TERMINÉE**
 
 L'objectif est de terminer le bloc utilisateur/compte après l'authentification, avant de construire le Dashboard et la gestion des collections.
 
@@ -89,7 +89,7 @@ Les [fonctionnalités](01-FEATURES.md#profil-utilisateur), l'[UX](04-UX-UI.md#pr
 
 Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. L'interface des préférences de vues reste prévue en Phase 7. Aucun profil social n'est ajouté.
 
-Le moyen de contact final et les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Le Profil comprend les formulaires email et mot de passe volontaire ainsi que le statut Authenticator ; le backend de suppression est validé localement. L'UX de suppression est livrée localement ; seul le checkpoint Cloud final (4D.3) reste à réaliser. Formulaire et contrat du changement de mot de passe sont validés localement ; la vérification serveur du mot de passe actuel reste à valider sur Cloud à la clôture de cette phase avant la Phase 5. La phase n'est pas encore terminée et la Phase 5 n'a pas commencé.
+Le moyen de contact final et les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Les parcours Profil et leurs protections sont livrés et validés, avec leurs preuves locales et Cloud consignées dans le [rapport de clôture](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md). La Phase 5 n'a pas commencé.
 
 ### Phase 5 — Dashboard, création et gestion des collections
 
@@ -225,7 +225,7 @@ Stabiliser l'ensemble de la V1 et préparer son utilisation en production :
 - configuration de l'envoi réel des emails, dont SMTP, et vérification des parcours ;
 - déploiement puis contrôles en production.
 
-Le développement et les tests restent locaux avant cette étape. Les URLs de production ne sont ni inventées à l'avance ni remplacées par des URLs localhost dans Supabase cloud.
+Le développement et les tests courants restent locaux avant cette étape, hors checkpoints Cloud ponctuels explicitement autorisés. Les URLs de production ne sont ni inventées à l'avance ni remplacées par des URLs localhost dans Supabase cloud.
 
 La V1 conserve son périmètre de gestion de collections Pokémon TCG : aucun paiement ou abonnement Premium n'est requis, et les collections automatiques restent accessibles normalement.
 

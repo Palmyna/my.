@@ -88,6 +88,7 @@ describe('changement volontaire du mot de passe — contrat SDK simulé', () => 
     expect(mock.from).not.toHaveBeenCalled()
   })
   test.each([
+    ['current_password_invalid', 'Le mot de passe actuel est incorrect.'],
     ['current_password_mismatch', 'Le mot de passe actuel est incorrect.'],
     ['current_password_required', 'Saisissez votre mot de passe actuel.'],
     ['weak_password', 'plus robuste'],

@@ -305,6 +305,7 @@ test('attend le vrai résultat SDK, bloque le doublon, vide les champs et conser
 })
 
 test.each([
+  ['current_password_invalid', 'Le mot de passe actuel est incorrect.'],
   ['current_password_mismatch', 'Le mot de passe actuel est incorrect.'],
   ['weak_password', 'plus robuste'],
   ['session_not_found', 'session a expiré'],

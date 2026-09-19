@@ -366,7 +366,7 @@ La route `/profile` devient la page **Profil / gestion du compte** de la V1. Ell
 
 Profil et Paramètres sont deux destinations distinctes du menu `Mon compte`. La page Profil ne contient aucun lien ni raccourci vers Paramètres.
 
-**Livré localement en Phases 4C, 4D.1 et 4D.2 :** le Profil présente, dans l'ordre, **Identité MY.**, **Adresse email**, puis **Sécurité du compte**. L'identité et le changement d'email 4C sont conservés ; la section Sécurité ajoute le changement volontaire du mot de passe et accueille le statut Authenticator comme information secondaire. Les [rapports 4C](reports/2026-09-14-PHASE4C-PROFILE.md) et [4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) précisent les validations locales. La [suppression 4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) est intégrée en bas de Profil. Seul le checkpoint Cloud final 4D.3 reste à réaliser. La Phase 4 reste en cours.
+**Livré localement en Phases 4C, 4D.1 et 4D.2 :** le Profil présente, dans l'ordre, **Identité MY.**, **Adresse email**, puis **Sécurité du compte**. L'identité et le changement d'email 4C sont conservés ; la section Sécurité ajoute le changement volontaire du mot de passe et accueille le statut Authenticator comme information secondaire. Les [rapports 4C](reports/2026-09-14-PHASE4C-PROFILE.md) et [4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) précisent les validations locales. La [suppression 4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) est intégrée en bas de Profil. Le [checkpoint Cloud final](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) valide les protections serveur et clôture la Phase 4.
 
 ### Informations du compte
 
@@ -386,7 +386,7 @@ L'accès normal à MY. conserve email confirmé, facteur TOTP vérifié et sessi
 - **Email** : session `aal2`, Secure Email Change et confirmation de l'adresse actuelle **et** de la nouvelle adresse.
 - **Suppression** : confirmations explicites, mot de passe actuel puis nouveau challenge TOTP frais et opération privilégiée côté serveur contrôlée par MY.
 
-Aucun nouveau TOTP par opération n'est ajouté pour email/mot de passe. La limite native établie lors de la vérification précédente est prise en compte ; aucun booléen, délai ou preuve frontend ne simule cette protection. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) distingue les garanties livrées des éléments restant à implémenter.
+Aucun nouveau TOTP par opération n'est ajouté pour email/mot de passe. La limite native établie lors de la vérification précédente est prise en compte ; aucun booléen, délai ou preuve frontend ne simule cette protection. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) précise les garanties livrées et les limites de validation locale.
 
 ### Modification de l'adresse email
 
@@ -398,7 +398,7 @@ L'email reste exclusivement une donnée Auth : aucun champ email n'est créé da
 
 ### Modification volontaire du mot de passe
 
-Un utilisateur connecté en `aal2` peut changer son mot de passe depuis Profil en fournissant son mot de passe actuel, un nouveau mot de passe et sa confirmation. Les trois champs sont requis ; le nouveau mot de passe respecte le minimum existant de 6 caractères, correspond à sa confirmation et diffère de la saisie actuelle. Le formulaire bloque les doubles soumissions, affiche les erreurs Auth traduites et permet de réessayer. Après réussite réelle de `auth.updateUser({ password, current_password })`, il affiche `Mot de passe modifié.` et vide les champs, sans déconnexion. Supabase Auth doit refuser côté serveur l'absence du mot de passe actuel ou une valeur incorrecte ; cette garantie reste à valider en 4D.3 sur Cloud. Aucun nouveau challenge TOTP ni nonce email supplémentaire n'est ajouté. La présence du formulaire livré localement en 4D.1 ne valide pas à elle seule cette protection serveur.
+Un utilisateur connecté en `aal2` peut changer son mot de passe depuis Profil en fournissant son mot de passe actuel, un nouveau mot de passe et sa confirmation. Les trois champs sont requis ; le nouveau mot de passe respecte le minimum existant de 6 caractères, correspond à sa confirmation et diffère de la saisie actuelle. Le formulaire bloque les doubles soumissions, affiche les erreurs Auth traduites et permet de réessayer. Après réussite réelle de `auth.updateUser({ password, current_password })`, il affiche `Mot de passe modifié.` et vide les champs, sans déconnexion. Supabase Auth doit refuser côté serveur l'absence du mot de passe actuel ou une valeur incorrecte ; cette garantie est validée sur Cloud par le [checkpoint 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md). Aucun nouveau challenge TOTP ni nonce email supplémentaire n'est ajouté. La présence du formulaire livré localement en 4D.1 ne valide pas à elle seule cette protection serveur.
 
 Ce parcours est distinct de `Mot de passe oublié`. La récupération par email déjà livrée reste inchangée pour une personne ayant réellement oublié son mot de passe ; elle conserve ses propres règles de MFA avant réinitialisation, sans exiger le mot de passe oublié.
 
