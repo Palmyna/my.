@@ -495,13 +495,13 @@ Une collection libre propose une action claire :
 
 Cette action ouvre la recherche de sélection dans le catalogue, distincte de celle du header. L'utilisateur sélectionne une variante existante et peut ensuite organiser librement les éléments.
 
-Le drag and drop est une possibilité naturelle sur desktop. Une alternative adaptée au mobile doit être prévue si cette interaction n'est pas suffisante.
+L'interaction exacte de réorganisation reste à cadrer pour desktop et mobile : aucun choix final de drag & drop, poignée, boutons ou geste tactile n'est fixé.
 
 ### Collection automatique
 
 Une collection automatique peut également proposer l'action `Ajouter une carte`. La variante choisie dans le catalogue devient alors un élément manuel.
 
-Les éléments automatiques ne sont ni réordonnables ni supprimables manuellement. Les éléments manuels peuvent être repositionnés ou retirés sans modifier l'ordre relatif des éléments automatiques.
+Les éléments automatiques et manuels sont tous librement réordonnables par le propriétaire. L'ordre canonique MY. initialise la collection, puis sert de référence système. Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique ; les éléments manuels peuvent être ajoutés, retirés et déplacés librement. La possibilité de déplacer un automatique est validée ; l'interaction UX exacte reste ouverte, comme pour les collections libres.
 
 Lorsque nécessaire pour comprendre les actions disponibles, l'origine manuelle d'un élément doit être identifiable de manière discrète, sans surcharger toute la collection.
 
@@ -518,6 +518,8 @@ L'action finale est explicite :
 `Mettre à jour la collection`
 
 La collection n'est jamais mise à jour silencieusement. L'utilisateur reste maître de l'application et ne doit pas subir plusieurs confirmations successives après qu'un résumé clair lui a été présenté.
+
+La mise à jour préserve autant que possible l'ordre personnalisé des éléments automatiques et manuels, y compris lors d'une conversion manuel → automatique, sans retour arbitraire à l'ordre canonique. Le placement des nouveaux éléments et la stratégie de préservation/ancrage restent à cadrer en Phase 8.
 
 ## Partage
 

@@ -118,7 +118,7 @@ Rendre les collections utilisables pour suivre les variantes et les exemplaires 
 
 - consultation des éléments automatiques et manuels ;
 - recherche et ajout d'une variante exacte du catalogue ;
-- suppression et réorganisation des éléments manuels, sans modifier l'ordre relatif des éléments automatiques ;
+- suppression des éléments manuels et réorganisation de tous les éléments, automatiques comme manuels ;
 - suivi possédée/manquante et gestion de plusieurs exemplaires physiques par variante ;
 - état de conservation, notes personnelles et informations de grading par exemplaire ;
 - recherche interne à la collection ;
@@ -128,7 +128,7 @@ Rendre les collections utilisables pour suivre les variantes et les exemplaires 
 
 Les exemplaires physiques sont **globaux au compte**, associés à une variante et non à une collection particulière. La possession est dérivée de leur existence : afficher une variante dans plusieurs collections ne duplique pas les exemplaires.
 
-Les éléments automatiques ne sont pas librement supprimables ou réordonnables. La nomenclature des états, les règles détaillées de grading et les mécanismes de positionnement manuel encore ouverts devront être précisés dans les références concernées.
+Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique. Leur déplacement libre est validé, sans modification de leur origine ni de leur rang canonique. La nomenclature des états, les règles détaillées de grading, l'interaction UX de réorganisation, le rééquilibrage des positions et la concurrence restent à préciser dans les références concernées.
 
 ### Phase 7 — Vues, catalogue, recherche globale et préférences
 
@@ -185,11 +185,11 @@ Permettre au propriétaire d'actualiser une collection lorsque la structure de s
 - application après validation explicite de l'utilisateur ;
 - opération autoritative et atomique, avec contrôle de la version présentée ;
 - absence de doublons lors des conversions et préservation des exemplaires physiques ;
-- conservation des éléments restant manuels et prise en compte de leurs positions.
+- actualisation des rangs canoniques et préservation autant que possible de l'ordre personnalisé des éléments automatiques et manuels, sans réinitialisation arbitraire des positions vers l'ordre canonique.
 
 La synchronisation du catalogue ne modifie jamais silencieusement la structure d'une collection. Si la cible change après l'aperçu, un résumé actualisé est nécessaire avant application.
 
-La stratégie précise de maintien des positions et d'ancrage des éléments manuels reste à cadrer ; cette roadmap ne la fixe pas.
+Le placement d'un nouvel élément automatique dans un ordre personnalisé et la stratégie de préservation/ancrage des positions restent ouverts pour cette Phase 8 ; cette roadmap ne fixe aucun algorithme exact d'insertion/fusion. Une conversion conserve le même élément et préserve autant que possible sa position.
 
 ### Phase 9 — Partage des collections
 

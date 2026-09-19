@@ -429,13 +429,15 @@ Set → cartes du set
     → éléments automatiques
 ```
 
-Une Extension désigne ici un set précis, non une série ou un bloc TCGdex. Dans les deux cas, chaque variante française pertinente demeure une unité distincte et l'ordre canonique de MY. est appliqué.
+Une Extension désigne ici un set précis, non une série ou un bloc TCGdex. Dans les deux cas, chaque variante française pertinente demeure une unité distincte et l'ordre canonique de MY. initialise la collection : Pokémon par date effective croissante, numéro naturel puis variante ; Extension par numéro naturel dans le set puis variante.
+
+Après création, le propriétaire peut réordonner tous les éléments automatiques et manuels via les futures opérations contrôlées. `automatic_rank` reste le rang canonique système ; `sort_position` porte l'ordre réellement affiché. Déplacer un automatique conserve `origin`, `automatic_rank`, le hash/version canonique et `automatic_target_states`. Il reste structurellement géré par MY. et non supprimable manuellement. Deux collections de même cible/version peuvent donc avoir les mêmes éléments automatiques et des positions différentes. L'interaction UX, le rééquilibrage et la concurrence restent à cadrer.
 
 ### Mise à jour autoritative et contrôlée
 
 Le frontend demande ou reçoit le résumé des changements, l'affiche puis recueille la validation explicite de l'utilisateur.
 
-La base ou le backend applique ensuite la mise à jour de manière cohérente et transactionnelle, garantit les invariants et préserve les éléments manuels, les exemplaires et les autres données utilisateur. Le frontend ne décide pas seul quels éléments automatiques insérer.
+La base ou le backend applique ensuite la mise à jour de manière cohérente et transactionnelle : ajout des nouveaux automatiques, retrait des non-éligibles, conversion sans doublon des manuels devenus automatiques et actualisation des `automatic_rank`. La conversion conserve le même `collection_item`, passe `origin` à `automatic` et préserve autant que possible `sort_position`. Les autres éléments manuels, les exemplaires et les données personnelles sont préservés. L'ordre personnalisé de tous les éléments est conservé autant que possible, sans réinitialisation arbitraire vers l'ordre canonique. Le placement des nouveaux automatiques et la stratégie de préservation/ancrage restent ouverts pour la Phase 8, sans algorithme exact d'insertion/fusion décidé. Le frontend ne décide pas seul quels éléments automatiques insérer.
 
 La synchronisation du catalogue ne modifie jamais silencieusement une collection utilisateur.
 

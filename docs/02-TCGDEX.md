@@ -287,7 +287,7 @@ Dans les deux cas, le catalogue local MY., et non un appel direct à TCGdex lors
 
 ### Ordre stable et reproductible
 
-L'ordre d'une collection automatique doit rester stable et reproductible. Une synchronisation ne doit pas produire un ordre différent de manière arbitraire lorsque la cible et l'état du catalogue n'ont pas changé.
+L'ordre canonique de génération doit rester stable et reproductible. Une synchronisation ne doit pas produire un ordre canonique différent de manière arbitraire lorsque la cible et l'état du catalogue n'ont pas changé. Cet ordre initialise la collection et fournit les `automatic_rank` ; après création, tous les éléments sont librement réordonnables par le propriétaire via `sort_position`, sans modifier le hash/version canonique ni `automatic_target_states`. Les futures mises à jour préservent autant que possible l'ordre personnalisé sans le réinitialiser arbitrairement ; leur insertion/fusion reste à cadrer en Phase 8.
 
 Pour une collection par Pokémon, les priorités sont :
 

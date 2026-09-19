@@ -262,27 +262,29 @@ Chaque élément doit être identifiable comme automatique ou manuel.
 Un élément automatique :
 
 - est généré par MY. ;
-- suit l'ordre canonique ;
+- conserve `origin = automatic` et son rang canonique système `automatic_rank` lors d'un déplacement ;
 - ne peut pas être supprimé manuellement ;
-- ne peut pas être librement réordonné.
+- peut être librement réordonné par le propriétaire, tout en restant structurellement géré par MY.
 
 Un élément manuel :
 
-- est ajouté par l'utilisateur ;
+- est ajouté par l'utilisateur, avec `origin = manual` et sans `automatic_rank` ;
 - référence toujours une variante existante ;
 - peut être déplacé ;
 - peut être supprimé.
 
-Dans une collection automatique, les éléments manuels peuvent être placés entre les éléments automatiques sans modifier l'ordre relatif de ces derniers.
+Dans une collection automatique, le propriétaire peut réordonner tous les éléments, automatiques comme manuels.
 
 ### Ordre d'une collection
 
 Le modèle doit représenter un ordre stable des éléments :
 
 - dans une collection libre, l'ordre est contrôlé par l'utilisateur ;
-- dans une collection automatique, les éléments automatiques suivent l'ordre canonique de MY. et les éléments manuels sont positionnables librement autour d'eux.
+- dans une collection automatique, l'ordre canonique de MY. initialise la collection ; tous les éléments sont ensuite positionnables librement.
 
-La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. L'ancrage et le repositionnement des éléments manuels lors d'une synchronisation restent ouverts.
+`automatic_rank` est le rang canonique système ; `sort_position` est l'ordre réel affiché dans cette collection. Un déplacement automatique ne modifie que `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique ou `automatic_target_states`. Deux collections de même cible/version peuvent contenir les mêmes éléments automatiques avec des `sort_position` différents.
+
+La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. L'interaction UX, le rééquilibrage et la concurrence restent ouverts. Le placement d'un nouvel élément automatique et la stratégie de préservation/ancrage de l'ordre personnalisé lors des mises à jour restent à cadrer en Phase 8.
 
 ### Ordre canonique du catalogue
 
@@ -326,10 +328,10 @@ Ce résumé peut être calculé à la demande, stocké temporairement ou persist
 Après validation explicite de l'utilisateur :
 
 - les nouveaux éléments automatiques nécessaires sont ajoutés ;
-- leur ordre canonique est appliqué ;
+- leurs `automatic_rank` sont mis à jour, en préservant autant que possible l'ordre personnalisé sans réinitialisation arbitraire de `sort_position` vers l'ordre canonique ;
 - les éléments automatiques encore éligibles sont conservés ;
-- les éléments automatiques devenus non éligibles peuvent être retirés de la collection ;
-- un élément manuel devenu automatiquement éligible est converti sans être dupliqué ;
+- les éléments automatiques devenus non éligibles sont retirés de la collection ;
+- un élément manuel devenu automatiquement éligible conserve le même `collection_item`, passe à `origin = automatic`, reçoit son `automatic_rank` et conserve autant que possible son `sort_position`, sans doublon ;
 - les autres éléments manuels sont préservés ;
 - les exemplaires physiques restent inchangés ;
 - les notes et autres informations personnelles restent inchangées.

@@ -117,7 +117,7 @@ Une collection automatique possède une cible. Deux types de cible sont proposé
 
 Un utilisateur ne peut posséder qu'une seule collection automatique pour une même cible : une par Pokémon et une par Extension. Deux utilisateurs différents peuvent choisir la même cible ; les collections libres ne sont pas concernées. Cette unicité est garantie par PostgreSQL, y compris en cas de créations concurrentes.
 
-Le contenu automatique est généré depuis le catalogue local MY. selon des règles communes et reproductibles. Quel que soit le type de cible, la structure est matérialisée, les éléments automatiques sont fixes, l'ordre est stable, les ajouts manuels restent possibles et toute mise à jour structurelle nécessite une validation explicite.
+Le contenu automatique est généré depuis le catalogue local MY. selon des règles communes et reproductibles. Quel que soit le type de cible, la structure est matérialisée et gérée par MY., l'ordre initial est canonique, les ajouts manuels restent possibles et toute mise à jour structurelle nécessite une validation explicite. Après création, le propriétaire peut librement réordonner tous les éléments, automatiques comme manuels.
 
 ### Cible Pokémon
 
@@ -133,15 +133,17 @@ Chaque variante française pertinente produit une entrée distincte. L'extension
 
 Une collection automatique par extension calcule sa progression comme les autres collections. Tous ses éléments, automatiques comme manuels, contribuent au total ; une variante contribue au nombre possédé lorsque le propriétaire en possède au moins un exemplaire.
 
-### Structure automatique fixe
+### Structure automatique et ordre personnalisable
 
 L'ordre canonique Pokémon suit la date de parution effective complète de la variante (`YYYY-MM-DD`) croissante, puis le numéro normalisé de sa carte, puis l'ordre stable des variantes d'une même carte. Une variante sortie plus tard peut donc apparaître après une autre carte intermédiaire. L'ordre Extension reste numéro normalisé dans le set, puis ordre stable des variantes, sans critère de date. Le [pipeline](07-CATALOG-SYNC.md) conserve la provenance réelle des dates et utilise le fallback fiable de carte lorsqu'aucune date spécifique n'est connue, puis NULL en dernier. Il implémente le tri naturel et les familles Normal/Holo/Reverse/autres. Seules les variantes standard actives et confirmées françaises sont éligibles ; les Jumbo sont exclues.
 
 Les cartes générées automatiquement constituent la structure de référence de la collection. Elles :
 
-- conservent l'ordre défini par MY. ;
+- conservent leur origine automatique et leur rang canonique système (`automatic_rank`) lors d'un déplacement ;
 - ne peuvent pas être supprimées manuellement ;
-- ne peuvent pas être déplacées librement.
+- peuvent être déplacées librement par le propriétaire.
+
+L'ordre canonique initialise la collection ; il reste une référence système, pas une contrainte permanente d'affichage. `sort_position` représente l'ordre réel affiché dans cette collection. Déplacer un élément automatique modifie sa position, jamais son `automatic_rank`, son `origin`, le hash/version canonique ou `automatic_target_states`. Deux collections de même cible/version peuvent ainsi avoir les mêmes éléments automatiques et des positions différentes.
 
 L'utilisateur reste libre de gérer ses données personnelles sur ces cartes : possession, exemplaires, état, grading et notes.
 
@@ -158,7 +160,7 @@ Le propriétaire peut :
 - l'insérer entre des cartes automatiques ;
 - la supprimer.
 
-Les déplacements de cartes manuelles ne modifient jamais l'ordre relatif des cartes automatiques. Le mécanisme technique de positionnement n'est pas défini par ce document.
+Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. Tous les éléments sont librement repositionnables. L'interaction UX exacte, le rééquilibrage de `sort_position` et la concurrence restent ouverts ; la possibilité de déplacer un élément automatique est validée.
 
 ### Mise à jour contrôlée
 
@@ -172,7 +174,7 @@ Lorsqu'une mise à jour est disponible :
 
 Le résumé doit permettre de comprendre les changements : variantes ajoutées ou retirées, éléments manuels qui deviendront automatiques et changements d'ordre pertinents. Une évolution peut provenir d'une nouvelle carte, d'une nouvelle variante française, d'une correction TCGdex ou d'une correction locale MY.
 
-Lorsqu'elle est validée, la mise à jour insère les nouvelles cartes automatiques à leur position correcte, convertit sans doublon les éléments manuels devenus automatiques et retire de la structure les éléments automatiques devenus non éligibles. Elle ne supprime jamais les exemplaires physiques. Les autres cartes manuelles sont préservées sans être perturbées inutilement ; leur logique précise de repositionnement reste ouverte.
+Lorsqu'elle est validée, la mise à jour ajoute les nouveaux éléments automatiques, retire ceux devenus non éligibles et actualise les `automatic_rank`. Une conversion manuel → automatique conserve le même `collection_item`, passe `origin` à `automatic`, définit `automatic_rank` et préserve autant que possible `sort_position`, sans doublon. Les autres éléments manuels et les exemplaires physiques sont conservés. La mise à jour préserve autant que possible l'ordre personnalisé de tous les éléments et ne réinitialise pas arbitrairement `sort_position` vers l'ordre canonique. Le placement des nouveaux éléments automatiques et la stratégie de préservation/ancrage des positions restent explicitement ouverts pour la Phase 8 ; aucun algorithme exact d'insertion/fusion n'est fixé.
 
 ## Cartes de référence et exemplaires physiques
 

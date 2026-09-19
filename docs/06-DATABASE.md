@@ -474,8 +474,8 @@ Cette table matérialise les variantes présentes dans une collection. Elle cons
 | `collection_id UUID` | Collection parente |
 | `variant_id BIGINT` | Variante référencée |
 | `origin` | Élément automatique ou manuel |
-| `sort_position` | Ordre global matérialisé |
-| `automatic_rank` | Rang canonique d'un élément automatique |
+| `sort_position` | Ordre réel affiché dans cette collection, pour tous les éléments |
+| `automatic_rank` | Rang canonique système d'un élément automatique |
 | timestamps | Création et mise à jour |
 
 Une variante ne peut apparaître qu'une seule fois dans une collection :
@@ -490,18 +490,22 @@ Dans une collection libre, tous les éléments sont manuels. Dans une collection
 
 #### Ordre
 
-`sort_position NUMERIC(40,20)` représente l'ordre global affiché avec une arithmétique décimale exacte. Une insertion entre deux positions peut utiliser leur moyenne ; un rééquilibrage limité à une plage sera nécessaire si les 20 décimales disponibles sont épuisées. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 1 fournit le stockage ; le code de repositionnement, de concurrence et d'ancrage lors des synchronisations reste à implémenter dans les opérations contrôlées. Les futures opérations devront préserver cette précision, sans calcul en flottant JavaScript.
+`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 1 fournit le stockage ; l'interaction UX exacte, le rééquilibrage de `sort_position` et la concurrence restent ouverts. Le commentaire SQL évoque la moyenne et le rééquilibrage local comme pistes techniques ; aucun algorithme final de réorganisation ou d'insertion/fusion lors des mises à jour n'est fixé ici. Les futures opérations contrôlées devront préserver cette précision, sans calcul en flottant JavaScript.
 
 `automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection libre, y compris lors d'un changement de parent.
 
 Cet ordre canonique est distinct de `sort_position`. Pour Pokémon : date de parution effective de la variante croissante (`NULL` en dernier), numéro normalisé, ordre stable des variantes de la carte. Pour Extension : numéro normalisé dans le set, ordre stable des variantes, sans critère de date. Les départages techniques ne peuvent pas modifier ces priorités. Les algorithmes précis sont implémentés en Phase 2 et définis dans `07-CATALOG-SYNC.md`. Le hash ne contient que les IDs ordonnés : une date sans déplacement ne modifie ni hash ni version ; une date seule ne modifie jamais la cible Set.
 
+À la création, `sort_position` initialise l'affichage dans l'ordre canonique. Après création, cet ordre est une référence système, pas une contrainte permanente d'affichage. Un déplacement d'élément automatique modifie `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Deux collections de même cible/version peuvent donc posséder les mêmes éléments automatiques avec des `sort_position` différents.
+
+L'inspection des migrations versionnées confirme que `sort_position` existe et est obligatoire pour tous les `collection_items`, tandis que `automatic_rank` est distinct. Aucun `CHECK` ni trigger n'impose leur égalité ou n'interdit de déplacer un automatique. Le trigger de parent interdit seulement l'origine automatique dans une collection libre. Le modèle supporte donc cette règle sans obstacle de contrainte identifié. Les écritures directes sur les éléments restent fermées au rôle `authenticated` ; la réorganisation devra passer par les futures opérations contrôlées, encore à implémenter. Cette inspection ne constitue pas une validation d'exécution en base.
+
 La base, les permissions ou les opérations métier doivent garantir que :
 
-- un élément automatique ne peut pas être supprimé ou déplacé arbitrairement ;
-- son rang n'est pas librement modifiable depuis le frontend ;
-- les éléments manuels restent repositionnables ;
-- l'ordre relatif des éléments automatiques est préservé ;
+- un élément automatique reste structurellement géré par MY. et non supprimable manuellement tant qu'il appartient à cette structure ;
+- son rang canonique n'est pas librement modifiable depuis le frontend ;
+- tous les éléments, automatiques comme manuels, sont librement repositionnables par le propriétaire ;
+- un élément manuel conserve `origin = manual` et aucun `automatic_rank` lors d'un déplacement ;
 - une collection libre ne contient aucun élément automatique.
 
 ## Exemplaires physiques
@@ -687,7 +691,7 @@ Une opération conceptuelle telle que `create_automatic_collection(name, target_
 3. lire l'état courant de la cible ;
 4. déterminer les variantes françaises éligibles ;
 5. créer les éléments automatiques ;
-6. attribuer leurs rangs et positions ;
+6. attribuer les `automatic_rank` canoniques et initialiser les `sort_position` dans le même ordre canonique MY. (Pokémon : date effective croissante, numéro naturel, variante ; Extension : numéro naturel dans le set, variante), sans imposer l'égalité numérique des deux champs ;
 7. enregistrer la version appliquée.
 
 L'ensemble réussit ou échoue de manière atomique. Les index uniques arbitrent les créations concurrentes. Le frontend propose l'ouverture d'une collection personnelle déjà existante et ne doit pas insérer librement lui-même l'ensemble des éléments automatiques.
@@ -710,9 +714,9 @@ Elle doit pouvoir retourner :
 Lorsqu'une variante ajoutée manuellement devient éligible automatiquement, l'élément existant est converti :
 
 - le même `collection_item` est conservé ;
-- son origine devient automatique ;
-- un rang automatique lui est attribué ;
-- sa position est adaptée à l'ordre canonique ;
+- son `origin` devient `automatic` ;
+- son `automatic_rank` est défini selon le rang canonique système ;
+- son `sort_position` est préservé autant que possible ;
 - aucun doublon n'est créé ;
 - les exemplaires restent inchangés.
 
@@ -736,7 +740,7 @@ Une opération conceptuelle telle que `apply_collection_update(collection_id, ex
 6. ajouter les nouveaux éléments ;
 7. retirer les éléments automatiques devenus non éligibles ;
 8. mettre à jour les rangs automatiques ;
-9. préserver autant que possible les positions manuelles ;
+9. préserver autant que possible l'ordre personnalisé de tous les éléments, automatiques et manuels, sans réinitialiser arbitrairement `sort_position` vers l'ordre canonique ;
 10. enregistrer la nouvelle version appliquée.
 
 Toutes les étapes réussissent ou échouent ensemble.
@@ -755,9 +759,9 @@ Dans une collection automatique, l'élément ajouté est manuel. Dans une collec
 
 L'ajout augmente immédiatement le total de progression. Une variante déjà possédée augmente aussi le numérateur.
 
-Tous les éléments d'une collection libre sont réordonnables. Dans une collection automatique, seuls les éléments manuels peuvent être repositionnés librement ; les éléments automatiques conservent leur ordre relatif.
+Tous les éléments d'une collection libre ou automatique sont librement réordonnables par le propriétaire. Un déplacement modifie `sort_position`, sans modifier `origin`, `automatic_rank`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Les automatiques restent non supprimables manuellement ; les manuels peuvent être ajoutés, retirés et déplacés librement.
 
-Les nouvelles cartes automatiques rejoignent leur position canonique lors d'une mise à jour. Les éléments manuels doivent être perturbés le moins possible, mais la stratégie exacte d'ancrage reste ouverte.
+Les mises à jour actualisent les rangs canoniques tout en préservant autant que possible l'ordre personnalisé. Le placement d'un nouvel élément automatique dans cet ordre et la stratégie de préservation/ancrage des positions restent explicitement ouverts pour la Phase 8, sans algorithme exact d'insertion/fusion fixé. L'interaction UX, le rééquilibrage de `sort_position` et la concurrence restent également ouverts. La possibilité de déplacer un automatique est définitivement validée.
 
 ## Partage par identifiant public
 
@@ -1008,10 +1012,14 @@ Les tests de base devront notamment vérifier :
 - l'absence de cible et de version sur une collection libre ;
 - la conservation des exemplaires après suppression d'une collection ;
 - la suppression complète du seul compte visé, y compris exemplaires hors collection, préférences et partages dans les deux sens, avec préservation du catalogue et des données d'autrui ;
-- la conversion manuel vers automatique sans doublon ;
+- la conversion manuel vers automatique sur le même `collection_item`, sans doublon, avec `origin = automatic`, `automatic_rank` défini et `sort_position` préservé autant que possible ;
 - le retrait automatique sans suppression d'exemplaire ;
 - la progression incluant les éléments manuels ;
-- la conservation de l'ordre relatif des éléments automatiques.
+- l'initialisation dans l'ordre canonique Pokémon ou Extension ;
+- la réorganisation par le propriétaire des éléments automatiques et manuels via `sort_position`, sans changement d'origine, de rang canonique, de hash/version canonique, de version appliquée ni d'`automatic_target_states` ;
+- des collections de même cible/version avec les mêmes éléments automatiques et des positions différentes ;
+- l'interdiction de suppression manuelle d'un élément automatique ;
+- la mise à jour des `automatic_rank` et la préservation autant que possible de l'ordre personnalisé, sans réinitialisation arbitraire des positions ; les scénarios précis d'insertion/ancrage seront définis après le cadrage Phase 8.
 
 ### RLS
 
@@ -1040,7 +1048,8 @@ Le futur SQL et les opérations métier doivent garantir autant que possible que
 - une variante apparaît au maximum une fois dans une collection ;
 - un élément référence une variante existante ;
 - une collection libre ne contient aucun élément automatique ;
-- un élément automatique n'est ni supprimable ni déplaçable arbitrairement ;
+- un élément automatique est librement déplaçable par le propriétaire, mais reste non supprimable manuellement tant qu'il appartient à la structure automatique ;
+- un déplacement modifie `sort_position` sans modifier `automatic_rank`, `origin`, le hash/version canonique, la version appliquée ou `automatic_target_states` ;
 - un exemplaire appartient à un utilisateur et à une variante, jamais à une collection ;
 - chaque exemplaire physique est une ligne distincte ;
 - la possession est dérivée des exemplaires ;
@@ -1075,8 +1084,8 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
 - la nomenclature des conditions ;
 - les sociétés et formats de grading ;
-- le code de positionnement et de rééquilibrage de `sort_position`, dont le stockage fractionnaire est fixé ;
-- la stratégie d'ancrage des cartes manuelles après une mise à jour ;
+- l'interaction UX exacte de réorganisation, le rééquilibrage de `sort_position` et la concurrence, dont seul le stockage fractionnaire est fixé ;
+- pour la Phase 8, le placement d'un nouvel élément automatique dans un ordre personnalisé et la stratégie de préservation/ancrage des positions de tous les éléments ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code et les signatures finaux des RPC ;
