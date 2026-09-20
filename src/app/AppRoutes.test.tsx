@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { useEffect } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { MemoryRouter, useLocation } from 'react-router'
 import { expect, test, vi } from 'vitest'
 import { createAuthService } from '../services/auth'
@@ -9,9 +10,12 @@ import { createAuthStore, type AuthStore } from '../features/auth/auth-store'
 import type { EmailCallback } from '../features/auth/auth-callback'
 import { AppRoutes } from './AppRoutes'
 
+vi.mock('../services/collections', () => ({ listDashboardCollections: vi.fn(() => Promise.resolve([])) }))
+
 function Harness({ store, path }: { store: AuthStore; path: string }) {
+  const [queryClient] = useState(() => new QueryClient())
   useEffect(() => store.start(), [store])
-  return <AuthContext value={store}><MemoryRouter initialEntries={[path]}><AppRoutes /><Path /></MemoryRouter></AuthContext>
+  return <QueryClientProvider client={queryClient}><AuthContext value={store}><MemoryRouter initialEntries={[path]}><AppRoutes /><Path /></MemoryRouter></AuthContext></QueryClientProvider>
 }
 function Path() { return <span data-testid="path">{useLocation().pathname}</span> }
 function setup(path = '/', mode: 'out' | 'aal1' | 'aal2' | 'enroll' | 'email' = 'out', callback: EmailCallback = null) {
@@ -102,9 +106,9 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
   expect(screen.getByRole('main')).toContainElement(page)
   expect(screen.getByRole('contentinfo')).toHaveTextContent('Conditions d’utilisation')
   if (path === '/dashboard') {
-    expect(within(page).getByRole('term')).toHaveTextContent('Votre identifiant MY.')
-    expect(within(page).getByRole('definition')).toHaveTextContent(profile.public_id)
-    expect(within(page).queryByRole('status')).not.toBeInTheDocument()
+    expect(within(page).getByRole('heading', { name: 'Mes collections' })).toBeVisible()
+    expect(within(page).getByRole('heading', { name: 'Collections partagées avec moi' })).toBeVisible()
+    expect(within(page).queryByText(profile.public_id)).not.toBeInTheDocument()
   } else if (path === '/profile') {
     expect(within(page).getByLabelText('MY.ID')).toHaveValue(profile.public_id)
     expect(within(page).getByRole('textbox', { name: 'Nouvelle adresse email' })).toBeVisible()
@@ -337,8 +341,8 @@ test.each(['enroll', 'aal1'] as const)('recovery %s impose MFA avant reset et co
   expect(mock.from).not.toHaveBeenCalled()
   change('Nouveau mot de passe', 'new-password'); change('Confirmer le mot de passe', 'new-password'); press('Enregistrer le mot de passe')
   await heading('Dashboard')
-  expect(screen.getByRole('status')).toHaveTextContent('Vous êtes connecté')
-  expect(within(screen.getByRole('region', { name: 'Dashboard' })).getByRole('definition')).toHaveTextContent(profile.public_id)
+  expect(screen.getByText('Mot de passe modifié. Vous êtes connecté.')).toHaveAttribute('role', 'status')
+  expect(screen.getByRole('heading', { name: 'Mes collections' })).toBeVisible()
   expect(mock.auth.signOut).not.toHaveBeenCalled()
   expect(mock.auth.updateUser).toHaveBeenCalledOnce()
 })
@@ -346,7 +350,7 @@ test.each(protectedPages)('logout depuis %s purge immédiatement le shell, le pr
   const { mock, clearData } = setup(path, 'aal2')
   await heading(title)
   expect(screen.getByRole('button', { name: 'Mon compte' })).toBeVisible()
-  if (path === '/dashboard') expect(screen.getByText(profile.public_id)).toBeVisible()
+  if (path === '/dashboard') expect(screen.getByRole('heading', { name: 'Mes collections' })).toBeVisible()
   clearData.mockClear(); press('Mon compte')
   fireEvent.click(screen.getByRole('menuitem', { name: 'Déconnexion' }))
   expect(screen.queryByText(profile.public_id)).not.toBeInTheDocument()

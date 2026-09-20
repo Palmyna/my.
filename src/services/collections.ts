@@ -1,11 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
+import { getSupabaseClient } from './supabase'
 import type {
   AutomaticCollectionResult, CollectionMutationResult, CollectionsErrorCode,
   CreateAutomaticCollectionInput, CreateFreeCollectionInput, DashboardCollection,
 } from '../types/collections'
 
 export type CollectionsService = ReturnType<typeof createCollectionsService>
+
+// Runtime entry point; the injected service remains independently testable.
+export async function listDashboardCollections(): Promise<DashboardCollection[]> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionsError('not_authorized')
+  return createCollectionsService(client).listDashboardCollections()
+}
 
 // Presentation receives only a stable code, never raw server text, details or cause.
 export class CollectionsError extends Error {

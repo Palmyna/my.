@@ -224,7 +224,7 @@ Il distingue clairement :
 - `Mes collections` ;
 - `Collections partagées avec moi`.
 
-Cette séparation peut prendre la forme d'onglets, de sections ou d'un autre mécanisme simple. Le choix précis reste ouvert, mais la distinction doit être immédiate.
+La première interface de consultation les présente en deux sections distinctes, chacune avec son état vide, dans une grille adaptative. Le Dashboard dispose d'une largeur propre, supérieure à celle des pages Profil et Paramètres.
 
 ### Tuiles de collection
 
@@ -239,6 +239,10 @@ Dès lors qu'il s'agit d'une collection automatique, la tuile doit pouvoir disti
 
 D'autres informations peuvent être ajoutées seulement si elles restent utiles et peu encombrantes.
 
+Les tuiles utilisent des surfaces sombres subtilement teintées, avec bordure et accent de la même famille chromatique. Une palette frontend sobre couvre corail, ambre, jaune chaud, vert, turquoise, bleu, violet et rose ; l'accent est repris par la progression. La couleur reste secondaire aux libellés et conserve un contraste suffisant. Son attribution est déterministe depuis le type et le nom de cible disponibles, avec repli sur l'identifiant stable de collection, également utilisé pour les collections libres. Aucune table métier de couleurs par Pokémon ni donnée couleur en base n'est nécessaire. Un changement de nom de cible peut donc changer cet accent.
+
+Dans cette première interface de lecture, les tuiles restent non interactives jusqu'à la livraison d'une route détail : aucun faux lien ni arrêt clavier supplémentaire. Le hover reste discret et les transitions respectent la réduction des mouvements. Le chargement et les erreurs restent intégrés au Dashboard, avec un nouvel essai explicite en cas d'échec ; le feedback après changement de mot de passe est conservé. La création reste un parcours ultérieur.
+
 ### Progression
 
 La progression est directement visible sur le dashboard, sous une forme conceptuelle telle que :
@@ -248,7 +252,7 @@ La progression est directement visible sur le dashboard, sous une forme conceptu
 68 %
 ```
 
-Un indicateur graphique léger peut accompagner ces valeurs. Sa forme exacte reste à définir.
+Une barre discrète accompagne ces valeurs, avec un pourcentage arrondi à l'entier le plus proche. Pour une collection vide, `0 / 0` est accompagné de `Collection vide`, sans pourcentage artificiel.
 
 Une collection partagée affiche la progression réelle de son propriétaire et doit être identifiable comme partagée en lecture seule.
 
@@ -681,8 +685,7 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - les textes définitifs des modales du Profil, ses intitulés de groupes et ses détails visuels, dans le respect des parcours validés ;
 - le moyen de contact final pour demander un remplacement d'Authenticator et la forme exacte de son message d'information ;
 - les dimensions, espacements, tailles typographiques et rayons exacts ;
-- le design précis des boutons, formulaires et tuiles du dashboard ;
-- la représentation graphique exacte de la progression ;
+- le design précis des boutons et formulaires de création du dashboard ;
 - l'apparence exacte des cartes possédées et manquantes ;
 - les badges exacts de variantes ;
 - le design, la texture éventuelle et les animations du classeur ;

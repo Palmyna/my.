@@ -2,11 +2,27 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { describe, expect, test, vi } from 'vitest'
 import type { Database } from '../types/database.generated'
 import type { CreateAutomaticCollectionInput, CreateFreeCollectionInput } from '../types/collections'
-import { CollectionsError, createCollectionsService } from './collections'
+import { CollectionsError, createCollectionsService, listDashboardCollections } from './collections'
+import { getSupabaseClient } from './supabase'
+
+vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
 
 const id = 'c1200000-0000-0000-0000-000000000001'
 const nameCheck = { code: '23514', message: 'new row for relation "collections" violates check constraint "collections_name_check"' }
 const automatic: CreateAutomaticCollectionInput = { name: 'Collection Pokémon', targetType: 'pokemon', targetId: 25 }
+
+test('le point d’entrée Dashboard utilise le service avec le client configuré', async () => {
+  const mock = mockCollectionsClient()
+  vi.mocked(getSupabaseClient).mockReturnValue(mock.client)
+  await expect(listDashboardCollections()).resolves.toEqual([])
+  expect(mock.from).toHaveBeenCalledExactlyOnceWith('dashboard_collections')
+  expect(mock.dashboardSelect).toHaveBeenCalledOnce()
+})
+
+test('le point d’entrée Dashboard échoue proprement sans client configuré', async () => {
+  vi.mocked(getSupabaseClient).mockReturnValue(null)
+  await expect(listDashboardCollections()).rejects.toMatchObject({ code: 'not_authorized' })
+})
 
 function mockCollectionsClient() {
   const single = vi.fn().mockResolvedValue({ data: { id }, error: null })
