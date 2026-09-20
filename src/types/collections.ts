@@ -20,6 +20,16 @@ export interface AutomaticCollectionResult extends CollectionMutationResult {
   created: boolean
 }
 
+export interface DashboardCollection extends CollectionMutationResult {
+  name: string
+  collectionType: 'free' | 'automatic'
+  access: 'owned' | 'shared'
+  targetType: 'pokemon' | 'set' | null
+  targetName: string | null
+  ownedCount: number
+  totalCount: number
+}
+
 export type CollectionsErrorCode =
   | 'invalid_name'
   | 'invalid_target'

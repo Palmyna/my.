@@ -201,6 +201,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "collection_items_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_collections"
+            referencedColumns: ["collection_id"]
+          },
+          {
             foreignKeyName: "collection_items_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
@@ -235,6 +242,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "collections"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_shares_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_collections"
+            referencedColumns: ["collection_id"]
           },
           {
             foreignKeyName: "collection_shares_recipient_user_id_fkey"
@@ -608,7 +622,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      dashboard_collections: {
+        Row: {
+          access: string | null
+          collection_id: string | null
+          collection_type: string | null
+          name: string | null
+          owned_count: number | null
+          target_name: string | null
+          target_type: string | null
+          total_count: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       create_automatic_collection: {

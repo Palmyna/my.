@@ -16,10 +16,12 @@ function mockCollectionsClient() {
   const insert = vi.fn(() => ({ select }))
   const update = vi.fn(() => ({ eq }))
   const remove = vi.fn(() => ({ eq }))
-  const from = vi.fn(() => ({ insert, update, delete: remove }))
+  const dashboardSelect = vi.fn().mockResolvedValue({ data: [], error: null })
+  const from = vi.fn((table: string) => table === 'dashboard_collections'
+    ? { select: dashboardSelect } : { insert, update, delete: remove })
   const rpc = vi.fn().mockResolvedValue({ data: [{ collection_id: id, created: true }], error: null })
   const client = { from, rpc } as unknown as SupabaseClient<Database>
-  return { client, service: createCollectionsService(client), from, insert, update, remove, eq, select, single, maybeSingle, rpc }
+  return { client, service: createCollectionsService(client), from, insert, update, remove, eq, select, single, maybeSingle, rpc, dashboardSelect }
 }
 
 describe('création libre', () => {
@@ -193,4 +195,83 @@ test.each(['free', 'automatic', 'rename', 'delete'] as const)('%s : rejet résea
       : operation === 'rename' ? mock.service.rename(id, 'Valid') : mock.service.delete(id)
   await expect(request).rejects.toMatchObject({ code: 'unexpected', message: 'unexpected' })
   expect(mock.from.mock.calls.length + mock.rpc.mock.calls.length).toBe(1)
+})
+
+describe('lecture Dashboard', () => {
+  const free = {
+    collection_id: id, name: 'Libre', collection_type: 'free', access: 'owned',
+    target_type: null, target_name: null, owned_count: 1, total_count: 3,
+  }
+  test('une seule lecture, types/cibles/accès et progression mappés sans calcul ni tri frontend', async () => {
+    const mock = mockCollectionsClient()
+    mock.dashboardSelect.mockResolvedValue({ error: null, data: [
+      free,
+      { ...free, collection_id: 'pokemon-id', name: 'Partagée', collection_type: 'automatic', access: 'shared',
+        target_type: 'pokemon', target_name: 'Évoli', owned_count: 82, total_count: 120 },
+      { ...free, collection_id: 'set-id', name: 'Extension', collection_type: 'automatic', target_type: 'set',
+        target_name: 'Légendes Brillantes', owned_count: 3, total_count: 5 },
+      { ...free, collection_id: 'empty-id', name: 'Vide', owned_count: 0, total_count: 0 },
+      { ...free, collection_id: 'unnamed-id', name: 'Sans nom cible', collection_type: 'automatic', access: 'shared',
+        target_type: 'pokemon', target_name: null, owned_count: 0, total_count: 0 },
+    ] })
+    await expect(mock.service.listDashboardCollections()).resolves.toEqual([
+      { collectionId: id, name: 'Libre', collectionType: 'free', access: 'owned',
+        targetType: null, targetName: null, ownedCount: 1, totalCount: 3 },
+      { collectionId: 'pokemon-id', name: 'Partagée', collectionType: 'automatic', access: 'shared',
+        targetType: 'pokemon', targetName: 'Évoli', ownedCount: 82, totalCount: 120 },
+      { collectionId: 'set-id', name: 'Extension', collectionType: 'automatic', access: 'owned',
+        targetType: 'set', targetName: 'Légendes Brillantes', ownedCount: 3, totalCount: 5 },
+      { collectionId: 'empty-id', name: 'Vide', collectionType: 'free', access: 'owned',
+        targetType: null, targetName: null, ownedCount: 0, totalCount: 0 },
+      { collectionId: 'unnamed-id', name: 'Sans nom cible', collectionType: 'automatic', access: 'shared',
+        targetType: 'pokemon', targetName: null, ownedCount: 0, totalCount: 0 },
+    ])
+    expect(mock.from).toHaveBeenCalledExactlyOnceWith('dashboard_collections')
+    expect(mock.dashboardSelect).toHaveBeenCalledExactlyOnceWith(
+      'collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count',
+    )
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.eq).not.toHaveBeenCalled()
+    expect(mock.insert).not.toHaveBeenCalled()
+    expect(mock.update).not.toHaveBeenCalled()
+    expect(mock.remove).not.toHaveBeenCalled()
+  })
+  test('liste vide sans collection accessible', async () => {
+    const mock = mockCollectionsClient()
+    await expect(mock.service.listDashboardCollections()).resolves.toEqual([])
+  })
+  test.each([null, {}, 'invalid'])('réponse autre qu’une liste : %j', async data => {
+    const mock = mockCollectionsClient()
+    mock.dashboardSelect.mockResolvedValue({ data, error: null })
+    await expect(mock.service.listDashboardCollections()).rejects.toHaveProperty('code', 'unexpected')
+  })
+  test.each([
+    null, {}, { ...free, collection_id: null }, { ...free, collection_id: '' }, { ...free, name: null },
+    { ...free, collection_type: 'other' }, { ...free, access: 'public' },
+    { ...free, target_type: 'series' }, { ...free, target_type: 'set' },
+    { ...free, target_name: 'Invented free target' },
+    { ...free, collection_type: 'automatic' }, { ...free, target_name: 42 },
+    { ...free, owned_count: null }, { ...free, owned_count: '1' }, { ...free, owned_count: -1 },
+    { ...free, owned_count: 1.5 }, { ...free, owned_count: 4 },
+    { ...free, total_count: null }, { ...free, total_count: -1 }, { ...free, total_count: Number.NaN },
+    { ...free, total_count: Number.MAX_SAFE_INTEGER + 1 },
+  ])('ligne incohérente refusée sans valeurs inventées : %j', async row => {
+    const mock = mockCollectionsClient()
+    mock.dashboardSelect.mockResolvedValue({ data: [free, row], error: null })
+    await expect(mock.service.listDashboardCollections()).rejects.toMatchObject({ code: 'unexpected', message: 'unexpected' })
+  })
+  test.each([['42501', 'not_authorized'], ['XX000', 'unexpected']])('erreur Supabase %s assainie', async (code, expected) => {
+    const mock = mockCollectionsClient()
+    mock.dashboardSelect.mockResolvedValue({ data: null, error: { code, message: 'private text', details: 'private detail' } })
+    const error: unknown = await mock.service.listDashboardCollections().catch((cause: unknown) => cause)
+    expect(error).toBeInstanceOf(CollectionsError)
+    expect(error).toMatchObject({ code: expected, message: expected })
+    expect(error).not.toHaveProperty('details')
+    expect(error).not.toHaveProperty('cause')
+  })
+  test('rejet réseau : convention unexpected conservée', async () => {
+    const mock = mockCollectionsClient()
+    mock.dashboardSelect.mockRejectedValue(new Error('private transport error'))
+    await expect(mock.service.listDashboardCollections()).rejects.toMatchObject({ code: 'unexpected', message: 'unexpected' })
+  })
 })

@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
 import type {
   AutomaticCollectionResult, CollectionMutationResult, CollectionsErrorCode,
-  CreateAutomaticCollectionInput, CreateFreeCollectionInput,
+  CreateAutomaticCollectionInput, CreateFreeCollectionInput, DashboardCollection,
 } from '../types/collections'
 
 export type CollectionsService = ReturnType<typeof createCollectionsService>
@@ -36,7 +36,7 @@ function collectionError(error: unknown): CollectionsError {
   return new CollectionsError('unexpected')
 }
 
-async function mutation<T>(operation: () => Promise<T>): Promise<T> {
+async function request<T>(operation: () => Promise<T>): Promise<T> {
   try { return await operation() } catch (error) { throw collectionError(error) }
 }
 
@@ -50,8 +50,17 @@ function collectionResult(data: unknown, missing: 'unexpected' | 'collection_una
 
 export function createCollectionsService(client: SupabaseClient<Database>) {
   return {
+    listDashboardCollections(): Promise<DashboardCollection[]> {
+      return request(async () => {
+        const { data, error } = await client.from('dashboard_collections')
+          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count')
+        if (error) throw error
+        if (!Array.isArray(data)) throw new CollectionsError('unexpected')
+        return data.map(dashboardCollection)
+      })
+    },
     createFree(input: CreateFreeCollectionInput): Promise<CollectionMutationResult> {
-      return mutation(async () => {
+      return request(async () => {
         // PostgreSQL owns name validation and auth.uid() supplies the owner default.
         const { data, error } = await client.from('collections')
           .insert({ name: input.name, collection_type: 'free' }).select('id').single()
@@ -60,7 +69,7 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
       })
     },
     createAutomatic(input: CreateAutomaticCollectionInput): Promise<AutomaticCollectionResult> {
-      return mutation(async () => {
+      return request(async () => {
         // Do not prevalidate the name: an existing collection bypasses that validation in SQL.
         // The generated Database type infers the RPC arguments and its table return type.
         const { data, error } = await client.rpc('create_automatic_collection', {
@@ -76,7 +85,7 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
       })
     },
     rename(collectionId: string, name: string): Promise<CollectionMutationResult> {
-      return mutation(async () => {
+      return request(async () => {
         const { data, error } = await client.from('collections')
           .update({ name }).eq('id', collectionId).select('id').maybeSingle()
         if (error) throw error
@@ -85,7 +94,7 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
       })
     },
     delete(collectionId: string): Promise<CollectionMutationResult> {
-      return mutation(async () => {
+      return request(async () => {
         // Only the parent. PostgreSQL owns cascades; physical copies remain account-wide.
         const { data, error } = await client.from('collections')
           .delete().eq('id', collectionId).select('id').maybeSingle()
@@ -93,5 +102,25 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
         return collectionResult(data, 'collection_unavailable')
       })
     },
+  }
+}
+
+function dashboardCollection(row: Database['public']['Views']['dashboard_collections']['Row']): DashboardCollection {
+  // Generated view columns are nullable. Fail closed on malformed or contradictory
+  // responses instead of inventing target names, access modes or progress values.
+  if (!row || typeof row.collection_id !== 'string' || !row.collection_id || typeof row.name !== 'string'
+    || (row.collection_type !== 'free' && row.collection_type !== 'automatic')
+    || (row.access !== 'owned' && row.access !== 'shared')
+    || (row.target_type !== null && row.target_type !== 'pokemon' && row.target_type !== 'set')
+    || (row.target_name !== null && typeof row.target_name !== 'string')
+    || (row.collection_type === 'free' && (row.target_type !== null || row.target_name !== null))
+    || (row.collection_type === 'automatic' && row.target_type === null)
+    || typeof row.owned_count !== 'number' || !Number.isSafeInteger(row.owned_count) || row.owned_count < 0
+    || typeof row.total_count !== 'number' || !Number.isSafeInteger(row.total_count) || row.total_count < row.owned_count) {
+    throw new CollectionsError('unexpected')
+  }
+  return {
+    collectionId: row.collection_id, name: row.name, collectionType: row.collection_type, access: row.access,
+    targetType: row.target_type, targetName: row.target_name, ownedCount: row.owned_count, totalCount: row.total_count,
   }
 }

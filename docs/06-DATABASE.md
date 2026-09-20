@@ -629,6 +629,18 @@ Pour une collection partagée, la progression reste celle du propriétaire et ut
 
 La progression est dérivée de `collection_items`, `physical_copies` et du propriétaire. Aucun compteur ou booléen de possession dupliqué ne devient une source de vérité. Une vue ou une requête optimisée peut matérialiser la lecture sans changer cette règle.
 
+### Lecture Dashboard
+
+La [migration Dashboard](../supabase/migrations/20260920194903_phase5_dashboard_collections.sql) livre la vue publique `dashboard_collections`, avec `security_invoker = true` et uniquement un grant `SELECT` à `authenticated`. Elle expose `collection_id UUID`, `name TEXT`, `collection_type TEXT`, `access TEXT`, `target_type TEXT`, `target_name TEXT`, `owned_count BIGINT` et `total_count BIGINT`. Le [service Collections](../src/services/collections.ts) les transforme en champs métier camelCase en une lecture, sans N+1 frontend. Aucun ordre de présentation n'est imposé.
+
+`access` vaut `owned` si `collections.owner_id = auth.uid()`, sinon `shared` pour une collection visible par les policies de partage existantes. Les cibles automatiques utilisent exclusivement `pokemon.name_fr` ou `tcg_sets.name_fr` ; les noms absents restent `NULL`. Une collection libre n'a ni type ni nom de cible. Un set désigne l'Extension précise, jamais sa série.
+
+Une agrégation par collection compte tous ses `collection_items`, manuels et automatiques. Un `EXISTS` sur `physical_copies`, contraint par la variante de l'item et `user_id = collections.owner_id`, compte chaque item possédé au plus une fois. Les copies du destinataire n'influencent donc pas la progression partagée. Une collection vide renvoie `0 / 0` ; les valeurs sont recalculées à chaque lecture, sans compteur stocké.
+
+Les RLS permettent déjà cette vue invoker : `collections_read` expose les collections personnelles et réellement partagées, `collection_items_read` leurs éléments, et `physical_copies_read` seulement les copies du propriétaire pertinentes pour les collections reçues, en plus des copies personnelles. Aucun élargissement des policies ni nouveau `SECURITY DEFINER` n'est nécessaire. Les restrictions `require_mfa` et `require_my_profile` des tables sources continuent de s'appliquer, y compris aux cibles catalogue ; `anon` n'a aucun droit sur la vue. Le résumé n'expose ni identifiant de propriétaire ni détail d'exemplaire et n'ajoute aucune capacité d'écriture ou de partage.
+
+La [suite Dashboard](../supabase/tests/database/012_dashboard_collections.test.sql) vérifie les rôles propriétaire/destinataire/tiers/anon, les restrictions MFA/profil, les cibles, les collections vides, les copies multiples, la progression partagée et le retrait d'accès. Ses fixtures dédiées sont intégralement annulées par `ROLLBACK`.
+
 ## Collections automatiques matérialisées et versionnées
 
 ### Matérialisation
@@ -1022,7 +1034,7 @@ Les migrations définissent la structure. Le catalogue TCGdex complet est alimen
 
 ## Vérifications attendues
 
-Les suites [de tests PostgreSQL](../supabase/tests/database/) de Phase 1 couvrent la structure, les contraintes, les suppressions, les droits de table et de colonne, la RLS et Automatic RLS. `npm run db:test` exécute pgTAP via la CLI installée. Les fixtures synthétiques sont créées dans des transactions annulées, avec propriétaire, deux destinataires, tiers et rôle anonyme. Les scénarios fonctionnels de génération, conversion, progression et ancrage ci-dessous restent à tester lors de leur implémentation ; le socle ne prétend pas les calculer.
+Les suites [de tests PostgreSQL](../supabase/tests/database/) de Phase 1 couvrent la structure, les contraintes, les suppressions, les droits de table et de colonne, la RLS et Automatic RLS. `npm run db:test` exécute pgTAP via la CLI installée. Les fixtures synthétiques sont créées dans des transactions annulées, avec propriétaire, deux destinataires, tiers et rôle anonyme. Les suites suivantes couvrent également le calcul canonique, la création automatique et la progression Dashboard livrés. Les scénarios de conversion, mise à jour et ancrage restent à tester lors de leur implémentation.
 
 ### Contraintes et logique métier
 

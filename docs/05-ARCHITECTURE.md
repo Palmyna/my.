@@ -125,6 +125,7 @@ Le [service Collections](../src/services/collections.ts) expose `createCollectio
 
 | Opération | Entrée | Résultat |
 |---|---|---|
+| `listDashboardCollections` | Aucune | `DashboardCollection[]` |
 | `createFree` | `{ name }` | `{ collectionId }` |
 | `createAutomatic` | `{ name, targetType: 'pokemon' \| 'set', targetId }` | `{ collectionId, created }` |
 | `rename` | `collectionId, name` | `{ collectionId }` |
@@ -148,7 +149,9 @@ La création automatique appelle exclusivement `create_automatic_collection` ave
 | `collection_unavailable` | Renommage/suppression sans ligne affectée, sans erreur serveur explicite |
 | `unexpected` | Toute autre erreur, rejet réseau ou réponse absente/malformée hors contrat |
 
-Les détails d'une erreur ne sont pas analysés comme preuve d'un nom invalide : ils peuvent contenir la ligne et ses valeurs. Un code SQL générique sans le signal spécifique attendu reste `unexpected`. Aucun retry automatique n'est effectué ; une erreur réseau ne prouve pas que la mutation a été annulée. Les [tests unitaires du service](../src/services/collections.test.ts) contrôlent les payloads, filtres, retours et erreurs sans reproduire le calcul canonique SQL. L'interface et son intégration restent séparées de ce contrat.
+Les détails d'une erreur ne sont pas analysés comme preuve d'un nom invalide : ils peuvent contenir la ligne et ses valeurs. Un code SQL générique sans le signal spécifique attendu reste `unexpected`. Aucun retry de mutation n'est effectué par le service ; une erreur réseau ne prouve pas que la mutation a été annulée. Les [tests unitaires du service](../src/services/collections.test.ts) contrôlent les payloads, filtres, retours et erreurs sans reproduire le calcul canonique SQL. L'interface et son intégration restent séparées de ce contrat.
+
+La lecture Dashboard effectue un seul `SELECT` sur la [vue `dashboard_collections`](06-DATABASE.md#lecture-dashboard), sans requête par collection. `DashboardCollection` contient `collectionId`, `name`, `collectionType`, `access` (`owned`/`shared`), `targetType`, `targetName`, `ownedCount` et `totalCount`. Le serveur déduit l'accès de l'identité Auth et calcule la possession du propriétaire, même pour une collection partagée. Le service traduit les noms SQL, conserve les noms de cible absents comme `null` et ne calcule ni progression ni ordre visuel. Une liste vide reste `[]` ; les réponses malformées ou incohérentes lèvent `CollectionsError('unexpected')`, et les refus explicites suivent le mapping existant. Les restrictions RLS peuvent produire une liste vide sans erreur explicite : le service ne la présente pas comme une preuve d'authentification.
 
 ### État frontend
 
