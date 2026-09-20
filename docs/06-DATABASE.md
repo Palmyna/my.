@@ -696,17 +696,29 @@ La [suite SQL canonique](../supabase/tests/database/010_canonical_collection_str
 
 ### Création transactionnelle
 
-Une opération conceptuelle telle que `create_automatic_collection(name, target_type, target_id)` doit :
+La [migration de création automatique](../supabase/migrations/20260920140934_phase5_create_automatic_collection.sql) définit la RPC `public.create_automatic_collection(p_name TEXT, p_target_type TEXT, p_target_id BIGINT) RETURNS TABLE (collection_id UUID, created BOOLEAN)`. Elle retourne exactement une ligne : UUID créé et `true`, ou UUID de la collection personnelle existante et `false`. Le client fournit uniquement le nom, le type `pokemon`/`set` et l'ID interne de cible.
 
-1. vérifier l'utilisateur, le nom et la cible, ainsi que l'absence de collection automatique personnelle correspondante ;
-2. créer la collection ;
-3. lire l'état courant de la cible ;
-4. déterminer les variantes françaises éligibles ;
-5. créer les éléments automatiques ;
-6. attribuer les `automatic_rank` canoniques et initialiser les `sort_position` dans le même ordre canonique MY. (Pokémon : date effective croissante, numéro naturel, variante ; Extension : numéro naturel dans le set, variante), sans imposer l'égalité numérique des deux champs ;
-7. enregistrer la version appliquée.
+La fonction est `VOLATILE`, `SECURITY DEFINER`, avec `search_path = ''`. Elle vérifie explicitement `auth.uid()`, `auth.jwt()->>'aal' = 'aal2'` et l'existence du profil MY. ; elle ne dépend pas de la RLS qu'elle peut contourner. Seul `authenticated` reçoit `EXECUTE`, sans nouveau droit direct sur les items ou les champs protégés des collections. Le propriétaire, le type de collection, la version, les variantes et les positions sont déterminés côté PostgreSQL.
 
-L'ensemble réussit ou échoue de manière atomique. Les index uniques arbitrent les créations concurrentes. Le frontend propose l'ouverture d'une collection personnelle déjà existante et ne doit pas insérer librement lui-même l'ensemble des éléments automatiques.
+Avant toute lecture de cible, d'état ou de structure catalogue, la RPC prend `pg_advisory_xact_lock_shared(771402)`. Le pipeline prend le verrou exclusif correspondant : une sync attend les créations actives, et une création attend la fin d'une sync. Plusieurs créations peuvent détenir le verrou partagé ensemble ; il est conservé jusqu'à la fin de la transaction appelante.
+
+La RPC recherche d'abord la collection automatique du propriétaire pour cette cible. Si elle existe, elle la retourne sans modifier aucun champ ni item, même si le nouveau nom est invalide, si l'état catalogue manque ou diverge, ou si la structure actuelle est vide. Les contrôles d'identité restent obligatoires.
+
+Pour une création, la cible doit exister et posséder un `automatic_target_states`. Sous le verrou partagé, la RPC lit sa version et son hash, appelle le helper canonique une seule fois et matérialise ses IDs ordonnés. Elle calcule SHA-256 du JSON compact UTF-8 de ces IDs sous forme de chaînes décimales, puis exige l'égalité avec `content_hash`. Une nouvelle structure vide est refusée. Le nom est soumis aux contraintes PostgreSQL existantes (`NOT NULL`, au moins trois caractères utiles après trim), sans nouvelle normalisation ni modification de la valeur stockée.
+
+Le parent reçoit `collection_type = 'automatic'`, la cible et `applied_target_version` issue de l'état. Chaque ID vérifié devient un item `origin = 'automatic'`, avec `automatic_rank = rang canonique` et `sort_position = rang canonique::NUMERIC(40,20)`. Cette égalité initialise l'ordre ; elle n'impose aucune égalité permanente entre les deux champs. Toute erreur, même pendant l'insertion des items, annule le parent et tous ses items.
+
+Les index uniques propriétaire+cible existants arbitrent la concurrence via `INSERT ... ON CONFLICT DO NOTHING`. À `READ COMMITTED`, le perdant relit le gagnant dans une instruction distincte, puis renvoie son UUID avec `created = false` ; aucune mise à jour factice ne renomme le gagnant ou ne remplace ses items. La recherche verrouille la ligne existante contre la suppression jusqu'à la fin de la transaction ; une suppression entre le conflit et la relecture entraîne une nouvelle tentative. Les éventuelles erreurs de sérialisation sous un niveau d'isolation supérieur relèvent du retry transactionnel PostgreSQL habituel.
+
+Les erreurs métier spécifiques sont identifiées par leur message stable et leur SQLSTATE :
+
+| Message | SQLSTATE | Cas |
+|---|---|---|
+| `automatic_target_state_missing` | `P0002` | Cible existante sans état de génération |
+| `automatic_target_hash_mismatch` | `23514` | Hash stocké différent de la structure canonique |
+| `automatic_collection_empty` | `23514` | Nouvelle collection sans variante éligible |
+
+Les arguments, contraintes de nom, cible inexistante et refus d'autorisation utilisent les codes PostgreSQL standards. La [suite SQL de création](../supabase/tests/database/011_create_automatic_collection.test.sql) couvre ces contrats et injecte une erreur après insertion du parent et du premier item pour prouver le rollback. Le [test multi-connexion local](../scripts/test-automatic-collection-concurrency.ts), lancé par `npm run db:test:concurrency`, fait attendre deux appels simultanés derrière une sync, observe le conflit réel d'unicité, contrôle une création indépendante par un autre propriétaire et vérifie l'attente inverse de la sync. Ses fixtures sont supprimées explicitement en fin de test ; la suite pgTAP annule les siennes par `ROLLBACK`.
 
 ### Preview de mise à jour
 

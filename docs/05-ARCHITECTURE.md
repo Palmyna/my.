@@ -395,7 +395,7 @@ Une opération qui touche plusieurs ensembles de données, doit être atomique, 
 
 Elle doit être centralisée dans une opération métier côté base ou backend. Lorsqu'elle est principalement liée aux données et doit être transactionnelle, une fonction PostgreSQL exposée via RPC est privilégiée si elle simplifie correctement le système.
 
-Les RPC servent notamment à créer une collection automatique, produire et appliquer sa mise à jour, résoudre un destinataire et créer un partage, ou réaliser une réorganisation complexe. Leur code et leurs signatures SQL finales restent à définir.
+La RPC de [création automatique](06-DATABASE.md#création-transactionnelle) est définie par `public.create_automatic_collection(p_name TEXT, p_target_type TEXT, p_target_id BIGINT)` et retourne `(collection_id UUID, created BOOLEAN)`. Les autres RPC envisagées — mise à jour de collection, destinataire/partage, réorganisation — restent à définir.
 
 ### Edge Functions
 
@@ -415,7 +415,7 @@ Le frontend ne doit pas charger tout le catalogue pertinent, décider seul de l'
 
 La création utilise le catalogue local MY. et une opération métier autoritative.
 
-PostgreSQL garantit déjà une seule collection automatique par propriétaire et cible Pokémon ou Set, ainsi qu'un nom d'au moins 3 caractères utiles après trim. La future opération de création respecte ces contraintes même en concurrence ; l'interface Créer/Ouvrir lit la collection personnelle correspondante sous RLS. Aucun nouveau droit de création automatique directe n'est ouvert au navigateur.
+PostgreSQL garantit une seule collection automatique par propriétaire et cible Pokémon ou Set, ainsi qu'un nom d'au moins 3 caractères utiles après trim. La RPC autoritative crée la collection ou retourne l'existante sans modification, y compris en concurrence. Elle exige une identité issue d'Auth, `aal2` et un profil MY., prend le verrou catalogue partagé transactionnel `771402`, vérifie l'état/version et le hash du helper canonique, puis insère atomiquement parent et items. Les nouvelles structures vides sont refusées. Les droits d'écriture directe restent inchangés ; la future interface Créer/Ouvrir pourra utiliser le résultat `created` et l'UUID retourné.
 
 ```text
 Cible Pokémon

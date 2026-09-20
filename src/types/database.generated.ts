@@ -611,7 +611,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_automatic_collection: {
+        Args: { p_name: string; p_target_id: number; p_target_type: string }
+        Returns: {
+          collection_id: string
+          created: boolean
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
