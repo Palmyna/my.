@@ -119,6 +119,37 @@ Le frontend doit distinguer conceptuellement :
 
 Le socle de la Phase 0 distingue `src/app/` pour l'application, les providers et les routes, `src/services/` pour l'accès aux données et services, `src/lib/` pour la logique partagée, `src/types/` pour les types et `src/test/` pour la configuration des tests. Les tests sont placés à côté du code testé. `src/components/` et `src/features/` accueilleront les composants partagés et les fonctionnalités au premier besoin, sans dossiers vides anticipés. Une architecture dite « enterprise » ou excessivement abstraite n'est pas justifiée pour la V1.
 
+### Contrat applicatif Collections
+
+Le [service Collections](../src/services/collections.ts) expose `createCollectionsService(client: SupabaseClient<Database>)`, suivant l'injection déjà utilisée par Auth. Ses [types métier](../src/types/collections.ts) décrivent les entrées et résultats ; les arguments et retours SQL restent inférés depuis les types Supabase générés.
+
+| Opération | Entrée | Résultat |
+|---|---|---|
+| `createFree` | `{ name }` | `{ collectionId }` |
+| `createAutomatic` | `{ name, targetType: 'pokemon' \| 'set', targetId }` | `{ collectionId, created }` |
+| `rename` | `collectionId, name` | `{ collectionId }` |
+| `delete` | `collectionId` | `{ collectionId }` |
+
+La création libre insère uniquement `name` et `collection_type = 'free'`. Le renommage met à jour uniquement `name`, filtré par ID. La suppression cible uniquement le parent `collections` : les cascades des items/partages et la conservation des exemplaires physiques relèvent de PostgreSQL. Les mutations directes utilisent la session du client injecté, sous RLS, sans fournir de propriétaire ni contourner les restrictions de colonnes. Renommage et suppression demandent l'ID effectivement affecté ; zéro ligne renvoie `collection_unavailable`, sans distinguer artificiellement absence et interdiction RLS.
+
+La création automatique appelle exclusivement `create_automatic_collection` avec ses trois paramètres. Elle ne lit ni ne calcule variantes, rangs, hash ou version. `created = false` est un résultat normal d'ouverture de l'existante. Les noms sont transmis intacts ; aucune prévalidation TypeScript ne remplace la règle PostgreSQL des trois caractères utiles après trim, ni n'empêche la RPC de retourner une existante avec un nom fourni invalide. `targetId` reprend le type numérique de la signature générée.
+
+`CollectionsError` expose uniquement un code métier stable dans `code` et `message`, sans erreur serveur brute, `details`, `hint` ni `cause`. Le mapping utilise les erreurs observées dans la base locale et les contrats de la [RPC autoritative](06-DATABASE.md#création-transactionnelle) :
+
+| Code métier | Signal reconnu |
+|---|---|
+| `invalid_name` | `23514` avec la contrainte `collections_name_check`, ou `23502` identifiant `collections.name` |
+| `invalid_target` | `22023` avec le message livré pour type invalide ou ID absent |
+| `target_not_found` | `P0002` avec `Automatic target does not exist` |
+| `automatic_state_missing` | `P0002` avec `automatic_target_state_missing` |
+| `automatic_state_inconsistent` | `23514` avec `automatic_target_hash_mismatch` |
+| `empty_automatic_target` | `23514` avec `automatic_collection_empty` |
+| `not_authorized` | `42501` ou refus JWT PostgREST `PGRST301`, `PGRST302`, `PGRST303` |
+| `collection_unavailable` | Renommage/suppression sans ligne affectée, sans erreur serveur explicite |
+| `unexpected` | Toute autre erreur, rejet réseau ou réponse absente/malformée hors contrat |
+
+Les détails d'une erreur ne sont pas analysés comme preuve d'un nom invalide : ils peuvent contenir la ligne et ses valeurs. Un code SQL générique sans le signal spécifique attendu reste `unexpected`. Aucun retry automatique n'est effectué ; une erreur réseau ne prouve pas que la mutation a été annulée. Les [tests unitaires du service](../src/services/collections.test.ts) contrôlent les payloads, filtres, retours et erreurs sans reproduire le calcul canonique SQL. L'interface et son intégration restent séparées de ce contrat.
+
 ### État frontend
 
 L'état local reste local lorsqu'il n'a pas besoin d'être partagé. Les données serveur sont traitées comme des données distantes. Aucun système lourd de gestion d'état global n'est imposé par défaut.
