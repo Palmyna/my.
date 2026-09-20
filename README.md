@@ -139,7 +139,7 @@ npm test
 | Commande ajoutée | Usage |
 |---|---|
 | `npm run db:reset` | Reconstruit entièrement la base **locale**, en supprimant ses données, depuis les migrations |
-| `npm run db:test` | Exécute les neuf suites pgTAP via `supabase test db --local` ; accepte un chemin pour cibler une suite |
+| `npm run db:test` | Exécute les dix suites pgTAP via `supabase test db --local` ; accepte un chemin pour cibler une suite |
 | `npm run db:lint` | Vérifie `public` et `private`, avec échec dès un avertissement SQL |
 | `npm run db:types` | Régénère `src/types/database.generated.ts` depuis `public` local ; le fichier existant est conservé si la CLI échoue |
 

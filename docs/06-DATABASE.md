@@ -680,6 +680,18 @@ collections.applied_target_version
 
 Cette comparaison signale efficacement la disponibilité d'une mise à jour ; elle ne modifie aucune collection.
 
+### Calcul canonique PostgreSQL interne
+
+La [migration du calcul canonique](../supabase/migrations/20260920134607_phase5_canonical_collection_structure.sql) définit `private.canonical_collection_variants(p_target_type TEXT, p_target_id BIGINT) RETURNS TABLE (variant_id BIGINT, automatic_rank BIGINT)`. Elle renvoie les variantes dans l'ordre canonique avec des rangs continus `1…N`, en lecture seule, sans créer ni modifier de collection ou d'état de cible.
+
+Elle reproduit [le pipeline catalogue](../scripts/catalog/plan.ts) à partir du catalogue effectif persisté : variante active, `size = 'standard'`, disponibilité française `confirmed`, carte et set actifs. `source_present`, la catégorie de carte et l'activité du Pokémon ou de la série n'ajoutent aucun filtre. Une cible Pokémon utilise `card_pokemon`, sans multiplier les variantes des cartes multi-Pokémon ; une cible `set` désigne un set précis et inclut toutes les catégories.
+
+L'ordre Pokémon utilise `catalog_variants.effective_release_date ASC NULLS LAST`, puis `source_cards.normalized_number`, `catalog_variants.sort_order`, la clé canonique de carte et `variant_key`. L'ordre Set reprend ces critères sans date. Les rangs sont ceux matérialisés par le pipeline ; la clé de carte est `tcgdex:<tcgdex_id>` ou l'alias local `my:<id-override>` conservé dans `private.catalog_entity_keys`. Le helper interne `private.catalog_utf16_sort_key(TEXT)` reproduit les départages lexicographiques UTF-16 de `model.ts`, indépendamment de la collation PostgreSQL. Le calcul suppose un catalogue construit par le pipeline, avec ses rangs et clés persistés.
+
+Contrat des arguments : une cible existante sans variante éligible renvoie zéro ligne ; un type autre que `pokemon`/`set`, un type `NULL` ou un ID `NULL` lève `22023` ; un ID inexistant pour le type demandé lève `P0002`. Le helper est `STABLE`, `SECURITY INVOKER`, avec `search_path = ''` et références qualifiées. Les deux fonctions restent internes : aucun droit d'exécution pour `PUBLIC`, `anon`, `authenticated` ou `service_role`, aucun nouveau droit d'écriture utilisateur. Une future opération métier contrôlée devra assurer sa propre autorisation et sa cohérence transactionnelle.
+
+La [suite SQL canonique](../supabase/tests/database/010_canonical_collection_structure.test.sql) couvre éligibilité, ordres, départages, cas limites et privilèges avec des fixtures annulées par `ROLLBACK`. Avant ces fixtures, elle contrôle **tous** les `automatic_target_states` présents : sérialisation compacte des IDs ordonnés comme chaînes décimales, UTF-8, SHA-256, comparaison à `content_hash`. Le nombre de cibles est dynamique et le résultat attendu est zéro divergence, y compris pour les structures vides (`[]`).
+
 ## Opérations métier des collections automatiques
 
 ### Création transactionnelle

@@ -165,6 +165,8 @@ Le hash est exactement `SHA-256(UTF-8(JSON.stringify(ids)))`, avec les IDs inter
 
 Chaque set pertinent reçoit un état, même vide ; chaque Pokémon avec variante éligible reçoit un état. Un ancien état peut devenir vide. Version initiale `1`, puis `+1` uniquement si le hash diffère. Sinon hash, version, ID et timestamp restent inchangés. Une seconde application identique n'a aucun effet fonctionnel ; seul le journal peut évoluer.
 
+Le [calcul canonique PostgreSQL interne](06-DATABASE.md#calcul-canonique-postgresql-interne), `private.canonical_collection_variants(TEXT, BIGINT)`, reproduit ces structures en lisant les rangs et relations effectifs persistés par le pipeline. La [suite SQL dédiée](../supabase/tests/database/010_canonical_collection_structure.test.sql) recalcule le JSON compact et le SHA-256 pour tous les états présents dans la base testée et exige zéro divergence, sans nombre de cibles codé en dur. Elle couvre aussi les variantes locales sans `source_present` et les départages UTF-16 identiques à `model.ts`.
+
 ## Rapports et validation
 
 Le résumé console affiche snapshot, empreinte du référentiel des noms et noms manquants, volumes, FR, Jumbo, diff, mappings, overrides, dates, cibles, diagnostics, durée et résultat. Le JSON complet dans `.cache/catalog-reports/` inclut listes ordonnées par cible et hash du plan. Les rapports sont ignorés par Git ; aucune sortie de pilote, chaîne de connexion ou secret n'est recopiée.
