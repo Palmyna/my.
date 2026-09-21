@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
+import { MemoryRouter } from 'react-router'
 import { listDashboardCollections } from '../../services/collections'
 import type { DashboardCollection } from '../../types/collections'
 import { DashboardPage } from './DashboardPage'
@@ -19,7 +20,7 @@ beforeEach(() => {
 })
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { gcTime: 0 } } })
-  const tree = () => <QueryClientProvider client={client}><DashboardPage /></QueryClientProvider>
+  const tree = () => <QueryClientProvider client={client}><MemoryRouter><DashboardPage /></MemoryRouter></QueryClientProvider>
   const view = render(tree())
   return { client, rerender: () => view.rerender(tree()) }
 }
@@ -68,7 +69,8 @@ test('sépare les accès, affiche types, cibles, compteurs serveur et pourcentag
   }
   expect(screen.getByRole('button', { name: 'Créer une collection personnalisée' })).toBeVisible()
   for (const tile of screen.getAllByRole('article')) expect(within(tile).queryByRole('button')).not.toBeInTheDocument()
-  expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: free.name })).toHaveAttribute('href', `/collections/${free.collectionId}`)
+  expect(screen.getByRole('link', { name: shared.name })).toHaveAttribute('href', `/collections/${shared.collectionId}`)
   for (const value of ['free', 'pokemon', 'set', free.collectionId, shared.collectionId]) expect(screen.queryByText(value, { exact: true })).not.toBeInTheDocument()
 })
 

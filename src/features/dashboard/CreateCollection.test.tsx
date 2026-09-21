@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { MemoryRouter } from 'react-router'
 import { CollectionsError, createFree, listDashboardCollections } from '../../services/collections'
 import type { DashboardCollection } from '../../types/collections'
 import { DashboardPage } from './DashboardPage'
@@ -28,7 +29,7 @@ beforeEach(() => {
 })
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } })
-  const tree = () => <QueryClientProvider client={client}><DashboardPage /></QueryClientProvider>
+  const tree = () => <QueryClientProvider client={client}><MemoryRouter><DashboardPage /></MemoryRouter></QueryClientProvider>
   const view = render(tree())
   return { client, rerender: () => view.rerender(tree()) }
 }

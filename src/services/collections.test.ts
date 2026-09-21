@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { describe, expect, test, vi } from 'vitest'
 import type { Database } from '../types/database.generated'
 import type { CreateAutomaticCollectionInput, CreateFreeCollectionInput } from '../types/collections'
-import { CollectionsError, createCollectionsService, createFree, listDashboardCollections } from './collections'
+import { CollectionsError, createCollectionsService, createFree, getCollectionOverview, listDashboardCollections } from './collections'
 import { getSupabaseClient } from './supabase'
 
 vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
@@ -44,12 +44,14 @@ function mockCollectionsClient() {
   const insert = vi.fn(() => ({ select }))
   const update = vi.fn(() => ({ eq }))
   const remove = vi.fn(() => ({ eq }))
-  const dashboardSelect = vi.fn().mockResolvedValue({ data: [], error: null })
+  const overviewSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+  const overviewEq = vi.fn(() => ({ maybeSingle: overviewSingle }))
+  const dashboardSelect = vi.fn().mockImplementation(() => Object.assign(Promise.resolve({ data: [], error: null }), { eq: overviewEq }))
   const from = vi.fn((table: string) => table === 'dashboard_collections'
     ? { select: dashboardSelect } : { insert, update, delete: remove })
   const rpc = vi.fn().mockResolvedValue({ data: [{ collection_id: id, created: true }], error: null })
   const client = { from, rpc } as unknown as SupabaseClient<Database>
-  return { client, service: createCollectionsService(client), from, insert, update, remove, eq, select, single, maybeSingle, rpc, dashboardSelect }
+  return { client, service: createCollectionsService(client), from, insert, update, remove, eq, select, single, maybeSingle, rpc, dashboardSelect, overviewEq, overviewSingle }
 }
 
 describe('création libre', () => {
@@ -301,5 +303,60 @@ describe('lecture Dashboard', () => {
     const mock = mockCollectionsClient()
     mock.dashboardSelect.mockRejectedValue(new Error('private transport error'))
     await expect(mock.service.listDashboardCollections()).rejects.toMatchObject({ code: 'unexpected', message: 'unexpected' })
+  })
+})
+
+describe('overview Collection', () => {
+  const row = { collection_id: id, name: 'Ma collection', collection_type: 'free', access: 'owned', target_type: null, target_name: null, owned_count: 0, total_count: 0 }
+  test.each([
+    { ...row },
+    { ...row, collection_type: 'automatic', target_type: 'pokemon', target_name: 'Évoli', owned_count: 82, total_count: 120 },
+    { ...row, collection_type: 'automatic', target_type: 'set', target_name: 'Légendes Brillantes', access: 'shared', owned_count: 3, total_count: 4 },
+  ])('une lecture ciblée, mapping $collection_type/$target_type/$access', async data => {
+    const mock = mockCollectionsClient()
+    mock.overviewSingle.mockResolvedValue({ data, error: null })
+    await expect(mock.service.getCollectionOverview(id)).resolves.toEqual({
+      collectionId: id, name: data.name, collectionType: data.collection_type, access: data.access,
+      targetType: data.target_type, targetName: data.target_name, ownedCount: data.owned_count, totalCount: data.total_count,
+    })
+    expect(mock.from).toHaveBeenCalledExactlyOnceWith('dashboard_collections')
+    expect(mock.dashboardSelect).toHaveBeenCalledExactlyOnceWith('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count')
+    expect(mock.overviewEq).toHaveBeenCalledExactlyOnceWith('collection_id', id)
+    expect(mock.overviewSingle).toHaveBeenCalledOnce()
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.insert).not.toHaveBeenCalled()
+  })
+  test('zéro ligne visible est indisponible, sans lecture pour distinguer absence et accès', async () => {
+    const mock = mockCollectionsClient()
+    await expect(mock.service.getCollectionOverview(id)).rejects.toMatchObject({ code: 'collection_unavailable' })
+    expect(mock.from).toHaveBeenCalledOnce()
+  })
+  test.each(['', 'not-an-id', '1', `${id}/extra`, `${id}'`])('ID invalide %j sans requête', async value => {
+    const mock = mockCollectionsClient()
+    await expect(mock.service.getCollectionOverview(value)).rejects.toHaveProperty('code', 'collection_unavailable')
+    expect(mock.from).not.toHaveBeenCalled()
+  })
+  test.each([{}, [], 'bad', undefined, { ...row, access: 'public' }, { ...row, total_count: -1 }])('réponse malformée %j', async data => {
+    const mock = mockCollectionsClient()
+    mock.overviewSingle.mockResolvedValue({ data, error: null })
+    await expect(mock.service.getCollectionOverview(id)).rejects.toHaveProperty('code', 'unexpected')
+  })
+  test.each([['42501', 'not_authorized'], ['XX000', 'unexpected'], ['PGRST116', 'unexpected']])('erreur %s assainie', async (code, expected) => {
+    const mock = mockCollectionsClient()
+    mock.overviewSingle.mockResolvedValue({ data: null, error: { code, message: 'private payload', details: 'secret' } })
+    await expect(mock.service.getCollectionOverview(id)).rejects.toMatchObject({ code: expected, message: expected })
+  })
+  test('rejet réseau assaini', async () => {
+    const mock = mockCollectionsClient()
+    mock.overviewSingle.mockRejectedValue(new Error('private transport'))
+    await expect(mock.service.getCollectionOverview(id)).rejects.toMatchObject({ code: 'unexpected', message: 'unexpected' })
+  })
+  test('point d’entrée configuré et refus sans client', async () => {
+    const mock = mockCollectionsClient()
+    mock.overviewSingle.mockResolvedValue({ data: row, error: null })
+    vi.mocked(getSupabaseClient).mockReturnValue(mock.client)
+    await expect(getCollectionOverview(id)).resolves.toHaveProperty('collectionId', id)
+    vi.mocked(getSupabaseClient).mockReturnValue(null)
+    await expect(getCollectionOverview(id)).rejects.toHaveProperty('code', 'not_authorized')
   })
 })

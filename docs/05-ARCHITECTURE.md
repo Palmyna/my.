@@ -83,7 +83,7 @@ Vercel hébergera le frontend compilé par Vite lors de la mise en production. L
 
 MY. est une SPA React. Cette approche correspond à une application authentifiée et interactive centrée sur un dashboard, des collections, des listes, des grilles, des classeurs, des recherches et des panneaux de détail.
 
-La navigation applicative est gérée côté client avec React Router. Les routes conceptuelles comprennent la homepage, les parcours d'authentification et pages légales, puis Dashboard, Pokémon catalogue, Extension catalogue, Carte catalogue, Collection, Profil et Paramètres. Ces sept dernières destinations restent authentifiées. La Phase 3C, terminée et validée localement, regroupe `/dashboard`, `/profile` et `/settings` sous `AuthenticatedLayout`, distinct d'`AuthLayout`, avec des pages minimales. Leur accès exige toujours l'état autorisé email confirmé / TOTP vérifié / `aal2` ; les parcours MFA et de récupération restent prioritaires. Un utilisateur autorisé conserve sa route authentifiée, tandis que les routes publiques/Auth le redirigent vers `/dashboard`. Les chemins, slugs ou IDs des autres destinations restent à définir pour garantir stabilité, accès direct et absence d'ambiguïté avec les IDs MY./TCGdex.
+La navigation applicative est gérée côté client avec React Router. Les routes conceptuelles comprennent la homepage, les parcours d'authentification et pages légales, puis Dashboard, Pokémon catalogue, Extension catalogue, Carte catalogue, Collection, Profil et Paramètres. Ces sept dernières destinations restent authentifiées. La Phase 3C, terminée et validée localement, regroupe `/dashboard`, `/profile` et `/settings` sous `AuthenticatedLayout`, distinct d'`AuthLayout`, avec des pages minimales. Leur accès exige toujours l'état autorisé email confirmé / TOTP vérifié / `aal2` ; les parcours MFA et de récupération restent prioritaires. Un utilisateur autorisé conserve sa route authentifiée, tandis que les routes publiques/Auth le redirigent vers `/dashboard`. La route `/collections/:collectionId` rejoint ce shell en 5D.1. Les chemins, slugs ou IDs des autres destinations restent à définir pour garantir stabilité, accès direct et absence d'ambiguïté avec les IDs MY./TCGdex.
 
 `AuthenticatedHeader` conserve le logo blanc vers `/dashboard` et lui associe le nom de la page à la même hauteur visuelle, avec un écart de 8 px. Le grand champ de recherche, centré dans l'espace disponible, reste uniquement visuel (sans requête, suggestion ni moteur). Le bouton « Mon compte » porte l'initiale de l'email ; son menu accessible propose Profil, Paramètres et Déconnexion via l'action Auth existante. Il se ferme au clic extérieur, avec Escape, en quittant le menu au clavier ou lors d'une navigation. Les micro-animations respectent la préférence de réduction des mouvements. Sur tablette et mobile, la recherche passe sur une seconde ligne ; le logo et le texte diminuent ensemble et le bouton se compacte sur mobile. Les boutons reprennent le dégradé rouge du logo, sans bordure, et les inputs utilisent un halo de focus. La navigation et la déconnexion temporaires ont été retirées du contenu du shell.
 
@@ -126,6 +126,7 @@ Le [service Collections](../src/services/collections.ts) expose `createCollectio
 | Opération | Entrée | Résultat |
 |---|---|---|
 | `listDashboardCollections` | Aucune | `DashboardCollection[]` |
+| `getCollectionOverview` | `collectionId` | `DashboardCollection` |
 | `createFree` | `{ name }` | `{ collectionId }` |
 | `createAutomatic` | `{ name, targetType: 'pokemon' \| 'set', targetId }` | `{ collectionId, created }` |
 | `rename` | `collectionId, name` | `{ collectionId }` |
@@ -146,12 +147,16 @@ La création automatique appelle exclusivement `create_automatic_collection` ave
 | `automatic_state_inconsistent` | `23514` avec `automatic_target_hash_mismatch` |
 | `empty_automatic_target` | `23514` avec `automatic_collection_empty` |
 | `not_authorized` | `42501` ou refus JWT PostgREST `PGRST301`, `PGRST302`, `PGRST303` |
-| `collection_unavailable` | Renommage/suppression sans ligne affectée, sans erreur serveur explicite |
+| `collection_unavailable` | Renommage/suppression sans ligne affectée ; overview sans ligne visible ou identifiant manifestement invalide |
 | `unexpected` | Toute autre erreur, rejet réseau ou réponse absente/malformée hors contrat |
 
 Les détails d'une erreur ne sont pas analysés comme preuve d'un nom invalide : ils peuvent contenir la ligne et ses valeurs. Un code SQL générique sans le signal spécifique attendu reste `unexpected`. Aucun retry de mutation n'est effectué par le service ; une erreur réseau ne prouve pas que la mutation a été annulée. Les [tests unitaires du service](../src/services/collections.test.ts) contrôlent les payloads, filtres, retours et erreurs sans reproduire le calcul canonique SQL. L'interface et son intégration restent séparées de ce contrat.
 
 La lecture Dashboard effectue un seul `SELECT` sur la [vue `dashboard_collections`](06-DATABASE.md#lecture-dashboard), sans requête par collection. `DashboardCollection` contient `collectionId`, `name`, `collectionType`, `access` (`owned`/`shared`), `targetType`, `targetName`, `ownedCount` et `totalCount`. Le serveur déduit l'accès de l'identité Auth et calcule la possession du propriétaire, même pour une collection partagée. Le service traduit les noms SQL, conserve les noms de cible absents comme `null` et ne calcule ni progression ni ordre visuel. Une liste vide reste `[]` ; les réponses malformées ou incohérentes lèvent `CollectionsError('unexpected')`, et les refus explicites suivent le mapping existant. Les restrictions RLS peuvent produire une liste vide sans erreur explicite : le service ne la présente pas comme une preuve d'authentification.
+
+La page `/collections/:collectionId`, ajoutée sous le même `AuthenticatedLayout`, conserve les gardes Auth existantes et fonctionne en accès direct. `getCollectionOverview` effectue un seul `SELECT` sur `dashboard_collections`, filtré exactement par `collection_id`, avec `maybeSingle()` et le mapper Dashboard existant. Aucune ligne visible produit `collection_unavailable`, sans distinguer absence, collection tierce ou partage retiré. Un UUID manifestement invalide produit le même code avant toute requête ; les réponses malformées restent `unexpected`. Aucune nouvelle vue ni lecture d'items n'est nécessaire.
+
+La [page Collection](../src/features/collections/CollectionPage.tsx) utilise la clé TanStack Query `['collections', 'detail', userId, collectionId]`, indépendante de celle du Dashboard, sans retry automatique. Un échec de lecture masque également une éventuelle donnée en cache. Les libellés, couleurs déterministes et la présentation de progression sont partagés avec les tuiles. La page met à jour `document.title` après réception du nom ; le focus de navigation reste géré par `AppRoutes` sur un `h1` persistant.
 
 ### État frontend
 

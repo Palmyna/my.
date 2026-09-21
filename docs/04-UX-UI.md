@@ -241,7 +241,7 @@ D'autres informations peuvent être ajoutées seulement si elles restent utiles 
 
 Les tuiles utilisent des surfaces sombres subtilement teintées, avec bordure et accent de la même famille chromatique. Une palette frontend sobre couvre corail, ambre, jaune chaud, vert, turquoise, bleu, violet et rose ; l'accent est repris par la progression. La couleur reste secondaire aux libellés et conserve un contraste suffisant. Son attribution est déterministe depuis le type et le nom de cible disponibles, avec repli sur l'identifiant stable de collection, également utilisé pour les collections personnalisées. Aucune table métier de couleurs par Pokémon ni donnée couleur en base n'est nécessaire. Un changement de nom de cible peut donc changer cet accent.
 
-Dans cette première interface de lecture, les tuiles restent non interactives jusqu'à la livraison d'une route détail : aucun faux lien ni arrêt clavier supplémentaire. Le hover reste discret et les transitions respectent la réduction des mouvements. Le chargement et les erreurs restent intégrés au Dashboard, avec un nouvel essai explicite en cas d'échec ; le feedback après changement de mot de passe est conservé.
+Les tuiles personnelles et partagées sont des liens vers `/collections/:collectionId`, accessibles au clavier avec un focus visible. Le hover reste discret et les transitions respectent la réduction des mouvements. Le chargement et les erreurs restent intégrés au Dashboard, avec un nouvel essai explicite en cas d'échec ; le feedback après changement de mot de passe est conservé.
 
 ### Progression
 
@@ -297,6 +297,10 @@ Les deux types doivent être expliqués en quelques mots afin que leur différen
 Dans la V1, toutes les collections automatiques sont accessibles sans abonnement. Aucun écran Premium, checkout ou parcours de paiement ne doit être introduit.
 
 ## Page principale d'une collection
+
+La première page livrée en 5D.1 présente uniquement l'identité de la collection : nom en `h1`, type (`Personnalisée`, `Automatique · Pokémon` ou `Automatique · Extension`), cible automatique lorsqu'elle est disponible, progression et mode d'accès. Elle reprend la famille chromatique de sa tuile et la même présentation de progression, y compris l'état neutre `0 / 0`. Le lien `Retour au Dashboard` reste disponible dans tous les états. Les collections partagées portent le libellé `Partagée · Lecture seule`, avec la progression du propriétaire. Aucune action de modification n'est encore présentée ; renommer et supprimer relèvent de 5D.2.
+
+Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones. Le contenu et les vues décrits ci-dessous restent à livrer en Phase 6.
 
 Une collection dispose d'une page principale commune à ses trois vues. Elle donne facilement accès à :
 

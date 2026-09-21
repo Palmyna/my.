@@ -2,15 +2,29 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { MemoryRouter, useLocation } from 'react-router'
-import { expect, test, vi } from 'vitest'
+import { beforeEach, expect, test, vi } from 'vitest'
 import { createAuthService } from '../services/auth'
 import { confirmedUser, mockAuthClient, profile, session } from '../test/auth-fixtures'
 import { AuthContext } from '../features/auth/auth-context'
 import { createAuthStore, type AuthStore } from '../features/auth/auth-store'
 import type { EmailCallback } from '../features/auth/auth-callback'
 import { AppRoutes } from './AppRoutes'
+import { CollectionsError, getCollectionOverview, listDashboardCollections } from '../services/collections'
+import type { DashboardCollection } from '../types/collections'
 
-vi.mock('../services/collections', () => ({ listDashboardCollections: vi.fn(() => Promise.resolve([])) }))
+vi.mock('../services/collections', async importOriginal => ({
+  ...await importOriginal<typeof import('../services/collections')>(),
+  listDashboardCollections: vi.fn(), getCollectionOverview: vi.fn(),
+}))
+const collection: DashboardCollection = {
+  collectionId: 'c1200000-0000-0000-0000-000000000001', name: 'Collection de test', collectionType: 'free', access: 'owned',
+  targetType: null, targetName: null, ownedCount: 0, totalCount: 0,
+}
+const collectionPath = `/collections/${collection.collectionId}`
+beforeEach(() => {
+  vi.mocked(listDashboardCollections).mockReset().mockResolvedValue([])
+  vi.mocked(getCollectionOverview).mockReset().mockResolvedValue(collection)
+})
 
 function Harness({ store, path }: { store: AuthStore; path: string }) {
   const [queryClient] = useState(() => new QueryClient())
@@ -36,7 +50,63 @@ const change = (label: string, value: string) => fireEvent.change(screen.getByLa
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 async function heading(name: string | RegExp) { expect(await screen.findByRole('heading', { name })).toBeVisible() }
 const tokenCallback = (kind: 'signup' | 'recovery'): EmailCallback => ({ kind, tokens: { access_token: 'test', refresh_token: 'test' } })
-const protectedPages = [['/dashboard', 'Dashboard'], ['/profile', 'Profil'], ['/settings', 'Paramètres']] as const
+const protectedPages = [['/dashboard', 'Dashboard'], ['/profile', 'Profil'], ['/settings', 'Paramètres'], [collectionPath, collection.name]] as const
+
+test.each(['owned', 'shared'] as const)('le lien tuile %s ouvre la bonne route et permet le retour', async access => {
+  vi.mocked(listDashboardCollections).mockResolvedValue([{ ...collection, access }])
+  vi.mocked(getCollectionOverview).mockResolvedValue({ ...collection, access })
+  setup('/dashboard', 'aal2')
+  const tile = await screen.findByRole('link', { name: collection.name })
+  expect(tile).toHaveAttribute('href', collectionPath)
+  fireEvent.click(tile)
+  await heading(collection.name)
+  expect(screen.getByTestId('path')).toHaveTextContent(collectionPath)
+  expect(getCollectionOverview).toHaveBeenCalledExactlyOnceWith(collection.collectionId)
+  expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+  expect(document.title).toBe(`${collection.name} — MY.`)
+  fireEvent.click(screen.getByRole('link', { name: 'Retour au Dashboard' }))
+  await heading('Dashboard')
+})
+
+test('chargement asynchrone : h1 focalisé une fois, titre mis à jour sans refocus', async () => {
+  let finish!: (value: DashboardCollection) => void
+  vi.mocked(getCollectionOverview).mockReturnValue(new Promise(resolve => { finish = resolve }))
+  setup(collectionPath, 'aal2')
+  await heading('Collection')
+  const title = screen.getByRole('heading', { level: 1 })
+  expect(title).toHaveFocus()
+  expect(screen.getByRole('status')).toHaveTextContent('Chargement de la collection')
+  const back = screen.getByRole('link', { name: 'Retour au Dashboard' })
+  back.focus()
+  await act(async () => { finish(collection); await Promise.resolve() })
+  await heading(collection.name)
+  expect(screen.getByRole('heading', { level: 1 })).toBe(title)
+  expect(back).toHaveFocus()
+  expect(document.title).toBe(`${collection.name} — MY.`)
+})
+
+test.each(['missing', 'private', 'revoked', 'malformed'])('route indisponible uniforme : %s', async reason => {
+  vi.mocked(getCollectionOverview).mockRejectedValue(new CollectionsError('collection_unavailable'))
+  setup(reason === 'malformed' ? '/collections/not-an-id' : collectionPath, 'aal2')
+  await heading('Collection indisponible')
+  expect(screen.getByRole('alert')).toHaveTextContent('Cette collection n’existe pas ou vous n’y avez plus accès.')
+  expect(screen.getByRole('link', { name: 'Retour au Dashboard' })).toBeVisible()
+  expect(document.title).toBe('Collection indisponible — MY.')
+})
+
+test('naviguer entre deux collections ne réutilise pas la donnée de la première', async () => {
+  const second = { ...collection, collectionId: 'c1200000-0000-0000-0000-000000000002', name: 'Deuxième collection' }
+  vi.mocked(listDashboardCollections).mockResolvedValue([collection, second])
+  vi.mocked(getCollectionOverview).mockResolvedValueOnce(collection).mockReturnValueOnce(new Promise(() => {}))
+  setup('/dashboard', 'aal2')
+  fireEvent.click(await screen.findByRole('link', { name: collection.name }))
+  await heading(collection.name)
+  fireEvent.click(screen.getByRole('link', { name: 'Retour au Dashboard' }))
+  fireEvent.click(await screen.findByRole('link', { name: second.name }))
+  await screen.findByText('Chargement de la collection…')
+  expect(screen.queryByText(collection.name)).not.toBeInTheDocument()
+  expect(getCollectionOverview).toHaveBeenLastCalledWith(second.collectionId)
+})
 
 test.each([
   ['/', 'out', /Bienvenue sur MY\./, '/'],
@@ -132,6 +202,7 @@ test.each(protectedPages.flatMap(([path]) => [
   expect(screen.getByTestId('path')).toHaveTextContent(target)
   expect(screen.queryByRole('button', { name: 'Mon compte' })).not.toBeInTheDocument()
   expect(mock.from).not.toHaveBeenCalled()
+  expect(getCollectionOverview).not.toHaveBeenCalled()
 })
 
 test('le formulaire Profil retrouve la demande en attente après le rechargement USER_UPDATED', async () => {

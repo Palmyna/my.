@@ -15,6 +15,12 @@ export async function listDashboardCollections(): Promise<DashboardCollection[]>
   return createCollectionsService(client).listDashboardCollections()
 }
 
+export async function getCollectionOverview(collectionId: string): Promise<DashboardCollection> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionsError('not_authorized')
+  return createCollectionsService(client).getCollectionOverview(collectionId)
+}
+
 export async function createFree(input: CreateFreeCollectionInput): Promise<CollectionMutationResult> {
   const client = getSupabaseClient()
   if (!client) throw new CollectionsError('not_authorized')
@@ -64,6 +70,20 @@ function collectionResult(data: unknown, missing: 'unexpected' | 'collection_una
 
 export function createCollectionsService(client: SupabaseClient<Database>) {
   return {
+    getCollectionOverview(collectionId: string): Promise<DashboardCollection> {
+      return request(async () => {
+        // Invalid route IDs have the same public outcome as any invisible collection.
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(collectionId)) {
+          throw new CollectionsError('collection_unavailable')
+        }
+        const { data, error } = await client.from('dashboard_collections')
+          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count')
+          .eq('collection_id', collectionId).maybeSingle()
+        if (error) throw error
+        if (data === null) throw new CollectionsError('collection_unavailable')
+        return dashboardCollection(data)
+      })
+    },
     listDashboardCollections(): Promise<DashboardCollection[]> {
       return request(async () => {
         const { data, error } = await client.from('dashboard_collections')
