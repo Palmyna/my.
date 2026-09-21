@@ -27,6 +27,18 @@ export async function createFree(input: CreateFreeCollectionInput): Promise<Coll
   return createCollectionsService(client).createFree(input)
 }
 
+export async function renameCollection(collectionId: string, name: string): Promise<CollectionMutationResult> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionsError('not_authorized')
+  return createCollectionsService(client).rename(collectionId, name)
+}
+
+export async function deleteCollection(collectionId: string): Promise<CollectionMutationResult> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionsError('not_authorized')
+  return createCollectionsService(client).delete(collectionId)
+}
+
 // Presentation receives only a stable code, never raw server text, details or cause.
 export class CollectionsError extends Error {
   constructor(readonly code: CollectionsErrorCode) { super(code); this.name = 'CollectionsError' }

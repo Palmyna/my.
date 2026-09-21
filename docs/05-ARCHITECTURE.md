@@ -160,6 +160,8 @@ La [page Collection](../src/features/collections/CollectionPage.tsx) utilise la 
 
 ### État frontend
 
+En 5D.2, les wrappers runtime `renameCollection(collectionId, name)` et `deleteCollection(collectionId)` obtiennent le client Supabase courant puis délèguent aux méthodes injectées existantes, avec `not_authorized` en l'absence de client. Les deux dialogs utilisent `useMutation`, sans retry automatique. Après un renommage confirmé, les lectures en cours du détail et du Dashboard courant sont annulées ; leur nom en cache est mis à jour sans modifier les autres champs, puis ces deux clés exactes sont invalidées pour relecture autoritative. Après suppression confirmée, la lecture détail est annulée et sa query retirée ; sa tuile est également retirée du cache Dashboard avant sa relecture, puis la page navigue vers `/dashboard` et invalide uniquement son Dashboard. Une mutation renvoyant `collection_unavailable` retire le détail en cache et affiche l'état sûr. Aucun cache d'un autre utilisateur ni invalidation globale n'est concerné ; une réponse tardive après démontage ne recrée pas les données d'une session quittée.
+
 L'état local reste local lorsqu'il n'a pas besoin d'être partagé. Les données serveur sont traitées comme des données distantes. Aucun système lourd de gestion d'état global n'est imposé par défaut.
 
 TanStack Query est retenu pour les requêtes et le cache des données serveur. Son provider est préparé dès la Phase 0, sans requête métier ni gestionnaire d'état global supplémentaire. Zod est retenu pour valider les données et la configuration.

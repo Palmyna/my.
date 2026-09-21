@@ -63,7 +63,22 @@ h1:focus { outline: none; }
 .collection-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 20px; font-size: .85rem; }
 .collection-overview { --collection-accent: #ed7d83; --collection-border: #68595b; overflow-wrap: anywhere; }
 .collection-heading { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px; margin-bottom: 24px; }
-.collection-heading h1 { flex: 1 1 240px; min-width: 0; margin: 0; }
+.collection-heading h1 { flex: 1 1 0; min-width: 0; margin: 0; }
+.collection-actions { position: relative; flex: 0 0 auto; margin-left: auto; }
+.collection-actions-trigger { display: grid; place-items: center; width: 44px; height: 44px; padding: 0 0 8px; border: 1px solid var(--collection-border); border-radius: 8px; background: transparent; color: var(--collection-accent); font-size: 1.6rem; cursor: pointer; }
+.collection-actions-trigger:hover { background: #ffffff08; border-color: var(--collection-accent); }
+.collection-actions-trigger:focus-visible, .collection-actions-panel button:focus-visible, .collection-action-dialog .collection-accent-action:focus-visible { outline-color: var(--collection-accent); }
+.collection-actions-panel { position: absolute; z-index: 5; top: calc(100% + 8px); right: 0; width: min(260px, calc(100vw - 48px)); padding: 8px; border: 1px solid #68595b; border-radius: 8px; background: #302626; box-shadow: 0 12px 28px #0004; }
+.collection-actions-panel button { width: 100%; padding: 12px; border: 0; border-radius: 4px; text-align: left; color: #fff; background: transparent; font-size: .85rem; cursor: pointer; }
+.collection-actions-panel button:hover { background: #ffffff08; }
+.collection-actions-panel button:focus-visible { outline-offset: -3px; }
+.collection-actions-panel hr { border: 0; border-top: 1px solid #514344; margin: 4px 0; }
+.collection-actions-panel .collection-delete-option { color: #ffb9bd; }
+.collection-actions-panel .collection-delete-option:focus-visible, .collection-action-dialog .collection-danger-action:focus-visible { outline-color: #ff969b; }
+.collection-action-dialog { overflow-wrap: anywhere; }
+.collection-action-dialog .collection-accent-action { color: var(--collection-accent); background: transparent; border: 1px solid var(--collection-border); }
+.collection-action-dialog .collection-accent-action:hover { border-color: var(--collection-accent); background: #ffffff08; }
+.collection-action-dialog .collection-danger-action { background: #aa2833; color: #fff; }
 .collection-overview-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px; }
 .collection-overview-meta p { margin: 0; }
 .collection-overview .collection-target { margin: 16px 0 0; }

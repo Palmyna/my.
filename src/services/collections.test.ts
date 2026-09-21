@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { describe, expect, test, vi } from 'vitest'
 import type { Database } from '../types/database.generated'
 import type { CreateAutomaticCollectionInput, CreateFreeCollectionInput } from '../types/collections'
-import { CollectionsError, createCollectionsService, createFree, getCollectionOverview, listDashboardCollections } from './collections'
+import { CollectionsError, createCollectionsService, createFree, deleteCollection, getCollectionOverview, listDashboardCollections, renameCollection } from './collections'
 import { getSupabaseClient } from './supabase'
 
 vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
@@ -53,6 +53,28 @@ function mockCollectionsClient() {
   const client = { from, rpc } as unknown as SupabaseClient<Database>
   return { client, service: createCollectionsService(client), from, insert, update, remove, eq, select, single, maybeSingle, rpc, dashboardSelect, overviewEq, overviewSingle }
 }
+
+test('le wrapper rename délègue avec le nom intact', async () => {
+  const mock = mockCollectionsClient()
+  vi.mocked(getSupabaseClient).mockReturnValue(mock.client)
+  await expect(renameCollection(id, '  Nouveau nom  ')).resolves.toEqual({ collectionId: id })
+  expect(mock.update).toHaveBeenCalledExactlyOnceWith({ name: '  Nouveau nom  ' })
+  expect(mock.eq).toHaveBeenCalledExactlyOnceWith('id', id)
+})
+
+test('le wrapper delete délègue au parent ciblé', async () => {
+  const mock = mockCollectionsClient()
+  vi.mocked(getSupabaseClient).mockReturnValue(mock.client)
+  await expect(deleteCollection(id)).resolves.toEqual({ collectionId: id })
+  expect(mock.remove).toHaveBeenCalledOnce()
+  expect(mock.eq).toHaveBeenCalledExactlyOnceWith('id', id)
+})
+
+test('les wrappers propriétaire refusent un client absent', async () => {
+  vi.mocked(getSupabaseClient).mockReturnValue(null)
+  await expect(renameCollection(id, 'Nouveau nom')).rejects.toHaveProperty('code', 'not_authorized')
+  await expect(deleteCollection(id)).rejects.toHaveProperty('code', 'not_authorized')
+})
 
 describe('création libre', () => {
   test('payload autorisé uniquement, nom intact et ID métier', async () => {
