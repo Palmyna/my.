@@ -241,7 +241,7 @@ D'autres informations peuvent être ajoutées seulement si elles restent utiles 
 
 Les tuiles utilisent des surfaces sombres subtilement teintées, avec bordure et accent de la même famille chromatique. Une palette frontend sobre couvre corail, ambre, jaune chaud, vert, turquoise, bleu, violet et rose ; l'accent est repris par la progression. La couleur reste secondaire aux libellés et conserve un contraste suffisant. Son attribution est déterministe depuis le type et le nom de cible disponibles, avec repli sur l'identifiant stable de collection, également utilisé pour les collections libres. Aucune table métier de couleurs par Pokémon ni donnée couleur en base n'est nécessaire. Un changement de nom de cible peut donc changer cet accent.
 
-Dans cette première interface de lecture, les tuiles restent non interactives jusqu'à la livraison d'une route détail : aucun faux lien ni arrêt clavier supplémentaire. Le hover reste discret et les transitions respectent la réduction des mouvements. Le chargement et les erreurs restent intégrés au Dashboard, avec un nouvel essai explicite en cas d'échec ; le feedback après changement de mot de passe est conservé. La création reste un parcours ultérieur.
+Dans cette première interface de lecture, les tuiles restent non interactives jusqu'à la livraison d'une route détail : aucun faux lien ni arrêt clavier supplémentaire. Le hover reste discret et les transitions respectent la réduction des mouvements. Le chargement et les erreurs restent intégrés au Dashboard, avec un nouvel essai explicite en cas d'échec ; le feedback après changement de mot de passe est conservé.
 
 ### Progression
 
@@ -269,6 +269,12 @@ Nouvelle collection → Collection libre → Nom → Création
 ```
 
 La collection peut être créée vide. L'utilisateur y ajoute ensuite des variantes depuis le catalogue MY.
+
+Le Dashboard propose un seul CTA principal `Nouvelle collection`, près de son titre, y compris sans collection. Il ouvre un dialog neutre `Collection libre` avec une courte explication et le champ Nom. À cette étape, aucun choix automatique ni accès détail fictif n'est présenté.
+
+Le nom est validé avant envoi selon la règle existante, sans modifier la valeur saisie ni ses espaces. Les erreurs de nom apparaissent près du champ ; les erreurs générales restent dans le formulaire, sans détail technique. Pendant la création, un état d'attente empêche les doubles envois et la fermeture du dialog. Aucun nouvel essai automatique n'est effectué.
+
+Annuler ou Échap avant envoi ferme sans confirmation ; le focus revient au déclencheur et la réouverture présente un formulaire vierge. Le dialog place initialement le focus sur le nom, garde le clavier à l'intérieur et rend le fond inerte. Après succès, il se ferme, affiche `Collection créée.` et le Dashboard relit ses collections depuis le serveur, sans navigation vers une page détail.
 
 ### Collection automatique
 

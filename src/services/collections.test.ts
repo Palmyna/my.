@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { describe, expect, test, vi } from 'vitest'
 import type { Database } from '../types/database.generated'
 import type { CreateAutomaticCollectionInput, CreateFreeCollectionInput } from '../types/collections'
-import { CollectionsError, createCollectionsService, listDashboardCollections } from './collections'
+import { CollectionsError, createCollectionsService, createFree, listDashboardCollections } from './collections'
 import { getSupabaseClient } from './supabase'
 
 vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
@@ -22,6 +22,18 @@ test('le point d’entrée Dashboard utilise le service avec le client configur�
 test('le point d’entrée Dashboard échoue proprement sans client configuré', async () => {
   vi.mocked(getSupabaseClient).mockReturnValue(null)
   await expect(listDashboardCollections()).rejects.toMatchObject({ code: 'not_authorized' })
+})
+
+test('le point d’entrée création libre délègue sans modifier le nom', async () => {
+  const mock = mockCollectionsClient()
+  vi.mocked(getSupabaseClient).mockReturnValue(mock.client)
+  await expect(createFree({ name: '  Mes cartes  ' })).resolves.toEqual({ collectionId: id })
+  expect(mock.insert).toHaveBeenCalledExactlyOnceWith({ name: '  Mes cartes  ', collection_type: 'free' })
+})
+
+test('le point d’entrée création libre refuse un client absent', async () => {
+  vi.mocked(getSupabaseClient).mockReturnValue(null)
+  await expect(createFree({ name: 'Mes cartes' })).rejects.toMatchObject({ code: 'not_authorized' })
 })
 
 function mockCollectionsClient() {

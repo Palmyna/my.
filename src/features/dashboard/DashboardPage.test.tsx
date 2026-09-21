@@ -66,7 +66,8 @@ test('sépare les accès, affiche types, cibles, compteurs serveur et pourcentag
     expect(tile.style.getPropertyValue('--collection-surface')).not.toBe('')
     expect(tile).not.toHaveAttribute('tabindex')
   }
-  expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Nouvelle collection' })).toBeVisible()
+  for (const tile of screen.getAllByRole('article')) expect(within(tile).queryByRole('button')).not.toBeInTheDocument()
   expect(screen.queryByRole('link')).not.toBeInTheDocument()
   for (const value of ['pokemon', 'set', free.collectionId, shared.collectionId]) expect(screen.queryByText(value, { exact: true })).not.toBeInTheDocument()
 })

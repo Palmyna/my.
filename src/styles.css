@@ -16,6 +16,29 @@ h1:focus { outline: none; }
 .authenticated-page .feedback { margin: 24px 0 0; }
 .dashboard-page { max-width: none; }
 .dashboard-page h1 { margin-bottom: 12px; }
+.dashboard-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 24px; }
+.dashboard-heading > div { min-width: 0; }
+.dashboard-create { flex-shrink: 0; max-width: 100%; }
+.dashboard-create > .button { width: fit-content; }
+.collection-created { color: #c9bfc0; font-size: .85rem; margin: 10px 0 0; }
+.collection-dialog { width: min(520px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 28px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #68595b; border-radius: 12px; background: #302626; color: #fff; font-size: .9rem; }
+.collection-dialog::backdrop { background: #000b; }
+.collection-dialog-eyebrow { color: #c9bfc0; font-size: .75rem; margin: 0 0 8px; }
+.collection-dialog h2 { font-size: 1.4rem; line-height: 1.4; margin: 0 0 12px; }
+.collection-dialog .field { margin: 24px 0 8px; }
+.collection-dialog .hint { margin: 8px 0 0; }
+.collection-dialog .feedback, .collection-name-error { margin: 16px 0 0; }
+.collection-pending { margin: 16px 0 0; color: #c9bfc0; font-size: .85rem; }
+.collection-dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
+.collection-dialog-actions .button { flex: 1; }
+.collection-dialog-actions .collection-cancel { background: #493638; border: 1px solid #68595b; }
+@media (max-width: 600px) {
+  .dashboard-create, .dashboard-create > .button { width: 100%; }
+}
+@media (max-width: 400px) {
+  .collection-dialog { padding: 24px 16px; }
+  .collection-dialog-actions { flex-direction: column; }
+}
 .dashboard-section { margin-top: 40px; }
 .dashboard-section h2 { font-size: 1.15rem; line-height: 1.5; font-weight: 600; letter-spacing: -.02em; margin: 0 0 20px; }
 .collection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 20px; list-style: none; padding: 0; margin: 0; }

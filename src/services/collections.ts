@@ -15,6 +15,12 @@ export async function listDashboardCollections(): Promise<DashboardCollection[]>
   return createCollectionsService(client).listDashboardCollections()
 }
 
+export async function createFree(input: CreateFreeCollectionInput): Promise<CollectionMutationResult> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionsError('not_authorized')
+  return createCollectionsService(client).createFree(input)
+}
+
 // Presentation receives only a stable code, never raw server text, details or cause.
 export class CollectionsError extends Error {
   constructor(readonly code: CollectionsErrorCode) { super(code); this.name = 'CollectionsError' }
