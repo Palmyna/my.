@@ -207,7 +207,7 @@ La partie basse présente les **Variantes de cette Carte**, en Liste ou Cartes, 
 
 ### Actions rapides et navigation contextuelle
 
-Le clic principal sur une Carte ouvre sa fiche. Un menu secondaire `…` peut proposer les actions rapides pertinentes, comme ajouter à une collection ou ajouter un exemplaire, sans devenir un menu général. L'action doit identifier la Variante exacte lorsque nécessaire ; elle ne choisit pas arbitrairement une Variante derrière une Carte.
+Le clic principal sur une Carte ouvre sa fiche. Un menu secondaire à trois carrés peut proposer les actions rapides pertinentes, comme ajouter à une collection ou ajouter un exemplaire, sans devenir un menu général. L'action doit identifier la Variante exacte lorsque nécessaire ; elle ne choisit pas arbitrairement une Variante derrière une Carte.
 
 La fiche Carte préserve son contexte d'arrivée. **Retour** restaure autant que possible la même page, la vue, les filtres, le scroll et le contexte de navigation. Ce retour dans une consultation en cours ne réapplique pas une préférence d'ouverture au détriment de l'état précédent.
 
@@ -300,7 +300,7 @@ Dans la V1, toutes les collections automatiques sont accessibles sans abonnement
 
 La page livrée en 5D.1 présente l'identité de la collection : nom en `h1`, type (`Personnalisée`, `Automatique · Pokémon` ou `Automatique · Extension`), cible automatique lorsqu'elle est disponible, progression et mode d'accès. Elle reprend la famille chromatique de sa tuile et la même présentation de progression, y compris l'état neutre `0 / 0`. Le lien `Retour au Dashboard` reste disponible dans tous les états. Les collections partagées portent le libellé `Partagée · Lecture seule`, avec la progression du propriétaire et sans menu propriétaire. La Phase 5D.2 ajoute le renommage et la suppression des collections personnelles, personnalisées comme automatiques.
 
-L'identité est intégrée directement au fond principal MY., sans grande carte teintée ni encadrement de l'overview. La couleur déterministe reste un accent sur le type, certains badges et la large barre de progression. Le nom peut revenir à la ligne ; son en-tête flexible accueille le bouton `…` en haut à droite pour le propriétaire, y compris sur mobile.
+L'identité est intégrée directement au fond principal MY., sans grande carte teintée ni encadrement de l'overview. La couleur déterministe reste un accent sur le type, certains badges et la large barre de progression. Le nom peut revenir à la ligne ; son en-tête flexible accueille le bouton contextuel à trois carrés en haut à droite pour le propriétaire, y compris sur mobile.
 
 Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones. Le contenu et les vues décrits ci-dessous restent à livrer en Phase 6.
 
@@ -316,7 +316,9 @@ Une collection dispose d'une page principale commune à ses trois vues. Elle don
 - une éventuelle mise à jour disponible ;
 - le contenu de la collection.
 
-Le pattern de menu contextuel `…` s'applique également aux Collections : une action principale importante reste directement visible si nécessaire ; les actions secondaires ou contextuelles sont regroupées dans ce menu, selon les droits et le contexte. Le menu propriétaire livré propose `Renommer`, puis `Supprimer la collection` séparé visuellement. `Partager` reste futur et n'est pas affiché. Les actions non destructives propres à une collection peuvent reprendre sa couleur d'accent pour leur bordure, hover ou focus. Les actions destructives restent visuellement distinctes et utilisent toujours le langage danger indépendant de cet accent.
+Le pattern de bouton contextuel compact est réutilisable pour les Collections, Cartes, Variantes et autres actions contextuelles. Son contour extérieur peut être arrondi ; son icône décorative comporte trois carrés identiques sans aucun arrondi, alignés horizontalement, régulièrement espacés et centrés dans le bouton, en rappel de la géométrie du logo MY. Le bouton reste discret au repos ; le survol, le focus visible et l'état ouvert reprennent subtilement l'accent de la collection sur les carrés, la bordure et un fond léger, sans halo.
+
+Une action principale importante reste directement visible si nécessaire ; les actions secondaires ou contextuelles sont regroupées dans ce menu, selon les droits et le contexte. Le menu propriétaire livré propose `Renommer`, puis `Supprimer la collection` séparé visuellement. `Partager` reste futur et n'est pas affiché. Les actions non destructives propres à une collection peuvent reprendre sa couleur d'accent pour leur bordure, hover ou focus. Les actions destructives restent visuellement distinctes et utilisent toujours le langage danger indépendant de cet accent.
 
 Le bouton est nommé `Actions de la collection` pour les technologies d'assistance. Le panneau utilise des boutons natifs dans l'ordre du document, place le focus sur `Renommer`, se ferme avec Échap ou au clic extérieur et restitue le focus au déclencheur. Quitter le panneau au clavier le ferme également. Les dialogs natifs reprennent le fond modal inerte, la boucle de tabulation, le scroll mobile et la restitution du focus ; Annuler et Échap fonctionnent avant envoi. Pendant la mutation, les contrôles et la fermeture sont verrouillés, sans double soumission ni retry automatique.
 

@@ -157,7 +157,7 @@ export function CollectionActions(props: Props) {
   }}>
     <button ref={trigger} className="collection-actions-trigger" type="button" aria-label="Actions de la collection"
       aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>
-      <span aria-hidden="true">…</span>
+      <span className="collection-actions-icon" aria-hidden="true"><span /><span /><span /></span>
     </button>
     {open && <div className="collection-actions-panel" id={id} role="group" aria-label="Actions de la collection">
       <button ref={first} type="button" onClick={() => { setOpen(false); setAction('rename') }}>Renommer</button>
