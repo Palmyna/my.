@@ -205,13 +205,13 @@ Une collection appartient à exactement un utilisateur. Elle doit pouvoir conser
 - ses paramètres fonctionnels ;
 - les informations nécessaires à son affichage.
 
-La V1 distingue les collections libres et les collections automatiques. Une collection automatique possède une cible dont le type est soit Pokémon, soit Set.
+La V1 distingue les collections personnalisées et les collections automatiques. Une collection automatique possède une cible dont le type est soit Pokémon, soit Set.
 
 Le nom de toute collection comporte au moins **3 caractères utiles après trim**, à la création et au renommage.
 
-### Collections libres
+### Collections personnalisées
 
-Une collection libre ne possède pas de cible automatique. Son propriétaire sélectionne et ordonne librement des variantes existantes dans le catalogue MY.
+Une collection personnalisée ne possède pas de cible automatique. Son propriétaire sélectionne et ordonne librement des variantes existantes dans le catalogue MY.
 
 La V1 ne permet pas de créer une carte personnalisée qui n'existe pas dans le catalogue. Si une carte ou une variante française réelle manque, elle doit être ajoutée ou corrigée dans le catalogue global, et non créée uniquement dans une collection utilisateur.
 
@@ -226,7 +226,7 @@ Deux cas existent dans la V1 :
 
 Une collection automatique ne peut pas cibler simultanément un Pokémon et un set. Une cible Set désigne une extension précise, non une série ou un bloc TCGdex.
 
-Le couple propriétaire + cible est unique pour chaque type automatique : au maximum une collection Pokémon par propriétaire/Pokémon et une collection Extension par propriétaire/Set. Cette règle ne concerne pas les collections libres et n'empêche pas deux propriétaires de choisir la même cible.
+Le couple propriétaire + cible est unique pour chaque type automatique : au maximum une collection Pokémon par propriétaire/Pokémon et une collection Extension par propriétaire/Set. Cette règle ne concerne pas les collections personnalisées et n'empêche pas deux propriétaires de choisir la même cible.
 
 Une collection par extension peut inclure toutes les catégories présentes dans le set, notamment les Pokémon, Dresseurs, Énergies et autres catégories.
 
@@ -279,7 +279,7 @@ Dans une collection automatique, le propriétaire peut réordonner tous les él�
 
 Le modèle doit représenter un ordre stable des éléments :
 
-- dans une collection libre, l'ordre est contrôlé par l'utilisateur ;
+- dans une collection personnalisée, l'ordre est contrôlé par l'utilisateur ;
 - dans une collection automatique, l'ordre canonique de MY. initialise la collection ; tous les éléments sont ensuite positionnables librement.
 
 `automatic_rank` est le rang canonique système ; `sort_position` est l'ordre réel affiché dans cette collection. Un déplacement automatique ne modifie que `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique ou `automatic_target_states`. Deux collections de même cible/version peuvent contenir les mêmes éléments automatiques avec des `sort_position` différents.
@@ -351,7 +351,7 @@ Exemplaire physique N → 1 Variante
 
 Un exemplaire physique **n'appartient pas à une collection particulière**. Il appartient globalement au compte de l'utilisateur.
 
-Si une même variante apparaît dans plusieurs collections du même utilisateur — par exemple une collection Pokémon, une collection par extension et une collection libre — chacune reflète les mêmes exemplaires physiques. Aucun exemplaire supplémentaire ne doit être créé pour cette raison.
+Si une même variante apparaît dans plusieurs collections du même utilisateur — par exemple une collection Pokémon, une collection par extension et une collection personnalisée — chacune reflète les mêmes exemplaires physiques. Aucun exemplaire supplémentaire ne doit être créé pour cette raison.
 
 ### Plusieurs exemplaires
 
@@ -516,7 +516,7 @@ Le futur modèle technique doit permettre de garantir autant que possible que :
 - son nom contient au moins 3 caractères utiles après trim ;
 - un propriétaire possède au maximum une collection automatique pour une même cible Pokémon ou Set ;
 - les préférences de vues sont uniques par profil, privées et limitées aux valeurs autorisées ;
-- une collection libre ne possède pas de cible automatique ;
+- une collection personnalisée ne possède pas de cible automatique ;
 - une collection automatique possède exactement un type de cible ;
 - une collection automatique de type Pokémon possède un Pokémon cible ;
 - une collection automatique de type Set possède un set cible ;

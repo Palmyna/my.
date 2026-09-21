@@ -47,9 +47,9 @@ Le fonctionnement précis de l'authentification, des sessions, des droits et de 
 
 Un utilisateur peut gérer plusieurs collections indépendantes. La première version prévoit deux grands types de collections complémentaires.
 
-### Collection libre
+### Collection personnalisée
 
-Une collection libre est créée sans contenu prédéfini. L'utilisateur peut :
+Une collection personnalisée est créée sans contenu prédéfini. L'utilisateur peut :
 
 - ajouter les cartes de son choix ;
 - choisir librement les cartes présentes ;
@@ -193,8 +193,8 @@ La première version comprend au minimum :
 - la création d'un compte utilisateur et la connexion ;
 - un dashboard de collections ;
 - la gestion de plusieurs collections ;
-- la création et l'organisation manuelle d'une collection libre ;
-- l'ajout de cartes à une collection libre ;
+- la création et l'organisation manuelle d'une collection personnalisée ;
+- l'ajout de cartes à une collection personnalisée ;
 - la création d'une collection automatique ciblant un Pokémon ou une extension ;
 - l'exploitation des données de TCGdex / cards-database ;
 - l'affichage des images des cartes ;
@@ -258,6 +258,6 @@ Dans la V1, les collections automatiques restent accessibles normalement : aucun
 
 **MY. est une webapp personnelle de gestion de collections Pokémon TCG, pensée pour remplacer les limites d'un suivi manuel dans des tableurs par une expérience structurée, automatisée et visuelle.**
 
-Elle permet de gérer plusieurs collections, libres ou automatiquement constituées autour d'un Pokémon ou d'une extension précise grâce aux données de TCGdex. Elle facilite le suivi des cartes possédées et manquantes, la conservation d'informations personnelles sur les exemplaires possédés et la consultation des collections sous plusieurs formes, dont une vue inspirée d'un classeur physique.
+Elle permet de gérer plusieurs collections, personnalisées ou automatiquement constituées autour d'un Pokémon ou d'une extension précise grâce aux données de TCGdex. Elle facilite le suivi des cartes possédées et manquantes, la conservation d'informations personnelles sur les exemplaires possédés et la consultation des collections sous plusieurs formes, dont une vue inspirée d'un classeur physique.
 
 La première version reste centrée sur cette expérience de collection. Les fonctionnalités périphériques ne doivent pas détourner le projet de ce cœur tant qu'il n'est pas solidement défini et réalisé.

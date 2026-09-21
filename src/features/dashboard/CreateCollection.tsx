@@ -67,8 +67,8 @@ function FreeCollectionDialog({ userId, trigger, close, created }: {
       else if (!event.shiftKey && (!onControl || document.activeElement === last)) { event.preventDefault(); first.focus() }
     }}>
     <p className="collection-dialog-eyebrow">Nouvelle collection</p>
-    <h2 ref={heading} tabIndex={-1} id={`${id}-title`}>Collection libre</h2>
-    <p id={`${id}-description`}>Créez une collection vide et ajoutez-y ensuite les cartes de votre choix.</p>
+    <h2 ref={heading} tabIndex={-1} id={`${id}-title`}>Collection personnalisée</h2>
+    <p id={`${id}-description`}>Créez une collection personnalisée et ajoutez-y les cartes de votre choix.</p>
     <form noValidate onSubmit={event => {
       event.preventDefault()
       if (running.current) return
@@ -106,7 +106,7 @@ export function CreateCollection({ userId }: { userId: string }) {
   const trigger = useRef<HTMLButtonElement>(null)
   return <div className="dashboard-create">
     <button ref={trigger} className="button" type="button" aria-haspopup="dialog"
-      onClick={() => { setSuccess(false); setOpen(true) }}>Nouvelle collection</button>
+      onClick={() => { setSuccess(false); setOpen(true) }}>Créer une collection personnalisée</button>
     {success && <p className="collection-created" role="status">Collection créée.</p>}
     {open && <FreeCollectionDialog userId={userId} trigger={trigger} close={() => setOpen(false)}
       created={() => { setOpen(false); setSuccess(true) }} />}

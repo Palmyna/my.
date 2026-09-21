@@ -432,18 +432,18 @@ Une collection appartient à exactement un utilisateur. La table conserve notamm
 | `id UUID` | Identité de la collection |
 | `owner_id UUID` | Propriétaire unique |
 | `name` | Nom de la collection |
-| `collection_type` | Collection libre ou automatique |
+| `collection_type` | Collection personnalisée ou automatique |
 | `automatic_target_type` | Type de cible d'une collection automatique |
 | `target_pokemon_id` | Cible Pokémon éventuelle |
 | `target_set_id` | Cible Extension éventuelle |
 | `applied_target_version` | Version de structure réellement appliquée |
 | timestamps | Création et mise à jour |
 
-`collection_type` utilise `free` et `automatic`. `automatic_target_type` utilise `pokemon` et `set`. Ces valeurs sont représentées par `TEXT + CHECK`, comme les origines et la disponibilité française, pour faciliter les migrations d'une jeune application sans enum PostgreSQL figé.
+`collection_type` utilise `free` (collection personnalisée dans l'interface) et `automatic`. `automatic_target_type` utilise `pokemon` et `set`. Ces valeurs sont représentées par `TEXT + CHECK`, comme les origines et la disponibilité française, pour faciliter les migrations d'une jeune application sans enum PostgreSQL figé.
 
 Le type d'une collection est stable après sa création dans la V1.
 
-`collections_name_check` exige désormais `char_length(btrim(name, espaces_de_bord)) >= 3`. L'ensemble des espaces de bord correspond au trim JavaScript (espaces, tabulations, sauts de ligne et espaces Unicode concernés). Le contrôle compte les caractères, pas les octets UTF-8 ; il ne réécrit pas le nom stocké et conserve les espaces internes. Il s'applique aux créations et renommages libres comme automatiques ; `NOT NULL` reste en place.
+`collections_name_check` exige désormais `char_length(btrim(name, espaces_de_bord)) >= 3`. L'ensemble des espaces de bord correspond au trim JavaScript (espaces, tabulations, sauts de ligne et espaces Unicode concernés). Le contrôle compte les caractères, pas les octets UTF-8 ; il ne réécrit pas le nom stocké et conserve les espaces internes. Il s'applique aux créations et renommages de collections personnalisées comme automatiques ; `NOT NULL` reste en place.
 
 #### Contraintes de cible
 
@@ -451,7 +451,7 @@ Les invariants suivants doivent être garantis par la base, et pas uniquement pa
 
 | Cas | Type de cible | Pokémon | Set | Version appliquée |
 |---|---|---|---|---|
-| Collection libre | Absente | Absent | Absent | Absente |
+| Collection personnalisée | Absente | Absent | Absent | Absente |
 | Automatique Pokémon | `pokemon` | Obligatoire | Absent | Obligatoire |
 | Automatique Extension | `set` | Absent | Obligatoire | Obligatoire |
 
@@ -462,7 +462,7 @@ Un propriétaire possède **au maximum une collection automatique par cible**. D
 - `collections_owner_pokemon_unique` sur `(owner_id, target_pokemon_id)` lorsque `collection_type = 'automatic' AND automatic_target_type = 'pokemon'` ;
 - `collections_owner_set_unique` sur `(owner_id, target_set_id)` lorsque `collection_type = 'automatic' AND automatic_target_type = 'set'`.
 
-`collections_target_check` reste inchangée et garantit notamment les cibles non nulles compatibles couvertes par ces index. L'unicité s'applique aussi en concurrence et lors de mises à jour privilégiées. Les collections libres sont exclues ; des propriétaires différents peuvent utiliser la même cible. Aucun nom de collection unique n'est imposé.
+`collections_target_check` reste inchangée et garantit notamment les cibles non nulles compatibles couvertes par ces index. L'unicité s'applique aussi en concurrence et lors de mises à jour privilégiées. Les collections personnalisées sont exclues ; des propriétaires différents peuvent utiliser la même cible. Aucun nom de collection unique n'est imposé.
 
 ### `collection_items`
 
@@ -486,19 +486,19 @@ UNIQUE(collection_id, variant_id)
 
 L'origine utilise `TEXT + CHECK` avec `automatic` et `manual`.
 
-Dans une collection libre, tous les éléments sont manuels. Dans une collection automatique, les deux origines sont possibles.
+Dans une collection personnalisée, tous les éléments sont manuels. Dans une collection automatique, les deux origines sont possibles.
 
 #### Ordre
 
 `sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 1 fournit le stockage ; l'interaction UX exacte, le rééquilibrage de `sort_position` et la concurrence restent ouverts. Le commentaire SQL évoque la moyenne et le rééquilibrage local comme pistes techniques ; aucun algorithme final de réorganisation ou d'insertion/fusion lors des mises à jour n'est fixé ici. Les futures opérations contrôlées devront préserver cette précision, sans calcul en flottant JavaScript.
 
-`automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection libre, y compris lors d'un changement de parent.
+`automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection personnalisée, y compris lors d'un changement de parent.
 
 Cet ordre canonique est distinct de `sort_position`. Pour Pokémon : date de parution effective de la variante croissante (`NULL` en dernier), numéro normalisé, ordre stable des variantes de la carte. Pour Extension : numéro normalisé dans le set, ordre stable des variantes, sans critère de date. Les départages techniques ne peuvent pas modifier ces priorités. Les algorithmes précis sont implémentés en Phase 2 et définis dans `07-CATALOG-SYNC.md`. Le hash ne contient que les IDs ordonnés : une date sans déplacement ne modifie ni hash ni version ; une date seule ne modifie jamais la cible Set.
 
 À la création, `sort_position` initialise l'affichage dans l'ordre canonique. Après création, cet ordre est une référence système, pas une contrainte permanente d'affichage. Un déplacement d'élément automatique modifie `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Deux collections de même cible/version peuvent donc posséder les mêmes éléments automatiques avec des `sort_position` différents.
 
-L'inspection des migrations versionnées confirme que `sort_position` existe et est obligatoire pour tous les `collection_items`, tandis que `automatic_rank` est distinct. Aucun `CHECK` ni trigger n'impose leur égalité ou n'interdit de déplacer un automatique. Le trigger de parent interdit seulement l'origine automatique dans une collection libre. Le modèle supporte donc cette règle sans obstacle de contrainte identifié. Les écritures directes sur les éléments restent fermées au rôle `authenticated` ; la réorganisation devra passer par les futures opérations contrôlées, encore à implémenter. Cette inspection ne constitue pas une validation d'exécution en base.
+L'inspection des migrations versionnées confirme que `sort_position` existe et est obligatoire pour tous les `collection_items`, tandis que `automatic_rank` est distinct. Aucun `CHECK` ni trigger n'impose leur égalité ou n'interdit de déplacer un automatique. Le trigger de parent interdit seulement l'origine automatique dans une collection personnalisée. Le modèle supporte donc cette règle sans obstacle de contrainte identifié. Les écritures directes sur les éléments restent fermées au rôle `authenticated` ; la réorganisation devra passer par les futures opérations contrôlées, encore à implémenter. Cette inspection ne constitue pas une validation d'exécution en base.
 
 La base, les permissions ou les opérations métier doivent garantir que :
 
@@ -506,7 +506,7 @@ La base, les permissions ou les opérations métier doivent garantir que :
 - son rang canonique n'est pas librement modifiable depuis le frontend ;
 - tous les éléments, automatiques comme manuels, sont librement repositionnables par le propriétaire ;
 - un élément manuel conserve `origin = manual` et aucun `automatic_rank` lors d'un déplacement ;
-- une collection libre ne contient aucun élément automatique.
+- une collection personnalisée ne contient aucun élément automatique.
 
 ## Exemplaires physiques
 
@@ -633,7 +633,7 @@ La progression est dérivée de `collection_items`, `physical_copies` et du prop
 
 La [migration Dashboard](../supabase/migrations/20260920194903_phase5_dashboard_collections.sql) livre la vue publique `dashboard_collections`, avec `security_invoker = true` et uniquement un grant `SELECT` à `authenticated`. Elle expose `collection_id UUID`, `name TEXT`, `collection_type TEXT`, `access TEXT`, `target_type TEXT`, `target_name TEXT`, `owned_count BIGINT` et `total_count BIGINT`. Le [service Collections](../src/services/collections.ts) les transforme en champs métier camelCase en une lecture, sans N+1 frontend. Aucun ordre de présentation n'est imposé.
 
-`access` vaut `owned` si `collections.owner_id = auth.uid()`, sinon `shared` pour une collection visible par les policies de partage existantes. Les cibles automatiques utilisent exclusivement `pokemon.name_fr` ou `tcg_sets.name_fr` ; les noms absents restent `NULL`. Une collection libre n'a ni type ni nom de cible. Un set désigne l'Extension précise, jamais sa série.
+`access` vaut `owned` si `collections.owner_id = auth.uid()`, sinon `shared` pour une collection visible par les policies de partage existantes. Les cibles automatiques utilisent exclusivement `pokemon.name_fr` ou `tcg_sets.name_fr` ; les noms absents restent `NULL`. Une collection personnalisée n'a ni type ni nom de cible. Un set désigne l'Extension précise, jamais sa série.
 
 Une agrégation par collection compte tous ses `collection_items`, manuels et automatiques. Un `EXISTS` sur `physical_copies`, contraint par la variante de l'item et `user_id = collections.owner_id`, compte chaque item possédé au plus une fois. Les copies du destinataire n'influencent donc pas la progression partagée. Une collection vide renvoie `0 / 0` ; les valeurs sont recalculées à chaque lecture, sans compteur stocké.
 
@@ -791,11 +791,11 @@ L'ajout manuel vérifie côté serveur :
 - que la variante existe et est utilisable dans la V1 ;
 - qu'elle n'est pas déjà présente dans la collection.
 
-Dans une collection automatique, l'élément ajouté est manuel. Dans une collection libre, tous les éléments le sont.
+Dans une collection automatique, l'élément ajouté est manuel. Dans une collection personnalisée, tous les éléments le sont.
 
 L'ajout augmente immédiatement le total de progression. Une variante déjà possédée augmente aussi le numérateur.
 
-Tous les éléments d'une collection libre ou automatique sont librement réordonnables par le propriétaire. Un déplacement modifie `sort_position`, sans modifier `origin`, `automatic_rank`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Les automatiques restent non supprimables manuellement ; les manuels peuvent être ajoutés, retirés et déplacés librement.
+Tous les éléments d'une collection personnalisée ou automatique sont librement réordonnables par le propriétaire. Un déplacement modifie `sort_position`, sans modifier `origin`, `automatic_rank`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Les automatiques restent non supprimables manuellement ; les manuels peuvent être ajoutés, retirés et déplacés librement.
 
 Les mises à jour actualisent les rangs canoniques tout en préservant autant que possible l'ordre personnalisé. Le placement d'un nouvel élément automatique dans cet ordre et la stratégie de préservation/ancrage des positions restent explicitement ouverts pour la Phase 8, sans algorithme exact d'insertion/fusion fixé. L'interaction UX, le rééquilibrage de `sort_position` et la concurrence restent également ouverts. La possibilité de déplacer un automatique est définitivement validée.
 
@@ -1040,12 +1040,12 @@ Les suites [de tests PostgreSQL](../supabase/tests/database/) de Phase 1 couvren
 
 Les tests de base devront notamment vérifier :
 
-- l'unicité automatique propriétaire/Pokémon et propriétaire/Extension, sans limiter les propriétaires différents ou les collections libres ;
+- l'unicité automatique propriétaire/Pokémon et propriétaire/Extension, sans limiter les propriétaires différents ou les collections personnalisées ;
 - le minimum de 3 caractères utiles après trim pour tous les noms de collections ;
 - les valeurs autorisées des préférences, leur lecture et modification par le propriétaire et leur isolation RLS ;
 - l'impossibilité de dupliquer une variante dans une collection ;
 - l'impossibilité d'une double cible automatique ;
-- l'absence de cible et de version sur une collection libre ;
+- l'absence de cible et de version sur une collection personnalisée ;
 - la conservation des exemplaires après suppression d'une collection ;
 - la suppression complète du seul compte visé, y compris exemplaires hors collection, préférences et partages dans les deux sens, avec préservation du catalogue et des données d'autrui ;
 - la conversion manuel vers automatique sur le même `collection_item`, sans doublon, avec `origin = automatic`, `automatic_rank` défini et `sort_position` préservé autant que possible ;
@@ -1079,11 +1079,11 @@ Le futur SQL et les opérations métier doivent garantir autant que possible que
 - son nom contient au moins 3 caractères utiles après trim ;
 - une seule collection automatique existe par propriétaire et cible Pokémon ou Set ;
 - les préférences sont uniques par profil, contrôlées et privées au propriétaire ;
-- une collection libre n'a ni cible automatique ni version appliquée ;
+- une collection personnalisée n'a ni cible automatique ni version appliquée ;
 - une collection automatique possède exactement une cible Pokémon ou Set compatible ;
 - une variante apparaît au maximum une fois dans une collection ;
 - un élément référence une variante existante ;
-- une collection libre ne contient aucun élément automatique ;
+- une collection personnalisée ne contient aucun élément automatique ;
 - un élément automatique est librement déplaçable par le propriétaire, mais reste non supprimable manuellement tant qu'il appartient à la structure automatique ;
 - un déplacement modifie `sort_position` sans modifier `automatic_rank`, `origin`, le hash/version canonique, la version appliquée ou `automatic_target_states` ;
 - un exemplaire appartient à un utilisateur et à une variante, jamais à une collection ;

@@ -6,7 +6,7 @@ export function CollectionTile({ collection }: { collection: DashboardCollection
   const titleId = useId()
   const color = collectionColor(collection)
   const percentage = collection.totalCount > 0 ? Math.round(collection.ownedCount / collection.totalCount * 100) : null
-  const typeLabel = collection.collectionType === 'free' ? 'Libre'
+  const typeLabel = collection.collectionType === 'free' ? 'Personnalisée'
     : collection.targetType === 'pokemon' ? 'Automatique · Pokémon' : 'Automatique · Extension'
   const style = {
     '--collection-accent': color.accent,

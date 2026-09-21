@@ -33,7 +33,7 @@ function setup() {
   return { client, rerender: () => view.rerender(tree()) }
 }
 function open() {
-  const trigger = screen.getByRole('button', { name: 'Nouvelle collection' })
+  const trigger = screen.getByRole('button', { name: 'Créer une collection personnalisée' })
   trigger.focus(); fireEvent.click(trigger)
   return trigger
 }
@@ -41,15 +41,15 @@ const nameInput = () => screen.getByRole('textbox', { name: 'Nom de la collectio
 const name = (value: string) => fireEvent.change(nameInput(), { target: { value } })
 const submit = () => fireEvent.submit(nameInput().closest('form')!)
 
-test.each([{ entries: [] }, { entries: [collection] }])('CTA unique avec ou sans collection et formulaire libre accessible : $entries', async ({ entries }) => {
+test.each([{ entries: [] }, { entries: [collection] }])('CTA unique avec ou sans collection et formulaire personnalisé accessible : $entries', async ({ entries }) => {
   load.mockResolvedValue(entries)
   setup()
   await waitFor(() => expect(screen.queryByText('Chargement des collections…')).not.toBeInTheDocument())
-  expect(screen.getAllByRole('button', { name: 'Nouvelle collection' })).toHaveLength(1)
+  expect(screen.getAllByRole('button', { name: 'Créer une collection personnalisée' })).toHaveLength(1)
   open()
-  const modal = screen.getByRole('dialog', { name: 'Collection libre' })
+  const modal = screen.getByRole('dialog', { name: 'Collection personnalisée' })
   expect(modal).toHaveAttribute('open')
-  expect(modal).toHaveAccessibleDescription('Créez une collection vide et ajoutez-y ensuite les cartes de votre choix.')
+  expect(modal).toHaveAccessibleDescription('Créez une collection personnalisée et ajoutez-y les cartes de votre choix.')
   expect(nameInput()).toHaveFocus()
   expect(within(modal).queryByText(/automatique|bientôt/i)).not.toBeInTheDocument()
 })
@@ -104,7 +104,7 @@ test('pending empêche double soumission et fermeture ; succès ferme puis refet
   expect(screen.getByRole('button', { name: 'Création…' })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Annuler' })).toBeDisabled()
   expect(screen.getByRole('status')).toHaveTextContent('Création en cours')
-  expect(screen.getByRole('heading', { name: 'Collection libre' })).toHaveFocus()
+  expect(screen.getByRole('heading', { name: 'Collection personnalisée' })).toHaveFocus()
   fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: false, cancelable: true }))
   expect(screen.getByRole('dialog')).toBeInTheDocument()
   load.mockReturnValueOnce(new Promise(resolve => { finishRead = resolve }))

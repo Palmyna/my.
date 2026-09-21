@@ -197,7 +197,7 @@ La partie basse affiche chaque Carte une seule fois, en Liste ou Cartes, par **n
 
 Pour Pokémon comme Extension, `card_count` correspond aux Cartes distinctes réellement concernées par la liste et `variant_count` aux Variantes correspondantes selon le même périmètre catalogue. Ces nombres dérivés ne mesurent aucune possession. Le nombre officiel du set peut être présenté séparément si utile ; il ne remplace pas automatiquement le nombre réel de Cartes MY.
 
-Si l'utilisateur ne possède pas de collection automatique pour la cible, l'action propose `Créer ma collection…`. Si elle existe, l'action devient `Ouvrir ma collection…`. La règle d'une seule collection automatique par propriétaire et cible s'applique aussi depuis le Dashboard. Une collection reçue en partage ne compte pas comme une collection personnelle de cette cible.
+Si l'utilisateur ne possède pas de collection automatique pour la cible, l'action propose `Créer ma collection…`. Si elle existe, l'action devient `Ouvrir ma collection…`. Une seule collection automatique est autorisée par propriétaire et cible. Une collection reçue en partage ne compte pas comme une collection personnelle de cette cible.
 
 ### Page Carte
 
@@ -239,7 +239,7 @@ Dès lors qu'il s'agit d'une collection automatique, la tuile doit pouvoir disti
 
 D'autres informations peuvent être ajoutées seulement si elles restent utiles et peu encombrantes.
 
-Les tuiles utilisent des surfaces sombres subtilement teintées, avec bordure et accent de la même famille chromatique. Une palette frontend sobre couvre corail, ambre, jaune chaud, vert, turquoise, bleu, violet et rose ; l'accent est repris par la progression. La couleur reste secondaire aux libellés et conserve un contraste suffisant. Son attribution est déterministe depuis le type et le nom de cible disponibles, avec repli sur l'identifiant stable de collection, également utilisé pour les collections libres. Aucune table métier de couleurs par Pokémon ni donnée couleur en base n'est nécessaire. Un changement de nom de cible peut donc changer cet accent.
+Les tuiles utilisent des surfaces sombres subtilement teintées, avec bordure et accent de la même famille chromatique. Une palette frontend sobre couvre corail, ambre, jaune chaud, vert, turquoise, bleu, violet et rose ; l'accent est repris par la progression. La couleur reste secondaire aux libellés et conserve un contraste suffisant. Son attribution est déterministe depuis le type et le nom de cible disponibles, avec repli sur l'identifiant stable de collection, également utilisé pour les collections personnalisées. Aucune table métier de couleurs par Pokémon ni donnée couleur en base n'est nécessaire. Un changement de nom de cible peut donc changer cet accent.
 
 Dans cette première interface de lecture, les tuiles restent non interactives jusqu'à la livraison d'une route détail : aucun faux lien ni arrêt clavier supplémentaire. Le hover reste discret et les transitions respectent la réduction des mouvements. Le chargement et les erreurs restent intégrés au Dashboard, avec un nouvel essai explicite en cas d'échec ; le feedback après changement de mot de passe est conservé.
 
@@ -260,17 +260,17 @@ Une collection partagée affiche la progression réelle de son propriétaire et 
 
 Le parcours de création reste court et évite tout wizard complexe.
 
-Le nom, libre ou automatique, exige au moins **3 caractères utiles après trim** ; la même validation s'applique au renommage. Une cible automatique déjà possédée conduit à l'ouverture de sa collection existante. PostgreSQL garantit ces invariants indépendamment de l'interface.
+Le nom d'une collection personnalisée ou automatique exige au moins **3 caractères utiles après trim** ; la même validation s'applique au renommage. Une cible automatique déjà possédée conduit à l'ouverture de sa collection existante. PostgreSQL garantit ces invariants indépendamment de l'interface.
 
-### Collection libre
+### Collection personnalisée
 
 ```text
-Nouvelle collection → Collection libre → Nom → Création
+Dashboard → Créer une collection personnalisée → Nom → Création
 ```
 
 La collection peut être créée vide. L'utilisateur y ajoute ensuite des variantes depuis le catalogue MY.
 
-Le Dashboard propose un seul CTA principal `Nouvelle collection`, près de son titre, y compris sans collection. Il ouvre un dialog neutre `Collection libre` avec une courte explication et le champ Nom. À cette étape, aucun choix automatique ni accès détail fictif n'est présenté.
+Le Dashboard propose un seul CTA principal `Créer une collection personnalisée`, près de son titre, y compris sans collection. Il ouvre un dialog neutre `Collection personnalisée` avec une courte explication et le champ Nom. Le Dashboard crée uniquement des collections personnalisées ; il ne propose ni choix automatique ni sélecteur Pokémon/Extension. Aucun accès détail fictif n'est présenté.
 
 Le nom est validé avant envoi selon la règle existante, sans modifier la valeur saisie ni ses espaces. Les erreurs de nom apparaissent près du champ ; les erreurs générales restent dans le formulaire, sans détail technique. Pendant la création, un état d'attente empêche les doubles envois et la fermeture du dialog. Aucun nouvel essai automatique n'est effectué.
 
@@ -279,24 +279,16 @@ Annuler ou Échap avant envoi ferme sans confirmation ; le focus revient au déc
 ### Collection automatique
 
 ```text
-Nouvelle collection
-  → Collection automatique
-  → Pokémon ou Extension
-  → Choix de la cible
+Recherche / navigation catalogue
+  → Page Pokémon ou page d'une Extension précise
+  → Créer ma collection…
   → Nom
-  → Création
+  → Création automatique
 ```
 
-L'ordre exact entre le nom et le choix de la cible peut être adapté, mais le parcours doit rester court.
+Ce parcours sera livré avec les pages catalogue Pokémon et Extension. La cible est celle de la page consultée ; aucun wizard automatique n'est proposé depuis le Dashboard. Si la collection personnelle existe déjà, l'action devient `Ouvrir ma collection…`, sans nouvelle création ni saisie de nom. Une collection partagée ne remplace jamais cette collection personnelle.
 
-Pour une cible Pokémon, une recherche ou sélection rapide permet de choisir le Pokémon et de confirmer clairement la cible avant la création.
-
-Pour une cible Extension, une recherche ou sélection permet de choisir un set précis dans le catalogue MY. Les résultats doivent pouvoir identifier l'extension à l'aide des informations disponibles, notamment :
-
-- son nom français ;
-- sa série ou son bloc ;
-- sa date de sortie ;
-- son logo ou son symbole lorsqu'il existe.
+La recherche globale ne fait que naviguer vers la page catalogue : elle ne crée aucune collection depuis ses suggestions. Les informations de la page identifient le Pokémon ou l'Extension précise avant l'action de création.
 
 L'interface doit employer de préférence le terme `Extension` et éviter de confondre ce set précis avec sa série ou son bloc TCGdex. MY. génère ensuite la structure depuis son catalogue local.
 
@@ -497,9 +489,9 @@ Les exemplaires demeurent globaux au compte, comme défini dans `03-DATA-MODEL.m
 
 ## Ajout et réorganisation des cartes
 
-### Collection libre
+### Collection personnalisée
 
-Une collection libre propose une action claire :
+Une collection personnalisée propose une action claire :
 
 `Ajouter une carte`
 
@@ -511,7 +503,7 @@ L'interaction exacte de réorganisation reste à cadrer pour desktop et mobile :
 
 Une collection automatique peut également proposer l'action `Ajouter une carte`. La variante choisie dans le catalogue devient alors un élément manuel.
 
-Les éléments automatiques et manuels sont tous librement réordonnables par le propriétaire. L'ordre canonique MY. initialise la collection, puis sert de référence système. Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique ; les éléments manuels peuvent être ajoutés, retirés et déplacés librement. La possibilité de déplacer un automatique est validée ; l'interaction UX exacte reste ouverte, comme pour les collections libres.
+Les éléments automatiques et manuels sont tous librement réordonnables par le propriétaire. L'ordre canonique MY. initialise la collection, puis sert de référence système. Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique ; les éléments manuels peuvent être ajoutés, retirés et déplacés librement. La possibilité de déplacer un automatique est validée ; l'interaction UX exacte reste ouverte, comme pour les collections personnalisées.
 
 Lorsque nécessaire pour comprendre les actions disponibles, l'origine manuelle d'un élément doit être identifiable de manière discrète, sans surcharger toute la collection.
 
@@ -621,8 +613,8 @@ Le format du classeur et le mode continu/par blocs restent ouverts quant à leur
 
 Les états vides doivent guider l'utilisateur :
 
-- sans collection, proposer `Créer ma première collection` ;
-- dans une collection libre vide, fournir une courte explication et proposer `Ajouter une carte` ;
+- sans collection, conserver le CTA unique `Créer une collection personnalisée` du Dashboard ;
+- dans une collection personnalisée vide, fournir une courte explication et proposer `Ajouter une carte` ;
 - sans partage reçu, afficher un état simple et clair.
 
 ### Chargement

@@ -49,7 +49,7 @@ test('sépare les accès, affiche types, cibles, compteurs serveur et pourcentag
   const owned = within(screen.getByRole('region', { name: 'Mes collections' }))
   const received = within(screen.getByRole('region', { name: 'Collections partagées avec moi' }))
   expect(owned.getAllByRole('article')).toHaveLength(2)
-  expect(owned.getByText('Libre')).toBeVisible()
+  expect(owned.getByText('Personnalisée')).toBeVisible()
   expect(owned.getByText('Automatique · Pokémon')).toBeVisible()
   expect(owned.getByText('Pikachu')).toBeVisible()
   expect(owned.getByText('82 / 120')).toBeVisible()
@@ -66,10 +66,10 @@ test('sépare les accès, affiche types, cibles, compteurs serveur et pourcentag
     expect(tile.style.getPropertyValue('--collection-surface')).not.toBe('')
     expect(tile).not.toHaveAttribute('tabindex')
   }
-  expect(screen.getByRole('button', { name: 'Nouvelle collection' })).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Créer une collection personnalisée' })).toBeVisible()
   for (const tile of screen.getAllByRole('article')) expect(within(tile).queryByRole('button')).not.toBeInTheDocument()
   expect(screen.queryByRole('link')).not.toBeInTheDocument()
-  for (const value of ['pokemon', 'set', free.collectionId, shared.collectionId]) expect(screen.queryByText(value, { exact: true })).not.toBeInTheDocument()
+  for (const value of ['free', 'pokemon', 'set', free.collectionId, shared.collectionId]) expect(screen.queryByText(value, { exact: true })).not.toBeInTheDocument()
 })
 
 test('rend 0 / 0 neutre et tolère une cible absente sans inventer de valeur', async () => {

@@ -99,14 +99,16 @@ Transformer le Dashboard minimal en point central d'accès aux collections :
 
 - présentation de `Mes collections`, avec nom, type, progression et accès à chaque collection ;
 - distinction prévue avec `Collections partagées avec moi` ;
-- création d'une collection libre ou automatique ciblant un Pokémon ou une Extension précise ;
-- sélection de la cible et validation du nom, avec au moins 3 caractères utiles après trim ;
+- création d'une collection personnalisée depuis le Dashboard ;
+- validation du nom, avec au moins 3 caractères utiles après trim ;
 - respect de l'unicité d'une collection automatique par propriétaire et cible, avec ouverture de l'existante ;
-- création automatique autoritative et transactionnelle depuis le catalogue MY. ;
+- backend de création automatique autoritative et transactionnelle depuis le catalogue MY., déjà livré via `createAutomatic()` ;
 - renommage, suppression et ouverture d'une collection ;
 - première structure de page collection pour accueillir les interactions suivantes.
 
 La suppression d'une collection conserve les exemplaires physiques. Le détail des interactions avec son contenu arrive en Phase 6.
+
+Le Dashboard ne propose aucun sélecteur Pokémon/Extension ni parcours de création automatique. L'UX de création/ouverture automatique depuis les pages catalogue relève de la Phase 7 ; son backend reste une réalisation de Phase 5.
 
 La distinction des collections reçues est anticipée dans le Dashboard ; leur accès effectif et le parcours de partage seront livrés en Phase 9. Les collections partagées resteront distinctes de celles dont l'utilisateur est propriétaire.
 
@@ -148,7 +150,7 @@ Classeur reste réservé aux collections. La liste définitive des formats et la
 
 - pages Pokémon, Extension et Carte, en vues Liste / Cartes ;
 - consultation des Cartes distinctes puis de leurs Variantes, selon les ordres définis dans les références ;
-- depuis Pokémon ou Extension, création ou ouverture de la collection automatique personnelle correspondante.
+- depuis les pages Pokémon ou Extension, actions `Créer ma collection…` / `Ouvrir ma collection…` pour la collection automatique personnelle correspondante.
 
 Ces pages présentent le catalogue sans progression ni statistiques personnelles. Une collection partagée ne remplace pas la collection personnelle correspondant à une cible.
 
@@ -249,7 +251,7 @@ Cette liste n'intègre aucun de ces sujets à la V1 et ne lève pas ses exclusio
 
 MY. est conçu pour évoluer au-delà de sa première version, tout en gardant la gestion des collections au centre du produit.
 
-La V1 établit un catalogue Pokémon TCG fiable, des variantes identifiées distinctement, des collections libres ou automatiques et des données personnelles cohérentes à l'échelle du compte.
+La V1 établit un catalogue Pokémon TCG fiable, des variantes identifiées distinctement, des collections personnalisées ou automatiques et des données personnelles cohérentes à l'échelle du compte.
 
 Les orientations à long terme seront précisées selon :
 

@@ -13,7 +13,7 @@ MY. est centré sur la gestion personnelle de collections de cartes Pokémon TCG
 La V1 permet principalement de :
 
 - gérer plusieurs collections ;
-- créer des collections libres ou automatiques ;
+- créer des collections personnalisées ou automatiques ;
 - suivre les cartes possédées et manquantes ;
 - gérer plusieurs exemplaires physiques d'une même carte ;
 - consulter une collection sous plusieurs vues ;
@@ -56,13 +56,13 @@ Le header authentifié permanent donne accès au Dashboard par le logo MY., à l
 
 Après connexion, l'utilisateur accède à son dashboard, point central d'accès aux collections. Celui-ci distingue clairement au minimum deux catégories, sans imposer encore leur présentation exacte dans l'interface.
 
-Au sein des collections, l'utilisateur doit pouvoir distinguer les types `Libre`, `Automatique · Pokémon` et `Automatique · Extension`, ainsi que la cible automatique lorsque cela est pertinent.
+Au sein des collections, l'utilisateur doit pouvoir distinguer les types `Personnalisée`, `Automatique · Pokémon` et `Automatique · Extension`, ainsi que la cible automatique lorsque cela est pertinent.
 
 ### Mes collections
 
 Cette catégorie regroupe les collections dont l'utilisateur est propriétaire. Il peut :
 
-- créer une collection ;
+- créer une collection personnalisée depuis le Dashboard ;
 - ouvrir une collection ;
 - modifier les informations générales d'une collection ;
 - supprimer une collection.
@@ -83,23 +83,22 @@ Le choix entre des onglets, des sections ou une navigation dédiée relève du c
 
 ## Création et informations générales d'une collection
 
-Lors de la création d'une collection, l'utilisateur choisit entre deux types :
+Deux types de collections existent, avec des points d'entrée distincts :
 
-- une collection libre ;
-- une collection automatique.
+- une collection personnalisée se crée depuis le Dashboard : `Créer une collection personnalisée` → Nom → Création ;
+- une collection automatique se crée depuis la page catalogue d'un Pokémon ou d'une Extension précise : `Créer ma collection…` → Nom → création automatique. Ce parcours sera livré avec les pages catalogue.
 
-Pour une collection automatique, il choisit ensuite un type de cible puis la cible correspondante :
+Le Dashboard crée uniquement des collections personnalisées, sans wizard ni sélecteur de cible automatique. Pour une cible automatique déjà possédée, la page catalogue propose `Ouvrir ma collection…`. Une collection reçue en partage ne remplace jamais la collection automatique personnelle de cette cible.
 
-- un Pokémon ;
-- une extension, c'est-à-dire un set précis.
+La recherche globale reste un outil de navigation vers ces pages : aucune création directe depuis ses suggestions.
 
-Une collection possède un nom d'au moins **3 caractères utiles après trim**, à la création comme au renommage, pour les collections libres et automatiques. L'interface et PostgreSQL garantissent cette règle. Aucune autre métadonnée ne doit être supposée tant qu'elle n'est pas cadrée.
+Une collection possède un nom d'au moins **3 caractères utiles après trim**, à la création comme au renommage, pour les collections personnalisées et automatiques. L'interface et PostgreSQL garantissent cette règle. Aucune autre métadonnée ne doit être supposée tant qu'elle n'est pas cadrée.
 
 Le propriétaire peut modifier les informations générales de sa collection et, au minimum, son nom. Le type d'une collection ne doit pas être considéré comme modifiable après sa création sans cadrage spécifique.
 
-## Collections libres
+## Collections personnalisées
 
-Une collection libre est entièrement construite par son propriétaire. Celui-ci peut :
+Une collection personnalisée est entièrement construite par son propriétaire. Celui-ci peut :
 
 - ajouter les cartes de son choix ;
 - supprimer les cartes ajoutées ;
@@ -109,13 +108,13 @@ Une collection libre est entièrement construite par son propriétaire. Celui-ci
 
 Elle ne dépend d'aucune logique automatique liée à un Pokémon. Elle peut notamment représenter une collection personnelle spécifique, une sélection de cartes favorites, une collection thématique, une wishlist ou un objectif personnel.
 
-La wishlist est seulement un exemple d'usage d'une collection libre et ne constitue pas une fonctionnalité supplémentaire de la V1.
+La wishlist est seulement un exemple d'usage d'une collection personnalisée et ne constitue pas une fonctionnalité supplémentaire de la V1.
 
 ## Collections automatiques
 
 Une collection automatique possède une cible. Deux types de cible sont proposés dans la V1 : Pokémon et Extension.
 
-Un utilisateur ne peut posséder qu'une seule collection automatique pour une même cible : une par Pokémon et une par Extension. Deux utilisateurs différents peuvent choisir la même cible ; les collections libres ne sont pas concernées. Cette unicité est garantie par PostgreSQL, y compris en cas de créations concurrentes.
+Un utilisateur ne peut posséder qu'une seule collection automatique pour une même cible : une par Pokémon et une par Extension. Deux utilisateurs différents peuvent choisir la même cible ; les collections personnalisées ne sont pas concernées. Cette unicité est garantie par PostgreSQL, y compris en cas de créations concurrentes.
 
 Le contenu automatique est généré depuis le catalogue local MY. selon des règles communes et reproductibles. Quel que soit le type de cible, la structure est matérialisée et gérée par MY., l'ordre initial est canonique, les ajouts manuels restent possibles et toute mise à jour structurelle nécessite une validation explicite. Après création, le propriétaire peut librement réordonner tous les éléments, automatiques comme manuels.
 

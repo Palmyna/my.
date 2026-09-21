@@ -100,7 +100,7 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
   expect(screen.getByRole('button', { name: 'Mon compte' })).toHaveAttribute('aria-haspopup', 'menu')
   expect(within(screen.getByRole('main')).queryByRole('navigation')).not.toBeInTheDocument()
   if (path === '/settings') expect(within(screen.getByRole('main')).queryByRole('button')).not.toBeInTheDocument()
-  if (path === '/dashboard') expect(within(screen.getByRole('main')).getByRole('button', { name: 'Nouvelle collection' })).toBeVisible()
+  if (path === '/dashboard') expect(within(screen.getByRole('main')).getByRole('button', { name: 'Créer une collection personnalisée' })).toBeVisible()
   const page = screen.getByRole('region', { name: title })
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   expect(page).toContainElement(screen.getByRole('heading', { level: 1, name: title }))
