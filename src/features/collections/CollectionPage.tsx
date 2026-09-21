@@ -30,11 +30,13 @@ export function CollectionPage() {
   return <section className="authenticated-page collection-page" aria-labelledby="page-title">
     <Link className="collection-back" to="/dashboard">Retour au Dashboard</Link>
     <div className={`collection-overview ${presentation?.colorClassName ?? ''}`} style={presentation?.style}>
-      <h1 id="page-title" tabIndex={-1}>{title}</h1>
+      <header className="collection-heading">
+        <h1 id="page-title" tabIndex={-1}>{title}</h1>
+      </header>
       {collection && <>
         <div className="collection-overview-meta">
           <p className="collection-type">{presentation?.typeLabel}</p>
-          <p className="collection-access">{collection.access === 'shared' ? 'Partagée · Lecture seule' : 'Votre collection'}</p>
+          {collection.access === 'shared' && <p className="collection-access">Partagée · Lecture seule</p>}
         </div>
         {collection.collectionType === 'automatic' && collection.targetName && <p className="collection-target">{collection.targetName}</p>}
         <CollectionProgress collection={collection} />

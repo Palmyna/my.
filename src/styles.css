@@ -61,16 +61,18 @@ h1:focus { outline: none; }
 .collection-tile:focus-visible { outline: 3px solid var(--collection-accent); outline-offset: 5px; }
 .collection-page { max-width: 1000px; }
 .collection-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 20px; font-size: .85rem; }
-.collection-overview { --collection-accent: #ed7d83; --collection-surface: #302626; --collection-border: #68595b; padding: clamp(24px, 4vw, 40px); border: 1px solid var(--collection-border); border-radius: 12px; background: var(--collection-surface); overflow-wrap: anywhere; }
-.collection-overview h1 { margin-bottom: 24px; }
+.collection-overview { --collection-accent: #ed7d83; --collection-border: #68595b; overflow-wrap: anywhere; }
+.collection-heading { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px; margin-bottom: 24px; }
+.collection-heading h1 { flex: 1 1 240px; min-width: 0; margin: 0; }
 .collection-overview-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px; }
 .collection-overview-meta p { margin: 0; }
 .collection-overview .collection-target { margin: 16px 0 0; }
-.collection-overview .collection-progress { max-width: 560px; padding-top: 40px; }
+.collection-overview .collection-progress { padding-top: 40px; }
+.collection-overview .collection-progress-track { background: #493c3d; }
 .collection-overview .collection-count { font-size: 1.5rem; }
 .collection-overview .collection-percentage { font-size: 1rem; }
 .collection-page-status { margin: 0; color: #ddd3d4; }
-.collection-overview .collection-skeleton { margin-top: 24px; min-height: 180px; }
+.collection-overview .collection-skeleton { margin-top: 24px; min-height: 180px; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .collection-overview .collection-skeleton span:last-child { margin-top: 40px; }
 .collection-page-error .button { width: fit-content; }
 .dashboard-empty { padding: 28px 24px; border: 1px dashed #68595b; border-radius: 12px; color: #c9bfc0; font-size: .9rem; }

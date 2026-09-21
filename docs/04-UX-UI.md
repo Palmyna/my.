@@ -300,6 +300,8 @@ Dans la V1, toutes les collections automatiques sont accessibles sans abonnement
 
 La première page livrée en 5D.1 présente uniquement l'identité de la collection : nom en `h1`, type (`Personnalisée`, `Automatique · Pokémon` ou `Automatique · Extension`), cible automatique lorsqu'elle est disponible, progression et mode d'accès. Elle reprend la famille chromatique de sa tuile et la même présentation de progression, y compris l'état neutre `0 / 0`. Le lien `Retour au Dashboard` reste disponible dans tous les états. Les collections partagées portent le libellé `Partagée · Lecture seule`, avec la progression du propriétaire. Aucune action de modification n'est encore présentée ; renommer et supprimer relèvent de 5D.2.
 
+L'identité est intégrée directement au fond principal MY., sans grande carte teintée ni encadrement de l'overview. La couleur déterministe reste un accent sur le type, certains badges et la large barre de progression. Le nom peut revenir à la ligne ; son en-tête flexible pourra accueillir les actions en haut à droite et se réorganiser sur mobile, sans positionnement absolu. Aucun bouton ni menu vide n'est affiché en attendant ces actions.
+
 Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones. Le contenu et les vues décrits ci-dessous restent à livrer en Phase 6.
 
 Une collection dispose d'une page principale commune à ses trois vues. Elle donne facilement accès à :
@@ -314,7 +316,9 @@ Une collection dispose d'une page principale commune à ses trois vues. Elle don
 - une éventuelle mise à jour disponible ;
 - le contenu de la collection.
 
-Les actions secondaires peuvent être regroupées afin que la barre d'outils ne devienne pas excessivement chargée. Passer d'une vue à une autre ne doit pas donner l'impression de charger une expérience sans rapport avec la précédente.
+Le pattern de menu contextuel `…` s'applique également aux Collections : une action principale importante reste directement visible si nécessaire ; les actions secondaires ou contextuelles sont regroupées dans ce menu, selon les droits et le contexte. Il pourra notamment accueillir `Renommer`, `Partager` et `Supprimer la collection` ; ces actions ne sont pas encore livrées dans la page Collection. Les actions non destructives propres à une collection peuvent reprendre sa couleur d'accent pour leur bordure, hover ou focus. Les actions destructives restent visuellement distinctes et utilisent toujours le langage danger indépendant de cet accent.
+
+Passer d'une vue à une autre ne doit pas donner l'impression de charger une expérience sans rapport avec la précédente.
 
 ## Recherche
 
