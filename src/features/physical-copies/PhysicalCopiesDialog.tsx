@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createPhysicalCopy, deletePhysicalCopy, listPhysicalCopies, PhysicalCopiesError, updatePhysicalCopyName } from '../../services/physical-copies'
+import { createPhysicalCopy, deletePhysicalCopy, listPhysicalCopies, PHYSICAL_COPY_NOTE_MAX_LENGTH, PhysicalCopiesError, updatePhysicalCopy } from '../../services/physical-copies'
 import { useAuth } from '../auth/auth-context'
 import { physicalCopiesKey } from './physical-copies-query'
 import './physical-copies.css'
@@ -22,6 +22,7 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Pr
   const copies = useQuery({ queryKey, queryFn: () => listPhysicalCopies(ownerId, variantId), retry: false })
   const [action, setAction] = useState<Action | null>(null)
   const [name, setName] = useState('')
+  const [note, setNote] = useState('')
   const dialog = useRef<HTMLDialogElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const input = useRef<HTMLInputElement>(null)
@@ -35,8 +36,8 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Pr
   const mutation = useMutation({
     mutationFn: async (next: Action) => {
       if (readOnly) throw new PhysicalCopiesError('not_authorized')
-      if (next.type === 'create') await createPhysicalCopy(variantId, name)
-      else if (next.type === 'edit') await updatePhysicalCopyName(next.copyId, name)
+      if (next.type === 'create') await createPhysicalCopy(variantId, name, note)
+      else if (next.type === 'edit') await updatePhysicalCopy(next.copyId, name, note)
       else await deletePhysicalCopy(next.copyId)
     },
     retry: false,
@@ -92,10 +93,11 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Pr
     else onClose()
   }
 
-  function start(next: Action, value: string, target: string) {
+  function start(next: Action, value: string, target: string, noteValue = '') {
     returnTarget.current = target
     mutation.reset()
     setName(value)
+    setNote(noteValue)
     setAction(next)
   }
 
@@ -107,14 +109,16 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Pr
       ? 'Cet exemplaire n’existe plus ou vous n’y avez plus accès. Revenez à la liste pour la rafraîchir.'
       : mutation.error instanceof PhysicalCopiesError && mutation.error.code === 'variant_unavailable'
         ? 'Cette variante n’est plus disponible.'
-        : 'L’opération n’a pas pu être confirmée. Revenez à la liste pour vérifier les exemplaires avant de réessayer.'
+        : mutation.error instanceof PhysicalCopiesError && mutation.error.code === 'note_too_long'
+          ? 'L’état / note ne peut pas dépasser 750 caractères.'
+          : 'L’opération n’a pas pu être confirmée. Revenez à la liste pour vérifier les exemplaires avant de réessayer.'
 
   return <dialog ref={dialog} className="collection-dialog collection-action-dialog physical-copies-dialog"
     aria-labelledby={`${id}-title`} aria-describedby={`${id}-variant`}
     onCancel={event => { event.preventDefault(); dismiss() }}
     onKeyDown={event => {
       if (event.key !== 'Tab') return
-      const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)'))
+      const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled)'))
       const first = controls[0], last = controls[controls.length - 1]
       if (!first || !last) { event.preventDefault(); heading.current?.focus(); return }
       const onControl = controls.includes(document.activeElement as HTMLElement)
@@ -133,9 +137,11 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Pr
       {copies.isSuccess && (copies.data.length === 0 ? <p>Aucun exemplaire.</p> : <ul className="physical-copies-list">
         {copies.data.map((copy, index) => {
           const label = copy.name?.trim() || `Exemplaire ${index + 1}`
-          return <li key={copy.id}><span>{label}</span>{!readOnly && <CopyActions label={label} buttonId={`${id}-${copy.id}`}
-            edit={() => start({ type: 'edit', copyId: copy.id, label }, copy.name ?? '', `${id}-${copy.id}`)}
-            remove={() => start({ type: 'delete', copyId: copy.id, label }, '', `${id}-${copy.id}`)} />}</li>
+          return <li key={copy.id}><div className="physical-copy-row"><span>{label}</span>
+            {copy.note?.trim() && <CopyNote note={copy.note} label={label} />}
+            {!readOnly && <CopyActions label={label} buttonId={`${id}-${copy.id}`}
+              edit={() => start({ type: 'edit', copyId: copy.id, label }, copy.name ?? '', `${id}-${copy.id}`, copy.note ?? '')}
+              remove={() => start({ type: 'delete', copyId: copy.id, label }, '', `${id}-${copy.id}`)} />}</div></li>
         })}
       </ul>)}
       <div className="collection-dialog-actions">
@@ -154,6 +160,14 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Pr
         <input id={`${id}-name`} ref={input} value={name} autoComplete="off" disabled={mutation.isPending}
           aria-describedby={`${id}-hint`} onChange={event => setName(event.target.value)} />
         <p className="hint" id={`${id}-hint`}>Sans nom, l’exemplaire reçoit un numéro d’affichage recalculé automatiquement.</p>
+        <label className="field" htmlFor={`${id}-note`}>État / note (facultatif)</label>
+        <textarea id={`${id}-note`} value={note} rows={4} disabled={mutation.isPending}
+          aria-describedby={`${id}-note-count`} onChange={event => {
+            if (Array.from(event.target.value).length <= PHYSICAL_COPY_NOTE_MAX_LENGTH) setNote(event.target.value)
+          }} />
+        <p className="hint physical-copy-note-count" id={`${id}-note-count`}>
+          {Array.from(note).length} / {PHYSICAL_COPY_NOTE_MAX_LENGTH}
+        </p>
       </>}
       {mutation.isError && <p ref={errorNode} className="feedback error" role="alert" tabIndex={-1}>{errorMessage}</p>}
       {mutation.isPending && <p role="status">{action.type === 'delete' ? 'Suppression…' : 'Enregistrement…'}</p>}
@@ -165,6 +179,21 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Pr
       </div>
     </form>}
   </dialog>
+}
+
+function CopyNote({ note, label }: { note: string; label: string }) {
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  return <>
+    <button type="button" className="collection-actions-trigger physical-copy-note-trigger"
+      aria-label={`${open ? 'Masquer' : 'Afficher'} l’état / note de ${label}`}
+      aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(value => !value)}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+        <path d="M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7 M9 16h7" />
+      </svg>
+    </button>
+    {open && <p id={id} className="physical-copy-note">{note}</p>}
+  </>
 }
 
 function CopyActions({ label, buttonId, edit, remove }: { label: string; buttonId: string; edit: () => void; remove: () => void }) {

@@ -1,4 +1,9 @@
 .physical-copies-dialog { --collection-accent: #ff969b; --collection-border: #68595b; }
 .physical-copies-list { list-style: none; margin: 20px 0; padding: 0 0 100px; }
-.physical-copies-list > li { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid #514344; }
-.physical-copies-list > li > span { min-width: 0; overflow-wrap: anywhere; }
+.physical-copies-list > li { padding: 12px 0; border-bottom: 1px solid #514344; }
+.physical-copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.physical-copy-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.physical-copy-note-trigger { flex: 0 0 auto; }
+.physical-copy-note { flex-basis: 100%; order: 1; min-width: 0; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.physical-copies-dialog textarea { display: block; width: 100%; padding: 12px; border: 1px solid #68595b; border-radius: 8px; background: #302626; color: #fff; font: inherit; resize: vertical; }
+.physical-copy-note-count { text-align: right; }

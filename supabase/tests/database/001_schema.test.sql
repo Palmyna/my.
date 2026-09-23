@@ -151,10 +151,10 @@ select lives_ok($$insert into collection_items(collection_id, variant_id, origin
 select results_eq($$select variant_id from collection_items where collection_id = '20000000-0000-0000-0000-000000000001' order by sort_position, id$$, array[-1,-3,-2]::bigint[], 'Fractional positions preserve expected order');
 select throws_ok($$update collection_items set sort_position = 'NaN' where id = '30000000-0000-0000-0000-000000000001'$$, '23514', null, 'NaN cannot be a position');
 
-select throws_ok($$update physical_copies set grading_company = 'Test' where id = '40000000-0000-0000-0000-000000000001'$$, '23514', null, 'Ungraded copy has no grading company');
-select throws_ok($$update physical_copies set grading_score = 'A+' where id = '40000000-0000-0000-0000-000000000001'$$, '23514', null, 'Ungraded copy has no grading score');
-select lives_ok($$update physical_copies set is_graded = true where id = '40000000-0000-0000-0000-000000000001'$$, 'Graded copy may have unknown company and score');
-select lives_ok($$update physical_copies set grading_score = 'A+', condition = 'Custom condition' where id = '40000000-0000-0000-0000-000000000001'$$, 'Condition and score remain textual');
+select lives_ok($$update physical_copies set note = repeat('x',750) where id = '40000000-0000-0000-0000-000000000001'$$, 'Note accepts 750 characters');
+select throws_ok($$update physical_copies set note = repeat('x',751) where id = '40000000-0000-0000-0000-000000000001'$$, '23514', null, 'Note rejects 751 characters');
+select lives_ok($$update physical_copies set note = null where id = '40000000-0000-0000-0000-000000000001'$$, 'Note remains nullable');
+select lives_ok($$update physical_copies set note = E'Libre\nA+ : texte sans interprétation' where id = '40000000-0000-0000-0000-000000000001'$$, 'Note remains free multiline text');
 select throws_ok($$insert into collection_shares(collection_id, recipient_user_id) values ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001')$$, '23514', null, 'Self-sharing impossible');
 select throws_ok($$insert into collection_shares(collection_id, recipient_user_id) values ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002')$$, '23505', null, 'Duplicate sharing impossible');
 select throws_ok($$update collection_shares set recipient_user_id = '10000000-0000-0000-0000-000000000001' where id = '50000000-0000-0000-0000-000000000001'$$, '23514', null, 'Self-share blocked on UPDATE');

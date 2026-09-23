@@ -3,6 +3,26 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
+-- Includes Phase 6A.2 expectations; run only after manual migration application.
+select hasnt_column('public', 'physical_copies', 'condition', 'Condition removed');
+select hasnt_column('public', 'physical_copies', 'is_graded', 'Grading flag removed');
+select hasnt_column('public', 'physical_copies', 'grading_company', 'Grading company removed');
+select hasnt_column('public', 'physical_copies', 'grading_score', 'Grading score removed');
+select ok(not exists(select 1 from pg_constraint where conrelid='public.physical_copies'::regclass
+  and conname='physical_copies_grading_check'), 'Grading constraint removed');
+select has_column('public', 'physical_copies', 'note', 'Note exists');
+select col_type_is('public', 'physical_copies', 'note', 'text', 'Note is text');
+select col_is_null('public', 'physical_copies', 'note', 'Note is nullable');
+select results_eq($$select column_name::text from information_schema.column_privileges
+  where table_schema='public' and table_name='physical_copies' and grantee='authenticated'
+  and privilege_type='UPDATE' order by column_name$$, array['name','note']::text[], 'Only metadata has UPDATE grants');
+select results_eq($$select column_name::text from information_schema.column_privileges
+  where table_schema='public' and table_name='physical_copies' and grantee='authenticated'
+  and privilege_type='INSERT' order by column_name$$, array['name','note','variant_id']::text[], 'INSERT grants match expected schema');
+select ok((select relrowsecurity from pg_class where oid='public.physical_copies'::regclass), 'RLS remains enabled');
+select results_eq($$select policyname::text from pg_policies where schemaname='public' and tablename='physical_copies' order by policyname$$,
+  array['physical_copies_delete_own','physical_copies_insert_own','physical_copies_read','physical_copies_update_own','require_mfa','require_my_profile']::text[], 'RLS policy set unchanged');
+
 select has_column('public', 'physical_copies', 'name', 'Optional custom name exists');
 select col_type_is('public', 'physical_copies', 'name', 'text', 'Name is text');
 select col_is_null('public', 'physical_copies', 'name', 'Name is nullable');
@@ -36,12 +56,20 @@ select lives_ok($$insert into public.physical_copies(variant_id) values(-84001)$
 select is((select name from public.physical_copies where variant_id=-84001), null::text, 'Default name is NULL, never a generated label');
 select is((select user_id from public.physical_copies where variant_id=-84001),
   'a1400000-0000-0000-0000-000000000001'::uuid, 'Owner comes from auth.uid');
-select lives_ok($$insert into public.physical_copies(variant_id,name,condition,is_graded,grading_company,grading_score,note)
-  values(-84001,'Ma copie','ancienne condition',true,'Société','A','Note conservée')$$, 'Owner creates second named copy');
+select lives_ok($$insert into public.physical_copies(variant_id,name,note)
+  values(-84001,'Ma copie','Note conservée')$$, 'Owner creates second named copy');
 select is((select count(*) from public.physical_copies where variant_id=-84001),2::bigint,'Multiple copies for one variant');
 select lives_ok($$update public.physical_copies set name='Nouveau nom' where variant_id=-84001 and name='Ma copie'$$, 'Owner edits name');
-select results_eq($$select name,condition,is_graded,grading_company,grading_score,note from public.physical_copies where name='Nouveau nom'$$,
-  $$values('Nouveau nom'::text,'ancienne condition'::text,true,'Société'::text,'A'::text,'Note conservée'::text)$$, 'Only name changed; legacy fields preserved');
+select results_eq($$select name,note from public.physical_copies where name='Nouveau nom'$$,
+  $$values('Nouveau nom'::text,'Note conservée'::text)$$, 'Only name changed; note preserved');
+select lives_ok($$update public.physical_copies set note=repeat('📝',750) where name='Nouveau nom'$$, 'Owner writes 750 Unicode characters');
+select throws_ok($$update public.physical_copies set note=repeat('📝',751) where name='Nouveau nom'$$, '23514', null, '751 characters rejected on update');
+select throws_ok($$insert into public.physical_copies(variant_id,note) values(-84001,repeat('x',751))$$, '23514', null, '751 characters rejected on insert');
+select is((select char_length(note) from public.physical_copies where name='Nouveau nom'),750,'Rejected write preserves previous note');
+select lives_ok($$update public.physical_copies set note=null where name='Nouveau nom'$$, 'Owner clears note');
+select is((select note from public.physical_copies where name='Nouveau nom'),null::text,'Cleared note is NULL');
+select lives_ok($$update public.physical_copies set note=E'  Recto\n\nVerso  \n' where name='Nouveau nom'$$,'Owner writes free multiline note');
+select is((select note from public.physical_copies where name='Nouveau nom'),E'  Recto\n\nVerso  \n','Whitespace and newlines retained');
 select lives_ok($$update public.physical_copies set name=null where variant_id=-84001 and name='Nouveau nom'$$,'Owner clears name');
 select is((select count(*) from public.physical_copies where variant_id=-84001 and name is null),2::bigint,'Both names now NULL');
 insert into public.physical_copies(variant_id,name) values(-84002,'Privée');
@@ -52,7 +80,8 @@ select throws_ok($$update public.physical_copies set user_id='a1400000-0000-0000
 set local request.jwt.claims = '{"sub":"a1400000-0000-0000-0000-000000000002","aal":"aal2"}';
 select is((select count(*) from public.physical_copies where variant_id=-84001),2::bigint,'Recipient reads all copies of shared variant');
 select is((select count(*) from public.physical_copies where variant_id=-84002),0::bigint,'Other owner variants stay private');
-with changed as (update public.physical_copies set name='Attaque' where variant_id=-84001 returning id)
+select is((select note from public.physical_copies where variant_id=-84001 and note is not null),E'  Recto\n\nVerso  \n','Recipient reads shared note');
+with changed as (update public.physical_copies set name='Attaque',note='Attaque' where variant_id=-84001 returning id)
 select is((select count(*) from changed),
   0::bigint,'Recipient cannot edit owner copies');
 with removed as (delete from public.physical_copies where variant_id=-84001 returning id)
@@ -75,7 +104,7 @@ select is((select count(*) from public.physical_copies where variant_id=-84001),
 
 set local request.jwt.claims = '{"sub":"a1400000-0000-0000-0000-000000000003","aal":"aal2"}';
 select is((select count(*) from public.physical_copies where variant_id in(-84001,-84002)),0::bigint,'Unrelated user sees none');
-with changed as (update public.physical_copies set name='Attaque' where variant_id=-84001 returning id)
+with changed as (update public.physical_copies set name='Attaque',note='Attaque' where variant_id=-84001 returning id)
 select is((select count(*) from changed),0::bigint,'Unrelated user cannot update');
 with removed as (delete from public.physical_copies where variant_id=-84001 returning id)
 select is((select count(*) from removed),0::bigint,'Unrelated user cannot delete');
@@ -83,6 +112,8 @@ select is((select count(*) from removed),0::bigint,'Unrelated user cannot delete
 set local request.jwt.claims = '{"sub":"a1400000-0000-0000-0000-000000000001","aal":"aal1"}';
 select is((select count(*) from public.physical_copies where variant_id=-84001),0::bigint,'aal1 cannot read');
 select throws_ok($$insert into public.physical_copies(variant_id,name) values(-84001,'Interdit')$$,'42501',null,'aal1 cannot create');
+with changed as (update public.physical_copies set note='Attaque' where variant_id=-84001 returning id)
+select is((select count(*) from changed),0::bigint,'aal1 cannot edit notes');
 set local request.jwt.claims = '{"sub":"a1400000-0000-0000-0000-000000000001","aal":"aal2"}';
 with removed as (delete from public.physical_copies where id=(select id from public.physical_copies where variant_id=-84001 order by created_at,id limit 1) returning id)
 select is((select count(*) from removed),1::bigint,'Delete removes exactly one copy');

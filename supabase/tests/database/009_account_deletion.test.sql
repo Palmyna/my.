@@ -34,10 +34,10 @@ insert into collections(id, owner_id, name, collection_type) values
   ('91000000-0000-0000-0000-000000000003', '90000000-0000-0000-0000-000000000002', 'Other shared', 'free');
 insert into collection_items(collection_id, variant_id, origin, sort_position)
   select id, -904, 'manual', 1 from collections where id::text like '91000000-%';
-insert into physical_copies(user_id, variant_id, condition, is_graded, grading_company, grading_score, note) values
-  ('90000000-0000-0000-0000-000000000001', -904, 'Good', true, 'PSA', '9', 'Owned graded copy'),
-  ('90000000-0000-0000-0000-000000000001', -904, 'Good', false, null, null, 'Owned other copy'),
-  ('90000000-0000-0000-0000-000000000002', -904, 'Good', true, 'PSA', '10', 'Other copy');
+insert into physical_copies(user_id, variant_id, name, note) values
+  ('90000000-0000-0000-0000-000000000001', -904, 'Owned copy', 'Owned note'),
+  ('90000000-0000-0000-0000-000000000001', -904, null, 'Owned other copy'),
+  ('90000000-0000-0000-0000-000000000002', -904, 'Other copy', 'Other note');
 insert into user_preferences(user_id) values ('90000000-0000-0000-0000-000000000001'), ('90000000-0000-0000-0000-000000000002');
 insert into collection_shares(collection_id, recipient_user_id) values
   ('91000000-0000-0000-0000-000000000001', '90000000-0000-0000-0000-000000000002'),
@@ -96,7 +96,7 @@ select is((select count(*) from collections where owner_id = '90000000-0000-0000
 select is((select count(*) from collection_items where collection_id in ('91000000-0000-0000-0000-000000000001','91000000-0000-0000-0000-000000000002')), 0::bigint, 'Owned collection items deleted');
 select is((select count(*) from collection_shares where collection_id = '91000000-0000-0000-0000-000000000001'), 0::bigint, 'Outgoing shares deleted');
 select is((select count(*) from collection_shares where recipient_user_id = '90000000-0000-0000-0000-000000000001'), 0::bigint, 'Received shares deleted');
-select is((select count(*) from physical_copies where user_id = '90000000-0000-0000-0000-000000000001'), 0::bigint, 'Copies with grading, condition and notes deleted');
+select is((select count(*) from physical_copies where user_id = '90000000-0000-0000-0000-000000000001'), 0::bigint, 'Copies with names and notes deleted');
 select is(pg_temp.fingerprint('public', tab, predicate), hash, 'Other user rows unchanged: ' || tab) from others_before;
 select is(pg_temp.fingerprint(schema_name, tab), hash, 'Catalogue unchanged: ' || schema_name || '.' || tab) from catalogue_before;
 select lives_ok($$delete from auth.users where id = '90000000-0000-0000-0000-000000000001'$$, 'Repeated privileged deletion has no further effect');

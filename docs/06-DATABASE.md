@@ -524,7 +524,7 @@ La base, les permissions ou les opérations métier doivent garantir que :
 
 ### `physical_copies`
 
-Une ligne représente un exemplaire physique individuel. Elle conserve notamment :
+Une ligne représente un exemplaire physique individuel. Modèle prévu après application manuelle de la migration 6A.2 :
 
 | Champ | Type ou rôle retenu |
 |---|---|
@@ -532,26 +532,24 @@ Une ligne représente un exemplaire physique individuel. Elle conserve notamment
 | `user_id` | UUID du propriétaire |
 | `variant_id` | `BIGINT` de la variante |
 | `name` | Nom personnalisé facultatif (`TEXT` nullable, Phase 6A.1) |
-| `condition` | État de conservation |
-| `is_graded` | Indication de grading |
-| `grading_company` | Société, sous forme textuelle |
-| `grading_score` | Note, sous forme textuelle |
-| `note` | Note personnelle |
+| `note` | État / note facultatif (`TEXT` nullable, au plus 750 caractères) |
 | timestamps | Création et mise à jour |
 
 Un exemplaire appartient à un utilisateur et à une variante. Il ne possède jamais de `collection_id`.
 
-Chaque exemplaire est une ligne distincte. Un champ de quantité ne doit pas remplacer ces lignes, car chaque copie peut avoir son propre état, son grading et sa note.
+Chaque exemplaire est une ligne distincte. Un champ de quantité ne doit pas remplacer ces lignes, car chaque copie peut avoir son propre nom et sa propre note.
 
 En Phase 6A.1, le nom vide est enregistré à `NULL`. Sans nom personnalisé, l’UI affiche `Exemplaire N`, recalculé selon `created_at`, puis `id`, sans persister ce libellé ni un ordre manuel. L’ajout explicite crée un seul exemplaire ; supprimer le dernier conserve les éléments de collection.
 
-### Condition et grading
+### État / note — Phase 6A.2 préparée
 
-La nomenclature des conditions n'est pas encore validée. `condition` doit rester compatible avec une future liste contrôlée sans figer prématurément un enum définitif.
+La note est un texte libre multiligne, sans interprétation métier, enum ni parsing. Le service refuse plus de 750 caractères Unicode avant envoi ; une chaîne vide ou uniquement composée d'espaces blancs devient `NULL`. Le texte utile, ses espaces et ses retours à la ligne sont conservés. L'UI propose un champ facultatif et un compteur, puis une icône document dépliant la note en lecture seule sous la ligne. Un destinataire autorisé dispose de cette lecture, sans actions d'édition ou de suppression.
 
-`grading_company` et `grading_score` restent textuels. Une note de grading ne doit pas être supposée purement numérique.
+La [migration 6A.2](../supabase/migrations/20260923191714_phase6a2_physical_copy_note.sql), créée mais volontairement non appliquée, supprime `condition`, `is_graded`, `grading_company`, `grading_score`, leur contrainte et les grants de colonnes associés. Elle conserve `name`, `note`, les identifiants, timestamps, index, triggers et policies RLS. `physical_copies_note_length_check` impose `char_length(note) <= 750`, avec `NULL` autorisé. Aucune donnée n'est tronquée : une note existante trop longue fera échouer la transaction entière.
 
-Lorsque `is_graded` est faux, un `CHECK` impose l'absence de `grading_company` et `grading_score`. Lorsque l'exemplaire est gradé, la société et la note peuvent encore être absentes tant que le comportement produit exact n'est pas cadré. `condition`, `grading_company` et `grading_score` sont des `TEXT` nullables, sans nomenclature métier définitive.
+Le workflow reporte l'application des migrations Phase 6 et les tests DB correspondants. Les tests SQL sont adaptés au schéma attendu, sans preuve d'exécution 6A.2. Le générateur du dépôt introspecte la DB locale : `database.generated.ts` reste inchangé et contient encore les quatre anciennes colonnes ; sa régénération réelle attendra l'application manuelle. Le service sélectionne explicitement `id`, `name`, `note`, `created_at`, déjà typés, sans utiliser les anciennes colonnes. Une compilation réussie ne prouve donc pas l'application du nouveau schéma.
+
+Avant validation de la transaction, un rollback conserve les données. Après application, récupérer les métadonnées supprimées nécessite une sauvegarde et une nouvelle migration corrective ; les migrations historiques restent immuables. Cette préparation ne clôture ni 6A.2 globalement ni la Phase 6.
 
 ### Possession dérivée
 
@@ -611,7 +609,7 @@ Les dépendances suivantes existent dans la [migration de schéma Phase 1](../su
 
 Il faut donc couvrir les deux sens du partage : collections possédées partagées à autrui, et relations dont le compte supprimé est destinataire. Supprimer un accès reçu conserve la collection de l'autre propriétaire, ses éléments, ses exemplaires et ses autres destinataires. Les collections possédées supprimées deviennent inaccessibles à leurs destinataires.
 
-Les notes, conditions et informations de grading disparaissent avec les `physical_copies` du compte. Aucun exemplaire d'autrui n'est visé, même s'il référence la même Variante. La suppression d'une collection seule continue à conserver les exemplaires ; seule la suppression complète du compte les efface tous.
+Les noms et notes disparaissent avec les `physical_copies` du compte. Aucun exemplaire d'autrui n'est visé, même s'il référence la même Variante. La suppression d'une collection seule continue à conserver les exemplaires ; seule la suppression complète du compte les efface tous.
 
 **Préservation obligatoire :** aucune suppression dans `pokemon`, `tcg_series`, `tcg_sets`, `source_cards`, `catalog_variants`, `card_pokemon`, `automatic_target_states` ou les tables privées du pipeline. Les FK d'éléments/exemplaires vers les Variantes et de collections vers leurs cibles ne justifient aucune suppression du catalogue. Les données des autres comptes sont préservées, hors les seules relations de partage devenues sans objet.
 
@@ -1133,8 +1131,6 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
-- la nomenclature des conditions ;
-- les sociétés et formats de grading ;
 - l'interaction UX exacte de réorganisation, le rééquilibrage de `sort_position` et la concurrence, dont seul le stockage fractionnaire est fixé ;
 - pour la Phase 8, le placement d'un nouvel élément automatique dans un ordre personnalisé et la stratégie de préservation/ancrage des positions de tous les éléments ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
