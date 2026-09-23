@@ -77,6 +77,8 @@ function FreeCollectionDialog({ userId, trigger, close, created }: {
       setInvalidName(false)
       mutation.mutate({ name }, {
         onSuccess: () => {
+          // An initial read without cached data must also be cancelled before refetching.
+          void queryClient.cancelQueries({ queryKey: dashboardCollectionsKey(userId), exact: true })
           created()
           // Only the current user's Dashboard. Its server read constructs the new tile.
           void queryClient.invalidateQueries({ queryKey: dashboardCollectionsKey(userId), exact: true })

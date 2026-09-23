@@ -125,6 +125,20 @@ test('pending empêche double soumission et fermeture ; succès ferme puis refet
   expect(screen.queryByText('Collection créée.')).not.toBeInTheDocument()
 })
 
+test('création pendant la première lecture : recharge le Dashboard et ignore la réponse antérieure', async () => {
+  let finishInitialRead!: (result: DashboardCollection[]) => void
+  load.mockReturnValueOnce(new Promise(resolve => { finishInitialRead = resolve })).mockResolvedValue([collection])
+  const { client } = setup()
+  expect(screen.getByText('Chargement des collections…')).toBeVisible()
+  open(); name('Ma collection'); submit()
+  await screen.findByText('Collection créée.')
+  expect(await screen.findByRole('article', { name: collection.name })).toBeVisible()
+  expect(load).toHaveBeenCalledTimes(2)
+  await act(async () => { finishInitialRead([]); await Promise.resolve() })
+  expect(client.getQueryData(dashboardCollectionsKey('owner'))).toEqual([collection])
+  expect(screen.getByRole('article', { name: collection.name })).toBeVisible()
+})
+
 test.each([
   ['invalid_name', /au moins 3 caractères/i],
   ['not_authorized', /Reconnectez-vous/],
