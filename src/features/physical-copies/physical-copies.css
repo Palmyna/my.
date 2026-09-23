@@ -1,0 +1,4 @@
+.physical-copies-dialog { --collection-accent: #ff969b; --collection-border: #68595b; }
+.physical-copies-list { list-style: none; margin: 20px 0; padding: 0 0 100px; }
+.physical-copies-list > li { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid #514344; }
+.physical-copies-list > li > span { min-width: 0; overflow-wrap: anywhere; }

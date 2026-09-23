@@ -531,6 +531,7 @@ Une ligne représente un exemplaire physique individuel. Elle conserve notamment
 | `id` | UUID |
 | `user_id` | UUID du propriétaire |
 | `variant_id` | `BIGINT` de la variante |
+| `name` | Nom personnalisé facultatif (`TEXT` nullable, Phase 6A.1) |
 | `condition` | État de conservation |
 | `is_graded` | Indication de grading |
 | `grading_company` | Société, sous forme textuelle |
@@ -541,6 +542,8 @@ Une ligne représente un exemplaire physique individuel. Elle conserve notamment
 Un exemplaire appartient à un utilisateur et à une variante. Il ne possède jamais de `collection_id`.
 
 Chaque exemplaire est une ligne distincte. Un champ de quantité ne doit pas remplacer ces lignes, car chaque copie peut avoir son propre état, son grading et sa note.
+
+En Phase 6A.1, le nom vide est enregistré à `NULL`. Sans nom personnalisé, l’UI affiche `Exemplaire N`, recalculé selon `created_at`, puis `id`, sans persister ce libellé ni un ordre manuel. L’ajout explicite crée un seul exemplaire ; supprimer le dernier conserve les éléments de collection.
 
 ### Condition et grading
 
