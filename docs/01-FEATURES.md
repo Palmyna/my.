@@ -24,6 +24,8 @@ La V1 permet principalement de :
 
 Ces fonctionnalités doivent rester simples à comprendre et rapides à utiliser.
 
+**État livré à la clôture de Phase 5 :** Dashboard des collections personnelles et partagées avec progression et navigation ; création personnalisée ; consultation de l'overview Collection ; renommage et suppression par le propriétaire. Les collections réellement partagées sont consultables en lecture seule grâce au socle DB/RLS, sans actions propriétaire. Le backend de création automatique est livré ; son parcours utilisateur depuis les pages catalogue reste prévu en Phase 7. La création et la gestion utilisateur des partages restent prévues en Phase 9. Les interactions avec le contenu décrites dans ce document restent à livrer selon la [roadmap](08-ROADMAP.md).
+
 ## Comptes utilisateurs
 
 Un utilisateur peut :

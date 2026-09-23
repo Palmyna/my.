@@ -17,21 +17,21 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Les Phases 0 à 4 sont terminées et validées.** Le Profil et la gestion du compte sont livrés ; les garanties serveur de mot de passe, recovery, MFA et suppression sont confirmées dans le [checkpoint Cloud final](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md). La prochaine étape est **Phase 5 — Dashboard, création et gestion des collections**, non commencée.
+**Les Phases 0 à 5 sont terminées et validées.** Le Dashboard, la création personnalisée, l'overview Collection, les actions propriétaire et le backend de création automatique sont livrés. La consultation des collections réellement partagées est disponible en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 5](reports/2026-09-23-PHASE5-CLOSURE.md) précise les acquis et validations. La prochaine étape est **Phase 6 — Cœur fonctionnel des collections**, non commencée.
 
 | Grandes phases | Statut |
 |---|---|
 | 0 à 2 — Fondations, base de données et catalogue | Terminées |
 | 3 — Authentification et socle applicatif authentifié | Terminée |
 | 4 — Profil et gestion du compte | Terminée |
-| 5 — Dashboard, création et gestion des collections | Prochaine phase — non commencée |
-| 6 — Cœur fonctionnel des collections | Planifiée |
+| 5 — Dashboard, création et gestion des collections | Terminée |
+| 6 — Cœur fonctionnel des collections | Prochaine phase — non commencée |
 | 7 — Vues, catalogue, recherche globale et préférences | Planifiée |
 | 8 — Mise à jour des collections automatiques | Planifiée |
 | 9 — Partage des collections | Planifiée |
 | 10 — Finalisation V1 et mise en production | Planifiée |
 
-Le socle SQL, le catalogue et le socle Auth sont déployés et validés dans Supabase cloud ; les écrans Auth et le shell sont validés localement. Le détail des migrations et des validations reste dans le README et les rapports.
+Le socle SQL, le catalogue et le socle Auth sont déployés et validés dans Supabase Cloud. Les trois migrations Phase 5 sont validées localement et déployées sur Cloud, avec historique Local/Remote confirmé aligné jusqu'à `20260920194903` par le propriétaire. Les interfaces Phase 5 sont validées localement. Le détail des migrations et des validations reste dans le README et les rapports.
 
 **Le développement et les tests courants utilisent Supabase local ; les checkpoints Cloud ponctuels exigent une autorisation explicite et des fixtures temporaires. Supabase cloud reste réservé à la future production avec Vercel.** Aucun déploiement Vercel n'est en place. Les URLs de production seront configurées lors de la mise en production ; aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud.
 
@@ -89,28 +89,28 @@ Les [fonctionnalités](01-FEATURES.md#profil-utilisateur), l'[UX](04-UX-UI.md#pr
 
 Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. L'interface des préférences de vues reste prévue en Phase 7. Aucun profil social n'est ajouté.
 
-Le moyen de contact final et les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Les parcours Profil et leurs protections sont livrés et validés, avec leurs preuves locales et Cloud consignées dans le [rapport de clôture](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md). La Phase 5 n'a pas commencé.
+Le moyen de contact final et les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Les parcours Profil et leurs protections sont livrés et validés, avec leurs preuves locales et Cloud consignées dans le [rapport de clôture](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md).
 
 ### Phase 5 — Dashboard, création et gestion des collections
 
-**Statut : PLANIFIÉE**
+**Statut : TERMINÉE**
 
-Transformer le Dashboard minimal en point central d'accès aux collections :
+Le Dashboard est le point central d'accès aux collections. Sont livrés :
 
 - présentation de `Mes collections`, avec nom, type, progression et accès à chaque collection ;
-- distinction prévue avec `Collections partagées avec moi` ;
+- section distincte `Collections partagées avec moi`, avec progression du propriétaire et accès en lecture seule ;
 - création d'une collection personnalisée depuis le Dashboard ;
 - validation du nom, avec au moins 3 caractères utiles après trim ;
-- respect de l'unicité d'une collection automatique par propriétaire et cible, avec ouverture de l'existante ;
-- backend de création automatique autoritative et transactionnelle depuis le catalogue MY., déjà livré via `createAutomatic()` ;
+- respect de l'unicité d'une collection automatique par propriétaire et cible, avec retour de l'existante par le backend ;
+- backend de création automatique autoritative et transactionnelle depuis le catalogue MY. : calcul canonique PostgreSQL, état/version de cible, parité validée et création concurrente via la RPC `create_automatic_collection(...)` et le service `createAutomatic()` ;
 - renommage, suppression et ouverture d'une collection ;
-- première structure de page collection pour accueillir les interactions suivantes.
+- page `/collections/:collectionId` : overview, type/cible, progression, accès direct, états de chargement/erreur/indisponibilité et actions réservées au propriétaire, avec dialogs et navigation clavier accessibles.
 
 La suppression d'une collection conserve les exemplaires physiques. Le détail des interactions avec son contenu arrive en Phase 6.
 
 Le Dashboard ne propose aucun sélecteur Pokémon/Extension ni parcours de création automatique. L'UX de création/ouverture automatique depuis les pages catalogue relève de la Phase 7 ; son backend reste une réalisation de Phase 5.
 
-La distinction des collections reçues est anticipée dans le Dashboard ; leur accès effectif et le parcours de partage seront livrés en Phase 9. Les collections partagées resteront distinctes de celles dont l'utilisateur est propriétaire.
+Le socle DB/RLS et les interfaces Dashboard/Collection permettent déjà de consulter une collection réellement partagée, sans action propriétaire. La création et la gestion utilisateur des partages restent prévues en Phase 9. Les collections partagées restent distinctes de celles dont l'utilisateur est propriétaire.
 
 ### Phase 6 — Cœur fonctionnel des collections
 
@@ -197,12 +197,12 @@ Le placement d'un nouvel élément automatique dans un ordre personnalisé et la
 
 **Statut : PLANIFIÉE**
 
-Permettre le partage en lecture seule avec un autre utilisateur MY. :
+Compléter le socle DB/RLS et la consultation Dashboard/overview en lecture seule livrés en Phase 5 par le parcours utilisateur de partage :
 
 - recherche limitée d'un destinataire par son identifiant public MY., sans annuaire de profils ;
 - identification du destinataire et confirmation par le propriétaire ;
 - création et retrait des accès, sans doublon ni partage à soi-même ;
-- consultation des collections reçues dans le Dashboard et intégration aux résultats de recherche accessibles ;
+- intégration des collections reçues aux résultats de recherche accessibles, en complément de leur présence déjà livrée dans le Dashboard ;
 - consultation des variantes, de la progression et des exemplaires du propriétaire, avec les vues et outils de lecture ;
 - restrictions cohérentes dans l'interface et via RLS.
 

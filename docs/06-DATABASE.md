@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue les Phases 1 et 2 et la préparation des préférences déjà déployées dans le cloud, le socle Auth 3A validé localement et dans Supabase cloud et les opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Les onze migrations jusqu'à la Phase 5 sont validées localement et déployées dans Supabase Cloud. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -18,7 +18,7 @@ Le socle stable est implémenté dans les [migrations versionnées](../supabase/
 
 La Phase 1 est terminée et déployée dans Supabase cloud. La Phase 2 est également terminée : [20260906155043_phase2_catalog_pipeline.sql](../supabase/migrations/20260906155043_phase2_catalog_pipeline.sql) et [20260908083516_phase2_variant_release_dates.sql](../supabase/migrations/20260908083516_phase2_variant_release_dates.sql) y sont présentes, soit les **cinq migrations des Phases 1 et 2**. Le catalogue Phase 2 y a été chargé et vérifié selon la validation du propriétaire consignée dans le [README](../README.md#état-du-projet). Les tables utilisateur étaient encore vides lors de cette validation. Le pipeline reste local/protégé ; cette restriction ne décrit pas la localisation du catalogue résultant.
 
-La migration pipeline apporte les stamps multiples et trois tables privées, sans modifier les migrations précédentes. Les RPC utilisateur et le frontend métier restent à développer.
+La migration pipeline apporte les stamps multiples et trois tables privées, sans modifier les migrations précédentes. À l'issue de la Phase 2, les RPC utilisateur et le frontend métier restaient à développer ; la création automatique et le premier périmètre Collections sont désormais livrés en Phase 5.
 
 La migration de dates de variantes, créée avec la CLI, ajoute la date effective et sa provenance aux variantes. Elle conserve les IDs et backfille la valeur depuis les cartes. Faute de provenance historique persistée sur les cartes, le backfill utilise honnêtement `unknown`, même lorsque la date est connue ; la synchronisation suivante recalcule les provenances correctes. Elle fonctionne aussi lors d'une reconstruction complète depuis les migrations. Le catalogue cloud validé ne comporte aucune date de Variante NULL ni nom français Pokémon manquant ; `sm3.5-28` possède cinq variantes après override.
 
@@ -35,6 +35,18 @@ La migration [20260909184529_phase3a_auth_identity.sql](../supabase/migrations/2
 La V1 utilise email/mot de passe, email confirmé obligatoire et TOTP obligatoire. La configuration Auth et la [procédure de récupération administrative](05-ARCHITECTURE.md#récupération-mfa-administrative) sont définies dans l'architecture. La présence d'un profil n'accorde pas l'accès : toutes les données applicatives nécessitent `aal2`.
 
 La **Phase 4 est terminée**. Les [protections des actions du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) distinguent email/mot de passe gérés par Auth et suppression renforcée côté serveur MY. La migration [20260914102414_phase4b3_account_deletion.sql](../supabase/migrations/20260914102414_phase4b3_account_deletion.sql) ajoute le trigger privé de nettoyage et les restrictions RLS contre les JWT d'un compte supprimé, sans table ni FK supplémentaire. Elle est appliquée localement et dans le Cloud, soit **huit migrations**. Les [Phases 4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) et [4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) livrent les formulaires password et suppression sans évolution SQL. Le [checkpoint 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) valide réellement les refus `current_password`, le recovery, la MFA, la fonction de suppression, le nettoyage des données propres et les lectures vides avec un ancien JWT. Aucun schéma, migration, RLS, type ou réglage Cloud n'est modifié pendant ce checkpoint.
+
+## Phase 5 — Collections
+
+Les trois migrations suivantes sont présentes dans le dépôt, validées localement et déployées sur Supabase Cloud :
+
+| Migration | Responsabilité |
+|---|---|
+| [20260920134607_phase5_canonical_collection_structure.sql](../supabase/migrations/20260920134607_phase5_canonical_collection_structure.sql) | Calcul canonique PostgreSQL interne, ordres et rangs des variantes éligibles |
+| [20260920140934_phase5_create_automatic_collection.sql](../supabase/migrations/20260920140934_phase5_create_automatic_collection.sql) | RPC de création automatique atomique, contrôle de l'état/version et du hash, gestion des créations concurrentes |
+| [20260920194903_phase5_dashboard_collections.sql](../supabase/migrations/20260920194903_phase5_dashboard_collections.sql) | Lecture Dashboard/overview, accès owned/shared et progression du propriétaire sous RLS |
+
+Le propriétaire confirme le déploiement manuel et l'alignement des historiques Local/Remote jusqu'à `20260920194903`, soit onze migrations au total. L'audit 5E.1 valide la reconstruction locale sans diff, la parité canonique et les tests DB/concurrence. Le [rapport de clôture](reports/2026-09-23-PHASE5-CLOSURE.md) conserve ces résultats ; aucun nouveau contrôle ni changement Cloud n'est effectué en 5E.2.
 
 ## Principes structurants
 
