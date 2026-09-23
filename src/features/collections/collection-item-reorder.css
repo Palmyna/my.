@@ -1,0 +1,7 @@
+.collection-reorder-list { list-style: none; padding: 0; margin: 16px 0; }
+.collection-reorder-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #514344; }
+.collection-reorder-row.is-dragging { background: #302626; }
+.collection-reorder-handle { display: grid; place-items: center; flex: 0 0 44px; min-width: 44px; min-height: 44px; padding: 0; border: 1px solid #68595b; border-radius: 8px; color: #c9bfc0; background: transparent; cursor: grab; }
+.collection-reorder-handle:focus-visible { outline: 3px solid #ff969b; outline-offset: 3px; }
+.collection-reorder-handle[aria-disabled="true"] { cursor: not-allowed; opacity: .65; }
+.collection-reorder-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
