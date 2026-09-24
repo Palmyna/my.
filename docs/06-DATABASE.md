@@ -520,6 +520,38 @@ La base, les permissions ou les opérations métier doivent garantir que :
 - un élément manuel conserve `origin = manual` et aucun `automatic_rank` lors d'un déplacement ;
 - une collection personnalisée ne contient aucun élément automatique.
 
+### Lecture du contenu — contrat 6B.1 préparé
+
+La [migration 6B.1](../supabase/migrations/20260924185335_phase6b1_collection_content.sql) est créée mais **non appliquée**. `public.get_collection_content(p_collection_id UUID)` renvoie un **JSONB scalaire contenant un tableau**, en une instruction SQL `STABLE`, sans écriture. Ordre, métadonnées et possession utilisent le même snapshot de lecture. L'ordre du tableau est exactement `collection_items.sort_position, collection_items.id`, identique à `get_collection_item_order` en 6A.3 ; aucune position n'est transmise au frontend.
+
+Chaque objet expose uniquement :
+
+| Champ | Type JSON | Source / règle |
+| --- | --- | --- |
+| `collection_item_id` | string UUID | `collection_items.id`, directement utilisable par les primitives de reorder |
+| `variant_id` | string décimale | `collection_items.variant_id`, sérialisation sans perte du `BIGINT` pour JavaScript |
+| `origin` | string | `collection_items.origin` : `manual` ou `automatic`, donnée technique sans libellé UX |
+| `card_name_fr` | string ou null | `source_cards.name_fr` |
+| `local_id` | string ou null | Numéro original `source_cards.local_id`, sans normalisation d'affichage |
+| `set_name_fr` | string ou null | `tcg_sets.name_fr`, Extension précise, jamais sa série |
+| `image_url` | string ou null | `COALESCE(catalog_variants.image_url, source_cards.image_url)` |
+| `variant_label` | string ou null | `catalog_variants.label` exact, y compris corrections et stamps |
+| `owned` | boolean | Au moins un exemplaire pour `collections.owner_id + collection_items.variant_id` |
+
+Le pipeline persiste déjà l'image variante avec fallback source (`scripts/catalog/plan.ts`). Le contrat réutilise ces valeurs sans reconstruire d'URL : les images TCGdex persistées sont normalement en `high.webp`, une image spécifique conserve son URL et sa résolution, deux valeurs absentes donnent `null`. Aucun remplacement métier, sondage CDN, recalcul de label ou d'identité. Les métadonnées absentes restent nulles. Tous les items visibles sont conservés, manuels et automatiques, même si leur variante est devenue inactive ou inéligible à une nouvelle génération ; les FK et jointures vers des clés uniques évitent les doublons.
+
+`variant_id` suffit à identifier la Variante pour un futur détail : pas d'ID source additionnel. Le nom d'Extension suffit ici ; les abréviations ne sont pas ajoutées sans besoin immédiat. Aucun `sort_position`, `automatic_rank`, compteur d'exemplaires, hash/version, timestamp ou détail de pipeline n'est exposé.
+
+**Sécurité et partage.** Fonction `SECURITY INVOKER`, `search_path` vide, `EXECUTE` accordé seulement à `authenticated` (aucun grant à `PUBLIC`, `anon` ou `service_role`). Les RLS existantes imposent `aal2`, profil MY. présent et propriétaire ou destinataire d'un partage existant. Un partage actif correspond à la présence de sa ligne `collection_shares` ; sa suppression révoque l'accès. Aucun grant de table ni policy n'est changé. La lecture partagée existante des `physical_copies` est conservée. `owned` est un `EXISTS` calculé à chaque lecture pour le **propriétaire**, jamais pour le lecteur : A possède/B non donne `true` à B ; A non/B possède donne `false`. Plusieurs copies ne dupliquent pas l'item.
+
+Collection vide, inexistante, inaccessible, identifiant null, identité/MFA/profil insuffisant sous rôle `authenticated` : `[]`, sans révéler l'existence d'une collection privée, comme le lecteur d'ordre 6A.3. `anon` reçoit un refus de permission d'exécution. Le service 6B.2 devra conserver cette distinction entre contenu vide et disponibilité du parent selon le contrat de lecture du parent ; `[]` seul n'atteste pas l'accès.
+
+**Volume.** Un tableau JSONB scalaire représente une seule valeur REST : `max_rows = 1000` ne découpe pas ses éléments. Pas de pagination ni de lectures successives susceptibles de diverger. Les jointures sont faites en base ; `EXISTS` utilise la paire indexée `(user_id, variant_id)`, sans N+1 réseau. Taille de réponse, mémoire d'agrégation/validation et temps de traitement croissent avec le nombre d'items ; le tableau complet est matérialisé, sans promesse de volume illimité. Une limite de ressources produit une erreur, pas une réponse volontairement tronquée. Aucune mesure de performances n'est revendiquée avant exécution. Le futur service 6B.2 validera un tableau de neuf champs et conservera les IDs décimaux comme chaînes, sans reconstruire l'ordre.
+
+Tests préparés, **non exécutés** : [pgTAP](../supabase/tests/database/015_collection_content.test.sql), [fixture commune](../supabase/tests/database/collection_content.fixtures.inc) et [test HTTP local](../scripts/test-collection-content-api.js). Ils couvrent accès/RLS, contenu exact, ordre/ties, nulls, images, possession partagée, IDs hors précision JavaScript et 1005 éléments. Le test HTTP vérifie d'abord que la lecture REST directe est réellement limitée à 1000, puis exige les 1005 IDs ordonnés dans la RPC propriétaire et partagée ; il rapporte taille/durée et nettoie ses fixtures synthétiques. Il se lance explicitement avec `node scripts/test-collection-content-api.js` uniquement après application manuelle autorisée des migrations et disponibilité du cache de schéma REST ; il n'applique rien et ne modifie aucune configuration.
+
+Contrat additif : anciens lecteurs/écritures inchangés. Une migration de retrait pourra supprimer uniquement cette fonction après retrait de ses consommateurs, sans restauration de données. Service/types/overlays restent en 6B.2, affichage en 6B.3 ; aucun type Supabase généré n'est modifié.
+
 ## Exemplaires physiques
 
 ### `physical_copies`
