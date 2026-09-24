@@ -6,7 +6,7 @@ import { createPhysicalCopy, deletePhysicalCopy, listPhysicalCopies, PhysicalCop
 import { PhysicalCopiesDialog } from './PhysicalCopiesDialog'
 import { physicalCopiesKey } from './physical-copies-query'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
-import { collectionOverviewKey } from '../collections/collection-query'
+import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } from '../collections/collection-query'
 
 const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
@@ -192,6 +192,27 @@ test('add creates one unnamed copy, returns to refreshed list, requires another 
   await add(); editName('Mon deuxième ajout'); submit()
   await screen.findByText('Mon deuxième ajout')
   expect(create).toHaveBeenCalledTimes(2)
+})
+
+test.each(['create', 'delete', 'edit'] as const)('%s refreshes content possession only when it can change', async action => {
+  const { client } = setup()
+  const content = [{ collectionItemId: 'item', variantId: '42', origin: 'manual', cardNameFr: null,
+    localId: null, setNameFr: null, imageUrl: null, variantLabel: null, owned: true }]
+  const affected = collectionContentKey('owner', 'collection')
+  client.setQueryData(affected, content)
+  const untouched = [collectionContentKey('other-user', 'collection'), collectionItemOrderKey('owner', 'collection')]
+  for (const key of untouched) client.setQueryData(key, content)
+  const differentVariant = collectionContentKey('owner', 'different-variant')
+  client.setQueryData(differentVariant, [{ ...content[0], variantId: '43' }])
+  await screen.findByText('Cadeau')
+  if (action === 'create') await add()
+  else await menu('Cadeau', action === 'edit' ? 'Éditer' : 'Supprimer')
+  submit()
+  await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Ajouter un exemplaire' })).toBeVisible())
+  expect(client.getQueryState(affected)?.isInvalidated).toBe(action !== 'edit')
+  for (const key of [...untouched, differentVariant]) expect(client.getQueryState(key)?.isInvalidated).toBe(false)
+  expect(client.getQueryData(affected)).toEqual(content)
 })
 
 test('pending blocks double submit, dismiss and Escape until listing is refreshed', async () => {

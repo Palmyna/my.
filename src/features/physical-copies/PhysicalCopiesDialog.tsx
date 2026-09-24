@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createPhysicalCopy, deletePhysicalCopy, listPhysicalCopies, PHYSICAL_COPY_NOTE_MAX_LENGTH, PhysicalCopiesError, updatePhysicalCopy } from '../../services/physical-copies'
 import { useAuth } from '../auth/auth-context'
-import { physicalCopiesKey } from './physical-copies-query'
+import { invalidateCopyPossession, physicalCopiesKey } from './physical-copies-query'
 import './physical-copies.css'
 
 type Props = { ownerId: string; variantId: number; variantName: string; onClose: () => void }
@@ -41,11 +41,12 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Pr
       else await deletePhysicalCopy(next.copyId)
     },
     retry: false,
-    onSuccess: async () => {
+    onSuccess: async (_data, next) => {
       await Promise.all([
         client.invalidateQueries({ queryKey, exact: true }),
-        // Dashboard and every collection overview derive possession from these rows.
-        client.invalidateQueries({ queryKey: ['collections'] }),
+        // Editing metadata cannot change possession. Existing variant IDs here are numbers;
+        // the content cache compares decimal strings, never converts them to numbers.
+        next.type !== 'edit' ? invalidateCopyPossession(client, viewerId, String(variantId)) : Promise.resolve(),
       ])
       if (active.current) setAction(null)
     },
