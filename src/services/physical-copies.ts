@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
 import { getSupabaseClient } from './supabase'
+import { variantIdString, type VariantIdInput } from '../lib/variant-id'
+import type { PhysicalCopiesDatabase } from '../types/physical-copies'
 
 export type PhysicalCopy = Pick<Database['public']['Tables']['physical_copies']['Row'], 'id' | 'name' | 'note' | 'created_at'>
 export const PHYSICAL_COPY_NOTE_MAX_LENGTH = 750
@@ -48,23 +50,26 @@ function mutationResult(data: unknown): void {
 }
 
 export function createPhysicalCopiesService(client: SupabaseClient<Database>) {
+  const copiesClient = client as unknown as SupabaseClient<PhysicalCopiesDatabase>
   return {
-    list(ownerId: string, variantId: number): Promise<PhysicalCopy[]> {
+    list(ownerId: string, variantId: VariantIdInput): Promise<PhysicalCopy[]> {
       return request(async () => {
+        const decimal = variantIdString(variantId)
         // Scope by owner as well as variant: a recipient may also own copies.
-        const { data, error } = await client.from('physical_copies').select('id,name,note,created_at')
-          .eq('user_id', ownerId).eq('variant_id', variantId).order('created_at').order('id')
+        const { data, error } = await copiesClient.from('physical_copies').select('id,name,note,created_at')
+          .eq('user_id', ownerId).eq('variant_id', decimal).order('created_at').order('id')
         if (error) throw error
         if (!Array.isArray(data)) throw new PhysicalCopiesError('unexpected')
         return data.map(copyResult)
       })
     },
-    create(variantId: number, name = '', note = ''): Promise<void> {
+    create(variantId: VariantIdInput, name = '', note = ''): Promise<void> {
       return request(async () => {
+        const decimal = variantIdString(variantId)
         const values = metadata(name, note)
         // auth.uid() supplies the owner; never accept identity or generated labels.
-        const { data, error } = await client.from('physical_copies')
-          .insert({ variant_id: variantId, ...values }).select('id').single()
+        const { data, error } = await copiesClient.from('physical_copies')
+          .insert({ variant_id: decimal, ...values }).select('id').single()
         if (error) throw error
         mutationResult(data)
       })
@@ -94,7 +99,7 @@ function service() {
   return createPhysicalCopiesService(client)
 }
 
-export async function listPhysicalCopies(ownerId: string, variantId: number) { return service().list(ownerId, variantId) }
-export async function createPhysicalCopy(variantId: number, name: string, note = '') { return service().create(variantId, name, note) }
+export async function listPhysicalCopies(ownerId: string, variantId: VariantIdInput) { return service().list(ownerId, variantId) }
+export async function createPhysicalCopy(variantId: VariantIdInput, name: string, note = '') { return service().create(variantId, name, note) }
 export async function updatePhysicalCopy(copyId: string, name: string, note: string) { return service().update(copyId, name, note) }
 export async function deletePhysicalCopy(copyId: string) { return service().delete(copyId) }

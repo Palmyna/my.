@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { expect, test, vi } from 'vitest'
 import type { Database } from '../types/database.generated'
 import { createPhysicalCopiesService, createPhysicalCopy, deletePhysicalCopy, listPhysicalCopies, PhysicalCopiesError, updatePhysicalCopy } from './physical-copies'
@@ -12,11 +12,35 @@ test('list exposes the exact multiline note', async () => {
   await expect(setup([row]).service.list('owner', 42)).resolves.toEqual([row])
 })
 
+test('BIGINT remains exact through real PostgREST URL and JSON serialization', async () => {
+  const variantId = '9007199254740995'
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(JSON.stringify([copy]), { status: 200 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ id: copy.id }), { status: 201 }))
+  const client = createClient<Database>('https://supabase.example.test', 'test-key', {
+    global: { fetch: fetcher }, auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  })
+  const service = createPhysicalCopiesService(client)
+  await service.list('real-owner', variantId)
+  const input = fetcher.mock.calls[0]![0]
+  const url = new URL(input instanceof Request ? input.url : input)
+  expect(url.searchParams.get('variant_id')).toBe(`eq.${variantId}`)
+  expect(url.searchParams.get('user_id')).toBe('eq.real-owner')
+  await service.create(variantId, 'Cadeau', 'Note')
+  expect(JSON.parse(fetcher.mock.calls[1]![1]!.body as string)).toEqual({ variant_id: variantId, name: 'Cadeau', note: 'Note' })
+})
+
+test.each([9007199254740992, NaN, Infinity, 1.5, '9007199254740995.0', '1e3', ' 42', '01', '9223372036854775808'])('invalid or already lossy variant %j rejected before network', async variant => {
+  const mock = setup()
+  await expect(mock.service.list('owner', variant)).rejects.toHaveProperty('code', 'unexpected')
+  await expect(mock.service.create(variant)).rejects.toHaveProperty('code', 'unexpected')
+  expect(mock.from).not.toHaveBeenCalled()
+})
+
 test.each(['', ' \t\n ', '  Recto\n\nVerso  \n', 'x'.repeat(750), '📝'.repeat(750)])('create and update preserve optional note %j', async note => {
   const mock = setup()
   const expected = { name: 'Nom', note: note.trim() ? note : null }
   await mock.service.create(42, ' Nom ', note)
-  expect(mock.insert).toHaveBeenCalledExactlyOnceWith({ variant_id: 42, ...expected })
+  expect(mock.insert).toHaveBeenCalledExactlyOnceWith({ variant_id: '42', ...expected })
   await mock.service.update(copy.id, ' Nom ', note)
   expect(mock.update).toHaveBeenCalledExactlyOnceWith(expected)
 })
@@ -49,14 +73,14 @@ test('list filters owner and variant and orders by creation then ID', async () =
   await expect(mock.service.list('owner', 42)).resolves.toEqual([copy])
   expect(mock.from).toHaveBeenCalledExactlyOnceWith('physical_copies')
   expect(mock.select).toHaveBeenCalledExactlyOnceWith('id,name,note,created_at')
-  expect(mock.eq.mock.calls).toEqual([['user_id', 'owner'], ['variant_id', 42]])
+  expect(mock.eq.mock.calls).toEqual([['user_id', 'owner'], ['variant_id', '42']])
   expect(mock.order.mock.calls).toEqual([['created_at'], ['id']])
 })
 
 test.each(['', '  ', ' Mon exemplaire '])('create exactly one copy, normalize optional name %j', async name => {
   const mock = setup()
   await expect(mock.service.create(42, name)).resolves.toBeUndefined()
-  expect(mock.insert).toHaveBeenCalledExactlyOnceWith({ variant_id: 42, name: name.trim() || null, note: null })
+  expect(mock.insert).toHaveBeenCalledExactlyOnceWith({ variant_id: '42', name: name.trim() || null, note: null })
   expect(mock.select).toHaveBeenCalledExactlyOnceWith('id')
   expect(mock.single).toHaveBeenCalledOnce()
 })
@@ -64,7 +88,7 @@ test.each(['', '  ', ' Mon exemplaire '])('create exactly one copy, normalize op
 test('create without name persists NULL', async () => {
   const mock = setup()
   await mock.service.create(42)
-  expect(mock.insert).toHaveBeenCalledExactlyOnceWith({ variant_id: 42, name: null, note: null })
+  expect(mock.insert).toHaveBeenCalledExactlyOnceWith({ variant_id: '42', name: null, note: null })
 })
 
 test.each([' Nouveau nom ', '', '\t\n'])('update changes only name, supports clearing %j', async name => {

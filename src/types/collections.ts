@@ -30,6 +30,10 @@ export interface DashboardCollection extends CollectionMutationResult {
   totalCount: number
 }
 
+export interface CollectionOverview extends DashboardCollection {
+  ownerId: string
+}
+
 export type CollectionsErrorCode =
   | 'invalid_name'
   | 'invalid_target'

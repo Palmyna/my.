@@ -114,7 +114,7 @@ Le socle DB/RLS et les interfaces Dashboard/Collection permettent déjà de cons
 
 ### Phase 6 — Cœur fonctionnel des collections
 
-**Statut : PLANIFIÉE**
+**Statut : EN COURS**
 
 Rendre les collections utilisables pour suivre les variantes et les exemplaires possédés :
 
@@ -128,9 +128,11 @@ Rendre les collections utilisables pour suivre les variantes et les exemplaires 
 - détail contextuel Variante commun aux collections et, ensuite, au catalogue ;
 - actions adaptées aux droits, avec écritures réservées au propriétaire.
 
+La première liste de contenu est branchée sous l'overview, avec réorganisation propriétaire et gestion/consultation des exemplaires. Les migrations de cette phase restent non appliquées : l'intégration frontend est vérifiée sans validation d'exécution DB. La phase n'est pas clôturée.
+
 Les exemplaires physiques sont **globaux au compte**, associés à une variante et non à une collection particulière. La possession est dérivée de leur existence : afficher une variante dans plusieurs collections ne duplique pas les exemplaires.
 
-Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique. Leur déplacement libre est validé, sans modification de leur origine ni de leur rang canonique. La nomenclature des états, les règles détaillées de grading, l'interaction UX de réorganisation, le rééquilibrage des positions et la concurrence restent à préciser dans les références concernées.
+Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique. Leur déplacement libre est validé, sans modification de leur origine ni de leur rang canonique. Le périmètre état/note et la réorganisation (interaction, rééquilibrage, concurrence) sont décrits dans les références UX/DB ; les validations de leur exécution en base restent différées.
 
 ### Phase 7 — Vues, catalogue, recherche globale et préférences
 

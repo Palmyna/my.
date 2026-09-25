@@ -47,11 +47,14 @@ function mockCollectionsClient() {
   const overviewSingle = vi.fn().mockResolvedValue({ data: null, error: null })
   const overviewEq = vi.fn(() => ({ maybeSingle: overviewSingle }))
   const dashboardSelect = vi.fn().mockImplementation(() => Object.assign(Promise.resolve({ data: [], error: null }), { eq: overviewEq }))
+  const ownerSingle = vi.fn().mockResolvedValue({ data: { owner_id: id }, error: null })
+  const ownerEq = vi.fn(() => ({ maybeSingle: ownerSingle }))
+  const ownerSelect = vi.fn(() => ({ eq: ownerEq }))
   const from = vi.fn((table: string) => table === 'dashboard_collections'
-    ? { select: dashboardSelect } : { insert, update, delete: remove })
+    ? { select: dashboardSelect } : { select: ownerSelect, insert, update, delete: remove })
   const rpc = vi.fn().mockResolvedValue({ data: [{ collection_id: id, created: true }], error: null })
   const client = { from, rpc } as unknown as SupabaseClient<Database>
-  return { client, service: createCollectionsService(client), from, insert, update, remove, eq, select, single, maybeSingle, rpc, dashboardSelect, overviewEq, overviewSingle }
+  return { client, service: createCollectionsService(client), from, insert, update, remove, eq, select, single, maybeSingle, rpc, dashboardSelect, overviewEq, overviewSingle, ownerSelect, ownerEq, ownerSingle }
 }
 
 test('le wrapper rename délègue avec le nom intact', async () => {
@@ -330,18 +333,32 @@ describe('lecture Dashboard', () => {
 
 describe('overview Collection', () => {
   const row = { collection_id: id, name: 'Ma collection', collection_type: 'free', access: 'owned', target_type: null, target_name: null, owned_count: 0, total_count: 0 }
+  test.each([null, {}, { owner_id: '' }, { owner_id: 42 }])('missing/malformed owner %j fails closed', async data => {
+    const mock = mockCollectionsClient()
+    mock.overviewSingle.mockResolvedValue({ data: { ...row, access: 'shared' }, error: null })
+    mock.ownerSingle.mockResolvedValue({ data, error: null })
+    await expect(mock.service.getCollectionOverview(id)).rejects.toHaveProperty('code', data === null ? 'collection_unavailable' : 'unexpected')
+  })
+  test('owner read authorization failure is sanitized', async () => {
+    const mock = mockCollectionsClient()
+    mock.overviewSingle.mockResolvedValue({ data: { ...row, access: 'shared' }, error: null })
+    mock.ownerSingle.mockResolvedValue({ data: null, error: { code: '42501', message: 'private' } })
+    await expect(mock.service.getCollectionOverview(id)).rejects.toMatchObject({ code: 'not_authorized', message: 'not_authorized' })
+  })
   test.each([
     { ...row },
     { ...row, collection_type: 'automatic', target_type: 'pokemon', target_name: 'Évoli', owned_count: 82, total_count: 120 },
     { ...row, collection_type: 'automatic', target_type: 'set', target_name: 'Légendes Brillantes', access: 'shared', owned_count: 3, total_count: 4 },
-  ])('une lecture ciblée, mapping $collection_type/$target_type/$access', async data => {
+  ])('overview et propriétaire ciblés, mapping $collection_type/$target_type/$access', async data => {
     const mock = mockCollectionsClient()
     mock.overviewSingle.mockResolvedValue({ data, error: null })
     await expect(mock.service.getCollectionOverview(id)).resolves.toEqual({
-      collectionId: id, name: data.name, collectionType: data.collection_type, access: data.access,
+      collectionId: id, ownerId: id, name: data.name, collectionType: data.collection_type, access: data.access,
       targetType: data.target_type, targetName: data.target_name, ownedCount: data.owned_count, totalCount: data.total_count,
     })
-    expect(mock.from).toHaveBeenCalledExactlyOnceWith('dashboard_collections')
+    expect(mock.from.mock.calls).toEqual([['dashboard_collections'], ['collections']])
+    expect(mock.ownerSelect).toHaveBeenCalledExactlyOnceWith('owner_id')
+    expect(mock.ownerEq).toHaveBeenCalledExactlyOnceWith('id', id)
     expect(mock.dashboardSelect).toHaveBeenCalledExactlyOnceWith('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count')
     expect(mock.overviewEq).toHaveBeenCalledExactlyOnceWith('collection_id', id)
     expect(mock.overviewSingle).toHaveBeenCalledOnce()

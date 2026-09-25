@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
 import { getSupabaseClient } from './supabase'
 import type {
-  AutomaticCollectionResult, CollectionMutationResult, CollectionsErrorCode,
+  AutomaticCollectionResult, CollectionMutationResult, CollectionOverview, CollectionsErrorCode,
   CreateAutomaticCollectionInput, CreateFreeCollectionInput, DashboardCollection,
 } from '../types/collections'
 
@@ -15,7 +15,7 @@ export async function listDashboardCollections(): Promise<DashboardCollection[]>
   return createCollectionsService(client).listDashboardCollections()
 }
 
-export async function getCollectionOverview(collectionId: string): Promise<DashboardCollection> {
+export async function getCollectionOverview(collectionId: string): Promise<CollectionOverview> {
   const client = getSupabaseClient()
   if (!client) throw new CollectionsError('not_authorized')
   return createCollectionsService(client).getCollectionOverview(collectionId)
@@ -82,7 +82,7 @@ function collectionResult(data: unknown, missing: 'unexpected' | 'collection_una
 
 export function createCollectionsService(client: SupabaseClient<Database>) {
   return {
-    getCollectionOverview(collectionId: string): Promise<DashboardCollection> {
+    getCollectionOverview(collectionId: string): Promise<CollectionOverview> {
       return request(async () => {
         // Invalid route IDs have the same public outcome as any invisible collection.
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(collectionId)) {
@@ -93,7 +93,17 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
           .eq('collection_id', collectionId).maybeSingle()
         if (error) throw error
         if (data === null) throw new CollectionsError('collection_unavailable')
-        return dashboardCollection(data)
+        const collection = dashboardCollection(data)
+        // The overview view omits owner_id. Existing SELECT grant + collections_read
+        // authorize this narrow read for owners and recipients, including revocation.
+        const owner = await client.from('collections').select('owner_id').eq('id', collectionId).maybeSingle()
+        if (owner.error) throw owner.error
+        if (owner.data === null) throw new CollectionsError('collection_unavailable')
+        if (!owner.data || typeof owner.data.owner_id !== 'string'
+          || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(owner.data.owner_id)) {
+          throw new CollectionsError('unexpected')
+        }
+        return { ...collection, ownerId: owner.data.owner_id }
       })
     },
     listDashboardCollections(): Promise<DashboardCollection[]> {

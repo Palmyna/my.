@@ -30,7 +30,7 @@ beforeEach(() => {
   remove.mockReset().mockImplementation(id => { rows = rows.filter(row => row.id !== id); return Promise.resolve() })
 })
 
-function Harness({ ownerId = 'owner', variantId = 42 }: { ownerId?: string; variantId?: number }) {
+function Harness({ ownerId = 'owner', variantId = 42 }: { ownerId?: string; variantId?: string | number }) {
   const [open, setOpen] = useState(false)
   return <><button onClick={() => setOpen(true)}>Gérer les exemplaires</button>
     {open && <PhysicalCopiesDialog ownerId={ownerId} variantId={variantId} variantName="Pikachu · Holo" onClose={() => setOpen(false)} />}</>
@@ -66,7 +66,7 @@ test('optional creation textarea counts and saves exact multiline text, then res
   expect(textarea).toHaveAccessibleDescription(`${note.length} / 750`)
   submit()
   await screen.findByText('Exemplaire 4')
-  expect(create).toHaveBeenCalledExactlyOnceWith(42, '', note)
+  expect(create).toHaveBeenCalledExactlyOnceWith('42', '', note)
   fireEvent.click(noteButton('Exemplaire 4'))
   const content = document.getElementById(noteButton('Exemplaire 4', true).getAttribute('aria-controls')!)!
   expect(content.textContent).toBe(note)
@@ -168,7 +168,7 @@ test('listing, custom name priority, native modal and initial focus', async () =
   expect(screen.getByText('Cadeau')).toBeVisible()
   expect(screen.getByText('Exemplaire 3')).toBeVisible()
   expect(screen.queryByText('Exemplaire 2')).not.toBeInTheDocument()
-  expect(list).toHaveBeenCalledExactlyOnceWith('owner', 42)
+  expect(list).toHaveBeenCalledExactlyOnceWith('owner', '42')
   expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
 })
 
@@ -183,7 +183,7 @@ test('add creates one unnamed copy, returns to refreshed list, requires another 
   expect(create).not.toHaveBeenCalled()
   submit()
   await screen.findByText('Exemplaire 4')
-  expect(create).toHaveBeenCalledExactlyOnceWith(42, '', '')
+  expect(create).toHaveBeenCalledExactlyOnceWith('42', '', '')
   expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Ajouter un exemplaire' })).toHaveFocus()
   expect(client.getQueryState(dashboardCollectionsKey('owner'))?.isInvalidated).toBe(true)
@@ -282,7 +282,7 @@ test('recipient can read owner copies but has no write controls', async () => {
   expect(screen.getByText('Lecture seule')).toBeVisible()
   expect(within(screen.getByRole('dialog')).getAllByRole('button')).toHaveLength(1)
   expect(screen.queryByRole('button', { name: 'Ajouter un exemplaire' })).not.toBeInTheDocument()
-  expect(list).toHaveBeenCalledExactlyOnceWith('owner', 42)
+  expect(list).toHaveBeenCalledExactlyOnceWith('owner', '42')
   expect(client.getQueryData(physicalCopiesKey('recipient', 'owner', 42))).toHaveLength(3)
   expect(create).not.toHaveBeenCalled(); expect(update).not.toHaveBeenCalled(); expect(remove).not.toHaveBeenCalled()
 })

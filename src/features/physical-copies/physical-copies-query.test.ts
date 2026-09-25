@@ -8,6 +8,12 @@ import { invalidateCopyPossession, physicalCopiesKey } from './physical-copies-q
 const item = (variantId: string): CollectionContentItem => ({ collectionItemId: 'item', variantId, origin: 'manual',
   cardNameFr: null, localId: null, setNameFr: null, imageUrl: null, variantLabel: null, owned: false })
 
+test('copy key normalizes safe legacy IDs and preserves lossless BIGINT and identity scope', () => {
+  expect(physicalCopiesKey('viewer', 'owner', 42)).toEqual(physicalCopiesKey('viewer', 'owner', '42'))
+  expect(physicalCopiesKey('viewer', 'owner', '9007199254740995')).toEqual(['physical-copies', 'viewer', 'owner', '9007199254740995'])
+  expect(physicalCopiesKey('viewer', 'owner', '9007199254740995')).not.toEqual(physicalCopiesKey('viewer', 'owner', '9007199254740994'))
+})
+
 test('possession invalidation targets matching variant content and viewer summaries only', async () => {
   const client = new QueryClient()
   const affected = [collectionContentKey('owner', 'one'), collectionContentKey('owner', 'two')]

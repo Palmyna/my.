@@ -3,19 +3,20 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { CollectionsError, getCollectionOverview } from '../../services/collections'
-import type { DashboardCollection } from '../../types/collections'
+import type { CollectionOverview } from '../../types/collections'
 import { collectionColor } from '../dashboard/collection-color'
 import { CollectionPage } from './CollectionPage'
 import { collectionOverviewKey } from './collection-query'
 
 const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true }))
+vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
 vi.mock('../../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../../services/collections')>(), getCollectionOverview: vi.fn(),
 }))
 const get = vi.mocked(getCollectionOverview)
 const id = 'c1200000-0000-0000-0000-000000000001'
-const base: DashboardCollection = { collectionId: id, name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
+const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
 beforeEach(() => { auth.user = { id: 'owner' }; get.mockReset().mockResolvedValue(base) })
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { gcTime: 0 } } })
@@ -28,7 +29,7 @@ function setup() {
 }
 
 test('charge indépendamment du Dashboard et conserve un h1 stable sans voler le focus', async () => {
-  let finish!: (data: DashboardCollection) => void
+  let finish!: (data: CollectionOverview) => void
   get.mockReturnValue(new Promise(resolve => { finish = resolve }))
   setup()
   const h1 = screen.getByRole('heading', { level: 1 })
@@ -40,7 +41,7 @@ test('charge indépendamment du Dashboard et conserve un h1 stable sans voler le
   expect(await screen.findByRole('heading', { name: base.name })).toBe(h1)
   expect(back).toHaveFocus()
   expect(document.title).toBe('Mes favoris — MY.')
-  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.queryByText('Chargement de la collection…')).not.toBeInTheDocument()
 })
 
 test.each([

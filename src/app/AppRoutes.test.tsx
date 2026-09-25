@@ -10,13 +10,14 @@ import { createAuthStore, type AuthStore } from '../features/auth/auth-store'
 import type { EmailCallback } from '../features/auth/auth-callback'
 import { AppRoutes } from './AppRoutes'
 import { CollectionsError, getCollectionOverview, listDashboardCollections } from '../services/collections'
-import type { DashboardCollection } from '../types/collections'
+import type { CollectionOverview } from '../types/collections'
 
 vi.mock('../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../services/collections')>(),
   listDashboardCollections: vi.fn(), getCollectionOverview: vi.fn(),
 }))
-const collection: DashboardCollection = {
+vi.mock('../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
+const collection: CollectionOverview = { ownerId: 'owner',
   collectionId: 'c1200000-0000-0000-0000-000000000001', name: 'Collection de test', collectionType: 'free', access: 'owned',
   targetType: null, targetName: null, ownedCount: 0, totalCount: 0,
 }
@@ -69,7 +70,7 @@ test.each(['owned', 'shared'] as const)('le lien tuile %s ouvre la bonne route e
 })
 
 test('chargement asynchrone : h1 focalisé une fois, titre mis à jour sans refocus', async () => {
-  let finish!: (value: DashboardCollection) => void
+  let finish!: (value: CollectionOverview) => void
   vi.mocked(getCollectionOverview).mockReturnValue(new Promise(resolve => { finish = resolve }))
   setup(collectionPath, 'aal2')
   await heading('Collection')

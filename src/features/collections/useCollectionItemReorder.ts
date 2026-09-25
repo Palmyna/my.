@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CollectionItemsError, listCollectionItemOrder, moveCollectionItem } from '../../services/collection-items'
 import type { ItemMove, ReorderAvailability } from '../../types/collection-items'
 import { useAuth } from '../auth/auth-context'
-import { collectionItemOrderKey } from './collection-query'
+import { collectionContentKey, collectionItemOrderKey } from './collection-query'
 
 type Options = { collectionId: string; access: 'owned' | 'shared'; availability: ReorderAvailability }
 
@@ -18,9 +18,12 @@ export function useCollectionItemReorder({ collectionId, access, availability }:
     mutationFn: (request: { collectionId: string; userId: string; move: ItemMove }) => moveCollectionItem(request.collectionId, request.move),
     retry: false,
     onSettled: async (_data, _error, request) => {
-      // Even a failed/uncertain write can have committed. Refetch only this order;
-      // neither Dashboard counts nor collection metadata change during a reorder.
-      await client.invalidateQueries({ queryKey: collectionItemOrderKey(request.userId, request.collectionId), exact: true })
+      // Even a failed/uncertain write can have committed. Keep the technical order
+      // read and refresh the visible authoritative content, scoped to this request.
+      await Promise.all([
+        client.invalidateQueries({ queryKey: collectionItemOrderKey(request.userId, request.collectionId), exact: true }),
+        client.invalidateQueries({ queryKey: collectionContentKey(request.userId, request.collectionId), exact: true }),
+      ])
     },
   })
   const disabledReason = !isAuthorized || !user ? 'Reconnectez-vous pour réorganiser la collection.'

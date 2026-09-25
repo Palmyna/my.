@@ -3,20 +3,21 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { Link, MemoryRouter, Route, Routes } from 'react-router'
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { CollectionsError, deleteCollection, getCollectionOverview, listDashboardCollections, renameCollection } from '../../services/collections'
-import type { DashboardCollection, CollectionMutationResult } from '../../types/collections'
+import type { CollectionOverview, CollectionMutationResult } from '../../types/collections'
 import { DashboardPage } from '../dashboard/DashboardPage'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { CollectionPage } from './CollectionPage'
 import { collectionOverviewKey } from './collection-query'
 
+vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => ({ user: { id: 'owner' }, isAuthorized: true }) }))
 vi.mock('../../services/collections', async original => ({ ...await original<typeof import('../../services/collections')>(),
   renameCollection: vi.fn(), deleteCollection: vi.fn(), getCollectionOverview: vi.fn(), listDashboardCollections: vi.fn(),
 }))
 const rename = vi.mocked(renameCollection), remove = vi.mocked(deleteCollection), get = vi.mocked(getCollectionOverview)
 const id = 'c1200000-0000-0000-0000-000000000001'
-const base: DashboardCollection = { collectionId: id, name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
-let row: DashboardCollection | null
+const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
+let row: CollectionOverview | null
 const detail = collectionOverviewKey('owner', id), dashboard = dashboardCollectionsKey('owner')
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
@@ -102,8 +103,8 @@ test.each(['free', 'pokemon', 'set'] as const)('renommage %s confirmé, caches e
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(newName.trim())
   expect(document.title).toBe(`${newName.trim()} — MY.`)
   expect(trigger).toHaveFocus()
-  expect(client.getQueryData<DashboardCollection>(detail)?.name).toBe(newName)
-  expect(client.getQueryData<DashboardCollection[]>(dashboard)?.[0]?.name).toBe(newName)
+  expect(client.getQueryData<CollectionOverview>(detail)?.name).toBe(newName)
+  expect(client.getQueryData<CollectionOverview[]>(dashboard)?.[0]?.name).toBe(newName)
   expect(client.getQueryState(dashboard)?.isInvalidated).toBe(true)
   expect(client.getQueryState(dashboardCollectionsKey('someone-else'))?.isInvalidated).toBe(false)
   expect(client.getQueryData(collectionOverviewKey('someone-else', id))).toEqual(base)

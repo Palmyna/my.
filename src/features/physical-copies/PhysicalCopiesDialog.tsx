@@ -4,21 +4,22 @@ import { createPhysicalCopy, deletePhysicalCopy, listPhysicalCopies, PHYSICAL_CO
 import { useAuth } from '../auth/auth-context'
 import { invalidateCopyPossession, physicalCopiesKey } from './physical-copies-query'
 import './physical-copies.css'
+import { variantIdString, type VariantIdInput } from '../../lib/variant-id'
 
-type Props = { ownerId: string; variantId: number; variantName: string; onClose: () => void }
+type Props = { ownerId: string; variantId: VariantIdInput; variantName: string; readOnly?: boolean; onClose: () => void }
 type Action = { type: 'create' } | { type: 'edit' | 'delete'; copyId: string; label: string }
 
 // Reusable boundary for the future variant entry point; no collection content is invented here.
 export function PhysicalCopiesDialog(props: Props) {
   const { user, isAuthorized } = useAuth()
   if (!isAuthorized || !user) return null
-  return <CopiesDialog key={`${user.id}:${props.ownerId}:${props.variantId}`} {...props} viewerId={user.id} />
+  return <CopiesDialog key={`${user.id}:${props.ownerId}:${props.variantId}`} {...props} variantId={variantIdString(props.variantId)} viewerId={user.id} />
 }
 
-function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Props & { viewerId: string }) {
+function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId, readOnly: forcedReadOnly }: Props & { viewerId: string; variantId: string }) {
   const client = useQueryClient()
   const queryKey = physicalCopiesKey(viewerId, ownerId, variantId)
-  const readOnly = viewerId !== ownerId
+  const readOnly = forcedReadOnly || viewerId !== ownerId
   const copies = useQuery({ queryKey, queryFn: () => listPhysicalCopies(ownerId, variantId), retry: false })
   const [action, setAction] = useState<Action | null>(null)
   const [name, setName] = useState('')
@@ -44,9 +45,8 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId }: Pr
     onSuccess: async (_data, next) => {
       await Promise.all([
         client.invalidateQueries({ queryKey, exact: true }),
-        // Editing metadata cannot change possession. Existing variant IDs here are numbers;
-        // the content cache compares decimal strings, never converts them to numbers.
-        next.type !== 'edit' ? invalidateCopyPossession(client, viewerId, String(variantId)) : Promise.resolve(),
+        // Editing metadata cannot change possession; all IDs remain decimal strings.
+        next.type !== 'edit' ? invalidateCopyPossession(client, viewerId, variantId) : Promise.resolve(),
       ])
       if (active.current) setAction(null)
     },

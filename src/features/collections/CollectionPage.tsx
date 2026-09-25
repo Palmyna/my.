@@ -5,7 +5,8 @@ import { CollectionsError, getCollectionOverview } from '../../services/collecti
 import { useAuth } from '../auth/auth-context'
 import { CollectionProgress } from './CollectionProgress'
 import { collectionPresentation } from './collection-presentation'
-import { collectionOverviewKey } from './collection-query'
+import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } from './collection-query'
+import { CollectionContentLoader } from './CollectionContentLoader'
 import { CollectionActions } from './CollectionActions'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 
@@ -26,7 +27,7 @@ export function CollectionPage() {
   const unavailable = mutationUnavailable || (overview.error instanceof CollectionsError
     && (overview.error.code === 'collection_unavailable' || overview.error.code === 'not_authorized'))
   // Never retain cached private content on a failed read (including revoked shares).
-  const collection = overview.isSuccess && !mutationUnavailable ? overview.data : undefined
+  const collection = isAuthorized && user && overview.isSuccess && !mutationUnavailable ? overview.data : undefined
   const presentation = collection ? collectionPresentation(collection) : undefined
   const title = collection?.name ?? (unavailable ? 'Collection indisponible' : 'Collection')
 
@@ -34,6 +35,17 @@ export function CollectionPage() {
   // loading must not steal focus if the user has already moved to another control.
   useEffect(() => { document.title = `${title} — MY.` }, [title])
   useEffect(() => { if (mutationUnavailable) heading.current?.focus() }, [mutationUnavailable])
+  useEffect(() => {
+    if (isAuthorized && !overview.isError && !mutationUnavailable) return
+    // Unmount private rows/dialogs immediately; cancel before clearing so late
+    // responses cannot repopulate the revoked collection's cache.
+    for (const queryKey of [collectionContentKey(user?.id, collectionId), collectionItemOrderKey(user?.id, collectionId)]) {
+      void client.cancelQueries({ queryKey, exact: true })
+      client.removeQueries({ queryKey, exact: true })
+    }
+    void client.cancelQueries({ queryKey: ['physical-copies', user?.id] })
+    client.removeQueries({ queryKey: ['physical-copies', user?.id] })
+  }, [client, collectionId, isAuthorized, mutationUnavailable, overview.isError, user?.id])
 
   function markUnavailable() {
     setUnavailableResource(resource)
@@ -71,5 +83,6 @@ export function CollectionPage() {
           </button>
         </div>)}
     </div>
+    {collection && user && <CollectionContentLoader key={resource} collection={collection} viewerId={user.id} />}
   </section>
 }

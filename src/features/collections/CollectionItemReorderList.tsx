@@ -13,8 +13,8 @@ type Props = {
   feedback?: string | null
 }
 
-// Not mounted by CollectionPage in 6A.3. The future list supplies row contents;
-// only this handle participates in DnD. Reuse useCollectionItemReorder for writes.
+// The content list supplies authoritative rows; only this handle participates
+// in DnD. Reuse useCollectionItemReorder for writes.
 export function CollectionItemReorderList(props: Props) {
   return <ReorderList key={props.collectionId} {...props} />
 }
