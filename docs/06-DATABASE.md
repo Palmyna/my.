@@ -558,7 +558,7 @@ Un nouvel ajout exige variante existante et active, `french_availability = 'conf
 
 Le mapping TypeScript futur doit reconnaître ces couples code/message, jamais analyser un message PostgreSQL arbitraire. Les refus avant entrée en fonction (grant, UUID/BIGINT mal formé) et erreurs de transport/annulation restent des erreurs de protocole à traiter génériquement.
 
-**Statut au 26 septembre 2026.** **Supabase local : 16 migrations appliquées jusqu'à `20260926070705` (6C.1).** Les quatre migrations manquantes 6A.2, 6A.3, 6B.1 et 6C.1 ont été appliquées dans l'ordre par `npx supabase migration up --local`, sans reset ni modification de migration historique. Les quatre anciennes colonnes des exemplaires sont réellement supprimées ; les RPC sont installées durablement. `npm run db:types` a régénéré les types depuis ce schéma réel. **Supabase Cloud : Phase 6 toujours non appliquée, en attente du checkpoint manuel de fin de phase.** Aucun accès Cloud pendant cette mise en cohérence ; l'état Cloud documenté jusqu'à Phase 5 n'a pas été revérifié. Désormais, toute migration validée est appliquée localement au fil du développement ; seul Cloud reste gelé.
+**Statut au 26 septembre 2026.** **Local : Phase 6 appliquée jusqu'à 6C.2**, soit 19 migrations concordantes jusqu'à `20260926132552`, via `supabase migration up --local`, sans reset ni modification de migration historique. Les quatre anciennes colonnes des exemplaires sont réellement supprimées ; les RPC sont installées durablement. `npm run db:types` régénère les types depuis ce schéma réel, sans overlay. **Cloud : toujours en attente du checkpoint Phase 6.** Aucun accès Cloud en 6C.2 ; l'état Cloud documenté jusqu'à Phase 5 n'a pas été revérifié. Toute migration validée est appliquée localement au fil du développement ; seul Cloud reste gelé.
 
 **Preuves.** [pgTAP 6C.1](../supabase/tests/database/016_manual_collection_items.test.sql) : 78 assertions réussies (droits, variantes, positions, doublons, retrait, préservation et erreurs). Tests 6A.3/6B.1 également réussis ; ajustement de syntaxe `VALUES` dans le test 6A.3 pour compatibilité pgTAP, sans changement de migration. [Test concurrent dédié](../scripts/test-manual-collection-items-concurrency.js) : attente réelle observée via `pg_blocking_pids`, ajouts distincts/identiques, add/reorder et remove/reorder dans les deux ordres, suppression du parent, indépendance d'une autre collection, rejet des snapshots fixes, rollback et nettoyage des fixtures. Le script concurrent 6A.3 et le lint SQL passent également. Exécuter `node scripts/test-database.js supabase/tests/database/016_manual_collection_items.test.sql` et `node scripts/test-manual-collection-items-concurrency.js` sur une base locale disposant de ces fonctions ; les scripts n'appliquent aucune migration.
 
@@ -610,7 +610,7 @@ Le bouton Exemplaires ouvre `PhysicalCopiesDialog` avec le propriétaire réel e
 
 Après création/suppression confirmée d'un exemplaire, 6B.2 invalide les contenus du viewer contenant la variante (ou sans donnée), les overviews et le Dashboard. L'édition nom/note rafraîchit uniquement les exemplaires. Aucun recalcul frontend de possession. Le retrait de cette intégration frontend ne nécessite aucune restauration de données ; conserver l'adaptation BIGINT tant que des consommateurs transmettent des chaînes.
 
-Aucune migration créée ni appliquée pendant l'étape 6B.3 ; ses preuves initiales étaient frontend et transport simulé. Les migrations locales sont désormais appliquées jusqu'à 6C.1 et les validations DB/HTTP réussies, selon le statut ci-dessus. Les autres fonctionnalités Phase 6 et les vues Phase 7 restent hors périmètre.
+Aucune migration créée ni appliquée pendant l'étape 6B.3 ; ses preuves initiales étaient frontend et transport simulé. Les migrations locales sont désormais appliquées jusqu'à 6C.2 et les validations DB/HTTP réussies, selon le statut ci-dessus. Les autres fonctionnalités Phase 6 et les vues Phase 7 restent hors périmètre.
 
 ## Exemplaires physiques
 
@@ -1091,6 +1091,65 @@ Les partages nécessitent des accès efficaces par `collection_id` et `recipient
 L'accès aux données des recherches de la V1 repose sur Supabase/PostgreSQL sous Auth/RLS. La recherche globale retourne des Cartes sources uniques, jamais des Variantes ; Pokémon utilise le nom français, Extension et Collection leur nom uniquement. La recherche interne filtre les variantes de la collection accessible ; la recherche d'ajout sélectionne la Variante exacte. La logique Carte portable de `scripts/catalog/search-catalog.ts` reste le socle de normalisation, tokenisation, matching, score et tri ; `search-catalog-db.ts` avec `pg` reste réservé à la maintenance locale.
 
 La première implémentation doit rester proportionnée au besoin. `pg_trgm`, les index GIN, des colonnes normalisées ou la recherche full-text ne seront ajoutés que si les mesures le justifient.
+
+### Recherche catalogue pour ajout — contrat 6C.2
+
+La [migration du contrat](../supabase/migrations/20260926130459_phase6c2_catalog_variant_search.sql), la [présélection mesurée](../supabase/migrations/20260926131742_phase6c2_catalog_search_candidates.sql) et la [correction de lint SQL](../supabase/migrations/20260926132552_phase6c2_search_score_lint.sql) sont appliquées localement. Cette dernière retire une variable de boucle masquée et aligne le score sur la volatilité `STABLE` d'`array_to_string`, sans changer le calcul. Contrat exact :
+
+```sql
+public.search_catalog_variants_for_add(
+  p_query text, p_limit integer default 20, p_offset integer default 0
+) returns jsonb
+```
+
+Le JSONB scalaire contient un tableau de Variantes exactes, sans dépendance à `max_rows` PostgREST. Chaque objet contient exactement :
+
+```json
+{
+  "variant_id": "9007199254740995",
+  "image_url": null,
+  "card_name_fr": "Pikachu",
+  "set_name_fr": "Légendes Brillantes",
+  "local_id": "28",
+  "variant_label": "Reverse"
+}
+```
+
+`variant_id` est produit par `BIGINT::text`, jamais converti en nombre JavaScript. Les cinq champs d'affichage sont `string | null` ; aucune URL, traduction ou label n'est inventé. L'image utilise `COALESCE(catalog_variants.image_url, source_cards.image_url)`. Le numéro est le `local_id` stocké ; le dénominateur sert au matching, sans enrichir inutilement le payload.
+
+**Éligibilité.** Variante active et `french_availability = 'confirmed'`, carte source active, set actif : mêmes conditions que 6C.1. Aucune exigence `source_present`, aucun filtre supplémentaire de taille/Pokémon actif, aucun `collection_id` ni exclusion des variantes déjà présentes. Chaque Variante apparaît une fois, même avec plusieurs Pokémon rattachés. La mutation 6C.1 revérifie éligibilité/propriété et traite `already_present` au moment de l'écriture.
+
+**Paramètres.** Requête obligatoire, au maximum 200 caractères Unicode, avec au moins un terme utile ; un seul caractère utile est accepté. Limite de 1 à 100, défaut 20 ; offset entier de 0 à 2147483647, défaut 0. `NULL`, texte vide/ponctuation seule et valeurs hors bornes sont refusés. Aucun clamp silencieux. `[]` signifie succès sans résultat, y compris après la dernière page. Aucun total de résultats n'est promis ; une page pleine peut être suivie d'une page vide. Les pages sont stables à catalogue inchangé ; une synchronisation entre deux requêtes peut déplacer leurs frontières.
+
+**Matching et ranking.** NFKD, minuscules, accents combinatoires français retirés, ligatures `œ/æ`, apostrophes/tirets et espaces normalisés ; termes uniques conservés dans leur ordre et combinés en AND. Champs : nom de carte, noms des Pokémon réellement rattachés, numéro, nom de set, deux abréviations, identifiants TCGdex de carte/set et sélecteur privé MY. Les termes purement numériques ciblent uniquement le numéro : zéros initiaux ignorés, exact simple 200, exact préfixé/suffixé 160, préfixe numérique 80 ; `28/73` exige le total officiel réel et aucun préfixe numérique approximatif. Texte : exact selon champ (120/110/100/90/85/80), mot 60, préfixe 40, partiel 15. Meilleur score par terme, somme puis bonus de phrase exacte, comme `search-catalog.ts`.
+
+Tri total avant pagination : score décroissant, nom carte normalisé, set normalisé, `local_id` normalisé, identifiant carte, ID carte en texte, puis `sort_order NULLS LAST`, `variant_key`, ID variante. Comparaisons textuelles en collation `C`. Le moteur maintenance classe des cartes ; le serveur développe chaque carte en variantes dans cet ordre, sans trier de nouveau côté frontend.
+
+**Différence Unicode bornée.** PostgreSQL retire les cinq blocs usuels de marques combinatoires, couvrant le français, plutôt que toute la catégorie Unicode `M` du moteur JS. Par exemple `का` conserve sa marque en SQL, tandis que JS produit `क`. Les classes de lettres/chiffres suivent la locale Unicode PostgreSQL ; les départages `C` comparent UTF-8 plutôt qu'UTF-16 JS, ce qui peut différer pour des caractères supplémentaires hors BMP. Ces limites ne changent pas les cas français de référence. Pas d'extension dédiée pour des alphabets hors périmètre ; le test d'intégration vérifie explicitement la frontière des marques.
+
+**Sécurité.** RPC `STABLE SECURITY DEFINER`, `search_path = ''`, contrôle explicite de `auth.uid()`, `aal2` et présence du profil. Le definer permet uniquement la lecture du sélecteur MY. dans `private.catalog_entity_keys`, nécessaire à la parité avec la CLI, sans ouvrir le schéma privé. Aucun argument utilisateur/collection. `EXECUTE` accordé uniquement à `authenticated` hors propriétaire PostgreSQL ; révoqué à PUBLIC/anon/service_role. Deux helpers purs privés, sans droits API. Aucun grant de table ni policy existante modifié.
+
+**Service.** [`searchCatalogVariantsForAdd`](../src/services/catalog-search.ts) appelle seulement cette RPC avec les signatures officielles de `database.generated.ts`. Il valide tableau, taille de page, objets à six champs, nullabilité exacte, ID décimal canonique dans les bornes BIGINT et absence de doublons. Il conserve l'ordre, les absences et l'ID en chaîne. Erreurs publiques limitées à `not_authorized`, `invalid_query`, `unexpected`, sans message serveur brut. Aucun hook, debounce, UI ni mutation frontend d'ajout.
+
+**Mesures et preuves.** [`node scripts/test-catalog-search-api.js`](../scripts/test-catalog-search-api.js) teste le vrai chemin PostgreSQL → PostgREST → supabase-js → service, pagination, droits, BIGINT et graphe de dépendances navigateur sans `pg`. Il utilise des JWT signés avec la clé locale pour tester les niveaux aal1/aal2, sans simuler le transport ni réaliser un parcours UI TOTP. Il compare scores et ordre du moteur portable sur 24 requêtes synthétiques, puis développe les variantes ; fixtures explicitement nettoyées. Le [pgTAP dédié](../supabase/tests/database/017_catalog_search.test.sql) teste contrat, grants, refus, éligibilité et pagination dans une transaction annulée.
+
+Catalogue mesuré le 26 septembre : 19 907 cartes, 31 904 variantes, dont 31 881 éligibles. `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT public.search_catalog_variants_for_add(query,20,0)`, trois passages sous rôle authenticated/aal2/profil, avec petites fixtures présentes. Baseline : `Pikachu` 2078–2103 ms, `Légendes` 2075–2136 ms, `Pikachu 28` 2096–2197 ms, `28/73` 1152–1217 ms, `SLG Pikachu` 2084–2106 ms, `Raichu GX` 2066–2078 ms, `2` 1246–1274 ms. Cause : normalisation de tous les champs et scoring de toutes les cartes pour chaque requête. La seconde migration applique une condition nécessaire : présence des termes texte dans la concaténation normalisée et matching numérique via le helper existant, avant normalisation détaillée/scoring des seuls candidats. Aucun index, extension, projection persistante ni nouveau moteur.
+
+| Requête | Après présélection, trois passages (ms) |
+| --- | --- |
+| `Pikachu` | 472 / 474 / 474 |
+| `Légendes` | 497 / 510 / 513 |
+| `Pikachu 28` | 410 / 393 / 383 |
+| `28/73` | 313 / 324 / 314 |
+| `SLG Pikachu` | 452 / 434 / 439 |
+| `Raichu GX` | 433 / 434 / 437 |
+| `2` | 609 / 578 / 583 |
+
+Gain d'environ 2 à 5 fois sans changement de matching/ranking. Mesures locales, hors latence réseau Cloud et charge concurrente ; le coût reste linéaire sur le catalogue. Réévaluer uniquement si l'usage 6C.3 ou la croissance réelle le justifie. Le test documente aussi le départage hors BMP (U+E000 / U+10000) distinct d'UTF-16, sans effet sur les cas français testés.
+
+**Compatibilité et retour arrière.** Ajout de fonctions uniquement ; collections, catalogue, pipeline et anciens lecteurs/écrivains restent inchangés. Application transactionnelle et historique CLI rendent un échec visible et annulable. Après retrait des consommateurs, une nouvelle migration peut supprimer la RPC puis les deux helpers sans restaurer de données ; l'optimisation peut aussi être annulée en réinstallant le corps précédent. Aucun rollback ni reset exécuté sur le schéma de développement.
+
+### Classeur et préférences
 
 Les pages du classeur ne sont pas persistées dans une table `binder_pages`. Elles sont calculées côté frontend à partir des `collection_items`, de leur ordre, du format de page et du mode continu ou par blocs. La hiérarchie variante → carte → set → série permet d'identifier les changements de bloc.
 

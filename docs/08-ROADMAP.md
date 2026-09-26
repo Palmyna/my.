@@ -128,11 +128,11 @@ Rendre les collections utilisables pour suivre les variantes et les exemplaires 
 - détail contextuel Variante commun aux collections et, ensuite, au catalogue ;
 - actions adaptées aux droits, avec écritures réservées au propriétaire.
 
-La première liste de contenu est branchée sous l'overview, avec réorganisation propriétaire et gestion/consultation des exemplaires. Les migrations Phase 6 sont appliquées et validées sur Supabase local jusqu'à 6C.1 ; elles restent non appliquées sur Supabase Cloud, en attente du checkpoint manuel de fin de phase. La phase n'est pas clôturée.
+La première liste de contenu est branchée sous l'overview, avec réorganisation propriétaire et gestion/consultation des exemplaires. La recherche serveur de variantes exactes et son service sont livrés ; l'interface d'ajout reste à réaliser. Les migrations Phase 6 sont appliquées et validées sur Supabase local jusqu'à 6C.2 ; elles restent non appliquées sur Supabase Cloud, en attente du checkpoint manuel de fin de phase. La phase n'est pas clôturée.
 
 Les exemplaires physiques sont **globaux au compte**, associés à une variante et non à une collection particulière. La possession est dérivée de leur existence : afficher une variante dans plusieurs collections ne duplique pas les exemplaires.
 
-Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique. Leur déplacement libre est validé, sans modification de leur origine ni de leur rang canonique. Le périmètre état/note et la réorganisation (interaction, rééquilibrage, concurrence) sont décrits dans les références UX/DB ; les validations de leur exécution en base restent différées.
+Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique. Leur déplacement libre est validé, sans modification de leur origine ni de leur rang canonique. Le périmètre état/note et la réorganisation (interaction, rééquilibrage, concurrence) sont décrits dans les références UX/DB ; leur exécution est validée sur la base locale, le checkpoint Cloud reste différé.
 
 ### Phase 7 — Vues, catalogue, recherche globale et préférences
 

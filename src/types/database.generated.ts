@@ -320,6 +320,9 @@ isOneToOne: true
                            },
 "reorder_collection_item":
 { Args: { "p_anchor_id"?: string,"p_collection_id": string,"p_item_id": string,"p_placement": string }; Returns: undefined
+                           },
+"search_catalog_variants_for_add":
+{ Args: { "p_limit"?: number,"p_offset"?: number,"p_query": string }; Returns: Json
                            }
           }
           Enums: {

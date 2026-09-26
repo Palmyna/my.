@@ -114,6 +114,8 @@ La wishlist est seulement un exemple d'usage d'une collection personnalisée et 
 
 L'ajout manuel, dans une collection personnalisée ou automatique, sélectionne une variante exacte active et confirmée française, dont la carte source et le set sont actifs. Une variante locale MY. reste admissible sans présence dans la source. Le backend 6C.1 permet l'ajout en début ou fin (fin par défaut), puis le déplacement précis par la réorganisation existante. Un doublon est refusé sans conversion ni déplacement. Le retrait manuel conserve les exemplaires physiques et refuse les éléments automatiques. Une perte ultérieure d'éligibilité ne retire ni ne masque les éléments existants. Les interfaces d'ajout et de retrait restent à réaliser.
 
+La Phase 6C.2 livre la recherche catalogue serveur et son service applicatif pour sélectionner cette Variante exacte : plusieurs variantes d'une carte donnent plusieurs résultats. La recherche reste indépendante de la collection, y compris pour les variantes déjà présentes ; `already_present` reste autoritatif à l'écriture 6C.1. Elle est distincte de la recherche globale et du filtre interne. Aucun seuil de trois caractères ni interface d'ajout n'est introduit. Voir le [contrat 6C.2](06-DATABASE.md#recherche-catalogue-pour-ajout--contrat-6c2).
+
 ## Collections automatiques
 
 Une collection automatique possède une cible. Deux types de cible sont proposés dans la V1 : Pokémon et Extension.

@@ -556,7 +556,7 @@ La recherche de la V1 repose sur PostgreSQL et Supabase pour :
 - la recherche de Pokémon ;
 - la recherche d'extensions.
 
-La V1 n'introduit pas Algolia, Elasticsearch, Meilisearch hébergé ou un autre moteur externe. Le mécanisme SQL exact reste ouvert.
+La V1 n'introduit pas Algolia, Elasticsearch, Meilisearch hébergé ou un autre moteur externe. Le contrat SQL de recherche d'ajout est livré en 6C.2 ; les contrats de recherche globale et interne restent à réaliser.
 
 Le navigateur ne doit pas charger tout le catalogue pour effectuer une recherche. Les requêtes doivent pouvoir être filtrées, paginées et limitées aux données nécessaires.
 
@@ -568,7 +568,9 @@ La future recherche Carte réutilisera autant que possible `search-catalog.ts` p
 
 L'orchestration globale applique les règles de [FEATURES](01-FEATURES.md) et [UX-UI](04-UX-UI.md) : seuil de 3 caractères, suggestions seules, maximum 10, ordre Pokémon/Extensions/Collections/Cartes et quotas 2/2/2 puis places restantes. Pokémon utilise le nom français ; Extension et Collection utilisent exclusivement leur nom, sans matching de leur contenu. Les collections candidates sont uniquement celles visibles par propriété ou partage ; la globalité ne contourne jamais la RLS. Le résultat Carte se déduplique au niveau `source_cards`, sans suggestion Variante.
 
-La projection, les requêtes, le cache TanStack Query, le debounce éventuel, les index et l'utilité d'une vue ou RPC optimisée restent à choisir lors de l'implémentation. Une vue/RPC éventuelle doit conserver les droits des tables sous-jacentes. Aucun mécanisme de recherche supplémentaire n'est nécessaire à la migration intermédiaire et aucune Vercel Function n'est justifiée par ce seul besoin. Le [pipeline catalogue](07-CATALOG-SYNC.md#recherche-de-maintenance-catalogfind) reste la référence de l'outil de maintenance.
+Pour l'ajout manuel, `search_catalog_variants_for_add(p_query, p_limit, p_offset)` assure matching, éligibilité, ranking et pagination dans PostgreSQL. Le [service `searchCatalogVariantsForAdd`](../src/services/catalog-search.ts) utilise uniquement cette RPC via le client authentifié, valide strictement ses six champs et conserve `variantId` en chaîne décimale. Aucune importation du moteur ou de l'adaptateur Node dans le navigateur. Le [contrat 6C.2](06-DATABASE.md#recherche-catalogue-pour-ajout--contrat-6c2) précise sécurité, différences Unicode minimales, parité et mesures. La lecture des sélecteurs MY. privés justifie `SECURITY DEFINER` avec contrôles explicites ; aucun grant de table privée n'est ouvert.
+
+Le futur composant 6C.3 portera activation sous `isAuthorized`, debounce éventuel, cache et gestion des réponses devenues obsolètes. Aucun composant, query hook ou mutation frontend d'ajout n'est livré en 6C.2. Aucune Vercel Function n'est nécessaire. Le [pipeline catalogue](07-CATALOG-SYNC.md#recherche-de-maintenance-catalogfind) reste la référence de l'outil de maintenance.
 
 Les lectures Pokémon/Extension regroupent les Cartes uniques, respectivement par date de Carte et par numéro naturel ; la fiche Carte charge ensuite les Variantes. Les compteurs `card_count` et `variant_count` sont dérivés du même périmètre que les listings, sans dupliquer la source de vérité ni confondre `official_card_count` et total MY. Ces pages n'agrègent pas de progression personnelle. `physical_copies → user_id + variant_id` demeure inchangé.
 
