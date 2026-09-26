@@ -3,7 +3,7 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
--- Includes Phase 6A.2 expectations; run only after manual migration application.
+-- Requires the current local schema, including Phase 6A.2.
 select hasnt_column('public', 'physical_copies', 'condition', 'Condition removed');
 select hasnt_column('public', 'physical_copies', 'is_graded', 'Grading flag removed');
 select hasnt_column('public', 'physical_copies', 'grading_company', 'Grading company removed');
@@ -13,14 +13,16 @@ select ok(not exists(select 1 from pg_constraint where conrelid='public.physical
 select has_column('public', 'physical_copies', 'note', 'Note exists');
 select col_type_is('public', 'physical_copies', 'note', 'text', 'Note is text');
 select col_is_null('public', 'physical_copies', 'note', 'Note is nullable');
-select results_eq($$select column_name::text from information_schema.column_privileges
+-- Catalogue names retain C collation after ::text. pgTAP compares anonymous
+-- records against text[] literals (default collation); align both explicitly.
+select results_eq($$select column_name::text collate "default" from information_schema.column_privileges
   where table_schema='public' and table_name='physical_copies' and grantee='authenticated'
   and privilege_type='UPDATE' order by column_name$$, array['name','note']::text[], 'Only metadata has UPDATE grants');
-select results_eq($$select column_name::text from information_schema.column_privileges
+select results_eq($$select column_name::text collate "default" from information_schema.column_privileges
   where table_schema='public' and table_name='physical_copies' and grantee='authenticated'
   and privilege_type='INSERT' order by column_name$$, array['name','note','variant_id']::text[], 'INSERT grants match expected schema');
 select ok((select relrowsecurity from pg_class where oid='public.physical_copies'::regclass), 'RLS remains enabled');
-select results_eq($$select policyname::text from pg_policies where schemaname='public' and tablename='physical_copies' order by policyname$$,
+select results_eq($$select policyname::text collate "default" from pg_policies where schemaname='public' and tablename='physical_copies' order by policyname$$,
   array['physical_copies_delete_own','physical_copies_insert_own','physical_copies_read','physical_copies_update_own','require_mfa','require_my_profile']::text[], 'RLS policy set unchanged');
 
 select has_column('public', 'physical_copies', 'name', 'Optional custom name exists');
@@ -61,7 +63,7 @@ select lives_ok($$insert into public.physical_copies(variant_id,name,note)
 select is((select count(*) from public.physical_copies where variant_id=-84001),2::bigint,'Multiple copies for one variant');
 select lives_ok($$update public.physical_copies set name='Nouveau nom' where variant_id=-84001 and name='Ma copie'$$, 'Owner edits name');
 select results_eq($$select name,note from public.physical_copies where name='Nouveau nom'$$,
-  $$values('Nouveau nom'::text,'Note conservée'::text)$$, 'Only name changed; note preserved');
+  $$values ('Nouveau nom'::text,'Note conservée'::text)$$, 'Only name changed; note preserved');
 select lives_ok($$update public.physical_copies set note=repeat('📝',750) where name='Nouveau nom'$$, 'Owner writes 750 Unicode characters');
 select throws_ok($$update public.physical_copies set note=repeat('📝',751) where name='Nouveau nom'$$, '23514', null, '751 characters rejected on update');
 select throws_ok($$insert into public.physical_copies(variant_id,note) values(-84001,repeat('x',751))$$, '23514', null, '751 characters rejected on insert');

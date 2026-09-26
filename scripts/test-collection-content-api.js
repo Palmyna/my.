@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import pg from 'pg'
 import { assertLocalUrl } from './catalog/database.ts'
 
-// PREPARED ONLY. Run manually after authorized Phase 6 migration application:
+// Requires the Phase 6B.1 migration in the local database:
 // node scripts/test-collection-content-api.js
 // No reset/migration/start/config change. Committed synthetic fixtures are cleaned
 // in finally. Never print CLI status, credentials, JWTs or HTTP response bodies.
@@ -52,7 +52,7 @@ try {
   await client.query("set statement_timeout = '30s'")
   await client.query('select pg_advisory_lock(616001)')
   const { rows } = await client.query("select to_regprocedure('public.get_collection_content(uuid)') is not null as ready")
-  assert.equal(rows[0].ready, true, 'Phase 6B.1 must already be applied manually; this script never applies it')
+  assert.equal(rows[0].ready, true, 'Phase 6B.1 must already be applied locally; this script never applies it')
   await client.query('begin')
   await client.query(readFileSync(new URL('../supabase/tests/database/collection_content.fixtures.inc', import.meta.url), 'utf8'))
   await client.query('commit')

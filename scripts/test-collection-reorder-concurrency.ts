@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import { connect } from './catalog/database.ts'
 
-// PREPARED, NOT EXECUTED in 6A.3. Run only after manual migration application.
+// Requires the Phase 6A.3 migration in the local database.
 // connect() enforces localhost:55322/postgres. No migration application here.
 const users = [1, 2, 3].map(n => `a1500000-0000-0000-0000-${String(n).padStart(12, '0')}`)
 const collection = 'c1500000-0000-0000-0000-000000000001'
@@ -34,7 +34,7 @@ try {
   }
   const [observer, first, second, independent] = clients as [Client, Client, Client, Client]
   const exists = await observer.query<{ present: boolean }>("select to_regprocedure('public.reorder_collection_item(uuid,uuid,text,uuid)') is not null as present")
-  assert.equal(exists.rows[0]?.present, true, 'Apply Phase 6A.3 manually before this test')
+  assert.equal(exists.rows[0]?.present, true, 'Apply pending local migrations before this test')
   const fixture = readFileSync(new URL('../supabase/tests/database/collection_reorder.fixtures.inc', import.meta.url), 'utf8')
   await observer.query('begin')
   await observer.query(fixture)

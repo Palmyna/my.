@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
-import type { CollectionContentItem, PendingCollectionContentDatabase } from '../types/collection-content'
+import type { CollectionContentItem } from '../types/collection-content'
 import { getSupabaseClient } from './supabase'
 
 export type CollectionContentErrorCode = 'not_authorized' | 'unexpected'
@@ -36,12 +36,11 @@ function contentItem(value: unknown): CollectionContentItem {
 }
 
 export function createCollectionContentService(client: SupabaseClient<Database>) {
-  const pendingClient = client as unknown as SupabaseClient<PendingCollectionContentDatabase>
   return {
     async getCollectionContent(collectionId: string): Promise<CollectionContentItem[]> {
       try {
         if (collectionId.length !== 36 || !uuid.test(collectionId)) throw new CollectionContentError('unexpected')
-        const { data, error } = await pendingClient.rpc('get_collection_content', { p_collection_id: collectionId })
+        const { data, error } = await client.rpc('get_collection_content', { p_collection_id: collectionId })
         if (error) throw error
         if (!Array.isArray(data)) throw new CollectionContentError('unexpected')
         const content = data.map(contentItem)

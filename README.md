@@ -12,7 +12,7 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 Le backend des collections automatiques est livré : calcul canonique PostgreSQL, état/version de cible, création atomique et concurrente via `create_automatic_collection(...)`, et service TypeScript. L'interface de création/ouverture depuis les pages catalogue Pokémon/Extension reste prévue en Phase 7 ; la création et la gestion utilisateur des partages restent prévues en Phase 9. La consultation du contenu et les interactions avec les éléments relèvent de la **Phase 6 — Cœur fonctionnel des collections**, désormais en cours, conformément à la [roadmap](docs/08-ROADMAP.md). Le [rapport de clôture Phase 5](docs/reports/2026-09-23-PHASE5-CLOSURE.md) conserve le périmètre livré et les validations de 5E.1.
 
-La première liste fonctionnelle 6B.3 est branchée sous l'overview : contenu réel ordonné, possession issue du backend, réorganisation propriétaire et exemplaires complets ou en lecture seule selon l'accès. Les IDs BIGINT restent des chaînes décimales. **Les migrations Phase 6 restent non appliquées** ; cette intégration frontend ne constitue pas une validation DB. Voir le [contrat et l'intégration](docs/06-DATABASE.md#première-liste-fonctionnelle--phase-6b3).
+La première liste fonctionnelle 6B.3 est branchée sous l'overview : contenu réel ordonné, possession issue du backend, réorganisation propriétaire et exemplaires complets ou en lecture seule selon l'accès. Les IDs BIGINT restent des chaînes décimales. **Supabase local : migrations Phase 6 appliquées jusqu'à 6C.1 (`20260926070705`), types régénérés et validations DB/HTTP réussies. Supabase Cloud : Phase 6 toujours non appliquée, en attente du checkpoint manuel de fin de phase.** Aucun accès Cloud pendant cette mise en cohérence locale. Voir le [contrat et l'intégration](docs/06-DATABASE.md#première-liste-fonctionnelle--phase-6b3).
 
 Les onze migrations suivantes sont présentes dans le dépôt, validées localement et déployées dans Supabase Cloud. Les huit premières ont été confirmées au checkpoint 4D.3 ; le propriétaire confirme le déploiement manuel des trois migrations Phase 5 et l'alignement Local/Remote jusqu'à `20260920194903`. La clôture documentaire ne réalise aucun nouvel accès Cloud.
 
@@ -132,8 +132,11 @@ Les fichiers `.env` réels, `node_modules/`, `dist/`, les caches et l'état loca
 
 Après `npm ci`, démarrer Docker Desktop. Pour appliquer les migrations en attente au volume local existant puis vérifier le schéma :
 
+Toute migration validée est désormais appliquée à **Supabase local** au fil du développement. Seul le déploiement **Cloud** attend le checkpoint manuel de fin de Phase 6. `migration list --local` compare les fichiers à l'historique de la base locale : sa colonne `Remote` désigne ici cette base locale, pas Supabase Cloud. Aucun reset requis pour appliquer les migrations manquantes.
+
 ```sh
 npm run supabase:start
+npx supabase migration list --local
 node node_modules/supabase/dist/supabase.js migration up --local
 npm run db:test
 npm run db:lint
@@ -146,12 +149,12 @@ npm test
 | Commande ajoutée | Usage |
 |---|---|
 | `npm run db:reset` | Reconstruit entièrement la base **locale**, en supprimant ses données, depuis les migrations |
-| `npm run db:test` | Exécute les douze suites pgTAP via `supabase test db --local` ; accepte un chemin pour cibler une suite |
+| `npm run db:test` | Exécute les seize suites pgTAP via `supabase test db --local` ; accepte un chemin pour cibler une suite |
 | `npm run db:test:concurrency` | Vérifie la création automatique concurrente et le verrou catalogue avec plusieurs connexions locales ; nettoie ses fixtures dédiées |
 | `npm run db:lint` | Vérifie `public` et `private`, avec échec dès un avertissement SQL |
 | `npm run db:types` | Régénère `src/types/database.generated.ts` depuis `public` local ; le fichier existant est conservé si la CLI échoue |
 
-Les assertions PostgreSQL couvrent le schéma, les grants/RLS métier, le pipeline, les dates, les préférences, la création des profils, le backfill Auth, les restrictions `aal1`/`aal2`, la suppression du compte, le calcul canonique, la création automatique et la lecture Dashboard owned/shared. Les fixtures sont annulées à la fin de chaque suite. Le lanceur prépare temporairement les migrations Automatic RLS et Auth nécessaires aux tests de régression, puis supprime ces copies ignorées. Aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif. Les résultats acquis de l'audit Phase 5 sont consignés dans le [rapport de clôture](docs/reports/2026-09-23-PHASE5-CLOSURE.md).
+Les assertions PostgreSQL couvrent le schéma, les grants/RLS métier, le pipeline, les dates, les préférences, la création des profils, le backfill Auth, les restrictions `aal1`/`aal2`, la suppression du compte, le calcul canonique, la création automatique, la lecture Dashboard owned/shared et les exemplaires, l'ordre, le contenu et les mutations manuelles Phase 6. La passe locale après migration 6C.1 réussit **858 assertions dans 16 suites**. Les fixtures sont annulées à la fin de chaque suite. Le lanceur prépare temporairement les migrations Automatic RLS et Auth nécessaires aux tests de régression, puis supprime ces copies ignorées : ce mécanisme teste leur comportement historique, sans simuler un retard de schéma Phase 6. Aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif. Les résultats acquis de l'audit Phase 5 sont consignés dans le [rapport de clôture](docs/reports/2026-09-23-PHASE5-CLOSURE.md).
 
 Adapter les contrôles aux changements : tests ciblés pendant le développement, puis une seule passe globale pertinente. `build` inclut déjà `typecheck`. Régénérer les types une seule fois après stabilisation du schéma. Pour vérifier une reconstruction sans détruire le volume importé, `supabase db diff --local --schema public,private` compare le schéma à une base shadow reconstruite depuis les migrations. `db:reset` reste réservé à un besoin explicite de base locale vide ; `supabase:stop` conserve les données.
 

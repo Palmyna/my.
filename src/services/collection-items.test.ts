@@ -29,7 +29,7 @@ test.each<ItemDestination>([{ placement: 'start' }, { placement: 'end' },
   await expect(mock.service.move('collection', move)).resolves.toBeUndefined()
   expect(mock.rpc).toHaveBeenCalledExactlyOnceWith('reorder_collection_item', {
     p_collection_id: 'collection', p_item_id: 'a', p_placement: destination.placement,
-    p_anchor_id: 'anchorId' in destination ? destination.anchorId : null,
+    ...('anchorId' in destination ? { p_anchor_id: destination.anchorId } : {}),
   })
   expect(mock.from).not.toHaveBeenCalled()
 })

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
-import type { ItemMove, PendingCollectionReorderDatabase } from '../types/collection-items'
+import type { ItemMove } from '../types/collection-items'
 import { getSupabaseClient } from './supabase'
 
 export type CollectionItemsErrorCode = 'not_authorized' | 'item_unavailable' | 'order_conflict' | 'unexpected'
@@ -28,14 +28,12 @@ async function request<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 export function createCollectionItemsService(client: SupabaseClient<Database>) {
-  // Generated types deliberately remain unchanged until manual migration.
-  const pendingClient = client as unknown as SupabaseClient<PendingCollectionReorderDatabase>
   return {
     // Minimal authoritative order, independent of future variant/row content.
     // Never transport NUMERIC positions through JavaScript numbers.
     listOrder(collectionId: string): Promise<string[]> {
       return request(async () => {
-        const { data, error } = await pendingClient.rpc('get_collection_item_order', { p_collection_id: collectionId })
+        const { data, error } = await client.rpc('get_collection_item_order', { p_collection_id: collectionId })
         if (error) throw error
         if (!Array.isArray(data) || data.some(id => typeof id !== 'string' || !id)
           || new Set(data).size !== data.length) throw new CollectionItemsError('unexpected')
@@ -44,9 +42,9 @@ export function createCollectionItemsService(client: SupabaseClient<Database>) {
     },
     move(collectionId: string, { itemId, destination }: ItemMove): Promise<void> {
       return request(async () => {
-        const { error } = await pendingClient.rpc('reorder_collection_item', {
+        const { error } = await client.rpc('reorder_collection_item', {
           p_collection_id: collectionId, p_item_id: itemId, p_placement: destination.placement,
-          p_anchor_id: 'anchorId' in destination ? destination.anchorId : null,
+          ...('anchorId' in destination ? { p_anchor_id: destination.anchorId } : {}),
         })
         if (error) throw error
       })
