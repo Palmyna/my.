@@ -76,7 +76,7 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"a1500000-0000-0000-0000-000000000001","aal":"aal2"}';
 select lives_ok($$select public.reorder_collection_item('c1500000-0000-0000-0000-000000000001','d1500000-0000-0000-0000-000000000003','before','d1500000-0000-0000-0000-000000000002')$$,'Precision exhaustion rebalances');
 select results_eq($$select variant_id,sort_position from public.collection_items where collection_id='c1500000-0000-0000-0000-000000000001' order by sort_position,id$$,
-  $$values(-85001::bigint,1::numeric),(-85003,2),(-85002,3)$$,'Rebalance preserves exact requested order');
+  $$values (-85001::bigint,1::numeric),(-85003,2),(-85002,3)$$,'Rebalance preserves exact requested order');
 
 reset role;
 update public.collection_items set sort_position=1 where collection_id='c1500000-0000-0000-0000-000000000001';

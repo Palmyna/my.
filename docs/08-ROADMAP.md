@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Les Phases 0 à 5 sont terminées et validées.** Le Dashboard, la création personnalisée, l'overview Collection, les actions propriétaire et le backend de création automatique sont livrés. La consultation des collections réellement partagées est disponible en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 5](reports/2026-09-23-PHASE5-CLOSURE.md) précise les acquis et validations. La prochaine étape est **Phase 6 — Cœur fonctionnel des collections**, non commencée.
+**Les Phases 0 à 5 sont terminées et validées.** Le Dashboard, la création personnalisée, l'overview Collection, les actions propriétaire et le backend de création automatique sont livrés. La consultation des collections réellement partagées est disponible en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 5](reports/2026-09-23-PHASE5-CLOSURE.md) précise les acquis et validations. La **Phase 6 — Cœur fonctionnel des collections** est en cours.
 
 | Grandes phases | Statut |
 |---|---|
@@ -25,7 +25,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 | 3 — Authentification et socle applicatif authentifié | Terminée |
 | 4 — Profil et gestion du compte | Terminée |
 | 5 — Dashboard, création et gestion des collections | Terminée |
-| 6 — Cœur fonctionnel des collections | Prochaine phase — non commencée |
+| 6 — Cœur fonctionnel des collections | En cours |
 | 7 — Vues, catalogue, recherche globale et préférences | Planifiée |
 | 8 — Mise à jour des collections automatiques | Planifiée |
 | 9 — Partage des collections | Planifiée |

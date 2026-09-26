@@ -284,7 +284,7 @@ Le modèle doit représenter un ordre stable des éléments :
 
 `automatic_rank` est le rang canonique système ; `sort_position` est l'ordre réel affiché dans cette collection. Un déplacement automatique ne modifie que `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique ou `automatic_target_states`. Deux collections de même cible/version peuvent contenir les mêmes éléments automatiques avec des `sort_position` différents.
 
-La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. L'interaction UX, le rééquilibrage et la concurrence restent ouverts. Le placement d'un nouvel élément automatique et la stratégie de préservation/ancrage de l'ordre personnalisé lors des mises à jour restent à cadrer en Phase 8.
+La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. Les primitives 6A.3 et 6C.1 calculent les positions en PostgreSQL et sérialisent réorganisation, ajout et retrait par verrou de la collection. Un ajout manuel accepte `start` ou `end` (défaut), avec rééquilibrage si nécessaire ; le retrait ne compacte pas l'ordre. Le placement d'un nouvel élément automatique et la stratégie de préservation/ancrage de l'ordre personnalisé lors des mises à jour restent à cadrer en Phase 8.
 
 ### Ordre canonique du catalogue
 
@@ -577,7 +577,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;
-- l'algorithme de positionnement des éléments manuels ;
+- les interactions d'ajout manuel dans l'interface, au-dessus du contrat backend `start`/`end` défini en 6C.1 ;
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
 - la nomenclature des conditions ;
 - les sociétés de grading et le format de leurs notes ;

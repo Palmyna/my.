@@ -510,7 +510,7 @@ Cet ordre canonique est distinct de `sort_position`. Pour Pokémon : date de par
 
 À la création, `sort_position` initialise l'affichage dans l'ordre canonique. Après création, cet ordre est une référence système, pas une contrainte permanente d'affichage. Un déplacement d'élément automatique modifie `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Deux collections de même cible/version peuvent donc posséder les mêmes éléments automatiques avec des `sort_position` différents.
 
-L'inspection des migrations versionnées confirme que `sort_position` existe et est obligatoire pour tous les `collection_items`, tandis que `automatic_rank` est distinct. Aucun `CHECK` ni trigger n'impose leur égalité ou n'interdit de déplacer un automatique. Le trigger de parent interdit seulement l'origine automatique dans une collection personnalisée. Les écritures directes sur les éléments restent fermées au rôle `authenticated` ; la RPC 6A.3 ci-dessous est préparée, sans application ni validation d'exécution en base.
+L'inspection des migrations versionnées confirme que `sort_position` existe et est obligatoire pour tous les `collection_items`, tandis que `automatic_rank` est distinct. Aucun `CHECK` ni trigger n'impose leur égalité ou n'interdit de déplacer un automatique. Le trigger de parent interdit seulement l'origine automatique dans une collection personnalisée. Les écritures directes sur les éléments restent fermées au rôle `authenticated` ; les RPC 6A.3 et 6C.1 ont été testées par installation locale temporaire, sans application durable des migrations correspondantes.
 
 La base, les permissions ou les opérations métier doivent garantir que :
 
@@ -519,6 +519,52 @@ La base, les permissions ou les opérations métier doivent garantir que :
 - tous les éléments, automatiques comme manuels, sont librement repositionnables par le propriétaire ;
 - un élément manuel conserve `origin = manual` et aucun `automatic_rank` lors d'un déplacement ;
 - une collection personnalisée ne contient aucun élément automatique.
+
+### Mutations manuelles — contrat 6C.1
+
+La [migration 6C.1](../supabase/migrations/20260926070705_phase6c1_manual_collection_items.sql) ajoute uniquement deux RPC métier :
+
+```sql
+public.add_manual_collection_item(
+  p_collection_id uuid, p_variant_id bigint, p_placement text DEFAULT 'end'
+) RETURNS uuid
+public.remove_manual_collection_item(
+  p_collection_id uuid, p_collection_item_id uuid
+) RETURNS void
+```
+
+L'ajout retourne l'UUID du nouvel item. Le futur client doit transmettre `p_variant_id` en chaîne décimale, sans conversion en `Number` ; PostgreSQL conserve exactement le `BIGINT` reçu. Aucun propriétaire, origine, rang, position numérique ni ancre fourni par le client. `SECURITY DEFINER` est nécessaire pour ces écritures contrôlées : `search_path` vide, contrôle explicite `auth.uid()`, `aal2`, profil MY. présent, puis propriété du parent. Seul `authenticated` reçoit `EXECUTE` ; aucun grant `PUBLIC`, `anon` ou `service_role`, aucun changement de RLS/grants de tables. Le partage reste strictement en lecture seule. Parent privé, absent ou inaccessible : même erreur.
+
+**Ajout.** Dans une collection personnalisée ou automatique, créer exactement un item `origin = 'manual'`, `automatic_rank IS NULL`, avec la variante demandée. Un item déjà présent, manuel ou automatique, provoque `already_present` avant toute modification, même si sa variante est devenue inéligible. La contrainte `UNIQUE(collection_id, variant_id)` reste l'arbitre final ; `ON CONFLICT` ciblé transforme une collision concurrente en la même erreur, sans exposer un nom de contrainte. Tout échec annule aussi un éventuel rééquilibrage.
+
+Un nouvel ajout exige variante existante et active, `french_availability = 'confirmed'`, carte source active et set actif. La vérification utilise un même snapshot de lecture du catalogue après verrouillage du parent. Aucun filtre `source_present`, origine TCGdex, format standard ou cible automatique supplémentaire : les variantes locales MY. sont admissibles. Cette vérification ne concerne que l'ajout ; une modification ultérieure du catalogue ne retire, ne convertit et ne masque aucun item existant.
+
+**Placement.** Uniquement `start` ou `end`, défaut `end` ; `NULL`, `before`, `after` et toute autre valeur sont refusés. Collection vide : position exacte `1`. Sinon : minimum moins `1` ou maximum plus `1`, calculés en `NUMERIC` PostgreSQL puis stockés en `NUMERIC(40,20)`. Ordre autoritatif `sort_position, id`. En présence d'égalités héritées ou de dépassement numérique, rééquilibrer les anciens items de cette seule collection en `1…N` selon cet ordre, puis insérer à `0` ou `N+1`. Le reorder 6A.3 conserve les déplacements précis ultérieurs ; aucun helper partagé ni refactor de sa migration.
+
+**Retrait.** L'item doit appartenir au parent autorisé et avoir `origin = 'manual'`. Un automatique produit une erreur dédiée ; un mauvais item produit `manual_item_unavailable`. Seul le `collection_item` demandé est supprimé, sans compaction ni modification des autres positions. Retenter un retrait déjà réussi retourne `manual_item_unavailable`. Exemplaires physiques, catalogue, autres collections, origine/rang des items restants, cible/version appliquée et `automatic_target_states` restent intacts. Les triggers `updated_at` des items restent actifs lors d'un rééquilibrage.
+
+**Concurrence.** Même `collections ... FOR UPDATE` que 6A.3, acquis avant lecture des items et conservé jusqu'à fin de transaction. Ajouts, retraits, reorder et suppression du parent se sérialisent par collection ; aucun verrou global. Les instructions suivantes relisent l'état engagé après attente sous `READ COMMITTED`. `REPEATABLE READ`/`SERIALIZABLE` sont refusés ; les conflits de sérialisation, deadlocks et délais de verrou sont normalisés. Le client devra rafraîchir puis éventuellement relancer une transaction complète, sans retry aveugle après résultat réseau incertain. La création automatique Phase 5 écrit un nouveau parent non encore visible ; elle ne modifie aucun parent existant. Les futurs writers structurels doivent suivre le même verrou.
+
+| SQLSTATE | Message stable | Mapping futur |
+| --- | --- | --- |
+| `42501` | `collection_action_unavailable` | Session/MFA/profil/propriété ou parent indisponible |
+| `22023` | `manual_item_invalid_placement` | Placement invalide |
+| `P0002` | `manual_variant_unavailable` | Variante absente ou inéligible |
+| `23505` | `already_present` | Variante déjà présente, toute origine |
+| `P0002` | `manual_item_unavailable` | Item absent ou hors collection |
+| `23514` | `automatic_item_removal_forbidden` | Retrait manuel d'un automatique interdit |
+| `40001` | `collection_structure_conflict` | Actualisation/reprise transactionnelle nécessaire |
+| `XX000` | `manual_item_unexpected` | Erreur interne assainie |
+
+Le mapping TypeScript futur doit reconnaître ces couples code/message, jamais analyser un message PostgreSQL arbitraire. Les refus avant entrée en fonction (grant, UUID/BIGINT mal formé) et erreurs de transport/annulation restent des erreurs de protocole à traiter génériquement.
+
+**Statut local au 26 septembre 2026.** Historique réel appliqué jusqu'à `20260923150456` (6A.1). 6A.2 reste non appliquée : elle supprime des colonnes d'exemplaires, donc aucun `migration up` global ni reset pendant 6C.1. Les seules fonctions additives 6A.3, 6B.1 et 6C.1 ont été installées temporairement pour validation, puis retirées ; historique des migrations inchangé, aucune activation durable, aucun accès/déploiement Cloud. Une future application suivra l'ordre des migrations après traitement explicite de 6A.2. Les types générés restent inchangés jusqu'à cette application.
+
+**Preuves.** [pgTAP 6C.1](../supabase/tests/database/016_manual_collection_items.test.sql) : 78 assertions réussies (droits, variantes, positions, doublons, retrait, préservation et erreurs). Tests 6A.3/6B.1 également réussis ; ajustement de syntaxe `VALUES` dans le test 6A.3 pour compatibilité pgTAP, sans changement de migration. [Test concurrent dédié](../scripts/test-manual-collection-items-concurrency.js) : attente réelle observée via `pg_blocking_pids`, ajouts distincts/identiques, add/reorder et remove/reorder dans les deux ordres, suppression du parent, indépendance d'une autre collection, rejet des snapshots fixes, rollback et nettoyage des fixtures. Le script concurrent 6A.3 et le lint SQL passent également. Exécuter `node scripts/test-database.js supabase/tests/database/016_manual_collection_items.test.sql` et `node scripts/test-manual-collection-items-concurrency.js` sur une base locale disposant de ces fonctions ; les scripts n'appliquent aucune migration.
+
+La régression DB complète ne passe pas sur ce schéma local : `001_schema` attend la limite de note 6A.2 ; `013_physical_copies` attend ses suppressions de colonnes et rencontre aussi une erreur de collation pgTAP. Ces limites sont conservées visibles, sans appliquer la migration destructive pour obtenir un résultat vert. Les autres fichiers DB exécutés passent. Aucun frontend, service React Query, recherche ou UI d'ajout/retrait développé.
+
+Migration atomique et additive, anciens lecteurs/reorder compatibles. Avant commit, rollback intégral ; après déploiement, retour arrière par nouvelle migration supprimant uniquement ces deux RPC une fois leurs consommateurs retirés. Les items déjà ajoutés restent valides et ne doivent pas être effacés pour retirer l'API.
 
 ### Lecture du contenu — contrat 6B.1 préparé
 
@@ -548,7 +594,7 @@ Collection vide, inexistante, inaccessible, identifiant null, identité/MFA/prof
 
 **Volume.** Un tableau JSONB scalaire représente une seule valeur REST : `max_rows = 1000` ne découpe pas ses éléments. Pas de pagination ni de lectures successives susceptibles de diverger. Les jointures sont faites en base ; `EXISTS` utilise la paire indexée `(user_id, variant_id)`, sans N+1 réseau. Taille de réponse, mémoire d'agrégation/validation et temps de traitement croissent avec le nombre d'items ; le tableau complet est matérialisé, sans promesse de volume illimité. Une limite de ressources produit une erreur, pas une réponse volontairement tronquée. Aucune mesure de performances n'est revendiquée avant exécution. Le service 6B.2 valide un tableau de neuf champs et conserve les IDs décimaux comme chaînes, sans reconstruire l'ordre.
 
-Tests préparés, **non exécutés** : [pgTAP](../supabase/tests/database/015_collection_content.test.sql), [fixture commune](../supabase/tests/database/collection_content.fixtures.inc) et [test HTTP local](../scripts/test-collection-content-api.js). Ils couvrent accès/RLS, contenu exact, ordre/ties, nulls, images, possession partagée, IDs hors précision JavaScript et 1005 éléments. Le test HTTP vérifie d'abord que la lecture REST directe est réellement limitée à 1000, puis exige les 1005 IDs ordonnés dans la RPC propriétaire et partagée ; il rapporte taille/durée et nettoie ses fixtures synthétiques. Il se lance explicitement avec `node scripts/test-collection-content-api.js` uniquement après application manuelle autorisée des migrations et disponibilité du cache de schéma REST ; il n'applique rien et ne modifie aucune configuration.
+Le test [pgTAP](../supabase/tests/database/015_collection_content.test.sql), sa [fixture commune](../supabase/tests/database/collection_content.fixtures.inc) et le [test HTTP local](../scripts/test-collection-content-api.js) couvrent accès/RLS, contenu exact, ordre/ties, nulls, images, possession partagée, IDs hors précision JavaScript et 1005 éléments. pgTAP a été exécuté avec succès lors de la validation temporaire 6C.1 ; le test HTTP reste non exécuté. Celui-ci vérifie d'abord que la lecture REST directe est réellement limitée à 1000, puis exige les 1005 IDs ordonnés dans la RPC propriétaire et partagée ; il rapporte taille/durée et nettoie ses fixtures synthétiques. Il se lance explicitement avec `node scripts/test-collection-content-api.js` uniquement après application manuelle autorisée des migrations et disponibilité du cache de schéma REST ; il n'applique rien et ne modifie aucune configuration.
 
 Contrat additif : anciens lecteurs/écritures inchangés. Une migration de retrait pourra supprimer uniquement cette fonction après retrait de ses consommateurs, sans restauration de données. Service/types/overlays préparés en 6B.2, affichage branché en 6B.3 ; aucun type Supabase généré n'est modifié.
 
@@ -564,7 +610,7 @@ Le bouton Exemplaires ouvre `PhysicalCopiesDialog` avec le propriétaire réel e
 
 Après création/suppression confirmée d'un exemplaire, 6B.2 invalide les contenus du viewer contenant la variante (ou sans donnée), les overviews et le Dashboard. L'édition nom/note rafraîchit uniquement les exemplaires. Aucun recalcul frontend de possession. Le retrait de cette intégration frontend ne nécessite aucune restauration de données ; conserver l'adaptation BIGINT tant que des consommateurs transmettent des chaînes.
 
-Aucune migration créée ni appliquée en 6B.3. Les migrations Phase 6 et leur validation DB/HTTP réelle restent en attente d'autorisation ; les preuves de cette étape sont frontend et transport simulé. Les autres fonctionnalités Phase 6 et les vues Phase 7 restent hors périmètre.
+Aucune migration créée ni appliquée en 6B.3 ; les preuves de cette étape restent frontend et transport simulé. Le statut local et les validations DB ultérieures figurent dans le contrat 6C.1 ci-dessus ; la validation HTTP reste à exécuter. Les autres fonctionnalités Phase 6 et les vues Phase 7 restent hors périmètre.
 
 ## Exemplaires physiques
 
@@ -875,7 +921,7 @@ Le service `collection-items` expose la lecture des IDs et un déplacement méti
 
 `CollectionItemReorderList` reçoit les IDs/libellés ordonnés, `renderItem`, `availability`, `onMove` et le feedback du hook. Non monté en 6A.3, il est désormais composé par la liste propriétaire 6B.3 avec les IDs et lignes issus du contenu, sans recréer un état d'ordre local. La dépendance épinglée `@hello-pangea/dnd@18.0.1`, compatible React 19, fournit les capteurs éprouvés pour listes : poignée dédiée de 44 px, souris, appui tactile prolongé avec annulation du geste si scroll avant activation, clavier Espace/flèches/Espace et Échap. Instructions et annonces sont en français. Les autres actions de ligne ne déclenchent pas le déplacement. Une disponibilité `{ enabled: false, reason }` couvre notamment la lecture seule et le futur filtre actif ; la raison reste accessible au focus. Aucun mode global d'édition, bouton de sauvegarde d'ordre ou reset.
 
-Les types générés restent inchangés : le complément explicite `PendingCollectionReorderDatabase` décrit uniquement ces RPC attendues, sans prétendre que la DB les expose déjà. Après application manuelle, régénérer réellement les types et retirer ce complément. Le test pgTAP `014_collection_reorder.test.sql` et `scripts/test-collection-reorder-concurrency.ts` sont préparés, **non exécutés** ; le second utilise des fixtures synthétiques et vérifie l'attente réelle de deux connexions, l'indépendance d'une autre collection, l'atomicité et le rollback. Il ne doit être lancé qu'après les migrations manuelles. Un rollback du déploiement peut supprimer les deux fonctions par une nouvelle migration ; les positions stockées restent valides. Cette préparation ne clôture pas la Phase 6.
+Les types générés restent inchangés : le complément explicite `PendingCollectionReorderDatabase` décrit uniquement ces RPC attendues, sans prétendre que la DB les expose déjà. Après application manuelle, régénérer réellement les types et retirer ce complément. Le test pgTAP `014_collection_reorder.test.sql` et `scripts/test-collection-reorder-concurrency.ts` ont été exécutés avec succès sur installation locale temporaire lors de 6C.1 ; le second utilise des fixtures synthétiques et vérifie l'attente réelle de deux connexions, l'indépendance d'une autre collection, l'atomicité et le rollback. Il exige une base locale disposant des fonctions ; il n'applique aucune migration. Un rollback du déploiement peut supprimer les deux fonctions par une nouvelle migration ; les positions stockées restent valides. Cette préparation ne clôture pas la Phase 6.
 
 ## Partage par identifiant public
 

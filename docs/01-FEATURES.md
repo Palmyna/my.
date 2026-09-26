@@ -112,6 +112,8 @@ Elle ne dépend d'aucune logique automatique liée à un Pokémon. Elle peut not
 
 La wishlist est seulement un exemple d'usage d'une collection personnalisée et ne constitue pas une fonctionnalité supplémentaire de la V1.
 
+L'ajout manuel, dans une collection personnalisée ou automatique, sélectionne une variante exacte active et confirmée française, dont la carte source et le set sont actifs. Une variante locale MY. reste admissible sans présence dans la source. Le backend 6C.1 permet l'ajout en début ou fin (fin par défaut), puis le déplacement précis par la réorganisation existante. Un doublon est refusé sans conversion ni déplacement. Le retrait manuel conserve les exemplaires physiques et refuse les éléments automatiques. Une perte ultérieure d'éligibilité ne retire ni ne masque les éléments existants. Les interfaces d'ajout et de retrait restent à réaliser.
+
 ## Collections automatiques
 
 Une collection automatique possède une cible. Deux types de cible sont proposés dans la V1 : Pokémon et Extension.
