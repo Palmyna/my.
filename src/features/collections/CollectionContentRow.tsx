@@ -1,4 +1,4 @@
-import { CardImage } from './CardImage'
+import { CompactVariantSummary } from './CompactVariantSummary'
 import { CollectionItemMenu } from './CollectionItemMenu'
 import type { CollectionContentItem } from '../../types/collection-content'
 
@@ -7,16 +7,9 @@ export function CollectionContentRow({ item, readOnly, onCopies, automatic = fal
   onRemove?: (opener: HTMLElement) => void
 }) {
   const name = item.cardNameFr || 'Nom indisponible'
-  const metadata = [item.setNameFr, item.localId].filter(Boolean).join(' · ')
   return <div className={`collection-content-row${item.owned ? '' : ' is-missing'}`}>
-    <CardImage key={item.imageUrl} url={item.imageUrl} name={name} />
-    <div className="collection-content-info">
-      <p className="collection-content-name">{name}</p>
-      {metadata && <p className="collection-content-meta">{metadata}</p>}
-      {item.variantLabel && <p className="collection-content-variant">{item.variantLabel}</p>}
-      {automatic && <p className="collection-content-origin"><span className="visually-hidden">Origine : </span>{item.origin === 'automatic' ? 'Auto' : 'Perso'}</p>}
-      <span className="visually-hidden">{item.owned ? 'Carte possédée' : 'Carte manquante'}</span>
-    </div>
+    <CompactVariantSummary variant={item} origin={automatic ? item.origin : undefined} />
+    <span className="visually-hidden">{item.owned ? 'Carte possédée' : 'Carte manquante'}</span>
     <div className="collection-content-actions">
       <button type="button" className="collection-copies-trigger" onClick={onCopies}
         aria-label={`${readOnly ? 'Consulter' : 'Gérer'} les exemplaires de ${name}`}>

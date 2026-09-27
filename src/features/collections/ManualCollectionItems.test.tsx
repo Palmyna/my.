@@ -20,7 +20,7 @@ vi.mock('../../services/collection-items', async original => ({ ...await origina
 vi.mock('../../services/catalog-search', async original => ({ ...await original<typeof import('../../services/catalog-search')>(), searchCatalogVariantsForAdd: vi.fn() }))
 
 const bigId = '9007199254740995'
-const variant: CatalogVariantForAdd = { variantId: bigId, imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Set exemple', localId: '025', variantLabel: 'Reverse' }
+const variant: CatalogVariantForAdd = { variantId: bigId, imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Set exemple', setAbbreviation: 'ASC', localId: '025', variantLabel: 'Reverse' }
 const item: CollectionContentItem = { ...variant, collectionItemId: 'c1900000-0000-0000-0000-000000000001', origin: 'manual', owned: true }
 const collection: CollectionOverview = { collectionId: 'collection', ownerId: 'owner', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, totalCount: 1, ownedCount: 1 }
 const content = vi.mocked(getCollectionContent), add = vi.mocked(addManualCollectionItem), remove = vi.mocked(removeManualCollectionItem)
@@ -47,7 +47,7 @@ function openAdd() { const trigger = button('Ajouter une carte'); trigger.focus(
 async function selectVariant() {
   openAdd()
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Pika' } })
-  const result = await screen.findByRole('button', { name: /Pikachu.*Set exemple.*025.*Reverse/ })
+  const result = await screen.findByRole('button', { name: /Pikachu.*ASC.*025.*Reverse/ })
   fireEvent.click(result)
 }
 async function openRemove() {
@@ -83,7 +83,7 @@ test('only manual rows have menu; origin labels only in automatic collections', 
   const view = setup({ collectionType: 'automatic' })
   await screen.findByText('Perso'); expect(screen.getByText('Auto')).toBeVisible()
   expect(screen.getAllByRole('button', { name: /Actions de/ })).toHaveLength(1)
-  view.unmount(); setup(); await screen.findByText('Pikachu')
+  view.unmount(); setup(); await screen.findByText('Pikachu · ASC · 025')
   expect(screen.queryByText('Auto')).not.toBeInTheDocument(); expect(screen.queryByText('Perso')).not.toBeInTheDocument()
 })
 test('300ms debounce, no request for empty/useless input, single character accepted', async () => {
@@ -194,7 +194,7 @@ test('pending add blocks double submission, Escape, cancellation and reorder', a
   await act(async () => { finish(item.collectionItemId); await Promise.resolve() })
 })
 test('in-flight reorder blocks opening add/remove', async () => {
-  const { client } = setup(); await screen.findByText('Pikachu')
+  const { client } = setup(); await screen.findByText('Pikachu · ASC · 025')
   let finish!: () => void
   const mutation = client.getMutationCache().build(client, { mutationKey: collectionStructureMutationKey('owner', 'collection'),
     mutationFn: () => new Promise<void>(resolve => { finish = resolve }) })
@@ -235,6 +235,23 @@ test('broken result image falls back without preventing selection', async () => 
   const result = await screen.findByRole('button', { name: /Pikachu.*Reverse/ })
   fireEvent.error(within(result).getByRole('img', { name: 'Pikachu' }))
   expect(within(result).getByRole('img', { name: 'Image indisponible' })).toBeVisible()
+  fireEvent.click(result); expect(screen.getByRole('radio', { name: 'Fin' })).toBeChecked()
+})
+test.each([
+  ['Pikachu', 'ASC', '28', 'Reverse', 'Pikachu · ASC · 28'],
+  ['Pikachu', 'SLG', '28/73', 'Holo', 'Pikachu · SLG · 28/73'],
+  ['Pikachu', null, '028', null, 'Pikachu · 028'],
+  ['Pikachu', 'ASC', null, null, 'Pikachu · ASC'],
+  [null, null, null, null, 'Nom indisponible'],
+])('compact search summary: %s / %s / %s / %s', async (cardNameFr, setAbbreviation, localId, variantLabel, title) => {
+  search.mockResolvedValue([{ ...variant, cardNameFr, setAbbreviation, localId, variantLabel }])
+  setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Pikachu ASC' } })
+  const result = await screen.findByRole('button', { name: new RegExp(title) })
+  expect(result.querySelector('.collection-content-name')).toHaveTextContent(title)
+  expect(within(result).queryByText('Set exemple')).not.toBeInTheDocument()
+  expect(result.querySelector('.collection-content-info')?.children).toHaveLength(variantLabel ? 2 : 1)
+  if (variantLabel) expect(result.querySelector('.collection-content-variant')).toHaveTextContent(variantLabel)
+  expect(add).not.toHaveBeenCalled()
   fireEvent.click(result); expect(screen.getByRole('radio', { name: 'Fin' })).toBeChecked()
 })
 test('pending removal prevents double submit and cancel, keeps physical-copy cache untouched', async () => {

@@ -5,8 +5,8 @@ insert into auth.users(id) values
   ('a1600000-0000-0000-0000-000000000002'),
   ('a1600000-0000-0000-0000-000000000003');
 insert into public.tcg_series(id,name_fr) overriding system value values (-86001,'Série différente');
-insert into public.tcg_sets(id,series_id,name_fr,abbreviation_fr) overriding system value values
-  (-86001,-86001,'Extension précise','EXT'), (-86002,-86001,null,null);
+insert into public.tcg_sets(id,series_id,name_fr,abbreviation_fr,abbreviation) overriding system value values
+  (-86001,-86001,'Extension précise','EXT','SRC'), (-86002,-86001,null,null,null);
 insert into public.source_cards(id,set_id,name_fr,local_id,image_url,source_present,origin) overriding system value values
   (-86001,-86001,'Évoli fixture','TG01','https://example.invalid/source/high.webp',true,'tcgdex'),
   (-86002,-86002,null,null,null,false,'my');

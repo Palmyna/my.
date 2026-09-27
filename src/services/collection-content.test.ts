@@ -10,7 +10,7 @@ const firstId = 'd1600000-0000-0000-0000-000000000002'
 const secondId = 'd1600000-0000-0000-0000-000000000001'
 const row = () => ({
   collection_item_id: firstId, variant_id: '9007199254740995', origin: 'manual',
-  card_name_fr: 'Évoli', local_id: 'TG01', set_name_fr: 'Extension précise',
+  card_name_fr: 'Évoli', local_id: 'TG01', set_name_fr: 'Extension précise', set_abbreviation: 'EXT',
   image_url: 'https://example.invalid/variant/original.png', variant_label: 'Holo Cosmos Stamp corrigé', owned: true,
 })
 function setup(data: unknown = [row()], error: unknown = null) {
@@ -24,7 +24,7 @@ test('one RPC maps the complete row, preserving the BIGINT string, exact labels 
   const content = await mock.service.getCollectionContent(collectionId)
   expect(content).toEqual([{
     collectionItemId: firstId, variantId: '9007199254740995', origin: 'manual',
-    cardNameFr: 'Évoli', localId: 'TG01', setNameFr: 'Extension précise',
+    cardNameFr: 'Évoli', localId: 'TG01', setNameFr: 'Extension précise', setAbbreviation: 'EXT',
     imageUrl: 'https://example.invalid/variant/original.png', variantLabel: 'Holo Cosmos Stamp corrigé', owned: true,
   }])
   expect(content[0]?.variantId).toBe('9007199254740995')
@@ -36,12 +36,12 @@ test('empty content is valid without claiming collection availability', async ()
 })
 test('preserves received order, both origins, owned=false and every nullable field', async () => {
   const data = [row(), { collection_item_id: secondId, variant_id: '42', origin: 'automatic',
-    card_name_fr: null, local_id: null, set_name_fr: null, image_url: null, variant_label: null, owned: false }]
+    card_name_fr: null, local_id: null, set_name_fr: null, set_abbreviation: null, image_url: null, variant_label: null, owned: false }]
   const before = structuredClone(data)
   await expect(setup(data).service.getCollectionContent(collectionId)).resolves.toEqual([
     expect.objectContaining({ collectionItemId: firstId, origin: 'manual', owned: true }),
     { collectionItemId: secondId, variantId: '42', origin: 'automatic', cardNameFr: null,
-      localId: null, setNameFr: null, imageUrl: null, variantLabel: null, owned: false },
+      localId: null, setNameFr: null, setAbbreviation: null, imageUrl: null, variantLabel: null, owned: false },
   ])
   expect(data).toEqual(before)
 })
@@ -78,7 +78,7 @@ test.each(['Manual', 'tcgdex', '', null, 1])('rejects invalid origin %j', async 
 test.each(['true', 'false', 0, 1, null])('rejects non-boolean ownership %j', async owned => {
   await expect(setup([{ ...row(), owned }]).service.getCollectionContent(collectionId)).rejects.toHaveProperty('code', 'unexpected')
 })
-test.each(['card_name_fr', 'local_id', 'set_name_fr', 'image_url', 'variant_label'])(
+test.each(['card_name_fr', 'local_id', 'set_name_fr', 'set_abbreviation', 'image_url', 'variant_label'])(
   'rejects wrong types for nullable field %s', async field => {
     for (const value of [42, false, [], {}]) {
       await expect(setup([{ ...row(), [field]: value }]).service.getCollectionContent(collectionId)).rejects.toHaveProperty('code', 'unexpected')

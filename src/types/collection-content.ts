@@ -5,6 +5,7 @@ export interface CollectionContentItem {
   cardNameFr: string | null
   localId: string | null
   setNameFr: string | null
+  setAbbreviation: string | null
   imageUrl: string | null
   variantLabel: string | null
   owned: boolean

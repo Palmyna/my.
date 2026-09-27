@@ -6,7 +6,7 @@ import { getSupabaseClient } from './supabase'
 
 vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
 const row = { variant_id: '9007199254740995', image_url: null, card_name_fr: 'Pikachu',
-  set_name_fr: 'Légendes Brillantes', local_id: '28', variant_label: 'Reverse' }
+  set_name_fr: 'Légendes Brillantes', set_abbreviation: 'SL3.5', local_id: '28', variant_label: 'Reverse' }
 function setup(data: unknown = [row], error: unknown = null) {
   const rpc = vi.fn().mockResolvedValue({ data, error })
   const client = { rpc } as unknown as SupabaseClient<Database>
@@ -16,8 +16,8 @@ describe('exact catalogue variant search', () => {
   it('calls only the dedicated typed RPC and preserves BIGINT, labels, nulls and order', async () => {
     const { rpc, search } = setup([row, { ...row, variant_id: '2', variant_label: null }])
     expect(await search('Pikachu 28', { limit: 2, offset: 7 })).toEqual([
-      { variantId: '9007199254740995', imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Légendes Brillantes', localId: '28', variantLabel: 'Reverse' },
-      { variantId: '2', imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Légendes Brillantes', localId: '28', variantLabel: null },
+      { variantId: '9007199254740995', imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Légendes Brillantes', setAbbreviation: 'SL3.5', localId: '28', variantLabel: 'Reverse' },
+      { variantId: '2', imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Légendes Brillantes', setAbbreviation: 'SL3.5', localId: '28', variantLabel: null },
     ])
     expect(rpc).toHaveBeenCalledExactlyOnceWith('search_catalog_variants_for_add', { p_query: 'Pikachu 28', p_limit: 2, p_offset: 7 })
   })
@@ -45,15 +45,15 @@ describe('exact catalogue variant search', () => {
   })
   it.each([null, {}, '[]', [null], [[]], [1], [{ ...row, unexpected: true }], [{ ...row, variant_id: undefined }],
     ...[9007199254740995n, 42, '', '01', '-0', '1.0', '1e3', ' 1', '1\n', '9223372036854775808', '-9223372036854775809'].map(variant_id => [{ ...row, variant_id }]),
-    ...['image_url', 'card_name_fr', 'set_name_fr', 'local_id', 'variant_label'].flatMap(key => [undefined, 5, {}, []].map(value => [{ ...row, [key]: value }])),
+    ...['image_url', 'card_name_fr', 'set_name_fr', 'set_abbreviation', 'local_id', 'variant_label'].flatMap(key => [undefined, 5, {}, []].map(value => [{ ...row, [key]: value }])),
     [row, row],
   ].map(data => ({ data })))('fails closed on malformed payload %#', async ({ data }) => {
     await expect(setup(data).search('Pikachu')).rejects.toMatchObject({ code: 'unexpected' })
   })
   it('rejects oversized pages and accepts nullable display values without fallback', async () => {
     await expect(setup([row, { ...row, variant_id: '2' }]).search('Pikachu', { limit: 1 })).rejects.toMatchObject({ code: 'unexpected' })
-    expect(await setup([{ variant_id: '-9223372036854775808', image_url: null, card_name_fr: null, set_name_fr: null, local_id: null, variant_label: null }]).search('Pikachu')).toEqual([
-      { variantId: '-9223372036854775808', imageUrl: null, cardNameFr: null, setNameFr: null, localId: null, variantLabel: null },
+    expect(await setup([{ variant_id: '-9223372036854775808', image_url: null, card_name_fr: null, set_name_fr: null, set_abbreviation: null, local_id: null, variant_label: null }]).search('Pikachu')).toEqual([
+      { variantId: '-9223372036854775808', imageUrl: null, cardNameFr: null, setNameFr: null, setAbbreviation: null, localId: null, variantLabel: null },
     ])
   })
   it.each([['42501', 'not_authorized'], ['PGRST301', 'not_authorized'], ['PGRST302', 'not_authorized'], ['PGRST303', 'not_authorized'],

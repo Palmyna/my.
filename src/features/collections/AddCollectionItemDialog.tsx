@@ -3,20 +3,8 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { CatalogSearchError, searchCatalogVariantsForAdd } from '../../services/catalog-search'
 import type { CatalogVariantForAdd } from '../../types/catalog-search'
 import type { ManualItemPlacement } from '../../types/collection-items'
-import { CardImage } from './CardImage'
+import { CompactVariantSummary } from './CompactVariantSummary'
 import { CollectionItemDialog } from './CollectionItemDialog'
-
-export function VariantSummary({ variant }: { variant: CatalogVariantForAdd }) {
-  const name = variant.cardNameFr || 'Nom indisponible'
-  return <>
-    <CardImage key={variant.imageUrl} url={variant.imageUrl} name={name} />
-    <span className="collection-content-info">
-      <span className="collection-content-name">{name}</span>
-      <span className="collection-content-meta">{[variant.setNameFr, variant.localId].filter(Boolean).join(' · ')}</span>
-      {variant.variantLabel && <span className="collection-content-variant">{variant.variantLabel}</span>}
-    </span>
-  </>
-}
 
 export function AddCollectionItemDialog({ viewerId, opener, busy, error, onClose, onReset, onAdd }: {
   viewerId: string; opener: HTMLElement | null; busy: boolean; error: string | null; onClose: () => void
@@ -44,7 +32,7 @@ export function AddCollectionItemDialog({ viewerId, opener, busy, error, onClose
       }} />
     </div>
     {selected && <>
-      <div ref={confirmation} tabIndex={-1} className="collection-variant-summary"><VariantSummary variant={selected} /></div>
+      <div ref={confirmation} tabIndex={-1} className="collection-variant-summary"><CompactVariantSummary variant={selected} /></div>
       <fieldset className="collection-item-placement" disabled={busy}>
         <legend>Position dans la collection</legend>
         {(['end', 'start'] as const).map(value => <label key={value}>
@@ -99,7 +87,7 @@ function SearchResults({ query, viewerId, onSelect }: {
     {search.isSuccess && results.length === 0 && <p>Aucune variante trouvée.</p>}
     {results.length > 0 && <ul className="collection-search-results">
       {results.map(variant => <li key={variant.variantId}>
-        <button type="button" className="collection-search-result" onClick={() => onSelect(variant)}><VariantSummary variant={variant} /></button>
+        <button type="button" className="collection-search-result" onClick={() => onSelect(variant)}><CompactVariantSummary variant={variant} /></button>
       </li>)}
     </ul>}
     {search.hasNextPage && <button type="button" className="button" disabled={search.isFetching}

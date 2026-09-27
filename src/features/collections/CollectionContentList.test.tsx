@@ -23,7 +23,7 @@ vi.mock('../../services/physical-copies', async original => ({ ...await original
 const id = 'c1200000-0000-0000-0000-000000000001'
 const bigId = '9007199254740995'
 const overview: CollectionOverview = { collectionId: id, ownerId: 'viewer', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 2 }
-const first: CollectionContentItem = { collectionItemId: 'first', variantId: bigId, cardNameFr: 'Pikachu', setNameFr: 'Extension', localId: '025', variantLabel: 'Holo', imageUrl: 'https://images.pokemontcg.io/base1/58.png', origin: 'automatic', owned: false }
+const first: CollectionContentItem = { collectionItemId: 'first', variantId: bigId, cardNameFr: 'Pikachu', setNameFr: 'Extension', setAbbreviation: 'EXT', localId: '025', variantLabel: 'Holo', imageUrl: 'https://images.pokemontcg.io/base1/58.png', origin: 'automatic', owned: false }
 const second: CollectionContentItem = { ...first, collectionItemId: 'second', variantId: '42', cardNameFr: 'Évoli', imageUrl: null, owned: true }
 const get = vi.mocked(getCollectionOverview), content = vi.mocked(getCollectionContent)
 const order = vi.mocked(listCollectionItemOrder), move = vi.mocked(moveCollectionItem)
@@ -65,7 +65,7 @@ test('content waits for authorized overview, then loading and exact content key'
   expect(await screen.findByText('Chargement des cartes…')).toBeVisible()
   await waitFor(() => expect(content).toHaveBeenCalledExactlyOnceWith(id))
   await act(() => { finishContent([first]); return Promise.resolve() })
-  expect(await screen.findByText('Pikachu')).toBeVisible()
+  expect(await screen.findByText('Pikachu · EXT · 025')).toBeVisible()
   expect(client.getQueryData(collectionContentKey('viewer', id))).toEqual([first])
 })
 
@@ -90,7 +90,7 @@ test('content failure is sanitized, retry accepts [] without declaring collectio
 })
 
 test('backend order, ownership visuals, enabled controls and masked status; no origin or empty menu', async () => {
-  setup(); await screen.findByText('Pikachu')
+  setup(); await screen.findByText('Pikachu · EXT · 025')
   await waitFor(() => expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'false'))
   const [missing, owned] = contentRows()
   expect(missing).toHaveTextContent('Pikachu'); expect(owned).toHaveTextContent('Évoli')
@@ -106,12 +106,14 @@ test('backend order, ownership visuals, enabled controls and masked status; no o
 })
 
 test.each([
-  ['Extension', '025', 'Extension · 025'], ['Extension', null, 'Extension'], [null, '025', '025'], [null, null, null],
-])('metadata %s / %s', (setNameFr, localId, expected) => {
-  const { container } = render(<CollectionContentRow item={{ ...first, setNameFr, localId }} readOnly={false} onCopies={() => {}} />)
-  const metadata = container.querySelector('.collection-content-meta')
-  if (expected) expect(metadata).toHaveTextContent(expected)
-  else expect(metadata).toBeNull()
+  ['ASC', '28', 'Pikachu · ASC · 28'], ['SLG', '28/73', 'Pikachu · SLG · 28/73'],
+  ['EXT', null, 'Pikachu · EXT'], [null, '025', 'Pikachu · 025'], [null, null, 'Pikachu'],
+])('compact title %s / %s', (setAbbreviation, localId, expected) => {
+  const { container } = render(<CollectionContentRow item={{ ...first, setAbbreviation, localId }} readOnly={false} onCopies={() => {}} />)
+  expect(container.querySelector('.collection-content-name')).toHaveTextContent(expected)
+  expect(screen.queryByText('Extension')).not.toBeInTheDocument()
+  expect(container.querySelector('.collection-content-variant')).toHaveTextContent('Holo')
+  expect(container.querySelector('.collection-content-info')?.children).toHaveLength(2)
 })
 
 test('name fallback, optional variant, exact image URL and graphical missing/broken image', () => {
@@ -122,7 +124,7 @@ test('name fallback, optional variant, exact image URL and graphical missing/bro
   fireEvent.error(image)
   expect(screen.getByRole('img', { name: 'Image indisponible' }).tagName).toBe('svg')
   view.rerender(<CollectionContentRow item={{ ...first, imageUrl: null, cardNameFr: null, variantLabel: null }} readOnly onCopies={() => {}} />)
-  expect(screen.getByText('Nom indisponible')).toBeVisible()
+  expect(screen.getByText('Nom indisponible · EXT · 025')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Consulter les exemplaires de Nom indisponible' })).toBeEnabled()
   expect(screen.queryByText('Holo')).not.toBeInTheDocument()
   expect(screen.getByRole('img', { name: 'Image indisponible' })).toBeInTheDocument()
@@ -131,7 +133,7 @@ test('name fallback, optional variant, exact image URL and graphical missing/bro
 test.each([false, true])('shared copies (present=%s) use real owner; no DnD or write controls, notes readable', async present => {
   get.mockResolvedValue({ ...overview, access: 'shared', ownerId: 'real-owner' })
   if (present) rows = [{ id: 'copy', name: 'Cadeau', note: 'Recto intact', created_at: '2026-09-25T00:00:00Z' }]
-  setup(); await screen.findByText('Pikachu')
+  setup(); await screen.findByText('Pikachu · EXT · 025')
   expect(order).not.toHaveBeenCalled()
   expect(screen.queryByRole('button', { name: /Déplacer/ })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Consulter les exemplaires de Pikachu' }))
@@ -147,7 +149,7 @@ test.each([false, true])('shared copies (present=%s) use real owner; no DnD or w
 
 test('BIGINT line -> full dialog -> first/second copy -> delete to zero; owned comes from refetch', async () => {
   content.mockImplementation(() => Promise.resolve([{ ...first, owned: rows.length > 0 }]))
-  const { client } = setup(); await screen.findByText('Pikachu')
+  const { client } = setup(); await screen.findByText('Pikachu · EXT · 025')
   expect(client.getQueryData<CollectionContentItem[]>(collectionContentKey('viewer', id))?.[0]?.variantId).toBe(bigId)
   const opener = screen.getByRole('button', { name: 'Gérer les exemplaires de Pikachu' })
   opener.focus(); fireEvent.click(opener)
@@ -186,7 +188,7 @@ test.each([false, true])('real keyboard reorder refetches content on success/unc
   vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(800)
   vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(600)
   vi.spyOn(window, 'scrollBy').mockImplementation(() => {})
-  const { client } = setup(); await screen.findByText('Pikachu')
+  const { client } = setup(); await screen.findByText('Pikachu · EXT · 025')
   const handle = screen.getByRole('button', { name: 'Déplacer Pikachu' })
   await waitFor(() => expect(handle).toHaveAttribute('aria-disabled', 'false'))
   const other = collectionContentKey('other-viewer', id)
@@ -208,24 +210,24 @@ test.each([false, true])('real keyboard reorder refetches content on success/unc
 test('revoked overview removes visible cached rows, open notes/dialog, and private caches', async () => {
   get.mockResolvedValue({ ...overview, access: 'shared', ownerId: 'real-owner' })
   rows = [{ id: 'copy', name: 'Secret', note: 'Note privée', created_at: '2026-09-25T00:00:00Z' }]
-  const { client } = setup(); await screen.findByText('Pikachu')
+  const { client } = setup(); await screen.findByText('Pikachu · EXT · 025')
   fireEvent.click(screen.getByRole('button', { name: 'Consulter les exemplaires de Pikachu' }))
   await screen.findByText('Secret')
   fireEvent.click(screen.getByRole('button', { name: 'Afficher l’état / note de Secret' }))
   get.mockRejectedValue(new CollectionsError('collection_unavailable'))
   await act(async () => { await client.invalidateQueries({ queryKey: collectionOverviewKey('viewer', id), exact: true }) })
   await screen.findByRole('heading', { name: 'Collection indisponible' })
-  for (const text of ['Pikachu', 'Secret', 'Note privée']) expect(screen.queryByText(text)).not.toBeInTheDocument()
+  for (const text of ['Pikachu · EXT · 025', 'Secret', 'Note privée']) expect(screen.queryByText(text)).not.toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   for (const key of [collectionContentKey('viewer', id), collectionItemOrderKey('viewer', id), physicalCopiesKey('viewer', 'real-owner', bigId)]) expect(client.getQueryData(key)).toBeUndefined()
 })
 
 test('logout and viewer switch never show previous private rows', async () => {
-  const { rerender } = setup(); await screen.findByText('Pikachu')
+  const { rerender } = setup(); await screen.findByText('Pikachu · EXT · 025')
   auth.isAuthorized = false; rerender()
-  expect(screen.queryByText('Pikachu')).not.toBeInTheDocument()
+  expect(screen.queryByText('Pikachu · EXT · 025')).not.toBeInTheDocument()
   auth.user = { id: 'next-viewer' }; auth.isAuthorized = true
   get.mockReturnValue(new Promise(() => {})); rerender()
-  expect(screen.queryByText('Pikachu')).not.toBeInTheDocument()
+  expect(screen.queryByText('Pikachu · EXT · 025')).not.toBeInTheDocument()
   expect(content).toHaveBeenCalledTimes(1)
 })
