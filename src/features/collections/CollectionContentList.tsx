@@ -25,7 +25,7 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
   const [notice, setNotice] = useState('')
   const manual = useManualCollectionItems(viewerId, collection.collectionId, request => {
     setAction(null)
-    setNotice(request.type === 'add' ? 'Carte ajoutée à la collection.' : 'Carte retirée de la collection. Vos exemplaires physiques sont conservés.')
+    setNotice(request.type === 'add' ? 'Carte ajoutée à la collection.' : 'Carte retirée. Vos exemplaires sont conservés.')
     // A removed row cannot remain the focus target after the authoritative refetch.
     focusAfterWrite.current = true
   })
@@ -60,7 +60,7 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
       busy={manual.pending} error={manualItemErrorMessage(manual.error)} onReset={manual.reset} onClose={() => setAction(null)}
       onAdd={(variantId, placement) => manual.submit({ type: 'add', variantId, placement })} />}
     {!readOnly && action?.type === 'remove' && <CollectionItemDialog title="Retirer cette carte de la collection ?"
-      description="La variante sera retirée de cette collection. Vos exemplaires physiques seront conservés."
+      description="Cette carte sera retirée de la collection. Vos exemplaires seront conservés."
       busy={manual.pending} error={manualItemErrorMessage(manual.error)} opener={action.opener} onClose={() => setAction(null)}>
       <p>{[action.item.cardNameFr || 'Nom indisponible', action.item.setNameFr, action.item.localId, action.item.variantLabel].filter(Boolean).join(' · ')}</p>
       <div className="collection-dialog-actions">

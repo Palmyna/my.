@@ -102,17 +102,17 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId, read
     setAction(next)
   }
 
-  const title = !action ? 'Exemplaires physiques' : action.type === 'create' ? 'Ajouter un exemplaire'
-    : action.type === 'edit' ? 'Éditer l’exemplaire' : 'Supprimer l’exemplaire'
+  const title = !action ? (readOnly ? 'Exemplaires' : 'Mes exemplaires') : action.type === 'create' ? 'Ajouter un exemplaire'
+    : action.type === 'edit' ? 'Modifier l’exemplaire' : 'Supprimer l’exemplaire'
   const errorMessage = mutation.error instanceof PhysicalCopiesError && mutation.error.code === 'not_authorized'
-    ? 'Votre session ou vos droits ne permettent pas cette action. Reconnectez-vous pour réessayer.'
+    ? 'Impossible d’effectuer cette action. Reconnectez-vous puis réessayez.'
     : mutation.error instanceof PhysicalCopiesError && mutation.error.code === 'copy_unavailable'
-      ? 'Cet exemplaire n’existe plus ou vous n’y avez plus accès. Revenez à la liste pour la rafraîchir.'
+      ? 'Cet exemplaire n’est plus disponible. Actualisez la liste puis réessayez.'
       : mutation.error instanceof PhysicalCopiesError && mutation.error.code === 'variant_unavailable'
-        ? 'Cette variante n’est plus disponible.'
+        ? 'Cette version n’est plus disponible.'
         : mutation.error instanceof PhysicalCopiesError && mutation.error.code === 'note_too_long'
           ? 'L’état / note ne peut pas dépasser 750 caractères.'
-          : 'L’opération n’a pas pu être confirmée. Revenez à la liste pour vérifier les exemplaires avant de réessayer.'
+          : 'L’opération n’a pas pu être confirmée. Vérifiez vos exemplaires puis réessayez.'
 
   return <dialog ref={dialog} className="collection-dialog collection-action-dialog physical-copies-dialog"
     aria-labelledby={`${id}-title`} aria-describedby={`${id}-variant`}
@@ -132,7 +132,7 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId, read
       {readOnly && <p>Lecture seule</p>}
       {copies.isPending && <p role="status">Chargement des exemplaires…</p>}
       {copies.isError && <div>
-        <p role="alert">Impossible de charger les exemplaires. Vérifiez votre accès puis réessayez.</p>
+        <p role="alert">Impossible de charger les exemplaires. Réessayez.</p>
         <button className="button" disabled={copies.isFetching} onClick={() => void copies.refetch()}>Réessayer</button>
       </div>}
       {copies.isSuccess && (copies.data.length === 0 ? <p>Aucun exemplaire.</p> : <ul className="physical-copies-list">
@@ -156,11 +156,11 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId, read
       running.current = true
       mutation.mutate(action)
     }}>
-      {action.type === 'delete' ? <p>Supprimer « {action.label} » ? Cette suppression est définitive. Les variantes de vos collections seront conservées.</p> : <>
-        <label className="field" htmlFor={`${id}-name`}>Nom personnalisé (facultatif)</label>
+      {action.type === 'delete' ? <p>Supprimer « {action.label} » ? Cet exemplaire sera supprimé. La carte restera dans vos collections.</p> : <>
+        <label className="field" htmlFor={`${id}-name`}>Nom (facultatif)</label>
         <input id={`${id}-name`} ref={input} value={name} autoComplete="off" disabled={mutation.isPending}
           aria-describedby={`${id}-hint`} onChange={event => setName(event.target.value)} />
-        <p className="hint" id={`${id}-hint`}>Sans nom, l’exemplaire reçoit un numéro d’affichage recalculé automatiquement.</p>
+        <p className="hint" id={`${id}-hint`}>Laissez vide pour utiliser « Exemplaire 1 », « Exemplaire 2 »…</p>
         <label className="field" htmlFor={`${id}-note`}>État / note (facultatif)</label>
         <textarea id={`${id}-note`} value={note} rows={4} disabled={mutation.isPending}
           aria-describedby={`${id}-note-count`} onChange={event => {
@@ -175,7 +175,7 @@ function CopiesDialog({ ownerId, variantId, variantName, onClose, viewerId, read
       <div className="collection-dialog-actions">
         <button ref={cancel} className="button collection-cancel" type="button" disabled={mutation.isPending} onClick={dismiss}>Annuler</button>
         <button className={`button ${action.type === 'delete' ? 'collection-danger-action' : ''}`} type="submit" disabled={mutation.isPending}>
-          {action.type === 'delete' ? 'Supprimer' : action.type === 'create' ? 'Créer l’exemplaire' : 'Enregistrer'}
+          {action.type === 'delete' ? 'Supprimer' : action.type === 'create' ? 'Ajouter' : 'Enregistrer'}
         </button>
       </div>
     </form>}
@@ -224,7 +224,7 @@ function CopyActions({ label, buttonId, edit, remove }: { label: string; buttonI
       <span className="collection-actions-icon" aria-hidden="true"><span /><span /><span /></span>
     </button>
     {open && <div className="collection-actions-panel" id={id} role="group" aria-label={`Actions de ${label}`}>
-      <button ref={first} type="button" onClick={edit}>Éditer</button><hr />
+      <button ref={first} type="button" onClick={edit}>Modifier</button><hr />
       <button className="collection-delete-option" type="button" onClick={remove}>Supprimer</button>
     </div>}
   </div>

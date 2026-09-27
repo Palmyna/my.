@@ -42,14 +42,14 @@ function setup() {
   opener.focus(); fireEvent.click(opener)
   return { client, opener, ...view }
 }
-async function menu(label: string, action?: 'Éditer' | 'Supprimer') {
+async function menu(label: string, action?: 'Modifier' | 'Supprimer') {
   const button = await screen.findByRole('button', { name: `Actions de ${label}` })
   button.focus(); fireEvent.click(button)
   if (action) fireEvent.click(screen.getByRole('button', { name: action }))
   return button
 }
 const submit = () => fireEvent.submit(screen.getByRole('dialog').querySelector('form')!)
-const editName = (value: string) => fireEvent.change(screen.getByRole('textbox', { name: 'Nom personnalisé (facultatif)' }), { target: { value } })
+const editName = (value: string) => fireEvent.change(screen.getByRole('textbox', { name: 'Nom (facultatif)' }), { target: { value } })
 async function add() { fireEvent.click(await screen.findByRole('button', { name: 'Ajouter un exemplaire' })) }
 
 const noteField = () => screen.getByRole('textbox', { name: 'État / note (facultatif)' })
@@ -125,7 +125,7 @@ test('editing refreshes note, clearing removes disclosure, deleting removes expa
   rows = [fixture('a', null, 'Ancienne note'), fixture('b', null, 'Autre note')]
   setup(); await screen.findByText('Exemplaire 1')
   fireEvent.click(noteButton('Exemplaire 1'))
-  await menu('Exemplaire 1', 'Éditer')
+  await menu('Exemplaire 1', 'Modifier')
   expect(noteField()).toHaveValue('Ancienne note')
   fireEvent.change(noteField(), { target: { value: ' Nouvelle\nnote ' } }); submit()
   await screen.findByText('Exemplaire 1')
@@ -133,7 +133,7 @@ test('editing refreshes note, clearing removes disclosure, deleting removes expa
   expect(noteButton('Exemplaire 1')).toHaveAttribute('aria-expanded', 'false')
   fireEvent.click(noteButton('Exemplaire 1'))
   expect(document.getElementById(noteButton('Exemplaire 1', true).getAttribute('aria-controls')!)?.textContent).toBe(' Nouvelle\nnote ')
-  await menu('Exemplaire 1', 'Éditer')
+  await menu('Exemplaire 1', 'Modifier')
   fireEvent.change(noteField(), { target: { value: ' \n ' } }); submit()
   await screen.findByText('Exemplaire 1')
   expect(screen.queryByRole('button', { name: /l’état \/ note de Exemplaire 1/ })).not.toBeInTheDocument()
@@ -160,7 +160,7 @@ test('Tab trap includes textarea and note disclosure', async () => {
 
 test('listing, custom name priority, native modal and initial focus', async () => {
   setup()
-  const dialog = screen.getByRole('dialog', { name: 'Exemplaires physiques' })
+  const dialog = screen.getByRole('dialog', { name: 'Mes exemplaires' })
   expect(dialog).toHaveAttribute('open')
   expect(dialog).toHaveAccessibleDescription('Pikachu · Holo')
   expect(screen.getByRole('heading')).toHaveFocus()
@@ -179,7 +179,7 @@ test('add creates one unnamed copy, returns to refreshed list, requires another 
   client.setQueryData(collectionOverviewKey('owner', 'collection-two'), { cached: true })
   await screen.findByText('Cadeau')
   await add()
-  expect(screen.getByRole('textbox', { name: 'Nom personnalisé (facultatif)' })).toHaveFocus()
+  expect(screen.getByRole('textbox', { name: 'Nom (facultatif)' })).toHaveFocus()
   expect(create).not.toHaveBeenCalled()
   submit()
   await screen.findByText('Exemplaire 4')
@@ -206,7 +206,7 @@ test.each(['create', 'delete', 'edit'] as const)('%s refreshes content possessio
   client.setQueryData(differentVariant, [{ ...content[0], variantId: '43' }])
   await screen.findByText('Cadeau')
   if (action === 'create') await add()
-  else await menu('Cadeau', action === 'edit' ? 'Éditer' : 'Supprimer')
+  else await menu('Cadeau', action === 'edit' ? 'Modifier' : 'Supprimer')
   submit()
   await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Ajouter un exemplaire' })).toBeVisible())
@@ -223,7 +223,7 @@ test('pending blocks double submit, dismiss and Escape until listing is refreshe
   submit(); submit()
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
   expect(screen.getByRole('button', { name: 'Annuler' })).toBeDisabled()
-  expect(screen.getByRole('textbox', { name: 'Nom personnalisé (facultatif)' })).toBeDisabled()
+  expect(screen.getByRole('textbox', { name: 'Nom (facultatif)' })).toBeDisabled()
   expect(noteField()).toBeDisabled()
   expect(screen.getByRole('heading')).toHaveFocus()
   fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
@@ -232,7 +232,7 @@ test('pending blocks double submit, dismiss and Escape until listing is refreshe
   list.mockImplementationOnce(() => new Promise(resolve => { resolveList = resolve }))
   await act(() => { resolveWrite(); return Promise.resolve() })
   await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
-  expect(screen.getByRole('button', { name: 'Créer l’exemplaire' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Ajouter' })).toBeDisabled()
   submit(); expect(create).toHaveBeenCalledTimes(1)
   await act(() => { resolveList([...rows]); return Promise.resolve() })
   await screen.findByText('Exemplaire 4')
@@ -240,13 +240,13 @@ test('pending blocks double submit, dismiss and Escape until listing is refreshe
 })
 
 test('edit then clear name restores dynamic fallback', async () => {
-  setup(); await menu('Cadeau', 'Éditer')
-  expect(screen.getByRole('textbox', { name: 'Nom personnalisé (facultatif)' })).toHaveValue('Cadeau')
+  setup(); await menu('Cadeau', 'Modifier')
+  expect(screen.getByRole('textbox', { name: 'Nom (facultatif)' })).toHaveValue('Cadeau')
   editName('Nouvelle étiquette'); submit()
   await screen.findByText('Nouvelle étiquette')
   expect(update).toHaveBeenLastCalledWith('b', 'Nouvelle étiquette', '')
   expect(screen.getByRole('button', { name: 'Actions de Nouvelle étiquette' })).toHaveFocus()
-  await menu('Nouvelle étiquette', 'Éditer'); editName(''); submit()
+  await menu('Nouvelle étiquette', 'Modifier'); editName(''); submit()
   await screen.findByText('Exemplaire 2')
   expect(update).toHaveBeenLastCalledWith('b', '', '')
 })
@@ -255,7 +255,7 @@ test('deletion requires confirmation, supports cancellation, and renumbers remai
   setup(); await menu('Exemplaire 1', 'Supprimer')
   expect(remove).not.toHaveBeenCalled()
   expect(screen.getByRole('button', { name: 'Annuler' })).toHaveFocus()
-  expect(screen.getByText(/Les variantes de vos collections seront conservées/)).toBeVisible()
+  expect(screen.getByText(/La carte restera dans vos collections/)).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
   expect(screen.getByText('Exemplaire 1')).toBeVisible()
   expect(remove).not.toHaveBeenCalled()
@@ -290,7 +290,7 @@ test('recipient can read owner copies but has no write controls', async () => {
 test('menu keyboard, outside close, Tab wrap, Escape and focus restoration', async () => {
   const { opener } = setup()
   let button = await menu('Cadeau')
-  expect(screen.getByRole('button', { name: 'Éditer' })).toHaveFocus()
+  expect(screen.getByRole('button', { name: 'Modifier' })).toHaveFocus()
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
   expect(button).toHaveFocus(); expect(button).toHaveAttribute('aria-expanded', 'false')
   button = await menu('Cadeau'); fireEvent.pointerDown(screen.getByRole('heading'))

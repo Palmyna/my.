@@ -126,14 +126,14 @@ test('pages of 20 accumulate, deduplicate variantId and restart at offset zero',
   expect(within(screen.getByRole('dialog')).getAllByRole('listitem')).toHaveLength(21)
   expect(screen.queryByRole('button', { name: 'Afficher plus' })).not.toBeInTheDocument()
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Autre' } })
-  await screen.findByText('Aucune variante trouvée.')
+  await screen.findByText('Aucune carte trouvée.')
   expect(search).toHaveBeenLastCalledWith('Autre', { limit: 20, offset: 0 })
 })
 test.each(['unexpected', 'not_authorized', 'invalid_query'] as const)('search %s is safe, retry works, changing query removes alert', async code => {
   search.mockRejectedValueOnce(new CatalogSearchError(code)).mockResolvedValue([])
   setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'X' } })
   await screen.findByRole('alert')
-  fireEvent.click(button('Réessayer la recherche')); await screen.findByText('Aucune variante trouvée.')
+  fireEvent.click(button('Réessayer la recherche')); await screen.findByText('Aucune carte trouvée.')
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Y' } })
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
 })
@@ -162,10 +162,10 @@ test.each(['end', 'start'] as const)('selection only, default Fin, %s add exact 
   expect(client.getQueryState(collectionContentKey('someone-else', 'collection'))?.isInvalidated).toBe(false)
 })
 test.each<[CollectionItemsErrorCode, string]>([
-  ['already_present', 'Cette variante est déjà présente dans cette collection.'],
-  ['manual_variant_unavailable', 'Cette variante n’est plus disponible pour être ajoutée.'],
+  ['already_present', 'Cette version est déjà dans votre collection.'],
+  ['manual_variant_unavailable', 'Cette version n’est plus disponible.'],
   ['manual_item_invalid_placement', 'Cette position n’est pas disponible'],
-  ['not_authorized', 'Votre session ou vos droits'], ['collection_action_unavailable', 'Cette collection n’est plus disponible'],
+  ['not_authorized', 'Impossible d’effectuer cette action. Reconnectez-vous puis réessayez.'], ['collection_action_unavailable', 'Cette collection n’est plus disponible'],
   ['collection_structure_conflict', 'La collection a changé'], ['manual_item_unexpected', 'La modification n’a pas pu être confirmée'],
 ])('add error %s keeps selection, refreshes authority, allows return', async (code, message) => {
   add.mockRejectedValue(new CollectionItemsError(code))
@@ -275,7 +275,7 @@ test('remove confirmation protects physical copies; exact item id, invalidations
   client.setQueryData(copiesKey, ['unchanged'])
   await openRemove()
   expect(screen.getByRole('dialog', { name: 'Retirer cette carte de la collection ?' })).toBeVisible()
-  expect(screen.getByText('La variante sera retirée de cette collection. Vos exemplaires physiques seront conservés.')).toBeVisible()
+  expect(screen.getByText('Cette carte sera retirée de la collection. Vos exemplaires seront conservés.')).toBeVisible()
   expect(button('Annuler')).toHaveFocus()
   content.mockResolvedValue([])
   fireEvent.click(button('Retirer'))
@@ -288,9 +288,9 @@ test('remove confirmation protects physical copies; exact item id, invalidations
 })
 test.each<[CollectionItemsErrorCode, string]>([
   ['manual_item_unavailable', 'Cette carte n’est plus disponible'],
-  ['automatic_item_removal_forbidden', 'Un élément automatique ne peut pas être retiré'],
+  ['automatic_item_removal_forbidden', 'Seules les cartes Perso peuvent être retirées.'],
   ['collection_action_unavailable', 'Cette collection n’est plus disponible'],
-  ['not_authorized', 'Votre session ou vos droits'],
+  ['not_authorized', 'Impossible d’effectuer cette action. Reconnectez-vous puis réessayez.'],
   ['collection_structure_conflict', 'La collection a changé'],
   ['manual_item_unexpected', 'La modification n’a pas pu être confirmée'],
 ])('remove error %s safe, keeps dialog and allows cancellation', async (code, message) => {

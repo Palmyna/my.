@@ -42,15 +42,15 @@ export function manualItemErrorMessage(error: unknown): string | null {
   if (!error) return null
   if (error instanceof CollectionItemsError) {
     switch (error.code) {
-      case 'already_present': return 'Cette variante est déjà présente dans cette collection.'
-      case 'manual_variant_unavailable': return 'Cette variante n’est plus disponible pour être ajoutée.'
+      case 'already_present': return 'Cette version est déjà dans votre collection.'
+      case 'manual_variant_unavailable': return 'Cette version n’est plus disponible.'
       case 'manual_item_invalid_placement': return 'Cette position n’est pas disponible. Choisissez Début ou Fin.'
       case 'manual_item_unavailable': return 'Cette carte n’est plus disponible dans cette collection.'
-      case 'automatic_item_removal_forbidden': return 'Un élément automatique ne peut pas être retiré de la collection.'
+      case 'automatic_item_removal_forbidden': return 'Seules les cartes Perso peuvent être retirées.'
       case 'collection_action_unavailable': return 'Cette collection n’est plus disponible pour cette action.'
-      case 'not_authorized': return 'Votre session ou vos droits ne permettent pas cette action. Reconnectez-vous pour réessayer.'
-      case 'collection_structure_conflict': return 'La collection a changé. La modification n’a pas pu être confirmée. Vérifiez son contenu actualisé avant de réessayer.'
+      case 'not_authorized': return 'Impossible d’effectuer cette action. Reconnectez-vous puis réessayez.'
+      case 'collection_structure_conflict': return 'La collection a changé. Vérifiez son contenu puis réessayez.'
     }
   }
-  return 'La modification n’a pas pu être confirmée. Vérifiez le contenu actualisé de la collection avant de réessayer.'
+  return 'La modification n’a pas pu être confirmée. Vérifiez la collection puis réessayez.'
 }

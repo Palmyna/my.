@@ -21,7 +21,7 @@ export function AddCollectionItemDialog({ viewerId, opener, busy, error, onClose
     else input.current?.focus()
   }, [selected])
   return <CollectionItemDialog title="Ajouter une carte" description={selected
-    ? 'Confirmez la variante et sa position dans la collection.' : 'Recherchez une variante dans le catalogue.'}
+    ? 'Vérifiez la version choisie et sa position.' : 'Recherchez une carte à ajouter.'}
     busy={busy} error={error} opener={opener} onClose={onClose}>
     <div hidden={!!selected}>
       <label className="field" htmlFor={`${id}-query`}>Rechercher une carte</label>
@@ -76,7 +76,7 @@ function SearchResults({ query, viewerId, onSelect }: {
     {(!ready || search.isFetching) && <p role="status">Recherche en cours…</p>}
     {search.isError && <div>
       <p role="alert">{search.error instanceof CatalogSearchError && search.error.code === 'not_authorized'
-        ? 'Votre session ne permet pas cette recherche. Reconnectez-vous pour réessayer.'
+        ? 'Impossible d’effectuer cette recherche. Reconnectez-vous puis réessayez.'
         : search.error instanceof CatalogSearchError && search.error.code === 'invalid_query'
           ? 'Cette recherche n’est pas valide. Modifiez votre saisie.' : 'Impossible de rechercher les cartes. Veuillez réessayer.'}</p>
       <button type="button" className="button" disabled={search.isFetching} onClick={() => {
@@ -84,7 +84,7 @@ function SearchResults({ query, viewerId, onSelect }: {
         else void search.refetch()
       }}>Réessayer la recherche</button>
     </div>}
-    {search.isSuccess && results.length === 0 && <p>Aucune variante trouvée.</p>}
+    {search.isSuccess && results.length === 0 && <p>Aucune carte trouvée.</p>}
     {results.length > 0 && <ul className="collection-search-results">
       {results.map(variant => <li key={variant.variantId}>
         <button type="button" className="collection-search-result" onClick={() => onSelect(variant)}><CompactVariantSummary variant={variant} /></button>

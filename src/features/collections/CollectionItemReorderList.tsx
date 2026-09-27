@@ -26,14 +26,14 @@ function ReorderList({ collectionId, items, availability, onMove, renderItem, fe
   const [message, setMessage] = useState('')
   const [pending, setPending] = useState(false)
   const reason = !availability.enabled ? availability.reason : pending ? 'Déplacement en cours…' : null
-  const label = (itemId: string) => items.find(item => item.id === itemId)?.label ?? 'Élément'
+  const label = (itemId: string) => items.find(item => item.id === itemId)?.label ?? 'Carte'
 
   const onDragEnd: OnDragEndResponder = (result, { announce }) => {
     const destination = result.destination
     if (result.reason === 'CANCEL' || !destination) { announce('Déplacement annulé.'); return }
     if (reason || saving.current || capturedIds.current.some((itemId, index) => itemId !== items[index]?.id)
       || capturedIds.current.length !== items.length) {
-      announce('La liste a changé ou le déplacement est indisponible. Recommencez après actualisation.')
+      announce('Impossible de déplacer cette carte. Actualisez la liste puis réessayez.')
       return
     }
     if (destination.index === result.source.index) { announce('Position inchangée.'); return }
@@ -49,7 +49,7 @@ function ReorderList({ collectionId, items, availability, onMove, renderItem, fe
     // No second source of order or optimistic positions: keep the last authoritative
     // list until the write and refetch finish. A failed write is also refreshed.
     void onMove(move).then(success => {
-      setMessage(success ? 'Déplacement enregistré. Ordre actualisé.' : 'Déplacement non confirmé. Vérifiez l’ordre actualisé.')
+      setMessage(success ? 'Carte déplacée.' : 'Déplacement non confirmé. Vérifiez l’ordre puis réessayez.')
     }).catch(() => { setMessage('Déplacement non confirmé. Actualisez la liste avant de réessayer.') })
       .finally(() => { saving.current = false; setPending(false) })
   }
@@ -57,8 +57,8 @@ function ReorderList({ collectionId, items, availability, onMove, renderItem, fe
   return <div className="collection-item-reorder">
     {reason && <p id={`${id}-reason`} className="hint">{reason}</p>}
     <DragDropContext onBeforeDragStart={() => { capturedIds.current = items.map(item => item.id) }}
-      dragHandleUsageInstructions="Appuyez sur Espace pour sélectionner l’élément, utilisez les flèches haut et bas pour le déplacer, puis Espace pour valider ou Échap pour annuler."
-      onDragStart={(start, { announce }) => announce(`${label(start.draggableId)} sélectionné, position ${start.source.index + 1} sur ${items.length}.`)}
+      dragHandleUsageInstructions="Appuyez sur Espace pour sélectionner la carte, utilisez les flèches haut et bas pour la déplacer, puis Espace pour valider ou Échap pour annuler."
+      onDragStart={(start, { announce }) => announce(`${label(start.draggableId)} : carte sélectionnée, position ${start.source.index + 1} sur ${items.length}.`)}
       onDragUpdate={(update, { announce }) => announce(update.destination
         ? `${label(update.draggableId)}, position ${update.destination.index + 1} sur ${items.length}.`
         : 'Hors de la liste. Relâchez pour annuler.')}

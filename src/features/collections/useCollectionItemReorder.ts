@@ -33,14 +33,14 @@ export function useCollectionItemReorder({ collectionId, access, availability }:
     : access !== 'owned' ? 'Cette collection est en lecture seule.'
       : !availability.enabled ? availability.reason
         : structureBusy ? 'Modification de la collection en cours…'
-          : !order.isSuccess || order.isFetching ? 'Attendez le chargement de l’ordre de la collection.' : null
-  const error = order.isError ? 'Impossible d’actualiser l’ordre. Réessayez avant de déplacer un élément.'
+          : !order.isSuccess || order.isFetching ? 'Chargement de l’ordre des cartes…' : null
+  const error = order.isError ? 'Impossible d’actualiser l’ordre des cartes. Réessayez.'
     : mutation.isError && mutation.variables?.collectionId === collectionId && mutation.variables.userId === user?.id
       ? mutation.error instanceof CollectionItemsError && mutation.error.code === 'not_authorized'
-        ? 'Vos droits ne permettent pas ce déplacement.'
+        ? 'Impossible de déplacer cette carte. Reconnectez-vous puis réessayez.'
         : mutation.error instanceof CollectionItemsError && mutation.error.code === 'item_unavailable'
-          ? 'Cet élément n’est plus disponible. L’ordre a été actualisé.'
-          : 'Le déplacement n’a pas pu être confirmé. Vérifiez l’ordre avant de réessayer.' : null
+          ? 'Cette carte n’est plus disponible. Vérifiez la collection puis réessayez.'
+          : 'Le déplacement n’a pas pu être confirmé. Vérifiez l’ordre puis réessayez.' : null
 
   async function move(next: ItemMove): Promise<boolean> {
     if (disabledReason || running.current || !user || client.isMutating({ mutationKey, exact: true })) return false

@@ -147,7 +147,7 @@ test.each([false, true])('shared copies (present=%s) use real owner; no DnD or w
     fireEvent.click(screen.getByRole('button', { name: 'Afficher l’état / note de Cadeau' }))
     expect(screen.getByText('Recto intact')).toBeVisible()
   }
-  expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /Ajouter|Éditer|Supprimer|Actions de/ })).not.toBeInTheDocument()
+  expect(within(screen.getByRole('dialog')).queryByRole('button', { name: /Ajouter|Modifier|Supprimer|Actions de/ })).not.toBeInTheDocument()
   expect(create).not.toHaveBeenCalled(); expect(remove).not.toHaveBeenCalled()
 })
 
@@ -161,7 +161,7 @@ test('BIGINT line -> full dialog -> first/second copy -> delete to zero; owned c
   expect(copies).toHaveBeenCalledExactlyOnceWith('viewer', bigId)
   for (let count = 1; count <= 2; count++) {
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter un exemplaire' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Créer l’exemplaire' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
     await screen.findByText(`Exemplaire ${count}`)
     await waitFor(() => expect(screen.getByText('Carte possédée')).toBeInTheDocument())
     expect(create).toHaveBeenLastCalledWith(bigId, '', '')
@@ -169,7 +169,7 @@ test('BIGINT line -> full dialog -> first/second copy -> delete to zero; owned c
   // Editing copy metadata must not refresh owned.
   const reads = content.mock.calls.length
   fireEvent.click(screen.getByRole('button', { name: 'Actions de Exemplaire 1' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Éditer' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
   await screen.findByText('Exemplaire 1')
   expect(content).toHaveBeenCalledTimes(reads)
@@ -201,7 +201,7 @@ test.each([false, true])('real keyboard reorder refetches content on success/unc
   if (fail) move.mockRejectedValue(new Error('uncertain private error'))
   const key = (value: string, keyCode: number) => fireEvent.keyDown(handle, { key: value, keyCode, which: keyCode })
   handle.focus(); key(' ', 32)
-  await screen.findByText(/Pikachu sélectionné/)
+  await screen.findByText(/Pikachu : carte sélectionnée/)
   key('ArrowDown', 40); await screen.findByText(/Pikachu, position 2/)
   key(' ', 32); fireEvent.transitionEnd(handle.closest('li')!, { propertyName: 'transform' })
   await waitFor(() => expect(move).toHaveBeenCalledExactlyOnceWith(id, { itemId: 'first', destination: { placement: 'after', anchorId: 'second' } }))
