@@ -304,7 +304,7 @@ L'identité est intégrée directement au fond principal MY., sans grande carte 
 
 Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones.
 
-La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image manquante : placeholder graphique neutre ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession, compteur d'exemplaires, origine ou menu de ligne vide. Les vues Liste/Cartes/Classeur complètes et leurs préférences restent prévues en Phase 7. Les migrations sont appliquées sur Supabase local jusqu'à 6C.2 ; Cloud attend le checkpoint manuel. Voir le [statut DB Phase 6](06-DATABASE.md#mutations-manuelles--contrat-6c1).
+La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image manquante : placeholder graphique neutre ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques et le menu de retrait uniquement sur les éléments personnels du propriétaire. Les vues Liste/Cartes/Classeur complètes et leurs préférences restent prévues en Phase 7. Les migrations sont appliquées sur Supabase local jusqu'à 6C.2 ; Cloud attend le checkpoint manuel. Voir le [statut DB Phase 6](06-DATABASE.md#mutations-manuelles--contrat-6c1).
 
 Une collection dispose d'une page principale commune à ses trois vues. Elle donne facilement accès à :
 
@@ -511,19 +511,24 @@ Une collection personnalisée propose une action claire :
 
 `Ajouter une carte`
 
-Cette action ouvre la recherche de sélection dans le catalogue, distincte de celle du header. L'utilisateur sélectionne une variante existante et peut ensuite organiser librement les éléments.
+Livrée en 6C.3 au-dessus du contenu, cette action reste disponible à vide pour le propriétaire. Elle ouvre une modal native unique à deux étapes, distincte de la recherche du header :
+
+1. **Recherche** : champ vide et focalisé à l'ouverture, aucun résultat initial ; temporisation de 300 ms, aucune requête sans lettre/chiffre utile, aucun seuil de trois caractères. États de chargement, erreur avec réessai et résultat vide explicites. Chaque résultat est un bouton affichant image (ou placeholder), nom français, set, numéro et libellé de variante. Une sélection ne déclenche aucune écriture. `Afficher plus` charge les pages suivantes de 20, concaténées et dédupliquées par ID de variante ; une nouvelle saisie remet les résultats et l'offset à zéro.
+2. **Confirmation** : variante sélectionnée, radios `Fin` (défaut) / `Début`, retour aux résultats et bouton `Ajouter à la collection`. Succès confirmé : fermeture, message de succès et actualisation autoritative du contenu, de l'ordre, de l'overview et du Dashboard. Un doublon garde la sélection ouverte avec `Cette variante est déjà présente dans cette collection.` Une variante devenue indisponible affiche `Cette variante n’est plus disponible pour être ajoutée.` et permet le retour aux résultats.
+
+Escape/Annuler ferment hors mutation ; Tab reste dans la modal, le focus revient au déclencheur. Une réouverture repart d'un état vierge. Pendant l'écriture, doubles soumissions et réorganisation concurrente sont bloquées. Après conflit ou résultat incertain, un message sûr et une actualisation remplacent toute supposition locale sur le résultat. Aucun exemplaire physique n'est créé pendant l'ajout.
 
 L'interaction exacte de réorganisation reste à cadrer pour desktop et mobile : aucun choix final de drag & drop, poignée, boutons ou geste tactile n'est fixé.
 
 ### Collection automatique
 
-Une collection automatique peut également proposer l'action `Ajouter une carte`. La variante choisie dans le catalogue devient alors un élément manuel.
+Une collection automatique propose également au propriétaire l'action `Ajouter une carte` et le même parcours 6C.3. La variante choisie dans le catalogue devient alors un élément manuel.
 
 Les éléments automatiques et manuels sont tous librement réordonnables par le propriétaire. L'ordre canonique MY. initialise la collection, puis sert de référence système. Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique ; les éléments manuels peuvent être ajoutés, retirés et déplacés librement. La possibilité de déplacer un automatique est validée ; l'interaction UX exacte reste ouverte, comme pour les collections personnalisées.
 
-Lorsque nécessaire pour comprendre les actions disponibles, l'origine manuelle d'un élément doit être identifiable de manière discrète, sans surcharger toute la collection.
+Chaque ligne d'une collection automatique affiche discrètement `Auto` pour `origin='automatic'` ou `Perso` pour `origin='manual'`, avec un libellé d'origine accessible. Les valeurs DB/code restent `automatic` / `manual`. Aucun indicateur d'origine dans une collection personnalisée.
 
-Retirer un élément manuel de la collection et supprimer un exemplaire physique sont deux actions distinctes que l'interface ne doit pas confondre.
+Le menu `…` des seuls éléments manuels du propriétaire propose `Retirer de la collection`. La confirmation affiche `Retirer cette carte de la collection ?`, puis `La variante sera retirée de cette collection. Vos exemplaires physiques seront conservés.` et les actions `Annuler` / `Retirer`. Le succès ferme la confirmation et actualise contenu, ordre, overview et Dashboard ; exemplaires et notes restent inchangés. Aucun menu de retrait sur Auto ni en lecture seule, aucun bouton Ajouter dans le partage. Retirer un élément manuel et supprimer un exemplaire physique restent deux actions distinctes.
 
 ## Mise à jour d'une collection automatique
 

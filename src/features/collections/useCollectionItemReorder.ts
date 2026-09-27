@@ -1,9 +1,9 @@
 import { useRef } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CollectionItemsError, listCollectionItemOrder, moveCollectionItem } from '../../services/collection-items'
 import type { ItemMove, ReorderAvailability } from '../../types/collection-items'
 import { useAuth } from '../auth/auth-context'
-import { collectionContentKey, collectionItemOrderKey } from './collection-query'
+import { collectionContentKey, collectionItemOrderKey, collectionStructureMutationKey } from './collection-query'
 
 type Options = { collectionId: string; access: 'owned' | 'shared'; availability: ReorderAvailability }
 
@@ -11,10 +11,13 @@ export function useCollectionItemReorder({ collectionId, access, availability }:
   const { user, isAuthorized } = useAuth()
   const client = useQueryClient()
   const running = useRef(false)
+  const mutationKey = collectionStructureMutationKey(user?.id, collectionId)
+  const structureBusy = useIsMutating({ mutationKey, exact: true }) > 0
   const queryKey = collectionItemOrderKey(user?.id, collectionId)
   const order = useQuery({ queryKey, queryFn: () => listCollectionItemOrder(collectionId),
     enabled: isAuthorized && !!user, retry: false })
   const mutation = useMutation({
+    mutationKey,
     mutationFn: (request: { collectionId: string; userId: string; move: ItemMove }) => moveCollectionItem(request.collectionId, request.move),
     retry: false,
     onSettled: async (_data, _error, request) => {
@@ -29,7 +32,7 @@ export function useCollectionItemReorder({ collectionId, access, availability }:
   const disabledReason = !isAuthorized || !user ? 'Reconnectez-vous pour réorganiser la collection.'
     : access !== 'owned' ? 'Cette collection est en lecture seule.'
       : !availability.enabled ? availability.reason
-        : mutation.isPending ? 'Déplacement en cours…'
+        : structureBusy ? 'Modification de la collection en cours…'
           : !order.isSuccess || order.isFetching ? 'Attendez le chargement de l’ordre de la collection.' : null
   const error = order.isError ? 'Impossible d’actualiser l’ordre. Réessayez avant de déplacer un élément.'
     : mutation.isError && mutation.variables?.collectionId === collectionId && mutation.variables.userId === user?.id
@@ -40,7 +43,7 @@ export function useCollectionItemReorder({ collectionId, access, availability }:
           : 'Le déplacement n’a pas pu être confirmé. Vérifiez l’ordre avant de réessayer.' : null
 
   async function move(next: ItemMove): Promise<boolean> {
-    if (disabledReason || running.current || !user) return false
+    if (disabledReason || running.current || !user || client.isMutating({ mutationKey, exact: true })) return false
     running.current = true
     try { await mutation.mutateAsync({ collectionId, userId: user.id, move: next }); return true }
     catch { return false } // Only the safe message above reaches presentation.

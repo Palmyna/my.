@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { CardImage } from './CardImage'
+import { CollectionItemMenu } from './CollectionItemMenu'
 import type { CollectionContentItem } from '../../types/collection-content'
 
-export function CollectionContentRow({ item, readOnly, onCopies }: {
-  item: CollectionContentItem; readOnly: boolean; onCopies: () => void
+export function CollectionContentRow({ item, readOnly, onCopies, automatic = false, busy = false, onRemove }: {
+  item: CollectionContentItem; readOnly: boolean; onCopies: () => void; automatic?: boolean; busy?: boolean
+  onRemove?: (opener: HTMLElement) => void
 }) {
   const name = item.cardNameFr || 'Nom indisponible'
   const metadata = [item.setNameFr, item.localId].filter(Boolean).join(' · ')
@@ -12,6 +14,7 @@ export function CollectionContentRow({ item, readOnly, onCopies }: {
       <p className="collection-content-name">{name}</p>
       {metadata && <p className="collection-content-meta">{metadata}</p>}
       {item.variantLabel && <p className="collection-content-variant">{item.variantLabel}</p>}
+      {automatic && <p className="collection-content-origin"><span className="visually-hidden">Origine : </span>{item.origin === 'automatic' ? 'Auto' : 'Perso'}</p>}
       <span className="visually-hidden">{item.owned ? 'Carte possédée' : 'Carte manquante'}</span>
     </div>
     <div className="collection-content-actions">
@@ -22,16 +25,7 @@ export function CollectionContentRow({ item, readOnly, onCopies }: {
         </svg>
         <span className="visually-hidden">Exemplaires</span>
       </button>
+      {!readOnly && item.origin === 'manual' && onRemove && <CollectionItemMenu name={name} busy={busy} onRemove={onRemove} />}
     </div>
-  </div>
-}
-
-function CardImage({ url, name }: { url: string | null; name: string }) {
-  const [failed, setFailed] = useState(false)
-  return <div className="collection-content-image">
-    {url && !failed ? <img src={url} alt={name} loading="lazy" onError={() => setFailed(true)} />
-      : <svg viewBox="0 0 48 67" role="img" aria-label="Image indisponible" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="5" y="5" width="38" height="57" rx="3" /><path d="m12 43 9-11 6 7 5-5 5 9H12Z" /><circle cx="31" cy="22" r="4" />
-      </svg>}
   </div>
 }

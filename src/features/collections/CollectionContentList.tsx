@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getCollectionContent } from '../../services/collection-content'
 import type { CollectionOverview } from '../../types/collections'
@@ -8,6 +8,9 @@ import { collectionContentKey } from './collection-query'
 import { CollectionContentRow } from './CollectionContentRow'
 import { CollectionItemReorderList } from './CollectionItemReorderList'
 import { useCollectionItemReorder } from './useCollectionItemReorder'
+import { AddCollectionItemDialog } from './AddCollectionItemDialog'
+import { CollectionItemDialog } from './CollectionItemDialog'
+import { manualItemErrorMessage, useManualCollectionItems } from './useManualCollectionItems'
 import './collection-content.css'
 
 // Mounted only after an authorized, available overview. Page keys this boundary
@@ -16,13 +19,32 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
   const content = useQuery({ queryKey: collectionContentKey(viewerId, collection.collectionId),
     queryFn: () => getCollectionContent(collection.collectionId), retry: false })
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const addTrigger = useRef<HTMLButtonElement>(null)
+  const focusAfterWrite = useRef(false)
+  const [action, setAction] = useState<{ type: 'add'; opener: HTMLElement } | { type: 'remove'; item: CollectionContentItem; opener: HTMLElement } | null>(null)
+  const [notice, setNotice] = useState('')
+  const manual = useManualCollectionItems(viewerId, collection.collectionId, request => {
+    setAction(null)
+    setNotice(request.type === 'add' ? 'Carte ajoutée à la collection.' : 'Carte retirée de la collection. Vos exemplaires physiques sont conservés.')
+    // A removed row cannot remain the focus target after the authoritative refetch.
+    focusAfterWrite.current = true
+  })
+  useEffect(() => {
+    if (!manual.busy && focusAfterWrite.current) { focusAfterWrite.current = false; addTrigger.current?.focus() }
+  }, [manual.busy, notice])
   const items = content.isSuccess ? content.data : []
   const selected = items.find(item => item.collectionItemId === selectedId)
   const readOnly = collection.access !== 'owned'
   const row = (item: CollectionContentItem) => <CollectionContentRow item={item} readOnly={readOnly}
-    onCopies={() => setSelectedId(item.collectionItemId)} />
+    automatic={collection.collectionType === 'automatic'} busy={manual.busy}
+    onCopies={() => setSelectedId(item.collectionItemId)} onRemove={opener => {
+      manual.reset(); setNotice(''); setAction({ type: 'remove', item, opener })
+    }} />
 
   return <section className="collection-content" aria-label="Contenu de la collection">
+    {!readOnly && <button ref={addTrigger} type="button" className="button collection-add-trigger" aria-disabled={manual.busy}
+      onClick={event => { if (!manual.busy) { manual.reset(); setNotice(''); setAction({ type: 'add', opener: event.currentTarget }) } }}>Ajouter une carte</button>}
+    {notice && <p role="status">{notice}</p>}
     {content.isPending && <p role="status">Chargement des cartes…</p>}
     {content.isError && <div className="collection-page-error">
       <p role="alert">Impossible de charger les cartes. Veuillez réessayer.</p>
@@ -34,6 +56,19 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
     {selected && <PhysicalCopiesDialog ownerId={collection.ownerId} variantId={selected.variantId}
       readOnly={readOnly} variantName={[selected.cardNameFr || 'Nom indisponible', selected.variantLabel].filter(Boolean).join(' · ')}
       onClose={() => setSelectedId(null)} />}
+    {!readOnly && action?.type === 'add' && <AddCollectionItemDialog viewerId={viewerId} opener={action.opener}
+      busy={manual.pending} error={manualItemErrorMessage(manual.error)} onReset={manual.reset} onClose={() => setAction(null)}
+      onAdd={(variantId, placement) => manual.submit({ type: 'add', variantId, placement })} />}
+    {!readOnly && action?.type === 'remove' && <CollectionItemDialog title="Retirer cette carte de la collection ?"
+      description="La variante sera retirée de cette collection. Vos exemplaires physiques seront conservés."
+      busy={manual.pending} error={manualItemErrorMessage(manual.error)} opener={action.opener} onClose={() => setAction(null)}>
+      <p>{[action.item.cardNameFr || 'Nom indisponible', action.item.setNameFr, action.item.localId, action.item.variantLabel].filter(Boolean).join(' · ')}</p>
+      <div className="collection-dialog-actions">
+        <button data-initial-focus type="button" className="button collection-cancel" disabled={manual.pending} onClick={() => setAction(null)}>Annuler</button>
+        <button type="button" className="button collection-danger-action" disabled={manual.pending}
+          onClick={() => manual.submit({ type: 'remove', collectionItemId: action.item.collectionItemId })}>Retirer</button>
+      </div>
+    </CollectionItemDialog>}
   </section>
 }
 
