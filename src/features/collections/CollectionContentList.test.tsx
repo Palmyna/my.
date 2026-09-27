@@ -23,7 +23,7 @@ vi.mock('../../services/physical-copies', async original => ({ ...await original
 const id = 'c1200000-0000-0000-0000-000000000001'
 const bigId = '9007199254740995'
 const overview: CollectionOverview = { collectionId: id, ownerId: 'viewer', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 2 }
-const first: CollectionContentItem = { collectionItemId: 'first', variantId: bigId, cardNameFr: 'Pikachu', setNameFr: 'Extension', setAbbreviationFr: null, setAbbreviation: 'EXT', localId: '025', variantLabel: 'Holo', imageUrl: 'https://images.pokemontcg.io/base1/58.png', origin: 'automatic', owned: false }
+const first: CollectionContentItem = { collectionItemId: 'first', variantId: bigId, cardNameFr: 'Pikachu', setNameFr: 'Extension', setAbbreviationFr: null, setAbbreviation: 'EXT', seriesNameFr: 'Soleil et Lune', seriesNameSource: 'Sun & Moon', localId: '025', variantLabel: 'Holo', imageUrl: 'https://images.pokemontcg.io/base1/58.png', origin: 'automatic', owned: false }
 const second: CollectionContentItem = { ...first, collectionItemId: 'second', variantId: '42', cardNameFr: 'Évoli', imageUrl: null, owned: true }
 const get = vi.mocked(getCollectionOverview), content = vi.mocked(getCollectionContent)
 const order = vi.mocked(listCollectionItemOrder), move = vi.mocked(moveCollectionItem)
@@ -54,6 +54,63 @@ function setup() {
 }
 const region = () => screen.getByRole('region', { name: 'Contenu de la collection' })
 const contentRows = () => within(region()).getAllByRole('listitem')
+
+test.each(['owned', 'shared'] as const)('local search, clear focus and full restoration for %s', async access => {
+  get.mockResolvedValue({ ...overview, access, ownerId: access === 'owned' ? 'viewer' : 'real-owner' })
+  setup(); await screen.findByText('Pikachu · EXT · 025')
+  const input = within(region()).getByRole('searchbox', { name: 'Rechercher dans la collection…' })
+  expect(input).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Effacer la recherche' })).not.toBeInTheDocument()
+  if (access === 'owned') await waitFor(() => expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'false'))
+  const orderReads = order.mock.calls.length
+  input.focus(); fireEvent.change(input, { target: { value: 'pikachu soleil EXT' } })
+  expect(contentRows()).toHaveLength(1)
+  expect(contentRows()[0]).toHaveTextContent('Pikachu')
+  if (access === 'owned') {
+    const handle = screen.getByRole('button', { name: 'Déplacer Pikachu' })
+    expect(handle).toHaveAttribute('aria-disabled', 'true')
+    expect(handle).toHaveAccessibleDescription('Effacez la recherche pour réorganiser la collection.')
+    fireEvent.keyDown(handle, { key: ' ', keyCode: 32 })
+    expect(move).not.toHaveBeenCalled()
+  } else {
+    expect(screen.queryByRole('button', { name: /Déplacer|Ajouter une carte|Actions de/ })).not.toBeInTheDocument()
+  }
+  expect(screen.getByRole('button', { name: `${access === 'owned' ? 'Gérer' : 'Consulter'} les exemplaires de Pikachu` })).toBeEnabled()
+  fireEvent.change(input, { target: { value: 'aucun résultat' } })
+  expect(screen.getByText('Aucune carte ne correspond à cette recherche.')).toBeVisible()
+  expect(screen.queryByText('Cette collection ne contient encore aucune carte.')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Effacer la recherche' }))
+  expect(input).toHaveValue(''); expect(input).toHaveFocus()
+  expect(contentRows().map(row => row.querySelector('.collection-content-name')?.textContent)).toEqual(['Pikachu · EXT · 025', 'Évoli · EXT · 025'])
+  if (access === 'owned') expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'false')
+  expect(content).toHaveBeenCalledTimes(1)
+  expect(order).toHaveBeenCalledTimes(orderReads)
+})
+
+test('matching all cards keeps reorder; current query applies to authoritative added/removed rows', async () => {
+  const { client } = setup(); await screen.findByText('Pikachu · EXT · 025')
+  const input = within(region()).getByRole('searchbox')
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'false'))
+  fireEvent.change(input, { target: { value: 'EXT' } })
+  expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'false')
+  fireEvent.change(input, { target: { value: 'Pikachu' } })
+  const added = { ...first, collectionItemId: 'added', variantId: '43', cardNameFr: 'Pikachu ex' }
+  content.mockResolvedValue([second, added, first])
+  await act(async () => { await client.invalidateQueries({ queryKey: collectionContentKey('viewer', id), exact: true }) })
+  await waitFor(() => expect(contentRows().map(row => row.querySelector('.collection-content-name')?.textContent)).toEqual(['Pikachu ex · EXT · 025', 'Pikachu · EXT · 025']))
+  content.mockResolvedValue([second, added])
+  await act(async () => { await client.invalidateQueries({ queryKey: collectionContentKey('viewer', id), exact: true }) })
+  await waitFor(() => expect(contentRows()).toHaveLength(1)); expect(contentRows()[0]).toHaveTextContent('Pikachu ex')
+  expect(input).toHaveValue('Pikachu')
+})
+
+test('query on an actually empty collection retains the empty-collection message', async () => {
+  content.mockResolvedValue([])
+  setup(); await screen.findByText('Cette collection ne contient encore aucune carte.')
+  fireEvent.change(within(region()).getByRole('searchbox'), { target: { value: 'Pikachu' } })
+  expect(screen.getByText('Cette collection ne contient encore aucune carte.')).toBeVisible()
+  expect(screen.queryByText('Aucune carte ne correspond à cette recherche.')).not.toBeInTheDocument()
+})
 
 test('content waits for authorized overview, then loading and exact content key', async () => {
   let finishOverview!: (value: CollectionOverview) => void, finishContent!: (value: CollectionContentItem[]) => void

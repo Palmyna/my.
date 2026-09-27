@@ -578,6 +578,8 @@ Les décodeurs vérifient un nombre exact de champs : livraison DB/frontend coor
 
 La [migration 6B.1](../supabase/migrations/20260924185335_phase6b1_collection_content.sql) est **appliquée sur Supabase local**, en attente du checkpoint Cloud. `public.get_collection_content(p_collection_id UUID)` renvoie un **JSONB scalaire contenant un tableau**, en une instruction SQL `STABLE`, sans écriture. Ordre, métadonnées et possession utilisent le même snapshot de lecture. L'ordre du tableau est exactement `collection_items.sort_position, collection_items.id`, identique à `get_collection_item_order` en 6A.3 ; aucune position n'est transmise au frontend.
 
+La [migration additive 6D.1](../supabase/migrations/20260927185405_phase6d1_collection_series.sql) ajoute uniquement les deux noms de série via une jointure gauche `tcg_sets.series_id → tcg_series.id`, sans fallback ni exclusion d'item historique. Appliquée sur Supabase local : **22 migrations concordantes**, types régénérés (signature JSONB inchangée). Les décodeurs stricts nécessitent une livraison DB/frontend coordonnée ; retour arrière par nouvelle migration restaurant le corps précédent et frontend correspondant. Aucune action Cloud.
+
 Chaque objet expose uniquement :
 
 | Champ | Type JSON | Source / règle |
@@ -590,6 +592,8 @@ Chaque objet expose uniquement :
 | `set_name_fr` | string ou null | `tcg_sets.name_fr`, Extension précise, jamais sa série |
 | `set_abbreviation_fr` | string ou null | `tcg_sets.abbreviation_fr`, valeur brute |
 | `set_abbreviation` | string ou null | `tcg_sets.abbreviation`, valeur source brute |
+| `series_name_fr` | string ou null | `tcg_series.name_fr` via `tcg_sets.series_id`, valeur brute |
+| `series_name_source` | string ou null | `tcg_series.name_source` via `tcg_sets.series_id`, valeur brute |
 | `image_url` | string ou null | `COALESCE(catalog_variants.image_url, source_cards.image_url)` |
 | `variant_label` | string ou null | `catalog_variants.label` exact, y compris corrections et stamps |
 | `owned` | boolean | Au moins un exemplaire pour `collections.owner_id + collection_items.variant_id` |
@@ -602,7 +606,7 @@ Le pipeline persiste déjà l'image variante avec fallback source (`scripts/cata
 
 Collection vide, inexistante, inaccessible, identifiant null, identité/MFA/profil insuffisant sous rôle `authenticated` : `[]`, sans révéler l'existence d'une collection privée, comme le lecteur d'ordre 6A.3. `anon` reçoit un refus de permission d'exécution. Le service 6B.2 conserve cette distinction entre contenu vide et disponibilité du parent selon le contrat de lecture du parent ; `[]` seul n'atteste pas l'accès.
 
-**Volume.** Un tableau JSONB scalaire représente une seule valeur REST : `max_rows = 1000` ne découpe pas ses éléments. Pas de pagination ni de lectures successives susceptibles de diverger. Les jointures sont faites en base ; `EXISTS` utilise la paire indexée `(user_id, variant_id)`, sans N+1 réseau. Taille de réponse, mémoire d'agrégation/validation et temps de traitement croissent avec le nombre d'items ; le tableau complet est matérialisé, sans promesse de volume illimité. Une limite de ressources produit une erreur, pas une réponse volontairement tronquée. Aucune mesure de performances n'est revendiquée avant exécution. Le service 6B.2 valide un tableau de onze champs et conserve les IDs décimaux comme chaînes, sans reconstruire l'ordre.
+**Volume.** Un tableau JSONB scalaire représente une seule valeur REST : `max_rows = 1000` ne découpe pas ses éléments. Pas de pagination ni de lectures successives susceptibles de diverger. Les jointures sont faites en base ; `EXISTS` utilise la paire indexée `(user_id, variant_id)`, sans N+1 réseau. Taille de réponse, mémoire d'agrégation/validation et temps de traitement croissent avec le nombre d'items ; le tableau complet est matérialisé, sans promesse de volume illimité. Une limite de ressources produit une erreur, pas une réponse volontairement tronquée. Aucune mesure de performances n'est revendiquée avant exécution. Le service 6B.2 valide un tableau de treize champs et conserve les IDs décimaux comme chaînes, sans reconstruire l'ordre.
 
 Le test [pgTAP](../supabase/tests/database/015_collection_content.test.sql), sa [fixture commune](../supabase/tests/database/collection_content.fixtures.inc) et le [test HTTP local](../scripts/test-collection-content-api.js) couvrent accès/RLS, contenu exact, ordre/ties, nulls, images, possession partagée, IDs hors précision JavaScript et 1005 éléments. pgTAP et HTTP ont été exécutés avec succès après application locale durable. Le test HTTP vérifie d'abord que la lecture REST directe est réellement limitée à 1000, puis exige les 1005 IDs ordonnés dans la RPC propriétaire et partagée ; il rapporte taille/durée et nettoie ses fixtures synthétiques. Il se lance avec `node scripts/test-collection-content-api.js` après application des migrations locales et disponibilité du cache de schéma REST ; il n'applique rien et ne modifie aucune configuration.
 
@@ -1098,7 +1102,9 @@ Les partages nécessitent des accès efficaces par `collection_id` et `recipient
 
 ## Recherche, classeur et préférences
 
-L'accès aux données des recherches de la V1 repose sur Supabase/PostgreSQL sous Auth/RLS. La recherche globale retourne des Cartes sources uniques, jamais des Variantes ; Pokémon utilise le nom français, Extension et Collection leur nom uniquement. La recherche interne filtre les variantes de la collection accessible ; la recherche d'ajout sélectionne la Variante exacte. La logique Carte portable de `scripts/catalog/search-catalog.ts` reste le socle de normalisation, tokenisation, matching, score et tri ; `search-catalog-db.ts` avec `pg` reste réservé à la maintenance locale.
+L'accès aux données des recherches de la V1 repose sur Supabase/PostgreSQL sous Auth/RLS. La recherche globale retourne des Cartes sources uniques, jamais des Variantes ; Pokémon utilise le nom français, Extension et Collection leur nom uniquement. La recherche d'ajout sélectionne la Variante exacte. Pour les recherches catalogue, la logique Carte portable de `scripts/catalog/search-catalog.ts` reste le socle de normalisation, tokenisation, matching, score et tri ; `search-catalog-db.ts` avec `pg` reste réservé à la maintenance locale.
+
+La recherche interne 6D.1 dérive ses résultats du seul tableau chargé par `get_collection_content` et du texte saisi, sans fetch ni état de résultats séparé. Champs : `cardNameFr`, `setNameFr`, `setAbbreviationFr`, `setAbbreviation`, `seriesNameFr`, `seriesNameSource`, `localId`, `variantLabel`. Normalisation browser-safe (casse, accents, ligatures, espaces et ponctuation courante ; séparateurs `28/73` et `SL3.5` conservés), AND multi-termes sur plusieurs champs, aucun score ni tri. L'ordre backend est conservé ; le reorder est désactivé lorsque le filtre masque des cartes.
 
 La première implémentation doit rester proportionnée au besoin. `pg_trgm`, les index GIN, des colonnes normalisées ou la recherche full-text ne seront ajoutés que si les mesures le justifient.
 

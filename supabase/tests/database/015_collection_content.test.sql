@@ -1,9 +1,12 @@
--- Prepared only. Requires manually applied Phase 6 migrations; never replays them.
+-- Requires applied local Phase 6 migrations; never replays them.
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 \ir collection_content.fixtures.inc
+
+-- Distinct stored names prove the relation and avoid inventing a fallback.
+update public.tcg_series set name_fr='Soleil et Lune', name_source='Sun & Moon' where id=-86001;
 
 select has_function('public','get_collection_content',array['uuid'],'Content RPC exists');
 select ok((select not prosecdef and provolatile='s' and not proretset
@@ -55,14 +58,32 @@ select ok((select bool_and(jsonb_typeof(x->'variant_id')='string' and jsonb_type
   from jsonb_array_elements(public.get_collection_content('c1600000-0000-0000-0000-000000000001')) x),
   'BIGINT identifiers are lossless decimal strings; owned is boolean');
 select ok((select bool_and((select array_agg(k order by k) from jsonb_object_keys(x) k) =
-  array['card_name_fr','collection_item_id','image_url','local_id','origin','owned','set_abbreviation','set_abbreviation_fr','set_name_fr','variant_id','variant_label'])
+  array['card_name_fr','collection_item_id','image_url','local_id','origin','owned','series_name_fr','series_name_source','set_abbreviation','set_abbreviation_fr','set_name_fr','variant_id','variant_label'])
   from jsonb_array_elements(public.get_collection_content('c1600000-0000-0000-0000-000000000001')) x),
-  'Exactly eleven fields: no positions, ranks, counts, owner IDs, timestamps or pipeline metadata');
+  'Exactly thirteen fields: no positions, ranks, counts, owner IDs, timestamps or pipeline metadata');
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000002'),'[]'::jsonb,'Visible empty collection');
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000099'),'[]'::jsonb,'Missing collection reveals nothing');
 select is(public.get_collection_content(null),'[]'::jsonb,'NULL collection reveals nothing');
 
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->0->>'set_abbreviation_fr','EXT','Raw French abbreviation');
+select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->0->>'series_name_fr','Soleil et Lune','Stored French series name through the set');
+select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->0->>'series_name_source','Sun & Moon','Stored source series name, distinct from French');
+select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->4->>'series_name_source','Sun & Moon','Historical item retains its series');
+reset role;
+create temporary table content_before_series_null as select public.get_collection_content('c1600000-0000-0000-0000-000000000001') payload;
+grant select on content_before_series_null to authenticated;
+update public.tcg_series set name_fr=null, name_source=null where id=-86001;
+set local role authenticated;
+select ok((select bool_and(x->'series_name_fr'='null'::jsonb and x->'series_name_source'='null'::jsonb)
+  from jsonb_array_elements(public.get_collection_content('c1600000-0000-0000-0000-000000000001')) x), 'Both missing series names are explicit JSON null');
+select is((select jsonb_agg(x - 'series_name_fr' - 'series_name_source' order by n)
+  from jsonb_array_elements(public.get_collection_content('c1600000-0000-0000-0000-000000000001')) with ordinality e(x,n)),
+  (select jsonb_agg(x - 'series_name_fr' - 'series_name_source' order by n)
+  from content_before_series_null, jsonb_array_elements(payload) with ordinality e(x,n)),
+  'Changing series leaves every prior field and the complete order intact');
+reset role;
+update public.tcg_series set name_fr='Soleil et Lune', name_source='Sun & Moon' where id=-86001;
+set local role authenticated;
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->4->'set_abbreviation','null'::jsonb,'No abbreviations yields explicit JSON null');
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->0->>'set_abbreviation','SRC','Raw source is distinct from French');
 reset role;

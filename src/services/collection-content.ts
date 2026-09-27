@@ -21,17 +21,19 @@ function nullableString(value: unknown): value is string | null { return value =
 function contentItem(value: unknown): CollectionContentItem {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new CollectionContentError('unexpected')
   const row = value as Record<string, unknown>
-  if (Object.keys(row).length !== 11
+  if (Object.keys(row).length !== 13
     || typeof row.collection_item_id !== 'string' || row.collection_item_id.length !== 36 || !uuid.test(row.collection_item_id)
     || !decimalId(row.variant_id) || (row.origin !== 'manual' && row.origin !== 'automatic')
     || !nullableString(row.card_name_fr) || !nullableString(row.local_id) || !nullableString(row.set_name_fr)
     || !nullableString(row.set_abbreviation) || !nullableString(row.set_abbreviation_fr)
+    || !nullableString(row.series_name_fr) || !nullableString(row.series_name_source)
     || !nullableString(row.image_url) || !nullableString(row.variant_label) || typeof row.owned !== 'boolean') {
     throw new CollectionContentError('unexpected')
   }
   return {
     collectionItemId: row.collection_item_id, variantId: row.variant_id, origin: row.origin,
     cardNameFr: row.card_name_fr, localId: row.local_id, setNameFr: row.set_name_fr, setAbbreviationFr: row.set_abbreviation_fr, setAbbreviation: row.set_abbreviation,
+    seriesNameFr: row.series_name_fr, seriesNameSource: row.series_name_source,
     imageUrl: row.image_url, variantLabel: row.variant_label, owned: row.owned,
   }
 }

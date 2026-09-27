@@ -340,7 +340,13 @@ Lorsqu'un filtre est actif, l'utilisateur doit comprendre :
 - quelle recherche est active ;
 - comment revenir à la collection complète.
 
-Un résultat vide doit indiquer clairement qu'aucune carte ne correspond, permettre d'effacer facilement le filtre et ne jamais laisser croire que la collection a été modifiée.
+Livrée en 6D.1 au-dessus de la liste, la barre `Rechercher dans la collection…` occupe l'espace disponible à côté du bouton compact `Ajouter une carte` (retour à la ligne sur mobile). Elle reste présente en partage lecture seule, sans bouton Ajouter ni mutation propriétaire.
+
+Le filtre est local, immédiat, sans requête réseau : nom français de carte, nom complet d'Extension, abréviations FR/source, noms FR/source de série, numéro et version. Casse, accents, ligatures françaises, espaces et ponctuation courante sont normalisés ; `28/73`, `ASC`, `SL3.5` restent utilisables. Chaque terme doit correspondre à un champ (**AND** multi-champs), sans score ni tri ; l'ordre backend est conservé, y compris après actualisation.
+
+Dès que le champ contient du texte, une croix interne (`aria-label="Effacer la recherche"`) restaure immédiatement la liste complète et rend le focus au champ. Aucun bouton texte sous la liste. Une collection non vide sans résultat affiche exactement `Aucune carte ne correspond à cette recherche.` ; une collection réellement vide conserve son message propre.
+
+Si le filtre masque une partie de la collection, les poignées de réorganisation sont désactivées avec l'indication accessible `Effacez la recherche pour réorganiser la collection.`. Une recherche correspondant à toutes les cartes ne bloque pas la réorganisation. Effacer rétablit les règles habituelles ; consultation, exemplaires et retrait Perso autorisé restent disponibles.
 
 ### Recherche dans le catalogue pour ajouter une carte
 

@@ -63,7 +63,7 @@ try {
   const direct = await request(`collection_items?collection_id=eq.${collection}&select=id&order=sort_position,id`, users[0])
   assert.equal(direct.value.length, 1000, 'This regression requires the configured REST max_rows=1000')
   const expectedIds = Array.from({ length: 1005 }, (_, n) => `d1610000-0000-0000-0000-${String(n + 1).padStart(12, '0')}`)
-  const keys = ['card_name_fr', 'collection_item_id', 'image_url', 'local_id', 'origin', 'owned', 'set_abbreviation','set_abbreviation_fr', 'set_name_fr', 'variant_id', 'variant_label']
+  const keys = ['card_name_fr', 'collection_item_id', 'image_url', 'local_id', 'origin', 'owned', 'series_name_fr', 'series_name_source', 'set_abbreviation','set_abbreviation_fr', 'set_name_fr', 'variant_id', 'variant_label']
   let ownerPayload
   for (const user of users.slice(0, 2)) {
     const started = performance.now()
@@ -78,6 +78,8 @@ try {
       assert.equal(item.owned, false, 'No owner copies in volume fixture')
       assert.equal(item.set_abbreviation_fr, 'EXT', 'Raw French abbreviation')
       assert.equal(item.set_abbreviation, 'SRC', 'Raw source abbreviation')
+      assert.equal(item.series_name_fr, 'Série différente', 'Stored French series over HTTP')
+      assert.equal(item.series_name_source, null, 'Absent source series remains explicit null')
     })
     if (ownerPayload) assert.deepEqual(value, ownerPayload, 'Shared reader receives the same owner content')
     else ownerPayload = value

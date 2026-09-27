@@ -11,6 +11,7 @@ import { useCollectionItemReorder } from './useCollectionItemReorder'
 import { AddCollectionItemDialog } from './AddCollectionItemDialog'
 import { CollectionItemDialog } from './CollectionItemDialog'
 import { manualItemErrorMessage, useManualCollectionItems } from './useManualCollectionItems'
+import { filterCollectionContent } from './filter-collection-content'
 import './collection-content.css'
 
 // Mounted only after an authorized, available overview. Page keys this boundary
@@ -19,6 +20,8 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
   const content = useQuery({ queryKey: collectionContentKey(viewerId, collection.collectionId),
     queryFn: () => getCollectionContent(collection.collectionId), retry: false })
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const searchInput = useRef<HTMLInputElement>(null)
   const addTrigger = useRef<HTMLButtonElement>(null)
   const focusAfterWrite = useRef(false)
   const [action, setAction] = useState<{ type: 'add'; opener: HTMLElement } | { type: 'remove'; item: CollectionContentItem; opener: HTMLElement } | null>(null)
@@ -33,6 +36,8 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
     if (!manual.busy && focusAfterWrite.current) { focusAfterWrite.current = false; addTrigger.current?.focus() }
   }, [manual.busy, notice])
   const items = content.isSuccess ? content.data : []
+  const visibleItems = filterCollectionContent(items, query)
+  const partialView = visibleItems.length < items.length
   const selected = items.find(item => item.collectionItemId === selectedId)
   const readOnly = collection.access !== 'owned'
   const row = (item: CollectionContentItem) => <CollectionContentRow item={item} readOnly={readOnly}
@@ -42,8 +47,21 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
     }} />
 
   return <section className="collection-content" aria-label="Contenu de la collection">
-    {!readOnly && <button ref={addTrigger} type="button" className="button collection-add-trigger" aria-disabled={manual.busy}
-      onClick={event => { if (!manual.busy) { manual.reset(); setNotice(''); setAction({ type: 'add', opener: event.currentTarget }) } }}>Ajouter une carte</button>}
+    <div className="collection-content-toolbar">
+      <div className="collection-content-search">
+        <input ref={searchInput} type="search" aria-label="Rechercher dans la collection…"
+          placeholder="Rechercher dans la collection…" autoComplete="off" value={query}
+          onChange={event => setQuery(event.target.value)} />
+        {query !== '' && <button type="button" className="collection-search-clear" aria-label="Effacer la recherche"
+          onClick={() => { setQuery(''); searchInput.current?.focus() }}>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="m5 5 10 10M15 5 5 15" />
+          </svg>
+        </button>}
+      </div>
+      {!readOnly && <button ref={addTrigger} type="button" className="button collection-add-trigger" aria-disabled={manual.busy}
+        onClick={event => { if (!manual.busy) { manual.reset(); setNotice(''); setAction({ type: 'add', opener: event.currentTarget }) } }}>Ajouter une carte</button>}
+    </div>
     {notice && <p role="status">{notice}</p>}
     {content.isPending && <p role="status">Chargement des cartes…</p>}
     {content.isError && <div className="collection-page-error">
@@ -51,8 +69,11 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
       <button className="button" disabled={content.isFetching} onClick={() => void content.refetch()}>Réessayer</button>
     </div>}
     {content.isSuccess && (items.length === 0 ? <p>Cette collection ne contient encore aucune carte.</p>
-      : readOnly ? <ul className="collection-content-list">{items.map(item => <li key={item.collectionItemId}>{row(item)}</li>)}</ul>
-        : <OwnedContent collectionId={collection.collectionId} items={items} fetching={content.isFetching} renderRow={row} />)}
+      : <>
+        {visibleItems.length === 0 && <p role="status">Aucune carte ne correspond à cette recherche.</p>}
+        {readOnly ? <ul className="collection-content-list">{visibleItems.map(item => <li key={item.collectionItemId}>{row(item)}</li>)}</ul>
+          : <OwnedContent collectionId={collection.collectionId} items={visibleItems} partialView={partialView} fetching={content.isFetching} renderRow={row} />}
+      </>)}
     {selected && <PhysicalCopiesDialog ownerId={collection.ownerId} variantId={selected.variantId}
       readOnly={readOnly} variantName={[selected.cardNameFr || 'Nom indisponible', selected.variantLabel].filter(Boolean).join(' · ')}
       onClose={() => setSelectedId(null)} />}
@@ -72,11 +93,12 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
   </section>
 }
 
-function OwnedContent({ collectionId, items, fetching, renderRow }: {
-  collectionId: string; items: CollectionContentItem[]; fetching: boolean; renderRow: (item: CollectionContentItem) => ReactNode
+function OwnedContent({ collectionId, items, partialView, fetching, renderRow }: {
+  collectionId: string; items: CollectionContentItem[]; partialView: boolean; fetching: boolean; renderRow: (item: CollectionContentItem) => ReactNode
 }) {
   const reorder = useCollectionItemReorder({ collectionId, access: 'owned', availability: fetching
-    ? { enabled: false, reason: 'Actualisation des cartes…' } : { enabled: true } })
+    ? { enabled: false, reason: 'Actualisation des cartes…' }
+    : partialView ? { enabled: false, reason: 'Effacez la recherche pour réorganiser la collection.' } : { enabled: true } })
   const byId = new Map(items.map(item => [item.collectionItemId, item]))
   return <>
     <CollectionItemReorderList collectionId={collectionId}

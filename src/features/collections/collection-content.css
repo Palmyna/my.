@@ -15,7 +15,14 @@
 .collection-copies-trigger { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; border: 1px solid #68595b; border-radius: 8px; color: #eee5e6; background: transparent; cursor: pointer; }
 .collection-copies-trigger:hover { background: #ffffff08; }
 .collection-copies-trigger:focus-visible { outline: 3px solid #ff969b; outline-offset: 3px; }
-.button.collection-add-trigger { width: fit-content; min-height: 44px; padding: 8px 14px; margin-bottom: 16px; background: #493638; border: 1px solid #68595b; }
+.collection-content-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.collection-content-search { position: relative; flex: 1 1 260px; min-width: 0; }
+.collection-content-search input { padding-right: 48px; }
+.collection-content-search input::-webkit-search-cancel-button { display: none; }
+.collection-search-clear { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 6px; color: #eee5e6; background: transparent; cursor: pointer; }
+.collection-search-clear:hover { background: #ffffff08; }
+.collection-search-clear:focus-visible { outline: 3px solid #ff969b; outline-offset: 2px; }
+.button.collection-add-trigger { flex: 0 0 auto; width: fit-content; min-height: 44px; padding: 8px 14px; background: #493638; border: 1px solid #68595b; }
 .collection-content-origin { flex: 0 0 auto; color: #c9bfc0; font-size: .7rem; }
 .collection-search-results { list-style: none; padding: 0; margin: 16px 0; }
 .collection-search-results li + li { margin-top: 8px; }

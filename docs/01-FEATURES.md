@@ -265,19 +265,13 @@ Cette recherche complète deux outils distincts : la recherche interne filtre la
 
 ## Recherche interne
 
-Chaque collection dispose d'une barre de recherche permettant de saisir un terme libre et de filtrer immédiatement les cartes de la collection actuelle.
+Livrée en 6D.1 dans la liste Collection, la recherche filtre immédiatement le tableau déjà chargé par `get_collection_content`, pour le propriétaire comme en partage lecture seule. Aucun appel réseau, pagination ou délai de saisie n'est ajouté.
 
-La recherche peut exploiter plusieurs informations pertinentes lorsqu'elles sont disponibles, notamment :
+Champs recherchés lorsqu'ils existent : `cardNameFr`, `setNameFr`, `setAbbreviationFr`, `setAbbreviation`, `seriesNameFr`, `seriesNameSource`, `localId`, `variantLabel`. Casse, accents, ligatures françaises, espaces multiples et ponctuation courante sont normalisés ; les séparateurs utiles de `28/73` et `SL3.5` sont conservés.
 
-- le nom de la carte ;
-- le nom de la série ;
-- le nom du set ;
-- le bloc ou l'ère ;
-- le numéro de carte ;
-- les identifiants ou autres informations textuelles pertinentes ;
-- les métadonnées utiles provenant de TCGdex.
+Les termes suivent une logique **AND** : chaque terme doit correspondre à au moins un champ, éventuellement différent des autres termes (`Pikachu Reverse ASC`, `Soleil Lune Pikachu`). Aucun score ni tri : l'ordre backend reste intact. Après ajout/retrait et actualisation existante, la requête courante filtre le nouveau tableau.
 
-La liste technique définitive des champs recherchés n'est pas figée.
+La croix dans le champ efface la recherche, conserve le focus et restaure immédiatement la collection complète. La réorganisation est désactivée uniquement lorsque le filtre masque des cartes ; consultation, exemplaires et retrait personnel restent accessibles selon les droits existants.
 
 Cette recherche est strictement un filtre interne à la collection consultée. Elle ne constitue pas une recherche globale dans l'ensemble du catalogue Pokémon.
 

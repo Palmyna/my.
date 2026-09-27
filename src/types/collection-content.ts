@@ -7,6 +7,8 @@ export interface CollectionContentItem {
   setNameFr: string | null
   setAbbreviationFr: string | null
   setAbbreviation: string | null
+  seriesNameFr: string | null
+  seriesNameSource: string | null
   imageUrl: string | null
   variantLabel: string | null
   owned: boolean

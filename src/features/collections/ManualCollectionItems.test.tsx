@@ -21,7 +21,7 @@ vi.mock('../../services/catalog-search', async original => ({ ...await original<
 
 const bigId = '9007199254740995'
 const variant: CatalogVariantForAdd = { variantId: bigId, imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Set exemple', setAbbreviationFr: null, setAbbreviation: 'ASC', localId: '025', variantLabel: 'Reverse' }
-const item: CollectionContentItem = { ...variant, collectionItemId: 'c1900000-0000-0000-0000-000000000001', origin: 'manual', owned: true }
+const item: CollectionContentItem = { ...variant, seriesNameFr: null, seriesNameSource: null, collectionItemId: 'c1900000-0000-0000-0000-000000000001', origin: 'manual', owned: true }
 const collection: CollectionOverview = { collectionId: 'collection', ownerId: 'owner', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, totalCount: 1, ownedCount: 1 }
 const content = vi.mocked(getCollectionContent), add = vi.mocked(addManualCollectionItem), remove = vi.mocked(removeManualCollectionItem)
 const search = vi.mocked(searchCatalogVariantsForAdd)
@@ -46,7 +46,7 @@ const button = (name: string) => screen.getByRole('button', { name })
 function openAdd() { const trigger = button('Ajouter une carte'); trigger.focus(); fireEvent.click(trigger); return trigger }
 async function selectVariant() {
   openAdd()
-  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Pika' } })
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { target: { value: 'Pika' } })
   const result = await screen.findByRole('button', { name: /Pikachu.*ASC.*025.*Reverse/ })
   fireEvent.click(result)
 }
@@ -62,13 +62,13 @@ test.each(['free', 'automatic'] as const)('owner add remains available in empty 
   setup({ collectionType })
   await screen.findByText('Cette collection ne contient encore aucune carte.')
   const trigger = openAdd()
-  expect(screen.getByRole('searchbox')).toHaveFocus()
-  expect(screen.getByRole('searchbox')).toHaveValue('')
+  expect(screen.getByRole('searchbox', { name: 'Rechercher une carte' })).toHaveFocus()
+  expect(screen.getByRole('searchbox', { name: 'Rechercher une carte' })).toHaveValue('')
   expect(search).not.toHaveBeenCalled()
-  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'ancien' } })
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { target: { value: 'ancien' } })
   fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
   expect(trigger).toHaveFocus(); expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  openAdd(); expect(screen.getByRole('searchbox')).toHaveValue('')
+  openAdd(); expect(screen.getByRole('searchbox', { name: 'Rechercher une carte' })).toHaveValue('')
   fireEvent.click(button('Annuler')); expect(trigger).toHaveFocus()
 })
 test('shared has no add, remove or reorder; auto/perso remain readable', async () => {
@@ -93,7 +93,7 @@ test('300ms debounce, no request for empty/useless input, single character accep
     onAdd={vi.fn()} onReset={vi.fn()} onClose={vi.fn()} /></QueryClientProvider>)
   await act(() => vi.advanceTimersByTimeAsync(500))
   expect(search).not.toHaveBeenCalled()
-  const input = screen.getByRole('searchbox')
+  const input = screen.getByRole('searchbox', { name: 'Rechercher une carte' })
   fireEvent.change(input, { target: { value: '  ! -- ' } })
   await act(() => vi.advanceTimersByTimeAsync(500)); expect(search).not.toHaveBeenCalled()
   fireEvent.change(input, { target: { value: 'P' } })
@@ -104,7 +104,7 @@ test('300ms debounce, no request for empty/useless input, single character accep
 test('new query clears old results/errors and ignores stale response; offset resets', async () => {
   let finish!: (rows: CatalogVariantForAdd[]) => void
   search.mockReturnValueOnce(new Promise(resolve => { finish = resolve })).mockResolvedValue([variant])
-  setup(); openAdd(); const input = screen.getByRole('searchbox')
+  setup(); openAdd(); const input = screen.getByRole('searchbox', { name: 'Rechercher une carte' })
   fireEvent.change(input, { target: { value: 'Ancien' } })
   await waitFor(() => expect(search).toHaveBeenCalledTimes(1))
   fireEvent.change(input, { target: { value: 'Nouveau' } })
@@ -119,22 +119,22 @@ test('pages of 20 accumulate, deduplicate variantId and restart at offset zero',
   const page = Array.from({ length: 20 }, (_, i) => ({ ...variant, variantId: String(i), cardNameFr: `Carte ${i}` }))
   search.mockResolvedValueOnce(page).mockResolvedValueOnce([page[0]!, { ...variant, cardNameFr: 'Dernière' }]).mockResolvedValueOnce([])
   setup(); openAdd()
-  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Carte' } })
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { target: { value: 'Carte' } })
   fireEvent.click(await screen.findByRole('button', { name: 'Afficher plus' }))
   await screen.findByRole('button', { name: /Dernière/ })
   expect(search).toHaveBeenLastCalledWith('Carte', { limit: 20, offset: 20 })
   expect(within(screen.getByRole('dialog')).getAllByRole('listitem')).toHaveLength(21)
   expect(screen.queryByRole('button', { name: 'Afficher plus' })).not.toBeInTheDocument()
-  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Autre' } })
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { target: { value: 'Autre' } })
   await screen.findByText('Aucune carte trouvée.')
   expect(search).toHaveBeenLastCalledWith('Autre', { limit: 20, offset: 0 })
 })
 test.each(['unexpected', 'not_authorized', 'invalid_query'] as const)('search %s is safe, retry works, changing query removes alert', async code => {
   search.mockRejectedValueOnce(new CatalogSearchError(code)).mockResolvedValue([])
-  setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'X' } })
+  setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { target: { value: 'X' } })
   await screen.findByRole('alert')
   fireEvent.click(button('Réessayer la recherche')); await screen.findByText('Aucune carte trouvée.')
-  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Y' } })
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { target: { value: 'Y' } })
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
 })
 test.each(['end', 'start'] as const)('selection only, default Fin, %s add exact BIGINT, targeted invalidations and focus', async placement => {
@@ -176,7 +176,7 @@ test.each<[CollectionItemsErrorCode, string]>([
   expect(screen.getByRole('radio', { name: 'Fin' })).toBeChecked()
   expect(invalidate).toHaveBeenCalledTimes(4)
   fireEvent.click(button('Retour aux résultats'))
-  expect(screen.getByRole('searchbox')).toHaveFocus()
+  expect(screen.getByRole('searchbox', { name: 'Rechercher une carte' })).toHaveFocus()
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   fireEvent.click(button('Annuler'))
 })
@@ -211,15 +211,15 @@ test('native dialog Tab loop excludes hidden results and returns to input after 
   const submit = button('Ajouter à la collection'), end = screen.getByRole('radio', { name: 'Fin' })
   submit.focus(); fireEvent.keyDown(submit, { key: 'Tab' }); expect(end).toHaveFocus()
   fireEvent.keyDown(end, { key: 'Tab', shiftKey: true }); expect(submit).toHaveFocus()
-  fireEvent.click(button('Retour aux résultats')); expect(screen.getByRole('searchbox')).toHaveFocus()
-  fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Tab', shiftKey: true })
+  fireEvent.click(button('Retour aux résultats')); expect(screen.getByRole('searchbox', { name: 'Rechercher une carte' })).toHaveFocus()
+  fireEvent.keyDown(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { key: 'Tab', shiftKey: true })
   expect(button('Annuler')).toHaveFocus()
 })
 test('next-page failure preserves loaded results, retry uses same offset, loading prevents repeated fetches', async () => {
   const page = Array.from({ length: 20 }, (_, i) => ({ ...variant, variantId: String(i), cardNameFr: `Carte ${i}` }))
   let fail!: (error: Error) => void
   search.mockResolvedValueOnce(page).mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject })).mockResolvedValueOnce([variant])
-  setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Carte' } })
+  setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { target: { value: 'Carte' } })
   const more = await screen.findByRole('button', { name: 'Afficher plus' }); fireEvent.click(more)
   await waitFor(() => expect(more).toBeDisabled())
   expect(screen.getByText('Recherche en cours…')).toHaveAttribute('role', 'status')
@@ -231,7 +231,7 @@ test('next-page failure preserves loaded results, retry uses same offset, loadin
 })
 test('broken result image falls back without preventing selection', async () => {
   search.mockResolvedValue([{ ...variant, imageUrl: 'https://example.test/card.png' }])
-  setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Pika' } })
+  setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { target: { value: 'Pika' } })
   const result = await screen.findByRole('button', { name: /Pikachu.*Reverse/ })
   fireEvent.error(within(result).getByRole('img', { name: 'Pikachu' }))
   expect(within(result).getByRole('img', { name: 'Image indisponible' })).toBeVisible()
@@ -248,7 +248,7 @@ test.each([
   [null, null, null, null, null, 'Nom indisponible'],
 ])('compact search summary: %s / %s / %s / %s / %s', async (cardNameFr, setAbbreviationFr, setAbbreviation, localId, variantLabel, title) => {
   search.mockResolvedValue([{ ...variant, cardNameFr, setAbbreviationFr, setAbbreviation, localId, variantLabel }])
-  setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Pikachu ASC' } })
+  setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox', { name: 'Rechercher une carte' }), { target: { value: 'Pikachu ASC' } })
   const result = await screen.findByRole('button', { name: accessibleName => accessibleName.includes(title) })
   expect(result.querySelector('.collection-content-name')).toHaveTextContent(title)
   expect(within(result).queryByText('Set exemple')).not.toBeInTheDocument()
