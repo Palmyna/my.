@@ -45,7 +45,7 @@ h1:focus { outline: none; }
 .collection-grid > li { min-width: 0; }
 .collection-card { height: 100%; }
 .collection-tile, .collection-tile:hover { color: #fff; text-decoration: none; }
-.collection-tile { display: flex; flex-direction: column; height: 100%; min-height: 260px; padding: 24px; border: 1px solid var(--collection-border); border-radius: 12px; background: var(--collection-surface); overflow-wrap: anywhere; transition: border-color .18s, box-shadow .18s; }
+.collection-tile { display: flex; flex-direction: column; height: 100%; padding: 24px; border: 1px solid var(--collection-border); border-radius: 12px; background: var(--collection-surface); overflow-wrap: anywhere; transition: border-color .18s, box-shadow .18s; }
 .collection-tile h3 { font-size: 1.3rem; line-height: 1.4; font-weight: 600; letter-spacing: -.02em; margin: 0 0 8px; }
 .collection-type { color: var(--collection-accent); font-size: .78rem; font-weight: 600; margin: 0 0 16px; }
 .collection-target { color: #ddd3d4; font-size: .85rem; margin: 0 0 12px; }
