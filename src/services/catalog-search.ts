@@ -17,12 +17,12 @@ function nullableText(value: unknown): value is string | null { return value ===
 function decodeVariant(value: unknown): CatalogVariantForAdd {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new CatalogSearchError('unexpected')
   const row = value as Record<string, unknown>
-  if (Object.keys(row).length !== 7 || !decimalId(row.variant_id)
+  if (Object.keys(row).length !== 8 || !decimalId(row.variant_id)
     || !nullableText(row.image_url) || !nullableText(row.card_name_fr) || !nullableText(row.set_name_fr)
-    || !nullableText(row.set_abbreviation)
+    || !nullableText(row.set_abbreviation) || !nullableText(row.set_abbreviation_fr)
     || !nullableText(row.local_id) || !nullableText(row.variant_label)) throw new CatalogSearchError('unexpected')
   return { variantId: row.variant_id, imageUrl: row.image_url, cardNameFr: row.card_name_fr,
-    setNameFr: row.set_name_fr, setAbbreviation: row.set_abbreviation, localId: row.local_id, variantLabel: row.variant_label }
+    setNameFr: row.set_name_fr, setAbbreviationFr: row.set_abbreviation_fr, setAbbreviation: row.set_abbreviation, localId: row.local_id, variantLabel: row.variant_label }
 }
 
 export function createCatalogSearchService(client: SupabaseClient<Database>) {

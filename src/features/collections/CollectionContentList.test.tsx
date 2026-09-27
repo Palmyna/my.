@@ -23,7 +23,7 @@ vi.mock('../../services/physical-copies', async original => ({ ...await original
 const id = 'c1200000-0000-0000-0000-000000000001'
 const bigId = '9007199254740995'
 const overview: CollectionOverview = { collectionId: id, ownerId: 'viewer', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 2 }
-const first: CollectionContentItem = { collectionItemId: 'first', variantId: bigId, cardNameFr: 'Pikachu', setNameFr: 'Extension', setAbbreviation: 'EXT', localId: '025', variantLabel: 'Holo', imageUrl: 'https://images.pokemontcg.io/base1/58.png', origin: 'automatic', owned: false }
+const first: CollectionContentItem = { collectionItemId: 'first', variantId: bigId, cardNameFr: 'Pikachu', setNameFr: 'Extension', setAbbreviationFr: null, setAbbreviation: 'EXT', localId: '025', variantLabel: 'Holo', imageUrl: 'https://images.pokemontcg.io/base1/58.png', origin: 'automatic', owned: false }
 const second: CollectionContentItem = { ...first, collectionItemId: 'second', variantId: '42', cardNameFr: 'Évoli', imageUrl: null, owned: true }
 const get = vi.mocked(getCollectionOverview), content = vi.mocked(getCollectionContent)
 const order = vi.mocked(listCollectionItemOrder), move = vi.mocked(moveCollectionItem)
@@ -106,10 +106,14 @@ test('backend order, ownership visuals, enabled controls and masked status; no o
 })
 
 test.each([
-  ['ASC', '28', 'Pikachu · ASC · 28'], ['SLG', '28/73', 'Pikachu · SLG · 28/73'],
-  ['EXT', null, 'Pikachu · EXT'], [null, '025', 'Pikachu · 025'], [null, null, 'Pikachu'],
-])('compact title %s / %s', (setAbbreviation, localId, expected) => {
-  const { container } = render(<CollectionContentRow item={{ ...first, setAbbreviation, localId }} readOnly={false} onCopies={() => {}} />)
+  ['HER', 'ASC', '28', 'Pikachu · HER (ASC) · 28'],
+  [null, 'ASC', '28', 'Pikachu · ASC · 28'],
+  ['HER', null, '28', 'Pikachu · HER · 28'],
+  ['ASC', 'ASC', '28', 'Pikachu · ASC · 28'],
+  [null, 'SLG', '28/73', 'Pikachu · SLG · 28/73'],
+  [null, 'EXT', null, 'Pikachu · EXT'], [null, null, '025', 'Pikachu · 025'], [null, null, null, 'Pikachu'],
+])('compact title %s / %s / %s', (setAbbreviationFr, setAbbreviation, localId, expected) => {
+  const { container } = render(<CollectionContentRow item={{ ...first, setAbbreviationFr, setAbbreviation, localId }} readOnly={false} onCopies={() => {}} />)
   expect(container.querySelector('.collection-content-name')).toHaveTextContent(expected)
   expect(screen.queryByText('Extension')).not.toBeInTheDocument()
   expect(container.querySelector('.collection-content-variant')).toHaveTextContent('Holo')

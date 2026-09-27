@@ -20,7 +20,7 @@ vi.mock('../../services/collection-items', async original => ({ ...await origina
 vi.mock('../../services/catalog-search', async original => ({ ...await original<typeof import('../../services/catalog-search')>(), searchCatalogVariantsForAdd: vi.fn() }))
 
 const bigId = '9007199254740995'
-const variant: CatalogVariantForAdd = { variantId: bigId, imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Set exemple', setAbbreviation: 'ASC', localId: '025', variantLabel: 'Reverse' }
+const variant: CatalogVariantForAdd = { variantId: bigId, imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Set exemple', setAbbreviationFr: null, setAbbreviation: 'ASC', localId: '025', variantLabel: 'Reverse' }
 const item: CollectionContentItem = { ...variant, collectionItemId: 'c1900000-0000-0000-0000-000000000001', origin: 'manual', owned: true }
 const collection: CollectionOverview = { collectionId: 'collection', ownerId: 'owner', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, totalCount: 1, ownedCount: 1 }
 const content = vi.mocked(getCollectionContent), add = vi.mocked(addManualCollectionItem), remove = vi.mocked(removeManualCollectionItem)
@@ -238,15 +238,18 @@ test('broken result image falls back without preventing selection', async () => 
   fireEvent.click(result); expect(screen.getByRole('radio', { name: 'Fin' })).toBeChecked()
 })
 test.each([
-  ['Pikachu', 'ASC', '28', 'Reverse', 'Pikachu · ASC · 28'],
-  ['Pikachu', 'SLG', '28/73', 'Holo', 'Pikachu · SLG · 28/73'],
-  ['Pikachu', null, '028', null, 'Pikachu · 028'],
-  ['Pikachu', 'ASC', null, null, 'Pikachu · ASC'],
-  [null, null, null, null, 'Nom indisponible'],
-])('compact search summary: %s / %s / %s / %s', async (cardNameFr, setAbbreviation, localId, variantLabel, title) => {
-  search.mockResolvedValue([{ ...variant, cardNameFr, setAbbreviation, localId, variantLabel }])
+  ['Pikachu', 'HER', 'ASC', '28', 'Reverse', 'Pikachu · HER (ASC) · 28'],
+  ['Pikachu', null, 'ASC', '28', 'Reverse', 'Pikachu · ASC · 28'],
+  ['Pikachu', 'HER', null, '28', 'Reverse', 'Pikachu · HER · 28'],
+  ['Pikachu', 'ASC', 'ASC', '28', 'Reverse', 'Pikachu · ASC · 28'],
+  ['Pikachu', null, 'SLG', '28/73', 'Holo', 'Pikachu · SLG · 28/73'],
+  ['Pikachu', null, null, '028', null, 'Pikachu · 028'],
+  ['Pikachu', null, 'ASC', null, null, 'Pikachu · ASC'],
+  [null, null, null, null, null, 'Nom indisponible'],
+])('compact search summary: %s / %s / %s / %s / %s', async (cardNameFr, setAbbreviationFr, setAbbreviation, localId, variantLabel, title) => {
+  search.mockResolvedValue([{ ...variant, cardNameFr, setAbbreviationFr, setAbbreviation, localId, variantLabel }])
   setup(); openAdd(); fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Pikachu ASC' } })
-  const result = await screen.findByRole('button', { name: new RegExp(title) })
+  const result = await screen.findByRole('button', { name: accessibleName => accessibleName.includes(title) })
   expect(result.querySelector('.collection-content-name')).toHaveTextContent(title)
   expect(within(result).queryByText('Set exemple')).not.toBeInTheDocument()
   expect(result.querySelector('.collection-content-info')?.children).toHaveLength(variantLabel ? 2 : 1)

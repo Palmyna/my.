@@ -572,6 +572,8 @@ Migration atomique et additive, anciens lecteurs/reorder compatibles. Avant comm
 
 Les décodeurs vérifient un nombre exact de champs : livraison DB/frontend coordonnée nécessaire, les anciens clients rejetant le champ supplémentaire. Un retour arrière exige une nouvelle migration rétablissant les anciens payloads et le frontend correspondant ; aucune donnée utilisateur à supprimer.
 
+**Abréviations séparées.** La [migration `20260927140955`](../supabase/migrations/20260927140955_collection_separate_set_abbreviations.sql), appliquée localement, remplace la valeur fusionnée par deux champs bruts : `set_abbreviation_fr = tcg_sets.abbreviation_fr` et `set_abbreviation = tcg_sets.abbreviation`. Historique local : **21 migrations concordantes** ; types régénérés, signatures JSONB inchangées. La présentation commune affiche `FR (source)` si différentes, une seule valeur si identiques ou si une seule existe, aucun segment si absentes. Matching/scoring inchangés ; les deux restent recherchables. Aucun accès Cloud. Livraison DB/frontend coordonnée selon la contrainte des décodeurs stricts ci-dessus.
+
 ### Lecture du contenu — contrat 6B.1
 
 La [migration 6B.1](../supabase/migrations/20260924185335_phase6b1_collection_content.sql) est **appliquée sur Supabase local**, en attente du checkpoint Cloud. `public.get_collection_content(p_collection_id UUID)` renvoie un **JSONB scalaire contenant un tableau**, en une instruction SQL `STABLE`, sans écriture. Ordre, métadonnées et possession utilisent le même snapshot de lecture. L'ordre du tableau est exactement `collection_items.sort_position, collection_items.id`, identique à `get_collection_item_order` en 6A.3 ; aucune position n'est transmise au frontend.
@@ -586,7 +588,8 @@ Chaque objet expose uniquement :
 | `card_name_fr` | string ou null | `source_cards.name_fr` |
 | `local_id` | string ou null | Numéro original `source_cards.local_id`, sans normalisation d'affichage |
 | `set_name_fr` | string ou null | `tcg_sets.name_fr`, Extension précise, jamais sa série |
-| `set_abbreviation` | string ou null | `COALESCE(tcg_sets.abbreviation_fr, tcg_sets.abbreviation)` ; FR, source, puis `NULL` |
+| `set_abbreviation_fr` | string ou null | `tcg_sets.abbreviation_fr`, valeur brute |
+| `set_abbreviation` | string ou null | `tcg_sets.abbreviation`, valeur source brute |
 | `image_url` | string ou null | `COALESCE(catalog_variants.image_url, source_cards.image_url)` |
 | `variant_label` | string ou null | `catalog_variants.label` exact, y compris corrections et stamps |
 | `owned` | boolean | Au moins un exemplaire pour `collections.owner_id + collection_items.variant_id` |
@@ -599,11 +602,11 @@ Le pipeline persiste déjà l'image variante avec fallback source (`scripts/cata
 
 Collection vide, inexistante, inaccessible, identifiant null, identité/MFA/profil insuffisant sous rôle `authenticated` : `[]`, sans révéler l'existence d'une collection privée, comme le lecteur d'ordre 6A.3. `anon` reçoit un refus de permission d'exécution. Le service 6B.2 conserve cette distinction entre contenu vide et disponibilité du parent selon le contrat de lecture du parent ; `[]` seul n'atteste pas l'accès.
 
-**Volume.** Un tableau JSONB scalaire représente une seule valeur REST : `max_rows = 1000` ne découpe pas ses éléments. Pas de pagination ni de lectures successives susceptibles de diverger. Les jointures sont faites en base ; `EXISTS` utilise la paire indexée `(user_id, variant_id)`, sans N+1 réseau. Taille de réponse, mémoire d'agrégation/validation et temps de traitement croissent avec le nombre d'items ; le tableau complet est matérialisé, sans promesse de volume illimité. Une limite de ressources produit une erreur, pas une réponse volontairement tronquée. Aucune mesure de performances n'est revendiquée avant exécution. Le service 6B.2 valide un tableau de dix champs et conserve les IDs décimaux comme chaînes, sans reconstruire l'ordre.
+**Volume.** Un tableau JSONB scalaire représente une seule valeur REST : `max_rows = 1000` ne découpe pas ses éléments. Pas de pagination ni de lectures successives susceptibles de diverger. Les jointures sont faites en base ; `EXISTS` utilise la paire indexée `(user_id, variant_id)`, sans N+1 réseau. Taille de réponse, mémoire d'agrégation/validation et temps de traitement croissent avec le nombre d'items ; le tableau complet est matérialisé, sans promesse de volume illimité. Une limite de ressources produit une erreur, pas une réponse volontairement tronquée. Aucune mesure de performances n'est revendiquée avant exécution. Le service 6B.2 valide un tableau de onze champs et conserve les IDs décimaux comme chaînes, sans reconstruire l'ordre.
 
 Le test [pgTAP](../supabase/tests/database/015_collection_content.test.sql), sa [fixture commune](../supabase/tests/database/collection_content.fixtures.inc) et le [test HTTP local](../scripts/test-collection-content-api.js) couvrent accès/RLS, contenu exact, ordre/ties, nulls, images, possession partagée, IDs hors précision JavaScript et 1005 éléments. pgTAP et HTTP ont été exécutés avec succès après application locale durable. Le test HTTP vérifie d'abord que la lecture REST directe est réellement limitée à 1000, puis exige les 1005 IDs ordonnés dans la RPC propriétaire et partagée ; il rapporte taille/durée et nettoie ses fixtures synthétiques. Il se lance avec `node scripts/test-collection-content-api.js` après application des migrations locales et disponibilité du cache de schéma REST ; il n'applique rien et ne modifie aucune configuration.
 
-Contrat de lecture sans changement des écritures. Une migration de retrait pourra supprimer uniquement cette fonction après retrait de ses consommateurs, sans restauration de données. Service livré en 6B.2, affichage branché en 6B.3 ; le service utilise directement les types Supabase régénérés localement, sans overlay de schéma futur. La validation stricte du JSONB inclut désormais `setAbbreviation: string | null` ; les autres validations restent identiques.
+Contrat de lecture sans changement des écritures. Une migration de retrait pourra supprimer uniquement cette fonction après retrait de ses consommateurs, sans restauration de données. Service livré en 6B.2, affichage branché en 6B.3 ; le service utilise directement les types Supabase régénérés localement, sans overlay de schéma futur. La validation stricte du JSONB inclut désormais `setAbbreviationFr: string | null` et `setAbbreviation: string | null` ; les autres validations restent identiques.
 
 ### Première liste fonctionnelle — Phase 6B.3
 
@@ -1117,13 +1120,14 @@ Le JSONB scalaire contient un tableau de Variantes exactes, sans dépendance à 
   "image_url": null,
   "card_name_fr": "Pikachu",
   "set_name_fr": "Légendes Brillantes",
-  "set_abbreviation": "SL3.5",
+  "set_abbreviation_fr": "SL3.5",
+  "set_abbreviation": "SLG",
   "local_id": "28",
   "variant_label": "Reverse"
 }
 ```
 
-`variant_id` est produit par `BIGINT::text`, jamais converti en nombre JavaScript. Les six champs d'affichage sont `string | null` ; aucune URL, traduction ou label n'est inventé. L'image utilise `COALESCE(catalog_variants.image_url, source_cards.image_url)`. `set_abbreviation` utilise `COALESCE(tcg_sets.abbreviation_fr, tcg_sets.abbreviation)` ; aucune abréviation calculée côté frontend. Le numéro est le `local_id` stocké ; le dénominateur sert au matching, sans enrichir inutilement le payload.
+`variant_id` est produit par `BIGINT::text`, jamais converti en nombre JavaScript. Les sept champs d'affichage sont `string | null` ; aucune URL, traduction ou label n'est inventé. L'image utilise `COALESCE(catalog_variants.image_url, source_cards.image_url)`. `set_abbreviation_fr` et `set_abbreviation` exposent séparément les valeurs brutes des colonnes homonymes du set ; seul leur assemblage visuel est réalisé côté frontend. Le numéro est le `local_id` stocké ; le dénominateur sert au matching, sans enrichir inutilement le payload.
 
 **Éligibilité.** Variante active et `french_availability = 'confirmed'`, carte source active, set actif : mêmes conditions que 6C.1. Aucune exigence `source_present`, aucun filtre supplémentaire de taille/Pokémon actif, aucun `collection_id` ni exclusion des variantes déjà présentes. Chaque Variante apparaît une fois, même avec plusieurs Pokémon rattachés. La mutation 6C.1 revérifie éligibilité/propriété et traite `already_present` au moment de l'écriture.
 
@@ -1137,7 +1141,7 @@ Tri total avant pagination : score décroissant, nom carte normalisé, set norma
 
 **Sécurité.** RPC `STABLE SECURITY DEFINER`, `search_path = ''`, contrôle explicite de `auth.uid()`, `aal2` et présence du profil. Le definer permet uniquement la lecture du sélecteur MY. dans `private.catalog_entity_keys`, nécessaire à la parité avec la CLI, sans ouvrir le schéma privé. Aucun argument utilisateur/collection. `EXECUTE` accordé uniquement à `authenticated` hors propriétaire PostgreSQL ; révoqué à PUBLIC/anon/service_role. Deux helpers purs privés, sans droits API. Aucun grant de table ni policy existante modifié.
 
-**Service.** [`searchCatalogVariantsForAdd`](../src/services/catalog-search.ts) appelle seulement cette RPC avec les signatures officielles de `database.generated.ts`. Il valide tableau, taille de page, objets à sept champs, nullabilité exacte, ID décimal canonique dans les bornes BIGINT et absence de doublons. Il conserve l'ordre, les absences et l'ID en chaîne. Erreurs publiques limitées à `not_authorized`, `invalid_query`, `unexpected`, sans message serveur brut. L’interface, le debounce et les mutations frontend sont livrés séparément en 6C.3.
+**Service.** [`searchCatalogVariantsForAdd`](../src/services/catalog-search.ts) appelle seulement cette RPC avec les signatures officielles de `database.generated.ts`. Il valide tableau, taille de page, objets à huit champs, nullabilité exacte, ID décimal canonique dans les bornes BIGINT et absence de doublons. Il conserve l'ordre, les absences et l'ID en chaîne. Erreurs publiques limitées à `not_authorized`, `invalid_query`, `unexpected`, sans message serveur brut. L’interface, le debounce et les mutations frontend sont livrés séparément en 6C.3.
 
 **Mesures et preuves.** [`node scripts/test-catalog-search-api.js`](../scripts/test-catalog-search-api.js) teste le vrai chemin PostgreSQL → PostgREST → supabase-js → service, pagination, droits, BIGINT et graphe de dépendances navigateur sans `pg`. Il utilise des JWT signés avec la clé locale pour tester les niveaux aal1/aal2, sans simuler le transport ni réaliser un parcours UI TOTP. Il compare scores et ordre du moteur portable sur 24 requêtes synthétiques, puis développe les variantes ; fixtures explicitement nettoyées. Le [pgTAP dédié](../supabase/tests/database/017_catalog_search.test.sql) teste contrat, grants, refus, éligibilité et pagination dans une transaction annulée.
 

@@ -197,7 +197,7 @@ test('add creates one unnamed copy, returns to refreshed list, requires another 
 test.each(['create', 'delete', 'edit'] as const)('%s refreshes content possession only when it can change', async action => {
   const { client } = setup()
   const content = [{ collectionItemId: 'item', variantId: '42', origin: 'manual', cardNameFr: null,
-    localId: null, setNameFr: null, setAbbreviation: null, imageUrl: null, variantLabel: null, owned: true }]
+    localId: null, setNameFr: null, setAbbreviationFr: null, setAbbreviation: null, imageUrl: null, variantLabel: null, owned: true }]
   const affected = collectionContentKey('owner', 'collection')
   client.setQueryData(affected, content)
   const untouched = [collectionContentKey('other-user', 'collection'), collectionItemOrderKey('owner', 'collection')]

@@ -63,7 +63,7 @@ try {
   const direct = await request(`collection_items?collection_id=eq.${collection}&select=id&order=sort_position,id`, users[0])
   assert.equal(direct.value.length, 1000, 'This regression requires the configured REST max_rows=1000')
   const expectedIds = Array.from({ length: 1005 }, (_, n) => `d1610000-0000-0000-0000-${String(n + 1).padStart(12, '0')}`)
-  const keys = ['card_name_fr', 'collection_item_id', 'image_url', 'local_id', 'origin', 'owned', 'set_abbreviation', 'set_name_fr', 'variant_id', 'variant_label']
+  const keys = ['card_name_fr', 'collection_item_id', 'image_url', 'local_id', 'origin', 'owned', 'set_abbreviation','set_abbreviation_fr', 'set_name_fr', 'variant_id', 'variant_label']
   let ownerPayload
   for (const user of users.slice(0, 2)) {
     const started = performance.now()
@@ -76,7 +76,8 @@ try {
       assert.equal(item.variant_id, String(-86101 - n), 'Lossless variant ID')
       assert.equal(item.variant_label, `Fixture ${n + 1}`, 'Exact catalogue label')
       assert.equal(item.owned, false, 'No owner copies in volume fixture')
-      assert.equal(item.set_abbreviation, 'EXT', 'French display abbreviation wins over source SRC')
+      assert.equal(item.set_abbreviation_fr, 'EXT', 'Raw French abbreviation')
+      assert.equal(item.set_abbreviation, 'SRC', 'Raw source abbreviation')
     })
     if (ownerPayload) assert.deepEqual(value, ownerPayload, 'Shared reader receives the same owner content')
     else ownerPayload = value
@@ -90,7 +91,8 @@ try {
   assert.equal(mixed.value[4].set_abbreviation, null, 'Missing abbreviation remains explicit null')
   await client.query('update public.tcg_sets set abbreviation_fr=null where id=-86001')
   const fallback = await request('rpc/get_collection_content', users[0], { p_collection_id: 'c1600000-0000-0000-0000-000000000001' })
-  assert.equal(fallback.value[0].set_abbreviation, 'SRC', 'Source fallback over actual HTTP')
+  assert.equal(fallback.value[0].set_abbreviation_fr, null)
+  assert.equal(fallback.value[0].set_abbreviation, 'SRC', 'Raw source over actual HTTP')
   const thirdParty = await request('rpc/get_collection_content', users[2], { p_collection_id: collection })
   assert.deepEqual(thirdParty.value, [], 'Third party denied over HTTP')
   console.log('PASS: REST cap control, complete ordered RPC, precise IDs and shared possession')

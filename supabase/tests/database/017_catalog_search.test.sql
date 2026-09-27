@@ -40,10 +40,10 @@ select is(jsonb_typeof(public.search_catalog_variants_for_add('fixture6c2 Pikach
 select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu 28/73')->0->>'image_url','https://example.test/card.webp','source image fallback');
 select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu 28/73')->1->>'image_url','https://example.test/reverse.webp','variant image wins');
 select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu 28/73')->1->>'variant_label','Reverse','source-absent MY variant included and labelled');
-select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu 28/73')->1->>'set_abbreviation','SL3.5','French abbreviation wins over source SLG');
+select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu 28/73')->1->>'set_abbreviation_fr','SL3.5','Raw French abbreviation');
 select ok((select bool_and((select array_agg(k order by k) from jsonb_object_keys(x) k) =
-  array['card_name_fr','image_url','local_id','set_abbreviation','set_name_fr','variant_id','variant_label'])
-  from jsonb_array_elements(public.search_catalog_variants_for_add('fixture6c2 Pikachu')) x),'Exactly seven fields, including nullable abbreviation');
+  array['card_name_fr','image_url','local_id','set_abbreviation','set_abbreviation_fr','set_name_fr','variant_id','variant_label'])
+  from jsonb_array_elements(public.search_catalog_variants_for_add('fixture6c2 Pikachu')) x),'Exactly eight fields, including separate nullable abbreviations');
 select is(public.search_catalog_variants_for_add('fixture6c2 28/73')->0->>'variant_label','Normal','normal label');
 select ok(not exists(select 1 from jsonb_array_elements(public.search_catalog_variants_for_add('fixture6c2',100)) x
   where x->>'variant_id' in ('-88002','-88003','-88004','-88026','-88027')), 'all five ineligible cases excluded');
@@ -80,18 +80,19 @@ reset role;
 update public.tcg_sets set abbreviation_fr='ASC',abbreviation='SRC6C' where id=-88001;
 set local role authenticated;
 select ok(exists(select 1 from jsonb_array_elements(public.search_catalog_variants_for_add('Pikachu ASC',100)) x
-  where x->>'variant_id'='9007199254740995' and x->>'set_abbreviation'='ASC'),'Pikachu ASC matches name/Pokemon AND French abbreviation');
+  where x->>'variant_id'='9007199254740995' and x->>'set_abbreviation_fr'='ASC' and x->>'set_abbreviation'='SRC6C'),'Pikachu ASC matches name/Pokemon AND French abbreviation');
 select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu ASC'),public.search_catalog_variants_for_add('fixture6c2 pIkAcHu aSc'),'Name and abbreviation are case insensitive');
 select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu ASC'),public.search_catalog_variants_for_add('fixture6c2 Pikachu SRC6C'),'Both FR and source abbreviations remain searchable with equal ranking');
 select is(public.search_catalog_variants_for_add('fixture6c2 Absent ASC'),'[]'::jsonb,'Abbreviation cannot bypass AND name term');
 reset role;
 update public.tcg_sets set abbreviation_fr=null where id=-88001;
 set local role authenticated;
-select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu SRC6C')->0->>'set_abbreviation','SRC6C','Display falls back to source abbreviation');
+select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu SRC6C')->0->>'set_abbreviation','SRC6C','Raw source abbreviation survives absent French');
 reset role;
 update public.tcg_sets set abbreviation=null where id=-88001;
 set local role authenticated;
 select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu')->0->'set_abbreviation','null'::jsonb,'No abbreviation returns explicit JSON null');
+select is(public.search_catalog_variants_for_add('fixture6c2 Pikachu')->0->'set_abbreviation_fr','null'::jsonb,'Absent French abbreviation stays null');
 reset role;
 select * from finish();
 rollback;

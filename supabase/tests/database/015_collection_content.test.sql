@@ -55,22 +55,25 @@ select ok((select bool_and(jsonb_typeof(x->'variant_id')='string' and jsonb_type
   from jsonb_array_elements(public.get_collection_content('c1600000-0000-0000-0000-000000000001')) x),
   'BIGINT identifiers are lossless decimal strings; owned is boolean');
 select ok((select bool_and((select array_agg(k order by k) from jsonb_object_keys(x) k) =
-  array['card_name_fr','collection_item_id','image_url','local_id','origin','owned','set_abbreviation','set_name_fr','variant_id','variant_label'])
+  array['card_name_fr','collection_item_id','image_url','local_id','origin','owned','set_abbreviation','set_abbreviation_fr','set_name_fr','variant_id','variant_label'])
   from jsonb_array_elements(public.get_collection_content('c1600000-0000-0000-0000-000000000001')) x),
-  'Exactly ten fields: no positions, ranks, counts, owner IDs, timestamps or pipeline metadata');
+  'Exactly eleven fields: no positions, ranks, counts, owner IDs, timestamps or pipeline metadata');
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000002'),'[]'::jsonb,'Visible empty collection');
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000099'),'[]'::jsonb,'Missing collection reveals nothing');
 select is(public.get_collection_content(null),'[]'::jsonb,'NULL collection reveals nothing');
 
-select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->0->>'set_abbreviation','EXT','French abbreviation wins over source');
+select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->0->>'set_abbreviation_fr','EXT','Raw French abbreviation');
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->4->'set_abbreviation','null'::jsonb,'No abbreviations yields explicit JSON null');
+select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->0->>'set_abbreviation','SRC','Raw source is distinct from French');
 reset role;
 update public.tcg_sets set abbreviation_fr=null where id=-86001;
 set local role authenticated;
-select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->0->>'set_abbreviation','SRC','Source abbreviation fallback');
+select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->0->>'set_abbreviation','SRC','Raw source abbreviation remains available');
 reset role;
 update public.tcg_sets set abbreviation_fr='EXT' where id=-86001;
 set local role authenticated;
+
+select is(public.get_collection_content('c1600000-0000-0000-0000-000000000001')->4->'set_abbreviation_fr','null'::jsonb,'Absent French abbreviation stays null');
 
 -- One RPC result contains all 1005 items, even under an outer row limit.
 select is((select jsonb_array_length(public.get_collection_content('c1600000-0000-0000-0000-000000000003')) limit 1),1005,

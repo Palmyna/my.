@@ -6,7 +6,7 @@ import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { invalidateCopyPossession, physicalCopiesKey } from './physical-copies-query'
 
 const item = (variantId: string): CollectionContentItem => ({ collectionItemId: 'item', variantId, origin: 'manual',
-  cardNameFr: null, localId: null, setNameFr: null, setAbbreviation: null, imageUrl: null, variantLabel: null, owned: false })
+  cardNameFr: null, localId: null, setNameFr: null, setAbbreviationFr: null, setAbbreviation: null, imageUrl: null, variantLabel: null, owned: false })
 
 test('copy key normalizes safe legacy IDs and preserves lossless BIGINT and identity scope', () => {
   expect(physicalCopiesKey('viewer', 'owner', 42)).toEqual(physicalCopiesKey('viewer', 'owner', '42'))

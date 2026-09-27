@@ -4,6 +4,7 @@ export interface CatalogVariantForAdd {
   imageUrl: string | null
   cardNameFr: string | null
   setNameFr: string | null
+  setAbbreviationFr: string | null
   setAbbreviation: string | null
   localId: string | null
   variantLabel: string | null
