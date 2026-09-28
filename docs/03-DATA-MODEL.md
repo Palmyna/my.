@@ -118,6 +118,8 @@ Une variante peut sortir plus tard que la carte de base. Sa date effective utili
 
 Les variantes historiques conservent leurs dates persistées. Une correction de date ne crée pas une nouvelle variante et ne modifie pas son identité.
 
+La lecture autonome du détail Variante (6E.1) restitue `effective_release_date` et `date_origin` tels que persistés, sans recalcul. Son ID `BIGINT` est sérialisé en texte décimal ; ses stamps restent un tableau dans l'ordre stocké. Les métadonnées carte, extension et série sont indépendantes des collections et des exemplaires. Les valeurs absentes restent nulles ; seule l'image applique le fallback variante puis carte. L'inactivité, l'absence de la source ou la disponibilité française ne filtrent pas ce détail.
+
 #### Identité d'une variante
 
 Deux variantes réellement distinctes doivent toujours pouvoir être représentées par deux entités différentes. Leur identité peut exploiter les informations pertinentes fournies par TCGdex ou MY., notamment :

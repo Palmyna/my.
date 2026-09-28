@@ -350,6 +350,31 @@ TCGdex reste la source principale, mais une correction MY. validée a priorité.
 
 Le catalogue ne stocke pas systématiquement le payload JSON complet de chaque entité TCGdex. Il conserve les données utiles au produit, à la synchronisation et à la traçabilité, ainsi que les métadonnées techniques ciblées réellement nécessaires.
 
+### Lecture du détail Variante — contrat 6E.1
+
+La [migration additive 6E.1](../supabase/migrations/20260928083830_phase6e1_variant_detail.sql) ajoute `public.get_variant_detail(p_variant_id bigint) returns jsonb`, `STABLE`, `SECURITY INVOKER`, `SET search_path = ''`. Elle est strictement en lecture seule : jointures `catalog_variants → source_cards → tcg_sets → tcg_series`, dont les relations sont obligatoires et protégées par clés étrangères. Aucun filtre d'activité, de présence source ou de disponibilité française ; toute variante existante visible sous RLS, même historique/inactive, reste consultable.
+
+Payload exact, sans autre champ :
+
+```text
+variant_id, image_url,
+card_name_fr, local_id, rarity, category,
+set_name_fr, set_name_source, set_abbreviation_fr, set_abbreviation,
+series_name_fr, series_name_source,
+variant_label, variant_type, variant_subtype, variant_size, variant_foil, variant_stamps,
+effective_release_date, date_origin
+```
+
+`variant_id` est `catalog_variants.id::text`, y compris au-delà de `Number.MAX_SAFE_INTEGER`. L'image est `COALESCE(catalog_variants.image_url, source_cards.image_url)` ; tous les autres champs sont projetés tels quels, sans fallback textuel. `stamp TEXT[]` devient `variant_stamps`, sans concaténation, tri ni déduplication. `effective_release_date` et `date_origin` proviennent de la variante persistée, sans recalcul depuis la carte ou le set. Tous les champs descriptifs et la date sont nullables ; l'ID, le tableau de stamps et `date_origin` ne le sont pas. Une provenance `unknown` n'impose pas une date nulle.
+
+Les grants `SELECT` catalogue existants permettent `SECURITY INVOKER`. `EXECUTE` est révoqué à `PUBLIC`, `anon`, `authenticated` et `service_role`, puis accordé seulement à `authenticated`. Les RLS `require_mfa` et `require_my_profile` restent actives sur les quatre tables : `aal1`, claim absent, identité absente ou profil supprimé ne donnent aucune donnée. Leur prédicat de profil existant s'exécute sous RLS ; la RPC ne lit directement aucune table utilisateur et n'ajoute aucun contrôle ou privilège sur `profiles`.
+
+ID inexistant ou `NULL` : résultat SQL `NULL`. Une variante invisible sous RLS donne aussi `NULL`, sans révéler son existence. Les rôles sans `EXECUTE` reçoivent un refus de permission. Le [service dédié](../src/services/variant-detail.ts) traduit ces résultats en `variant_unavailable` ou, pour les refus explicites, `not_authorized` ; son décodeur strict renvoie `unexpected` hors contrat.
+
+Aucune lecture directe ni exposition de `physical_copies`, `collections`, `collection_items`, `collection_shares` ou `profiles` : ni possession, exemplaires, notes, origine Auto/Perso, ni `collection_id`. La consultation n'exige aucune collection. Les [tests pgTAP ciblés](../supabase/tests/database/018_variant_detail.test.sql) vérifient aussi la lecture après retrait transactionnel des grants directs sur ces cinq tables, sans contourner le prédicat RLS de profil.
+
+Application Supabase **locale** effectuée : 23 migrations concordantes jusqu'à `20260928083830`, types Supabase régénérés depuis ce schéma. Les tests DB et [service/décodeur](../src/services/variant-detail.test.ts) sont limités à ce contrat. Aucun changement Cloud ni UI. Retour arrière : retirer le nouveau consommateur puis `DROP FUNCTION public.get_variant_detail(bigint)` dans une nouvelle migration ; aucune donnée stockée ni ancien lecteur n'est modifié.
+
 ### Conservation du catalogue
 
 La disparition d'une donnée dans TCGdex ne déclenche pas sa suppression physique automatique. Le modèle distingue :

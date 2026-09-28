@@ -315,6 +315,9 @@ isOneToOne: true
 "get_collection_item_order":
 { Args: { "p_collection_id": string }; Returns: (string)[]
                            },
+"get_variant_detail":
+{ Args: { "p_variant_id": number }; Returns: Json
+                           },
 "remove_manual_collection_item":
 { Args: { "p_collection_id": string,"p_collection_item_id": string }; Returns: undefined
                            },

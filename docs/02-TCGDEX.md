@@ -74,6 +74,8 @@ Le catalogue local sert notamment à :
 
 Les informations descriptives des cartes et variantes appartiennent au catalogue global. Les informations personnelles appartiennent aux utilisateurs.
 
+Le [contrat de détail Variante 6E.1](06-DATABASE.md#lecture-du-détail-variante--contrat-6e1) consulte le catalogue MY. par `variant_id`, indépendamment de toute collection et sans appel à TCGdex. Une variante historique, inactive, absente de la source ou non confirmée en français reste consultable. Cette lecture restitue les métadonnées persistées, sans possession ni donnée d'exemplaire. L'image spécifique prime sur celle de la carte ; les données manquantes restent `NULL`.
+
 Exemples de données du catalogue :
 
 - la carte Pikachu 28/73 ;
