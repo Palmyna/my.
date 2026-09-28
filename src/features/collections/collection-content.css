@@ -2,6 +2,9 @@
 .collection-content-list { list-style: none; margin: 16px 0; padding: 0; }
 .collection-content-list > li { padding: 8px 0; border-bottom: 1px solid #514344; }
 .collection-content-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.collection-detail-trigger { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; min-height: 44px; padding: 4px 0; border: 0; border-radius: 4px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.collection-detail-trigger:hover { background: #ffffff08; }
+.collection-detail-trigger:focus-visible { outline: 3px solid #ff969b; outline-offset: 3px; }
 .collection-content-image { flex: 0 0 36px; width: 36px; aspect-ratio: 48 / 67; display: grid; place-items: center; color: #b5a9aa; background: #302626; border-radius: 4px; overflow: hidden; }
 .collection-content-image img, .collection-content-image svg { display: block; width: 100%; height: 100%; object-fit: contain; }
 .collection-content-info { flex: 1; min-width: 0; }

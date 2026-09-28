@@ -391,7 +391,7 @@ La vue Liste privilégie la densité, la lisibilité, la rapidité, la recherche
 
 La composition exacte des colonnes reste ouverte.
 
-Cliquer sur une ligne ouvre le détail de la variante sans obliger l'utilisateur à quitter la collection ni à perdre inutilement sa position.
+La zone principale de chaque ligne (image, nom, abréviation d'Extension, numéro et version) ouvre le détail contextuel. La poignée de réorganisation, le raccourci Exemplaires et le menu `…` restent des interactions séparées ; la ligne entière n'est pas cliquable.
 
 ### Vue Cartes
 
@@ -453,6 +453,12 @@ Le bloc actuellement consulté doit être identifiable et cette information peut
 
 ## Détail d'une variante
 
+**Réalisation 6E.2 depuis la liste Collection :** le bouton `Voir le détail de {nom}` ouvre un panneau natif modal à droite, large de 620 px au maximum et haut de `100dvh`, avec la collection perceptible derrière le backdrop sombre. Jusqu'à 640 px, le même panneau occupe tout l'écran. Son contenu défile indépendamment ; la fermeture reste accessible dans l'en-tête. Aucun changement d'URL, de recherche interne, de résultats ou d'ordre ; le scroll de collection est conservé. Le focus est contenu dans le panneau et rendu au déclencheur encore présent, sans déplacement du scroll. `Escape` ferme le détail ou revient du formulaire à la liste ; pendant une mutation et sa relecture, fermeture et double soumission sont bloquées. Aucune navigation Précédente/Suivante ni swipe.
+
+Le catalogue provient uniquement de `getVariantDetail(variantId)` (6E.1), avec chargement immédiat, erreur sûre et bouton `Réessayer`. Le nom FR (ou `Nom indisponible`), la grande image, la version et les métadonnées disponibles sont affichés sans ID interne. Extension et abréviations combinent les valeurs différentes en `FR (source)` ; la série privilégie le FR. Les valeurs vides sont omises, la taille standard est masquée, les autres valeurs catalogue restent intactes. `Date de sortie` affiche la date effective en français sans décalage de jour ni provenance technique.
+
+`Mes exemplaires` (propriétaire) ou `Exemplaires` (partage) est intégré directement : liste, notes dépliables, ajout, modification et suppression confirmée restent dans le même panneau, sans modal imbriquée. `Possédée` / `Manquante` dérive des exemplaires relus du propriétaire réel. Le partage n'affiche aucune action d'écriture. Le raccourci Exemplaires de la ligne conserve son dialogue direct. Aucun ajout/retrait structurel de collection n'est proposé dans le détail.
+
 Cliquer sur une variante depuis une collection (Liste, Cartes ou Classeur) ou depuis une fiche Carte catalogue ouvre le **même détail contextuel**, sans perdre inutilement le contexte ni la position d'origine.
 
 Le détail peut notamment afficher :
@@ -491,15 +497,7 @@ L'ajout du premier exemplaire fait automatiquement passer la variante de manquan
 
 ### Informations d'un exemplaire
 
-Le formulaire peut permettre de saisir :
-
-- la condition ;
-- le statut gradé ou non ;
-- la société de grading ;
-- la note de grading ;
-- une note personnelle.
-
-L'interface suit le principe de **progressive disclosure** : elle révèle les champs seulement lorsqu'ils deviennent pertinents. Par exemple, la société et la note de grading n'ont pas besoin d'être affichées pour un exemplaire déclaré non gradé.
+Le formulaire actuel contient un nom facultatif et un champ `État / note (facultatif)` limité à 750 caractères Unicode. Les espaces et retours à la ligne utiles sont conservés ; une note vide devient `NULL`. Sans nom, la liste affiche `Exemplaire 1`, `Exemplaire 2`… ; sans exemplaire, `Aucun exemplaire.`. Les notes se déplient individuellement, y compris en lecture seule. Aucun champ structuré de grading n'est présent dans ce modèle.
 
 ### Suppression d'un exemplaire
 

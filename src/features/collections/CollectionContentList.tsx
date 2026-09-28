@@ -4,6 +4,7 @@ import { getCollectionContent } from '../../services/collection-content'
 import type { CollectionOverview } from '../../types/collections'
 import type { CollectionContentItem } from '../../types/collection-content'
 import { PhysicalCopiesDialog } from '../physical-copies/PhysicalCopiesDialog'
+import { VariantDetailPanel } from '../variant-detail/VariantDetailPanel'
 import { collectionContentKey } from './collection-query'
 import { CollectionContentRow } from './CollectionContentRow'
 import { CollectionItemReorderList } from './CollectionItemReorderList'
@@ -20,6 +21,7 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
   const content = useQuery({ queryKey: collectionContentKey(viewerId, collection.collectionId),
     queryFn: () => getCollectionContent(collection.collectionId), retry: false })
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [detail, setDetail] = useState<{ variantId: string; opener: HTMLElement } | null>(null)
   const [query, setQuery] = useState('')
   const searchInput = useRef<HTMLInputElement>(null)
   const addTrigger = useRef<HTMLButtonElement>(null)
@@ -42,6 +44,7 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
   const readOnly = collection.access !== 'owned'
   const row = (item: CollectionContentItem) => <CollectionContentRow item={item} readOnly={readOnly}
     automatic={collection.collectionType === 'automatic'} busy={manual.busy}
+    onDetail={opener => setDetail({ variantId: item.variantId, opener })}
     onCopies={() => setSelectedId(item.collectionItemId)} onRemove={opener => {
       manual.reset(); setNotice(''); setAction({ type: 'remove', item, opener })
     }} />
@@ -74,6 +77,8 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
         {readOnly ? <ul className="collection-content-list">{visibleItems.map(item => <li key={item.collectionItemId}>{row(item)}</li>)}</ul>
           : <OwnedContent collectionId={collection.collectionId} items={visibleItems} partialView={partialView} fetching={content.isFetching} renderRow={row} />}
       </>)}
+    {detail && <VariantDetailPanel variantId={detail.variantId} ownerId={collection.ownerId} readOnly={readOnly}
+      opener={detail.opener} onClose={() => setDetail(null)} />}
     {selected && <PhysicalCopiesDialog ownerId={collection.ownerId} variantId={selected.variantId}
       readOnly={readOnly} variantName={[selected.cardNameFr || 'Nom indisponible', selected.variantLabel].filter(Boolean).join(' · ')}
       onClose={() => setSelectedId(null)} />}

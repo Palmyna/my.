@@ -1,0 +1,30 @@
+.collection-dialog.variant-detail-panel { --collection-accent: #ff969b; --collection-border: #68595b; position: fixed; inset: 0 0 0 auto; display: flex; flex-direction: column; width: min(620px, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; overflow: hidden; border-radius: 16px 0 0 16px; background: #231a1a; }
+.variant-detail-panel:not([open]) { display: none; }
+.variant-detail-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex: 0 0 auto; padding: 20px 24px; border-bottom: 1px solid #514344; }
+.variant-detail-panel .variant-detail-header h2 { margin: 0; font-size: 1.1rem; }
+.variant-detail-header > button { flex: 0 0 44px; }
+.variant-detail-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px; }
+.variant-detail-intro { display: flex; align-items: center; gap: 24px; }
+.variant-detail-intro > div:last-child { min-width: 0; }
+.variant-detail-intro h3 { font-size: 1.5rem; line-height: 1.35; margin: 0 0 12px; }
+.variant-detail-intro p { color: #c9bfc0; }
+.variant-detail-intro .variant-detail-version { color: #fff; }
+.collection-content-image.variant-detail-image { flex: 0 0 200px; width: 200px; border-radius: 8px; background: #302626; }
+.variant-detail-metadata { display: flex; flex-direction: column; gap: 14px; margin: 28px 0; }
+.variant-detail-metadata > div { display: flex; gap: 24px; }
+.variant-detail-metadata dt { flex: 0 0 130px; color: #c9bfc0; }
+.variant-detail-metadata dd { margin: 0; min-width: 0; }
+.variant-detail-panel .physical-copies-content { margin-top: 28px; padding-top: 24px; border-top: 1px solid #514344; }
+.variant-detail-possession { color: #eee5e6; margin: 0 0 16px; }
+.variant-detail-panel .physical-copies-list { padding-bottom: 80px; }
+.variant-detail-panel button { min-height: 44px; }
+.variant-detail-panel :focus-visible { outline: 3px solid #ff969b; outline-offset: 3px; }
+@media (max-width: 640px) {
+  .collection-dialog.variant-detail-panel { width: 100%; border-radius: 0; border: 0; }
+  .variant-detail-header { padding: 12px 16px; }
+  .variant-detail-body { padding: 20px 16px max(24px, env(safe-area-inset-bottom)); }
+  .variant-detail-intro { flex-direction: column; align-items: stretch; gap: 20px; }
+  .collection-content-image.variant-detail-image { flex-basis: auto; width: min(220px, 75%); align-self: center; }
+  .variant-detail-metadata > div { gap: 16px; }
+  .variant-detail-metadata dt { flex-basis: 105px; }
+}
