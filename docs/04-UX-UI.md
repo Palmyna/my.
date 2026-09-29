@@ -235,12 +235,9 @@ Sur mobile, le swipe horizontal est prévu pour cette même navigation lorsqu'el
 
 Le dashboard est le point central après connexion. Il permet de comprendre immédiatement quelles collections appartiennent à l'utilisateur, lesquelles lui sont partagées, leur progression et comment créer une nouvelle collection.
 
-Il distingue clairement :
+Depuis 6F.2, le titre `Collections` et un compteur discret regroupent les collections personnelles et partagées dans une seule grille adaptative. Le compteur apparaît uniquement après une lecture réussie, au singulier ou au pluriel. L'ordre retourné par l'unique lecture serveur est conservé, sans filtre ni tri supplémentaire. Le Dashboard dispose d'une largeur propre, supérieure à celle des pages Profil et Paramètres.
 
-- `Mes collections` ;
-- `Collections partagées avec moi`.
-
-La première interface de consultation les présente en deux sections distinctes, chacune avec son état vide, dans une grille adaptative. Le Dashboard dispose d'une largeur propre, supérieure à celle des pages Profil et Paramètres.
+Sur mobile, le haut de page reste compact (`Collections` et le nombre). La recherche globale du header reste immédiatement disponible au-dessus de la liste ; son fonctionnement et sa structure ne changent pas. Aucune introduction ni hero ne précède les collections.
 
 ### Tuiles de collection
 
@@ -248,20 +245,24 @@ Les collections sont principalement présentées sous forme de cartes ou tuiles 
 
 - le nom de la collection ;
 - son type ;
-- sa progression ;
-- l'accès à la collection.
+- son accès explicite `Personnelle` ou `Partagée` (en lecture seule) ;
+- sa progression sur tablette et desktop.
 
-Dès lors qu'il s'agit d'une collection automatique, la tuile doit pouvoir distinguer `Automatique · Pokémon` de `Automatique · Extension`. La cible peut également être indiquée lorsque pertinent, par exemple `Pokémon · Pikachu` ou `Extension · Légendes Brillantes`.
+Dès lors qu'il s'agit d'une collection automatique, la tuile distingue `Automatique · Pokémon` de `Automatique · Extension`, face à `Personnalisée`. Le nom domine et peut revenir à la ligne sans troncature. La cible reste secondaire lorsqu'elle existe ; elle n'est pas répétée si elle est identique au nom.
 
-D'autres informations peuvent être ajoutées seulement si elles restent utiles et peu encombrantes.
+La même tuile devient une ligne compacte sur mobile : nom, accès, type et cible utile, avec des espacements réduits. Barre de progression, nombres possédés/total et pourcentage y sont masqués, sans second composant ni duplication de données pour les lecteurs d'écran.
 
 Les tuiles utilisent des surfaces sombres subtilement teintées, avec bordure et accent de la même famille chromatique. Une palette frontend sobre couvre corail, ambre, jaune chaud, vert, turquoise, bleu, violet et rose ; l'accent est repris par la progression. La couleur reste secondaire aux libellés et conserve un contraste suffisant. Son attribution est déterministe depuis le type et le nom de cible disponibles, avec repli sur l'identifiant stable de collection, également utilisé pour les collections personnalisées. Aucune table métier de couleurs par Pokémon ni donnée couleur en base n'est nécessaire. Un changement de nom de cible peut donc changer cet accent.
 
-Les tuiles personnelles et partagées sont des liens vers `/collections/:collectionId`, accessibles au clavier avec un focus visible. Le hover reste discret et les transitions respectent la réduction des mouvements. Le chargement et les erreurs restent intégrés au Dashboard, avec un nouvel essai explicite en cas d'échec ; le feedback après changement de mot de passe est conservé.
+Le trait latéral coloré et la surface légèrement teintée gardent cette identité perceptible, y compris sur mobile, sur la fondation graphite 6F.1. La grille fluide adapte son nombre de colonnes à la largeur disponible.
+
+Les tuiles personnelles et partagées sont entièrement des liens vers `/collections/:collectionId`, sans bouton imbriqué, accessibles au clavier avec un focus coloré visible. Sur les appareils compatibles, le hover renforce légèrement bordure et surface, avec une élévation de 2 px au maximum ; la réduction des mouvements supprime déplacement et transition.
+
+Une seule grille de skeletons accompagne `Chargement des collections…`, avec des lignes compactes sur mobile. Le seul état vide est global : `Aucune collection pour le moment.` Aucun état vide par catégorie n'apparaît. L'erreur reste `Impossible de charger les collections. Veuillez réessayer.`, avec `Réessayer`, sans détail serveur ni compteur. Le feedback après changement de mot de passe est conservé.
 
 ### Progression
 
-La progression est directement visible sur le dashboard, sous une forme conceptuelle telle que :
+La progression existante reste directement visible sur tablette et desktop, sous une forme telle que :
 
 ```text
 82 / 120
@@ -281,16 +282,16 @@ Le nom d'une collection personnalisée ou automatique exige au moins **3 caract�
 ### Collection personnalisée
 
 ```text
-Dashboard → Créer une collection personnalisée → Nom → Création
+Dashboard → FAB + → Nom → Création
 ```
 
 La collection peut être créée vide. L'utilisateur y ajoute ensuite des variantes depuis le catalogue MY.
 
-Le Dashboard propose un seul CTA principal `Créer une collection personnalisée`, près de son titre, y compris sans collection. Il ouvre un dialog neutre `Collection personnalisée` avec une courte explication et le champ Nom. Le Dashboard crée uniquement des collections personnalisées ; il ne propose ni choix automatique ni sélecteur Pokémon/Extension. Aucun accès détail fictif n'est présenté.
+Le Dashboard propose un seul FAB rouge MY. carré de 56 px, avec un arrondi de 8 px, fixe en bas à droite, y compris sans collection. Lorsque le footer entre dans le viewport, le FAB remonte progressivement pour conserver au-dessus du footer le même espace qu'au-dessus du bas du viewport (24 px sur desktop, 16 px sur mobile, plus la safe area). Il ne recouvre jamais le footer. Son `+` porte le nom accessible `Créer une collection personnalisée`. Les safe areas et un espacement en bas du contenu préservent l'accès à la dernière collection. Le FAB reste sous les dialogs natifs. Il ouvre le dialog existant `Collection personnalisée` avec une courte explication et le champ Nom. Le Dashboard crée uniquement des collections personnalisées ; il ne propose ni choix automatique ni sélecteur Pokémon/Extension. Aucun accès détail fictif n'est présenté.
 
 Le nom est validé avant envoi selon la règle existante, sans modifier la valeur saisie ni ses espaces. Les erreurs de nom apparaissent près du champ ; les erreurs générales restent dans le formulaire, sans détail technique. Pendant la création, un état d'attente empêche les doubles envois et la fermeture du dialog. Aucun nouvel essai automatique n'est effectué.
 
-Annuler ou Échap avant envoi ferme sans confirmation ; le focus revient au déclencheur et la réouverture présente un formulaire vierge. Le dialog place initialement le focus sur le nom, garde le clavier à l'intérieur et rend le fond inerte. Après succès, il se ferme, affiche `Collection créée.` et le Dashboard relit ses collections depuis le serveur, sans navigation vers une page détail.
+Annuler ou Échap avant envoi ferme sans confirmation ; le focus revient au déclencheur et la réouverture présente un formulaire vierge. Le dialog place initialement le focus sur le nom, garde le clavier à l'intérieur et rend le fond inerte. Après succès, il se ferme et le Dashboard relit ses collections depuis le serveur, sans navigation vers une page détail. Le FAB affiche `+ → ✓ → +` : une coche verte utilisant `--success` pendant deux secondes remplace le texte de succès visible. Une annonce masquée `Collection créée.` reste accessible via `role="status"`. Réouvrir le dialog remet immédiatement le FAB à `+` ; le timer est nettoyé à la réouverture, au démontage et au changement de compte. Ce feedback demeure local à l'interface, sans nouvel état métier.
 
 ### Collection automatique
 
@@ -724,7 +725,6 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - les textes définitifs des modales du Profil, ses intitulés de groupes et ses détails visuels, dans le respect des parcours validés ;
 - le moyen de contact final pour demander un remplacement d'Authenticator et la forme exacte de son message d'information ;
 - les dimensions, espacements, tailles typographiques et rayons exacts ;
-- le design précis des boutons et formulaires de création du dashboard ;
 - l'apparence exacte des cartes possédées et manquantes ;
 - les badges exacts de variantes ;
 - le design, la texture éventuelle et les animations du classeur ;

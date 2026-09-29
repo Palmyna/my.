@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { MemoryRouter } from 'react-router'
 import { CollectionsError, createFree, listDashboardCollections } from '../../services/collections'
 import type { DashboardCollection } from '../../types/collections'
 import { DashboardPage } from './DashboardPage'
+import { CreateCollection } from './CreateCollection'
 import { dashboardCollectionsKey } from './dashboard-query'
 
 const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true, passwordChanged: false }))
@@ -27,11 +28,12 @@ beforeEach(() => {
   create.mockReset().mockResolvedValue({ collectionId: 'server-id' })
   load.mockReset().mockResolvedValue([])
 })
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } })
   const tree = () => <QueryClientProvider client={client}><MemoryRouter><DashboardPage /></MemoryRouter></QueryClientProvider>
   const view = render(tree())
-  return { client, rerender: () => view.rerender(tree()) }
+  return { client, unmount: view.unmount, rerender: () => view.rerender(tree()) }
 }
 function open() {
   const trigger = screen.getByRole('button', { name: 'Créer une collection personnalisée' })
@@ -42,12 +44,55 @@ const nameInput = () => screen.getByRole('textbox', { name: 'Nom de la collectio
 const name = (value: string) => fireEvent.change(nameInput(), { target: { value } })
 const submit = () => fireEvent.submit(nameInput().closest('form')!)
 
-test.each([{ entries: [] }, { entries: [collection] }])('CTA unique avec ou sans collection et formulaire personnalisé accessible : $entries', async ({ entries }) => {
+test('le FAB suit la partie visible du footer et nettoie ses observations au démontage', () => {
+  let footerTop = window.innerHeight - 20
+  const measure = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockImplementation(() => new DOMRect(0, footerTop, 390, 80))
+  let resized!: () => void
+  const disconnect = vi.fn()
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: () => void) { resized = callback }
+    observe = vi.fn()
+    disconnect = disconnect
+  })
+  const { unmount } = render(<div className="authenticated-shell">
+    <main><CreateCollection userId="owner" /></main>
+    <footer className="site-footer">Conditions d’utilisation</footer>
+  </div>)
+  const trigger = screen.getByRole('button', { name: 'Créer une collection personnalisée' })
+  const overlap = () => trigger.style.getPropertyValue('--dashboard-footer-overlap')
+  expect(overlap()).toBe('20px')
+  footerTop = window.innerHeight + 100
+  fireEvent.scroll(window)
+  expect(overlap()).toBe('0px')
+  for (const visible of [1, 8, 24, 48, 80]) {
+    footerTop = window.innerHeight - visible
+    fireEvent.scroll(window)
+    expect(overlap()).toBe(`${visible}px`)
+  }
+  footerTop = window.innerHeight - 32
+  fireEvent.resize(window)
+  expect(overlap()).toBe('32px')
+  footerTop = window.innerHeight + 100
+  resized()
+  expect(overlap()).toBe('0px')
+  unmount()
+  expect(disconnect).toHaveBeenCalledOnce()
+  measure.mockClear()
+  fireEvent.scroll(window)
+  fireEvent.resize(window)
+  expect(measure).not.toHaveBeenCalled()
+})
+
+test.each([{ entries: [] }, { entries: [collection] }])('FAB unique avec ou sans collection et formulaire personnalisé accessible : $entries', async ({ entries }) => {
   load.mockResolvedValue(entries)
   setup()
   await waitFor(() => expect(screen.queryByText('Chargement des collections…')).not.toBeInTheDocument())
   expect(screen.getAllByRole('button', { name: 'Créer une collection personnalisée' })).toHaveLength(1)
-  open()
+  const trigger = open()
+  expect(trigger).toHaveAttribute('aria-label', 'Créer une collection personnalisée')
+  expect(trigger).toHaveClass('dashboard-fab')
+  expect(trigger).toHaveTextContent('+')
   const modal = screen.getByRole('dialog', { name: 'Collection personnalisée' })
   expect(modal).toHaveAttribute('open')
   expect(modal).toHaveAccessibleDescription('Créez une collection personnalisée et ajoutez-y les cartes de votre choix.')
@@ -93,7 +138,7 @@ test('pending empêche double soumission et fermeture ; succès ferme puis refet
   let finishRead!: (result: DashboardCollection[]) => void
   create.mockReturnValue(new Promise(resolve => { finish = resolve }))
   const { client } = setup()
-  await screen.findByText('Vous n’avez pas encore de collection.')
+  await screen.findByText('Aucune collection pour le moment.')
   client.setQueryData(dashboardCollectionsKey('other-owner'), ['untouched'])
   client.setQueryData(['unrelated'], ['untouched'])
   const invalidate = vi.spyOn(client, 'invalidateQueries')
@@ -111,6 +156,9 @@ test('pending empêche double soumission et fermeture ; succès ferme puis refet
   load.mockReturnValueOnce(new Promise(resolve => { finishRead = resolve }))
   await act(async () => { finish({ collectionId: 'server-id' }); await Promise.resolve() })
   expect(await screen.findByText('Collection créée.')).toHaveAttribute('role', 'status')
+  expect(screen.getByText('Collection créée.')).toHaveClass('visually-hidden')
+  expect(trigger).toHaveAttribute('data-state', 'success')
+  expect(trigger).toHaveTextContent('✓')
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(trigger).toHaveFocus()
   expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: dashboardCollectionsKey('owner'), exact: true })
@@ -168,7 +216,7 @@ test('ne montre jamais une erreur brute et permet de corriger puis soumettre', a
   await screen.findByRole('alert')
   expect(screen.queryByText(/PostgREST|secret payload/)).not.toBeInTheDocument()
   name('Autre nom'); submit()
-  expect(await screen.findByText('Collection créée.')).toBeVisible()
+  expect(await screen.findByText('Collection créée.')).toHaveClass('visually-hidden')
   expect(create).toHaveBeenCalledTimes(2)
 })
 
@@ -179,4 +227,48 @@ test('un changement de compte ferme le formulaire et ne transfère pas son broui
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   open()
   expect(nameInput()).toHaveValue('')
+})
+
+test('le FAB revient de ✓ à + après deux secondes', async () => {
+  setup()
+  await screen.findByText('Aucune collection pour le moment.')
+  vi.useFakeTimers()
+  const trigger = open()
+  name('Nouvelle collection'); submit()
+  await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+  expect(trigger).toHaveAttribute('data-state', 'success')
+  expect(trigger).toHaveTextContent('✓')
+  expect(screen.getByRole('status')).toHaveTextContent('Collection créée.')
+  await act(async () => { await vi.advanceTimersByTimeAsync(1900) })
+  expect(trigger).toHaveTextContent('✓')
+  await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+  expect(trigger).toHaveAttribute('data-state', 'idle')
+  expect(trigger).toHaveTextContent('+')
+  expect(screen.queryByText('Collection créée.')).not.toBeInTheDocument()
+})
+
+test.each(['réouverture', 'démontage', 'changement de compte'])('nettoie le timer de succès : %s', async action => {
+  const { rerender, unmount } = setup()
+  await screen.findByText('Aucune collection pour le moment.')
+  vi.useFakeTimers()
+  const schedule = vi.spyOn(window, 'setTimeout')
+  const clear = vi.spyOn(window, 'clearTimeout')
+  open(); name('Nouvelle collection'); submit()
+  await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+  expect(screen.getByText('Collection créée.')).toHaveClass('visually-hidden')
+  const timerIndex = schedule.mock.calls.findIndex(([, delay]) => delay === 2000)
+  expect(timerIndex).toBeGreaterThanOrEqual(0)
+  const timer: unknown = schedule.mock.results[timerIndex]!.value
+  if (action === 'réouverture') open()
+  else if (action === 'démontage') unmount()
+  else { auth.user = { id: 'other-owner' }; rerender() }
+  expect(clear).toHaveBeenCalledWith(timer)
+  expect(screen.queryByText('Collection créée.')).not.toBeInTheDocument()
+  if (action !== 'démontage') {
+    const trigger = screen.getByRole('button', { name: 'Créer une collection personnalisée' })
+    expect(trigger).toHaveAttribute('data-state', 'idle')
+    expect(trigger).toHaveTextContent('+')
+  }
+  await act(async () => { await vi.advanceTimersByTimeAsync(2100) })
+  expect(screen.queryByText('Collection créée.')).not.toBeInTheDocument()
 })

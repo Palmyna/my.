@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useId, useRef, useState, type RefObject } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { isValidCollectionName } from '../../lib/collection-name'
 import { CollectionsError, createFree } from '../../services/collections'
 import { dashboardCollectionsKey } from './dashboard-query'
@@ -106,10 +106,44 @@ export function CreateCollection({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false)
   const [success, setSuccess] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
+
+  useLayoutEffect(() => {
+    const button = trigger.current
+    const shell = button?.closest('.authenticated-shell')
+    const footer = shell?.querySelector(':scope > .site-footer')
+    if (!button || !shell || !footer) return
+
+    // Keep the existing viewport gap above the footer as it scrolls into view.
+    function position() {
+      const overlap = Math.max(0, window.innerHeight - footer!.getBoundingClientRect().top)
+      button!.style.setProperty('--dashboard-footer-overlap', `${overlap}px`)
+    }
+    position()
+    const observer = new ResizeObserver(position)
+    observer.observe(shell)
+    observer.observe(footer)
+    window.addEventListener('scroll', position, { passive: true })
+    window.addEventListener('resize', position)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', position)
+      window.removeEventListener('resize', position)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!success) return
+    const timer = window.setTimeout(() => setSuccess(false), 2000)
+    return () => window.clearTimeout(timer)
+  }, [success])
+
   return <div className="dashboard-create">
-    <button ref={trigger} className="button" type="button" aria-haspopup="dialog"
-      onClick={() => { setSuccess(false); setOpen(true) }}>Créer une collection personnalisée</button>
-    {success && <p className="collection-created" role="status">Collection créée.</p>}
+    <button ref={trigger} className="button dashboard-fab" type="button" aria-haspopup="dialog"
+      aria-label="Créer une collection personnalisée" data-state={success ? 'success' : 'idle'}
+      onClick={() => { setSuccess(false); setOpen(true) }}>
+      <span aria-hidden="true">{success ? '✓' : '+'}</span>
+    </button>
+    {success && <p className="visually-hidden" role="status">Collection créée.</p>}
     {open && <FreeCollectionDialog userId={userId} trigger={trigger} close={() => setOpen(false)}
       created={() => { setOpen(false); setSuccess(true) }} />}
   </div>

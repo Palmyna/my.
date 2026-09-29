@@ -10,10 +10,13 @@ export function CollectionTile({ collection }: { collection: DashboardCollection
 
   return <article className={`collection-card ${colorClassName}`} style={style} aria-labelledby={titleId}>
     <Link className="collection-tile" to={`/collections/${encodeURIComponent(collection.collectionId)}`} aria-labelledby={titleId}>
-      <p className="collection-type">{typeLabel}</p>
-      <h3 id={titleId}>{collection.name}</h3>
-      {collection.targetName && <p className="collection-target">{collection.targetName}</p>}
-      {collection.access === 'shared' && <p className="collection-access">Partagée · Lecture seule</p>}
+      <h2 id={titleId}>{collection.name}</h2>
+      <div className="collection-tile-meta">
+        <p className="collection-access">{collection.access === 'owned' ? 'Personnelle' : <>Partagée<span className="collection-readonly"> · Lecture seule</span></>}</p>
+        <p className="collection-type">{typeLabel}</p>
+      </div>
+      {collection.collectionType === 'automatic' && collection.targetName && collection.targetName !== collection.name
+        && <p className="collection-target">{collection.targetName}</p>}
       <CollectionProgress collection={collection} />
     </Link>
   </article>

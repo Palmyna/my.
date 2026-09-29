@@ -5,11 +5,6 @@ import { CollectionTile } from './CollectionTile'
 import { CreateCollection } from './CreateCollection'
 import { dashboardCollectionsKey } from './dashboard-query'
 
-const sections = [
-  { access: 'owned', title: 'Mes collections', empty: 'Vous n’avez pas encore de collection.' },
-  { access: 'shared', title: 'Collections partagées avec moi', empty: 'Aucune collection ne vous est partagée pour le moment.' },
-] as const
-
 export function DashboardPage() {
   const { user, isAuthorized, passwordChanged } = useAuth()
   const collections = useQuery({
@@ -20,12 +15,12 @@ export function DashboardPage() {
   })
   return <section className="authenticated-page dashboard-page" aria-labelledby="page-title">
     <div className="dashboard-heading">
-      <div>
-        <h1 id="page-title" tabIndex={-1}>Dashboard</h1>
-        <p className="intro">Vos collections, leur progression et celles partagées avec vous.</p>
-      </div>
-      {isAuthorized && user && <CreateCollection key={user.id} userId={user.id} />}
+      <h1 id="page-title" tabIndex={-1}>Collections</h1>
+      {collections.isSuccess && <p className="dashboard-total">
+        {collections.data.length} <span className="dashboard-total-word">{collections.data.length === 1 ? 'collection' : 'collections'}</span>
+      </p>}
     </div>
+    {isAuthorized && user && <CreateCollection key={user.id} userId={user.id} />}
     {passwordChanged && <p className="feedback" role="status">Mot de passe modifié. Vous êtes connecté.</p>}
     {collections.isPending && <p className="dashboard-status" role="status">Chargement des collections…</p>}
     {collections.isError && <div className="dashboard-error">
@@ -34,16 +29,11 @@ export function DashboardPage() {
         {collections.isFetching ? 'Nouvel essai…' : 'Réessayer'}
       </button>
     </div>}
-    {sections.map(section => {
-      const entries = collections.data?.filter(collection => collection.access === section.access)
-      return <section className="dashboard-section" key={section.access} aria-labelledby={`collections-${section.access}`}>
-        <h2 id={`collections-${section.access}`}>{section.title}</h2>
-        {collections.isPending ? <div className="collection-grid" aria-hidden="true">
-          {[0, 1, 2].map(index => <div className="collection-skeleton" key={index}><span /><span /><span /></div>)}
-        </div> : !collections.isError && (entries?.length ? <ul className="collection-grid">
-          {entries.map(collection => <li key={collection.collectionId}><CollectionTile collection={collection} /></li>)}
-        </ul> : <p className="dashboard-empty">{section.empty}</p>)}
-      </section>
-    })}
+    {collections.isPending && <div className="collection-grid" aria-hidden="true">
+      {[0, 1, 2, 3].map(index => <div className="collection-skeleton" key={index}><span /><span /><span /></div>)}
+    </div>}
+    {collections.isSuccess && (collections.data.length ? <ul className="collection-grid" aria-label="Collections">
+      {collections.data.map(collection => <li key={collection.collectionId}><CollectionTile collection={collection} /></li>)}
+    </ul> : <p className="dashboard-empty">Aucune collection pour le moment.</p>)}
   </section>
 }

@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router'
 import { listDashboardCollections } from '../../services/collections'
 import type { DashboardCollection } from '../../types/collections'
 import { DashboardPage } from './DashboardPage'
+import { collectionColor } from './collection-color'
 
 const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true, passwordChanged: false }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
@@ -25,14 +26,16 @@ function setup() {
   return { client, rerender: () => view.rerender(tree()) }
 }
 
-test('charge par le service une seule fois et présente les skeletons dans les deux sections', async () => {
+test('charge une seule fois et présente une seule grille de skeletons', async () => {
   let finish!: (data: DashboardCollection[]) => void
   load.mockReturnValue(new Promise(resolve => { finish = resolve }))
   const { rerender } = setup()
   expect(screen.getByRole('status')).toHaveTextContent('Chargement des collections')
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Dashboard')
-  expect(document.querySelectorAll('.collection-skeleton')).toHaveLength(6)
-  expect(screen.queryByText(/Vous n’avez pas encore/)).not.toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Collections')
+  expect(document.querySelectorAll('.collection-grid')).toHaveLength(1)
+  expect(document.querySelectorAll('.collection-skeleton')).toHaveLength(4)
+  expect(document.querySelector('.dashboard-total')).not.toBeInTheDocument()
+  expect(screen.queryByText('Aucune collection pour le moment.')).not.toBeInTheDocument()
   rerender()
   expect(load).toHaveBeenCalledOnce()
   await act(async () => {
@@ -40,31 +43,40 @@ test('charge par le service une seule fois et présente les skeletons dans les d
     await Promise.resolve()
   })
   expect(await screen.findByRole('article', { name: free.name })).toBeVisible()
+  expect(document.querySelector('.dashboard-total')).toHaveTextContent(/^1 collection$/)
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
 })
 
-test('sépare les accès, affiche types, cibles, compteurs serveur et pourcentages', async () => {
+test('réunit les accès dans l’ordre serveur, affiche types, cibles et progression métier', async () => {
   load.mockResolvedValue([free, shared, pokemon])
   setup()
   await screen.findByRole('article', { name: pokemon.name })
-  const owned = within(screen.getByRole('region', { name: 'Mes collections' }))
-  const received = within(screen.getByRole('region', { name: 'Collections partagées avec moi' }))
-  expect(owned.getAllByRole('article')).toHaveLength(2)
-  expect(owned.getByText('Personnalisée')).toBeVisible()
+  expect(screen.getAllByRole('list')).toHaveLength(1)
+  expect(within(screen.getByRole('list', { name: 'Collections' })).getAllByRole('article')).toHaveLength(3)
+  expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual([free.name, shared.name, pokemon.name])
+  expect(document.querySelector('.dashboard-total')).toHaveTextContent(/^3 collections$/)
+  expect(screen.queryByText('Vos collections, leur progression et celles partagées avec vous.')).not.toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Mes collections' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Collections partagées avec moi' })).not.toBeInTheDocument()
+  const owned = within(screen.getByRole('article', { name: pokemon.name }))
+  const received = within(screen.getByRole('article', { name: shared.name }))
+  expect(screen.getByText('Personnalisée')).toBeVisible()
+  expect(screen.getAllByText('Personnelle')).toHaveLength(2)
   expect(owned.getByText('Automatique · Pokémon')).toBeVisible()
   expect(owned.getByText('Pikachu')).toBeVisible()
   expect(owned.getByText('82 / 120')).toBeVisible()
   expect(owned.getByText('68 %')).toBeVisible()
-  expect(received.getAllByRole('article')).toHaveLength(1)
   expect(received.getByText('Automatique · Extension')).toBeVisible()
   expect(received.getByText('Légendes Brillantes')).toBeVisible()
-  expect(received.getByText('Partagée · Lecture seule')).toBeVisible()
+  expect(received.getByText('Partagée')).toHaveTextContent('Partagée · Lecture seule')
   expect(received.getByText('3 / 4')).toBeVisible()
   expect(received.getByText('75 %')).toBeVisible()
-  for (const tile of screen.getAllByRole('article')) {
-    expect(tile.className).toMatch(/collection-color-/)
-    expect(tile.style.getPropertyValue('--collection-accent')).not.toBe('')
-    expect(tile.style.getPropertyValue('--collection-surface')).not.toBe('')
+  for (const entry of [free, shared, pokemon]) {
+    const tile = screen.getByRole('article', { name: entry.name })
+    const color = collectionColor(entry)
+    expect(tile).toHaveClass(`collection-color-${color.name}`)
+    expect(tile.style.getPropertyValue('--collection-accent')).toBe(color.accent)
+    expect(tile.style.getPropertyValue('--collection-surface')).toBe(color.surface)
     expect(tile).not.toHaveAttribute('tabindex')
   }
   expect(screen.getByRole('button', { name: 'Créer une collection personnalisée' })).toBeVisible()
@@ -84,13 +96,27 @@ test('rend 0 / 0 neutre et tolère une cible absente sans inventer de valeur', a
   expect(tile.getByText('Automatique · Pokémon')).toBeVisible()
 })
 
-test.each([{ data: [] }, { data: [free] }, { data: [shared] }])('affiche les états vides indépendamment : $data', async ({ data }) => {
+test.each([{ data: [] }, { data: [free] }, { data: [shared] }])('état vide uniquement global : $data', async ({ data }) => {
   load.mockResolvedValue(data)
   setup()
-  if (!data.some(entry => entry.access === 'owned')) expect(await screen.findByText('Vous n’avez pas encore de collection.')).toBeVisible()
-  else expect(await screen.findByRole('article', { name: free.name })).toBeVisible()
-  if (!data.some(entry => entry.access === 'shared')) expect(await screen.findByText('Aucune collection ne vous est partagée pour le moment.')).toBeVisible()
-  else expect(await screen.findByRole('article', { name: shared.name })).toBeVisible()
+  if (!data.length) {
+    expect(await screen.findByText('Aucune collection pour le moment.')).toBeVisible()
+    expect(document.querySelectorAll('.dashboard-empty')).toHaveLength(1)
+    expect(document.querySelector('.dashboard-total')).toHaveTextContent(/^0 collections$/)
+  } else {
+    expect(await screen.findByRole('article', { name: data[0]!.name })).toBeVisible()
+    expect(document.querySelector('.dashboard-empty')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('list')).toHaveLength(1)
+  }
+})
+
+test('ne répète pas une cible identique au nom et conserve la progression complète', async () => {
+  load.mockResolvedValue([{ ...pokemon, name: 'Pikachu', ownedCount: 120 }])
+  setup()
+  const tile = within(await screen.findByRole('article'))
+  expect(tile.getAllByText('Pikachu')).toHaveLength(1)
+  expect(tile.getByText('120 / 120')).toBeVisible()
+  expect(tile.getByText('100 %')).toBeVisible()
 })
 
 test('masque les erreurs brutes et relance uniquement sur Réessayer', async () => {
@@ -98,7 +124,8 @@ test('masque les erreurs brutes et relance uniquement sur Réessayer', async () 
   setup()
   expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de charger les collections')
   expect(screen.queryByText(/private SQL/)).not.toBeInTheDocument()
-  expect(screen.queryByText(/Vous n’avez pas encore/)).not.toBeInTheDocument()
+  expect(screen.queryByText('Aucune collection pour le moment.')).not.toBeInTheDocument()
+  expect(document.querySelector('.dashboard-total')).not.toBeInTheDocument()
   expect(load).toHaveBeenCalledOnce()
   fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }))
   expect(await screen.findByRole('article', { name: free.name })).toBeVisible()
@@ -110,7 +137,7 @@ test('conserve le feedback mot de passe pendant le chargement et après', async 
   auth.passwordChanged = true
   setup()
   expect(screen.getByText('Mot de passe modifié. Vous êtes connecté.')).toHaveAttribute('role', 'status')
-  await screen.findByText('Vous n’avez pas encore de collection.')
+  await screen.findByText('Aucune collection pour le moment.')
   expect(screen.getByRole('status')).toHaveTextContent('Mot de passe modifié')
 })
 
