@@ -35,14 +35,30 @@ Les actions principales doivent demander peu d'étapes. L'utilisateur doit pouvo
 
 ## Identité graphique
 
-### Palette
+### Fondation graphique commune — 6F.1
 
-- `#E42B35`
-- `#AF2328`
-- `#931F1F`
-- `#231A1A`
-- `#3C3333`
-- `#FFFFFF`
+Toute l'application utilise la même fondation graphite sombre et rouge MY., avant et après connexion. Un seul jeu de tokens sémantiques est défini dans `:root` ; les primitives partagées (champs, boutons, liens, focus et feedbacks) l'utilisent directement. Les variantes de composants ne répondent qu'à leur contexte.
+
+| Rôle / token | Valeur |
+| --- | --- |
+| `--app-bg` | `#0E1014` |
+| `--surface` / `--surface-raised` / `--surface-hover` | `#15181D` / `#1C2027` / `#242932` |
+| `--border` / `--border-strong` | `#2B3039` / `#3A414C` |
+| `--text` / `--text-muted` / `--text-subtle` | `#F5F7FA` / `#A6ADB7` / `#747D89` |
+| `--brand` / `--brand-hover` | `#E22B35` / `#DC2731` |
+| `--brand-soft` | `rgb(228 43 53 / 12%)` |
+| `--on-brand` | `#FFFFFF` |
+| `--success` / `--danger` | `#3FB950` / `#FF969B` |
+| `--focus` | `var(--brand)` |
+| `--overlay` | `rgb(0 0 0 / 72%)` |
+
+Les rouges des boutons sont légèrement assombris par rapport à `#E42B35` pour préserver un contraste supérieur à 4,5:1 avec les petits libellés blancs, y compris au survol. Le rouge reste réservé aux actions principales, au focus et aux accents ponctuels. Les suppressions utilisent une surface graphite avec texte et bordure danger ; leurs libellés explicites restent indispensables.
+
+Les champs et textarea partagent fond, texte, placeholder et focus. Leur bord inférieur utilise `--text-subtle` pour rester identifiable ; ce token n'atténue pas les informations importantes. Le focus conserve un contour net, un halo discret et les couleurs système en mode `forced-colors`. Les transitions courtes respectent `prefers-reduced-motion`.
+
+Le header authentifié conserve logo à gauche, recherche centrale et menu utilisateur à droite, avec le responsive existant. Les footers publics et authentifiés utilisent `--surface` et une séparation neutre sans modifier leurs dimensions. Dialogs, menus et panneau Version utilisent `--surface-raised` ; leurs structures internes sont conservées. Les feedbacks génériques restent neutres, les erreurs utilisent `--danger` et la confirmation de copie de MY.ID utilise `--success`. Les accents déterministes des collections et les feedbacks de réorganisation sont conservés.
+
+Dashboard et Collection exploitent le contenu du shell jusqu'à **1 520 px**, avec au moins **24 px de marge latérale**. Profil et Paramètres restent limités à **720 px**. Cette fondation ne restructure aucune de ces pages. Les pages publiques et Auth (homepage, connexion, inscription, récupération, confirmations et MFA) changent uniquement de palette : composition, dimensions, responsive, textes, illustration et parcours sont conservés. Le fond blanc du QR MFA reste dédié à sa lisibilité ; il ne constitue pas un second thème.
 
 ### Typographie
 

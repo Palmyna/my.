@@ -138,6 +138,8 @@ L'interface ne doit pas donner l'impression d'utiliser une base de données ou u
 
 Une première direction graphique sert de référence au projet.
 
+Toute l'application, publique et authentifiée, partage une fondation graphite sombre et rouge MY., avec des tokens sémantiques et des contrastes adaptés ; voir la [fondation graphique commune](04-UX-UI.md#fondation-graphique-commune--6f1).
+
 ### Typographie
 
 La police principale est **Poppins**.
@@ -145,11 +147,12 @@ La police principale est **Poppins**.
 ### Palette
 
 - `#E42B35`
-- `#AF2328`
-- `#931F1F`
-- `#231A1A`
-- `#3C3333`
-- `#FFFFFF`
+- `#0E1014`
+- `#15181D`
+- `#1C2027`
+- `#F5F7FA`
+
+Les rôles sémantiques et ajustements de contraste du rouge sont précisés dans la fondation graphique commune UX/UI.
 
 ### Orientation visuelle
 
