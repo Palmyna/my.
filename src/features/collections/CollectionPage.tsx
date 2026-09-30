@@ -55,9 +55,9 @@ export function CollectionPage() {
     void client.invalidateQueries({ queryKey: dashboardCollectionsKey(user?.id), exact: true })
   }
 
-  return <section className="authenticated-page collection-page" aria-labelledby="page-title">
-    <Link className="collection-back" to="/dashboard">Retour au Dashboard</Link>
-    <div className={`collection-overview ${presentation?.colorClassName ?? ''}`} style={presentation?.style}>
+  return <section className={`authenticated-page collection-page ${presentation?.colorClassName ?? ''}`} style={presentation?.style} aria-labelledby="page-title">
+    <Link className="collection-back" to="/dashboard">← Collections</Link>
+    <div className="collection-overview">
       <header className="collection-heading">
         <h1 ref={heading} id="page-title" tabIndex={-1}>{title}</h1>
         {collection?.access === 'owned' && user && <CollectionActions key={resource} collection={collection} userId={user.id} unavailable={markUnavailable} />}
@@ -65,9 +65,9 @@ export function CollectionPage() {
       {collection && <>
         <div className="collection-overview-meta">
           <p className="collection-type">{presentation?.typeLabel}</p>
+          {collection.collectionType === 'automatic' && collection.targetName && <p className="collection-target">{collection.targetName}</p>}
           {collection.access === 'shared' && <p className="collection-access">Partagée · Lecture seule</p>}
         </div>
-        {collection.collectionType === 'automatic' && collection.targetName && <p className="collection-target">{collection.targetName}</p>}
         <CollectionProgress collection={collection} />
       </>}
       {overview.isPending && !mutationUnavailable && <>

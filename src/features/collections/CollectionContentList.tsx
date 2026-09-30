@@ -14,6 +14,7 @@ import { CollectionItemDialog } from './CollectionItemDialog'
 import { manualItemErrorMessage, useManualCollectionItems } from './useManualCollectionItems'
 import { filterCollectionContent } from './filter-collection-content'
 import './collection-content.css'
+import { useFooterAwareFab } from '../../lib/useFooterAwareFab'
 
 // Mounted only after an authorized, available overview. Page keys this boundary
 // by viewer + collection, so selection and dialogs cannot survive navigation.
@@ -25,17 +26,25 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
   const [query, setQuery] = useState('')
   const searchInput = useRef<HTMLInputElement>(null)
   const addTrigger = useRef<HTMLButtonElement>(null)
+  useFooterAwareFab(addTrigger)
+  const [addSuccess, setAddSuccess] = useState(false)
+  useEffect(() => {
+    if (!addSuccess) return
+    const timer = window.setTimeout(() => setAddSuccess(false), 2000)
+    return () => window.clearTimeout(timer)
+  }, [addSuccess])
   const focusAfterWrite = useRef(false)
   const [action, setAction] = useState<{ type: 'add'; opener: HTMLElement } | { type: 'remove'; item: CollectionContentItem; opener: HTMLElement } | null>(null)
   const [notice, setNotice] = useState('')
   const manual = useManualCollectionItems(viewerId, collection.collectionId, request => {
     setAction(null)
-    setNotice(request.type === 'add' ? 'Carte ajoutée à la collection.' : 'Carte retirée. Vos exemplaires sont conservés.')
+    setNotice(request.type === 'add' ? 'Carte ajoutée.' : 'Carte retirée. Vos exemplaires sont conservés.')
+    setAddSuccess(request.type === 'add')
     // A removed row cannot remain the focus target after the authoritative refetch.
     focusAfterWrite.current = true
   })
   useEffect(() => {
-    if (!manual.busy && focusAfterWrite.current) { focusAfterWrite.current = false; addTrigger.current?.focus() }
+    if (!manual.busy && focusAfterWrite.current) { focusAfterWrite.current = false; addTrigger.current?.focus({ preventScroll: true }) }
   }, [manual.busy, notice])
   const items = content.isSuccess ? content.data : []
   const visibleItems = filterCollectionContent(items, query)
@@ -46,7 +55,7 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
     automatic={collection.collectionType === 'automatic'} busy={manual.busy}
     onDetail={opener => setDetail({ variantId: item.variantId, opener })}
     onCopies={() => setSelectedId(item.collectionItemId)} onRemove={opener => {
-      manual.reset(); setNotice(''); setAction({ type: 'remove', item, opener })
+      manual.reset(); setNotice(''); setAddSuccess(false); setAction({ type: 'remove', item, opener })
     }} />
 
   return <section className="collection-content" aria-label="Contenu de la collection">
@@ -62,10 +71,13 @@ export function CollectionContentList({ collection, viewerId }: { collection: Co
           </svg>
         </button>}
       </div>
-      {!readOnly && <button ref={addTrigger} type="button" className="button collection-add-trigger" aria-disabled={manual.busy}
-        onClick={event => { if (!manual.busy) { manual.reset(); setNotice(''); setAction({ type: 'add', opener: event.currentTarget }) } }}>Ajouter une carte</button>}
     </div>
-    {notice && <p role="status">{notice}</p>}
+    {!readOnly && <button ref={addTrigger} type="button" className="button context-fab collection-fab" aria-disabled={manual.busy}
+      aria-label="Ajouter une carte" aria-haspopup="dialog" data-state={addSuccess ? 'success' : 'idle'}
+      onClick={event => { if (!manual.busy) { manual.reset(); setNotice(''); setAddSuccess(false); setAction({ type: 'add', opener: event.currentTarget }) } }}>
+      <span aria-hidden="true">{addSuccess ? '✓' : '+'}</span>
+    </button>}
+    <p className="visually-hidden" role="status" aria-live="polite">{notice}</p>
     {content.isPending && <p role="status">Chargement des cartes…</p>}
     {content.isError && <div className="collection-page-error">
       <p role="alert">Impossible de charger les cartes. Veuillez réessayer.</p>
@@ -109,8 +121,8 @@ function OwnedContent({ collectionId, items, partialView, fetching, renderRow }:
     <CollectionItemReorderList collectionId={collectionId}
       items={items.map(item => ({ id: item.collectionItemId, label: item.cardNameFr || 'Nom indisponible' }))}
       availability={reorder.availability} onMove={reorder.move} feedback={reorder.error}
+      recovery={<button type="button" className="button" disabled={reorder.isSaving}
+        onClick={() => void reorder.refresh()}>Actualiser l’ordre</button>}
       renderItem={item => renderRow(byId.get(item.id)!)} />
-    {reorder.error && <button type="button" className="button" disabled={reorder.isSaving}
-      onClick={() => void reorder.refresh()}>Actualiser l’ordre</button>}
   </>
 }

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ItemMove, ReorderAvailability } from '../../types/collection-items'
 import { CollectionItemReorderList } from './CollectionItemReorderList'
 
@@ -48,7 +48,7 @@ test('keyboard selects, moves, submits logical anchor and keeps handle focus', a
   const { onMove } = setup()
   await keyboardMove('Alpha', 'ArrowDown')
   await waitFor(() => expect(onMove).toHaveBeenCalledExactlyOnceWith({ itemId: 'a', destination: { placement: 'after', anchorId: 'b' } }))
-  expect(await screen.findByText('Carte déplacée.')).toBeVisible()
+  expect(await screen.findByText('Carte déplacée.')).toHaveClass('visually-hidden')
   await waitFor(() => expect(screen.getByRole('button', { name: 'Déplacer Alpha' })).toHaveFocus())
 })
 test('Escape cancels without persistence', async () => {
@@ -77,7 +77,7 @@ test('failed save keeps confirmed order and announces safe feedback', async () =
   onMove.mockResolvedValue(false)
   await keyboardMove('Charlie', 'ArrowUp')
   await waitFor(() => expect(onMove).toHaveBeenCalledExactlyOnceWith({ itemId: 'c', destination: { placement: 'before', anchorId: 'b' } }))
-  expect(await screen.findByText('Déplacement non confirmé. Vérifiez l’ordre puis réessayez.')).toBeVisible()
+  expect(await screen.findByRole('alert')).toHaveTextContent('Déplacement non confirmé. Vérifiez l’ordre puis réessayez.')
   expect(screen.getAllByRole('listitem').map(row => row.textContent)).toEqual(['AlphaActions de Alpha', 'BravoActions de Bravo', 'CharlieActions de Charlie'])
 })
 test('mouse drag starts only from handle, persists on drop', async () => {
@@ -123,8 +123,68 @@ test('save in progress prevents a second drag until callback finishes', async ()
   const handle = screen.getByRole('button', { name: 'Déplacer Bravo' })
   expect(handle).toHaveAttribute('aria-disabled', 'true')
   expect(handle).toHaveAccessibleDescription(/Déplacement en cours/)
+  expect(screen.getByText('Déplacement en cours…')).toHaveClass('visually-hidden')
+  expect(screen.getByText('Enregistrement du déplacement…')).toHaveClass('visually-hidden')
+  expect(screen.getByRole('button', { name: 'Déplacer Alpha' })).toHaveAttribute('data-state', 'pending')
+  expect(handle).toHaveAttribute('data-state', 'idle')
   key(handle, ' ', 32); key(handle, 'ArrowDown', 40); key(handle, ' ', 32)
   expect(onMove).toHaveBeenCalledOnce()
   await act(async () => { finish(true); await Promise.resolve() })
   expect(handle).toHaveAttribute('aria-disabled', 'false')
+  expect(screen.getByRole('button', { name: 'Déplacer Alpha' })).toHaveTextContent('✓')
+  expect(handle).not.toHaveTextContent('✓')
 })
+
+test('success is local, expires after two seconds and never replaces authoritative order', async () => {
+  const { onMove } = setup()
+  let finish!: (success: boolean) => void
+  onMove.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await keyboardMove('Alpha', 'ArrowDown')
+  vi.useFakeTimers()
+  await act(async () => { finish(true); await Promise.resolve() })
+  const handle = screen.getByRole('button', { name: 'Déplacer Alpha' })
+  expect(handle).toHaveAttribute('data-state', 'success')
+  expect(screen.getAllByRole('listitem').map(row => row.querySelector('button')?.getAttribute('aria-label')))
+    .toEqual(['Déplacer Alpha', 'Déplacer Bravo', 'Déplacer Charlie'])
+  expect(screen.getByRole('status')).toHaveClass('visually-hidden')
+  expect(screen.getByRole('status')).toHaveTextContent('Carte déplacée.')
+  await act(() => vi.advanceTimersByTimeAsync(1999))
+  expect(handle).toHaveTextContent('✓')
+  await act(() => vi.advanceTimersByTimeAsync(1))
+  expect(handle).toHaveAttribute('data-state', 'idle')
+  expect(handle.querySelector('svg')).toBeInTheDocument()
+})
+
+test.each(['drag', 'unmount', 'navigation'] as const)('reorder success timer cleanup: %s', async action => {
+  const { onMove, unmount, rerender } = setup()
+  let finish!: (success: boolean) => void
+  onMove.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await keyboardMove('Alpha', 'ArrowDown')
+  const schedule = vi.spyOn(window, 'setTimeout'), clear = vi.spyOn(window, 'clearTimeout')
+  await act(async () => { finish(true); await Promise.resolve() })
+  const index = schedule.mock.calls.findIndex(([, delay]) => delay === 2000)
+  expect(index).toBeGreaterThanOrEqual(0)
+  const timer: unknown = schedule.mock.results[index]!.value
+  if (action === 'unmount') unmount()
+  else if (action === 'navigation') rerender(<CollectionItemReorderList collectionId="next" items={items} availability={{ enabled: true }} onMove={onMove} renderItem={item => item.label} />)
+  else {
+    const handle = screen.getByRole('button', { name: 'Déplacer Bravo' })
+    handle.focus(); key(handle, ' ', 32)
+    await screen.findByText(/Bravo : carte sélectionnée/)
+    key(handle, 'Escape', 27)
+  }
+  expect(clear).toHaveBeenCalledWith(timer)
+})
+
+test('unmounted pending move cannot schedule a success timer', async () => {
+  const { onMove, unmount } = setup()
+  let finish!: (success: boolean) => void
+  onMove.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await keyboardMove('Alpha', 'ArrowDown')
+  unmount()
+  const schedule = vi.spyOn(window, 'setTimeout')
+  await act(async () => { finish(true); await Promise.resolve() })
+  expect(schedule.mock.calls.some(([, delay]) => delay === 2000)).toBe(false)
+})
+
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })

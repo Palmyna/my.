@@ -45,7 +45,16 @@ export function useCollectionItemReorder({ collectionId, access, availability }:
   async function move(next: ItemMove): Promise<boolean> {
     if (disabledReason || running.current || !user || client.isMutating({ mutationKey, exact: true })) return false
     running.current = true
-    try { await mutation.mutateAsync({ collectionId, userId: user.id, move: next }); return true }
+    try {
+      await mutation.mutateAsync({ collectionId, userId: user.id, move: next })
+      // The local check mark confirms both existing authoritative rereads, not
+      // merely a successful write (invalidateQueries can settle after read errors).
+      return [queryKey, collectionContentKey(user.id, collectionId)]
+        .every(key => {
+          const state = client.getQueryState(key)
+          return !state || (state.status === 'success' && state.fetchStatus === 'idle' && !state.isInvalidated)
+        })
+    }
     catch { return false } // Only the safe message above reaches presentation.
     finally { running.current = false }
   }

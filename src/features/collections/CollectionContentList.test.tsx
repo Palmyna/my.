@@ -298,6 +298,21 @@ test.each([false, true])('real keyboard reorder refetches content on success/unc
   if (fail) expect(await screen.findByText(/Le déplacement n’a pas pu être confirmé/)).toBeVisible()
 })
 
+test('order read error is accessible beside the list and refresh restores handles', async () => {
+  order.mockRejectedValueOnce(new Error('private server details'))
+  setup()
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('Impossible d’actualiser l’ordre des cartes. Réessayez.')
+  expect(alert.closest('.collection-item-reorder')).toBeInTheDocument()
+  expect(screen.queryByText('private server details')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'true')
+  fireEvent.click(screen.getByRole('button', { name: 'Actualiser l’ordre' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'false'))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(order).toHaveBeenCalledTimes(2)
+  expect(move).not.toHaveBeenCalled()
+})
+
 test('revoked overview removes visible cached rows, open notes/dialog, and private caches', async () => {
   get.mockResolvedValue({ ...overview, access: 'shared', ownerId: 'real-owner' })
   rows = [{ id: 'copy', name: 'Secret', note: 'Note privée', created_at: '2026-09-25T00:00:00Z' }]

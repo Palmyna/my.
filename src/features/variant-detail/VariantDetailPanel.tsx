@@ -84,7 +84,9 @@ function CatalogDetail({ detail }: { detail: VariantDetail }) {
     ['Extension', extension], ['Abréviation', paired(detail.setAbbreviationFr, detail.setAbbreviation)],
     ['Série', detail.seriesNameFr || detail.seriesNameSource], ['Numéro', detail.localId],
     ['Rareté', detail.rarity], ['Catégorie', detail.category], ['Date de sortie', releaseDate(detail.effectiveReleaseDate)],
-    ['Version', detail.variantLabel], ['Type', detail.variantType], ['Sous-type', detail.variantSubtype],
+  ].filter(([, value]) => value?.trim())
+  const characteristics = [
+    ['Type', detail.variantType], ['Sous-type', detail.variantSubtype],
     ['Finition', detail.variantFoil], ['Stamps', detail.variantStamps.filter(value => value.trim()).join(', ')],
     ['Taille', detail.variantSize === 'standard' ? null : detail.variantSize],
   ].filter(([, value]) => value?.trim())
@@ -97,5 +99,11 @@ function CatalogDetail({ detail }: { detail: VariantDetail }) {
     {fields.length > 0 && <dl className="variant-detail-metadata">
       {fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
     </dl>}
+    {characteristics.length > 0 && <section className="variant-detail-characteristics" aria-label="Caractéristiques">
+      <h3>Caractéristiques</h3>
+      <dl className="variant-detail-metadata">
+        {characteristics.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl>
+    </section>}
   </>
 }

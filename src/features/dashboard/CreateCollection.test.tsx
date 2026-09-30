@@ -60,7 +60,7 @@ test('le FAB suit la partie visible du footer et nettoie ses observations au dé
     <footer className="site-footer">Conditions d’utilisation</footer>
   </div>)
   const trigger = screen.getByRole('button', { name: 'Créer une collection personnalisée' })
-  const overlap = () => trigger.style.getPropertyValue('--dashboard-footer-overlap')
+  const overlap = () => trigger.style.getPropertyValue('--fab-footer-overlap')
   expect(overlap()).toBe('20px')
   footerTop = window.innerHeight + 100
   fireEvent.scroll(window)

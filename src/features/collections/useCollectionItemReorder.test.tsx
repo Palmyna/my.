@@ -63,7 +63,7 @@ test('failed refresh hides cached order and disables moves until explicit succes
   const { result } = setup()
   await waitFor(() => expect(result.current.availability.enabled).toBe(true))
   list.mockRejectedValue(new Error('private backend'))
-  await act(async () => { await result.current.move(command) })
+  await act(async () => { expect(await result.current.move(command)).toBe(false) })
   await waitFor(() => expect(result.current.itemIds).toEqual([]))
   expect(result.current.availability.enabled).toBe(false)
   expect(result.current.error).toContain('Impossible d’actualiser')

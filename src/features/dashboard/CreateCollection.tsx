@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { isValidCollectionName } from '../../lib/collection-name'
 import { CollectionsError, createFree } from '../../services/collections'
 import { dashboardCollectionsKey } from './dashboard-query'
+import { useFooterAwareFab } from '../../lib/useFooterAwareFab'
 
 const nameMessage = 'Saisissez au moins 3 caractères hors espaces en début et fin de nom.'
 
@@ -107,29 +108,7 @@ export function CreateCollection({ userId }: { userId: string }) {
   const [success, setSuccess] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
 
-  useLayoutEffect(() => {
-    const button = trigger.current
-    const shell = button?.closest('.authenticated-shell')
-    const footer = shell?.querySelector(':scope > .site-footer')
-    if (!button || !shell || !footer) return
-
-    // Keep the existing viewport gap above the footer as it scrolls into view.
-    function position() {
-      const overlap = Math.max(0, window.innerHeight - footer!.getBoundingClientRect().top)
-      button!.style.setProperty('--dashboard-footer-overlap', `${overlap}px`)
-    }
-    position()
-    const observer = new ResizeObserver(position)
-    observer.observe(shell)
-    observer.observe(footer)
-    window.addEventListener('scroll', position, { passive: true })
-    window.addEventListener('resize', position)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('scroll', position)
-      window.removeEventListener('resize', position)
-    }
-  }, [])
+  useFooterAwareFab(trigger)
 
   useEffect(() => {
     if (!success) return
@@ -138,7 +117,7 @@ export function CreateCollection({ userId }: { userId: string }) {
   }, [success])
 
   return <div className="dashboard-create">
-    <button ref={trigger} className="button dashboard-fab" type="button" aria-haspopup="dialog"
+    <button ref={trigger} className="button context-fab dashboard-fab" type="button" aria-haspopup="dialog"
       aria-label="Créer une collection personnalisée" data-state={success ? 'success' : 'idle'}
       onClick={() => { setSuccess(false); setOpen(true) }}>
       <span aria-hidden="true">{success ? '✓' : '+'}</span>

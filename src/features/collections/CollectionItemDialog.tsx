@@ -18,7 +18,7 @@ export function CollectionItemDialog({ title, description, busy, error, opener, 
     return () => {
       node.close()
       document.body.style.overflow = overflow
-      if (opener?.isConnected) opener.focus()
+      if (opener?.isConnected) opener.focus({ preventScroll: true })
     }
   }, [opener])
   useEffect(() => {
