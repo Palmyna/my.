@@ -51,7 +51,7 @@ const change = (label: string, value: string) => fireEvent.change(screen.getByLa
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 async function heading(name: string | RegExp) { expect(await screen.findByRole('heading', { name })).toBeVisible() }
 const tokenCallback = (kind: 'signup' | 'recovery'): EmailCallback => ({ kind, tokens: { access_token: 'test', refresh_token: 'test' } })
-const protectedPages = [['/dashboard', 'Dashboard'], ['/profile', 'Profil'], ['/settings', 'Paramètres'], [collectionPath, collection.name]] as const
+const protectedPages = [['/dashboard', 'Collections'], ['/profile', 'Profil'], ['/settings', 'Paramètres'], [collectionPath, collection.name]] as const
 
 test.each(['owned', 'shared'] as const)('le lien tuile %s ouvre la bonne route et permet le retour', async access => {
   vi.mocked(listDashboardCollections).mockResolvedValue([{ ...collection, access }])
@@ -65,8 +65,8 @@ test.each(['owned', 'shared'] as const)('le lien tuile %s ouvre la bonne route e
   expect(getCollectionOverview).toHaveBeenCalledExactlyOnceWith(collection.collectionId)
   expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
   expect(document.title).toBe(`${collection.name} — MY.`)
-  fireEvent.click(screen.getByRole('link', { name: 'Retour au Dashboard' }))
-  await heading('Dashboard')
+  fireEvent.click(screen.getByRole('link', { name: '← Collections' }))
+  await heading('Collections')
 })
 
 test('chargement asynchrone : h1 focalisé une fois, titre mis à jour sans refocus', async () => {
@@ -77,7 +77,7 @@ test('chargement asynchrone : h1 focalisé une fois, titre mis à jour sans refo
   const title = screen.getByRole('heading', { level: 1 })
   expect(title).toHaveFocus()
   expect(screen.getByRole('status')).toHaveTextContent('Chargement de la collection')
-  const back = screen.getByRole('link', { name: 'Retour au Dashboard' })
+  const back = screen.getByRole('link', { name: '← Collections' })
   back.focus()
   await act(async () => { finish(collection); await Promise.resolve() })
   await heading(collection.name)
@@ -91,7 +91,7 @@ test.each(['missing', 'private', 'revoked', 'malformed'])('route indisponible un
   setup(reason === 'malformed' ? '/collections/not-an-id' : collectionPath, 'aal2')
   await heading('Collection indisponible')
   expect(screen.getByRole('alert')).toHaveTextContent('Cette collection n’existe pas ou vous n’y avez plus accès.')
-  expect(screen.getByRole('link', { name: 'Retour au Dashboard' })).toBeVisible()
+  expect(screen.getByRole('link', { name: '← Collections' })).toBeVisible()
   expect(document.title).toBe('Collection indisponible — MY.')
 })
 
@@ -102,7 +102,7 @@ test('naviguer entre deux collections ne réutilise pas la donnée de la premiè
   setup('/dashboard', 'aal2')
   fireEvent.click(await screen.findByRole('link', { name: collection.name }))
   await heading(collection.name)
-  fireEvent.click(screen.getByRole('link', { name: 'Retour au Dashboard' }))
+  fireEvent.click(screen.getByRole('link', { name: '← Collections' }))
   fireEvent.click(await screen.findByRole('link', { name: second.name }))
   await screen.findByText('Chargement de la collection…')
   expect(screen.queryByText(collection.name)).not.toBeInTheDocument()
@@ -114,7 +114,7 @@ test.each([
   ['/dashboard', 'out', 'Heureux de vous retrouver.', '/login'],
   ['/dashboard', 'aal1', 'Confirmez que c’est vous.', '/auth/mfa/challenge'],
   ['/login', 'enroll', 'Sécurisez votre compte.', '/auth/mfa/enroll'],
-  ['/signup', 'aal2', 'Dashboard', '/dashboard'],
+  ['/signup', 'aal2', 'Collections', '/dashboard'],
   ['/inconnue', 'out', 'Cette page n’existe pas.', '/inconnue'],
   ['/reset-password', 'out', 'Demandez un nouveau lien.', '/reset-password'],
 ] as const)('restauration %s (%s) sans flash privé', async (path, mode, title, finalPath) => {
@@ -178,8 +178,9 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
   expect(screen.getByRole('main')).toContainElement(page)
   expect(screen.getByRole('contentinfo')).toHaveTextContent('Conditions d’utilisation')
   if (path === '/dashboard') {
-    expect(within(page).getByRole('heading', { name: 'Mes collections' })).toBeVisible()
-    expect(within(page).getByRole('heading', { name: 'Collections partagées avec moi' })).toBeVisible()
+    expect(within(page).getByRole('heading', { name: 'Collections', level: 1 })).toBeVisible()
+    expect(within(page).queryByRole('region', { name: 'Mes collections' })).not.toBeInTheDocument()
+    expect(within(page).queryByRole('region', { name: 'Collections partagées avec moi' })).not.toBeInTheDocument()
     expect(within(page).queryByText(profile.public_id)).not.toBeInTheDocument()
   } else if (path === '/profile') {
     expect(within(page).getByLabelText('MY.ID')).toHaveValue(profile.public_id)
@@ -230,14 +231,14 @@ test('le formulaire Profil retrouve la demande en attente après le rechargement
 
 test.each(['/', '/login', '/signup', '/forgot-password', '/auth/confirm-email', '/auth/mfa/enroll', '/auth/mfa/challenge', '/reset-password'])('redirige la route publique/Auth %s vers le Dashboard en aal2', async path => {
   setup(path, 'aal2')
-  await heading('Dashboard')
+  await heading('Collections')
   expect(screen.getByTestId('path')).toHaveTextContent('/dashboard')
   expect(screen.getByRole('button', { name: 'Mon compte' })).toBeVisible()
 })
 
 test('navigue entre les trois pages sans remonter le shell ni recréer l’abonnement Auth', async () => {
   const { mock } = setup('/dashboard', 'aal2')
-  await heading('Dashboard')
+  await heading('Collections')
   const header = screen.getByRole('banner')
   for (const [path, title] of [protectedPages[1], protectedPages[2], protectedPages[0]]) {
     if (path === '/dashboard') fireEvent.click(screen.getByRole('link', { name: 'MY. — Dashboard' }))
@@ -370,7 +371,7 @@ test.each(['enroll', 'aal1', 'aal2'] as const)('login email/password mène à %s
     return Promise.resolve({ data: { session, user: confirmedUser }, error: null })
   })
   press('Se connecter')
-  await heading(mode === 'aal2' ? 'Dashboard' : mode === 'enroll' ? 'Sécurisez votre compte.' : 'Confirmez que c’est vous.')
+  await heading(mode === 'aal2' ? 'Collections' : mode === 'enroll' ? 'Sécurisez votre compte.' : 'Confirmez que c’est vous.')
 })
 test.each(['enroll', 'aal1'] as const)('TOTP %s : erreur, nouvel essai puis aal2 uniquement', async mode => {
   const { mock, store } = setup('/dashboard', mode)
@@ -392,7 +393,7 @@ test.each(['enroll', 'aal1'] as const)('TOTP %s : erreur, nouvel essai puis aal2
     return Promise.resolve({ data: session, error: null })
   })
   change('Code à 6 chiffres', '123456'); press(mode === 'enroll' ? 'Valider mon Authenticator' : 'Vérifier le code')
-  await heading('Dashboard')
+  await heading('Collections')
   expect(mock.mfa.challenge).toHaveBeenCalledTimes(2)
   expect(screen.queryByText('test-secret')).not.toBeInTheDocument()
 })
@@ -413,9 +414,9 @@ test.each(['enroll', 'aal1'] as const)('recovery %s impose MFA avant reset et co
   await heading('Un nouveau départ.')
   expect(mock.from).not.toHaveBeenCalled()
   change('Nouveau mot de passe', 'new-password'); change('Confirmer le mot de passe', 'new-password'); press('Enregistrer le mot de passe')
-  await heading('Dashboard')
+  await heading('Collections')
   expect(screen.getByText('Mot de passe modifié. Vous êtes connecté.')).toHaveAttribute('role', 'status')
-  expect(screen.getByRole('heading', { name: 'Mes collections' })).toBeVisible()
+  expect(screen.getByRole('heading', { name: 'Collections', level: 1 })).toBeVisible()
   expect(mock.auth.signOut).not.toHaveBeenCalled()
   expect(mock.auth.updateUser).toHaveBeenCalledOnce()
 })
@@ -423,7 +424,7 @@ test.each(protectedPages)('logout depuis %s purge immédiatement le shell, le pr
   const { mock, clearData } = setup(path, 'aal2')
   await heading(title)
   expect(screen.getByRole('button', { name: 'Mon compte' })).toBeVisible()
-  if (path === '/dashboard') expect(screen.getByRole('heading', { name: 'Mes collections' })).toBeVisible()
+  if (path === '/dashboard') expect(screen.getByRole('heading', { name: 'Collections', level: 1 })).toBeVisible()
   clearData.mockClear(); press('Mon compte')
   fireEvent.click(screen.getByRole('menuitem', { name: 'Déconnexion' }))
   expect(screen.queryByText(profile.public_id)).not.toBeInTheDocument()

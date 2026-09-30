@@ -332,7 +332,7 @@ button:disabled, fieldset:disabled { opacity: .65; cursor: wait; }
 .authenticated-shell .authenticated-header { background: var(--app-bg); z-index: 20; }
 
 .authenticated-shell :is(.user-menu-trigger, .user-menu-signout) { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text); }
-.authenticated-shell :is(.collection-cancel, .collection-add-trigger, .user-menu-trigger, .user-menu-signout):hover,
+.authenticated-shell :is(.collection-cancel, .user-menu-trigger, .user-menu-signout):hover,
 .authenticated-shell .deletion-actions .button:not(.primary):not(.deletion-danger):hover { background: var(--surface-hover); border-color: var(--text-subtle); color: var(--text); }
 .authenticated-shell .user-menu-trigger[aria-expanded="true"] { border-color: var(--focus); }
 .authenticated-shell .user-menu-avatar { background: var(--brand-soft); color: var(--text); }

@@ -196,6 +196,11 @@ revoke update(user_id) on physical_copies from authenticated;
 revoke update(owner_id) on collections from authenticated;
 
 -- Both parties can remove a share, with immediate loss of access and no cascade.
+-- Compare complete rows, including pre-existing local data, without resetting DB.
+create temporary table share_removal_snapshot as select
+  (select jsonb_agg(to_jsonb(c) order by c.id) from collections c) as collections,
+  (select jsonb_agg(to_jsonb(i) order by i.id) from collection_items i) as items,
+  (select jsonb_agg(to_jsonb(p) order by p.id) from physical_copies p) as copies;
 set local role authenticated;
 set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000002';
@@ -204,9 +209,12 @@ select is((select count(*) from collections ), 0::bigint, 'Recipient loses colle
 select is((select count(*) from collection_items ), 0::bigint, 'Recipient loses item access after removal');
 select is((select count(*) from physical_copies ), 0::bigint, 'Recipient loses owner-copy access after removal');
 reset role;
-select is((select count(*) from collections ), 4::bigint, 'Share deletion preserved all collections');
-select is((select count(*) from collection_items ), 3::bigint, 'Share deletion preserved all items');
-select is((select count(*) from physical_copies ), 4::bigint, 'Share deletion preserved all copies');
+select is((select jsonb_agg(to_jsonb(c) order by c.id) from collections c),
+  (select collections from share_removal_snapshot), 'Share deletion preserved all collections');
+select is((select jsonb_agg(to_jsonb(i) order by i.id) from collection_items i),
+  (select items from share_removal_snapshot), 'Share deletion preserved all items');
+select is((select jsonb_agg(to_jsonb(p) order by p.id) from physical_copies p),
+  (select copies from share_removal_snapshot), 'Share deletion preserved all copies');
 set local role authenticated;
 set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000001';

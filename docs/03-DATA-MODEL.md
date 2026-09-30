@@ -372,15 +372,14 @@ Un état de possession indépendant par collection ne doit pas devenir une sourc
 
 Chaque exemplaire peut conserver :
 
-- son état de conservation ;
-- une note personnelle ;
-- son statut gradé ou non ;
-- sa société de grading ;
-- sa note de grading.
+- un nom personnalisé facultatif ;
+- un état / note personnel facultatif, en texte libre multiligne, limité à 750 caractères Unicode.
 
 Deux exemplaires de la même variante peuvent porter des informations différentes.
 
-La condition et les informations de grading appartiennent à l'exemplaire, jamais à la carte source, à la variante ou à l'élément de collection. Le modèle ne doit pas supposer que toutes les sociétés de grading utilisent la même échelle. La nomenclature des conditions et le format des notes de grading restent ouverts.
+Depuis 6A.2, aucun champ structuré de condition ou de grading n'est actif. Une information de conservation ou de grading peut être écrite librement dans la note, sans parsing ni nomenclature métier. Ces métadonnées appartiennent à l'exemplaire, jamais à la carte source, à la variante ou à l'élément de collection.
+
+Un nom vide devient `NULL` ; l'affichage sans nom utilise `Exemplaire N`, recalculé selon l'ordre des exemplaires, sans persister ce libellé. Une note vide ou composée uniquement d'espaces blancs devient `NULL`. Les espaces et retours à la ligne d'un texte utile sont conservés.
 
 Les notes personnelles appartiennent également à l'utilisateur. Elles peuvent décrire un défaut, une provenance, un achat, un rangement ou tout commentaire personnel.
 
@@ -579,10 +578,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;
-- les interactions d'ajout manuel dans l'interface, au-dessus du contrat backend `start`/`end` défini en 6C.1 ;
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
-- la nomenclature des conditions ;
-- les sociétés de grading et le format de leurs notes ;
 - la persistance du format et du mode d'organisation du classeur ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;

@@ -36,15 +36,18 @@ export function PhysicalCopiesContent({ ownerId, variantId, onClose, viewerId, r
       else await deletePhysicalCopy(next.copyId)
     },
     retry: false,
-    onSuccess: async (_data, next) => {
-      await Promise.all([
-        client.invalidateQueries({ queryKey, exact: true }),
-        // Editing metadata cannot change possession; all IDs remain decimal strings.
-        next.type !== 'edit' ? invalidateCopyPossession(client, viewerId, variantId) : Promise.resolve(),
-      ])
-      if (active.current) setAction(null)
+    onSettled: async (_data, error, next) => {
+      // A lost response may follow a committed write. Reread on both outcomes,
+      // keeping dismissal/double submission blocked until these reads settle.
+      try {
+        await Promise.all([
+          client.invalidateQueries({ queryKey, exact: true }),
+          // Editing metadata cannot change possession; all IDs remain decimal strings.
+          next.type !== 'edit' ? invalidateCopyPossession(client, viewerId, variantId) : Promise.resolve(),
+        ])
+        if (!error && active.current) setAction(null)
+      } finally { running.current = false }
     },
-    onSettled: () => { running.current = false },
   })
 
   useEffect(() => {
@@ -70,7 +73,6 @@ export function PhysicalCopiesContent({ ownerId, variantId, onClose, viewerId, r
   function dismiss() {
     if (running.current) return
     if (action) {
-      if (mutation.isError) void client.invalidateQueries({ queryKey, exact: true })
       mutation.reset()
       setAction(null)
     }

@@ -1,5 +1,5 @@
-import { QueryClient } from '@tanstack/react-query'
-import { expect, test } from 'vitest'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
+import { expect, test, vi } from 'vitest'
 import type { CollectionContentItem } from '../../types/collection-content'
 import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } from '../collections/collection-query'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
@@ -40,5 +40,27 @@ test('content with no data is invalidated conservatively', async () => {
   await client.fetchQuery({ queryKey: key, queryFn: () => Promise.reject(new Error('unavailable')) }).catch(() => undefined)
   await invalidateCopyPossession(client, 'owner', '42')
   expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+  client.clear()
+})
+
+test.each(['content', 'overview', 'dashboard'] as const)('%s initial read cannot overwrite possession after a copy write', async kind => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const key = kind === 'content' ? collectionContentKey('owner', 'unloaded')
+    : kind === 'overview' ? collectionOverviewKey('owner', 'unloaded') : dashboardCollectionsKey('owner')
+  const oldValue = kind === 'content' ? [item('42')] : { owned: false }
+  const newValue = kind === 'content' ? [{ ...item('42'), owned: true }] : { owned: true }
+  let finishOld!: (value: typeof oldValue) => void
+  const read = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve }))
+    .mockResolvedValue(newValue)
+  const observer = new QueryObserver(client, { queryKey: key, queryFn: read })
+  const unsubscribe = observer.subscribe(() => {})
+  expect(read).toHaveBeenCalledOnce()
+  const refresh = invalidateCopyPossession(client, 'owner', '42')
+  // Resolve the pre-write snapshot even when transport ignores cancellation.
+  finishOld(oldValue)
+  await refresh
+  expect(read).toHaveBeenCalledTimes(2)
+  expect(client.getQueryData(key)).toEqual(newValue)
+  unsubscribe()
   client.clear()
 })

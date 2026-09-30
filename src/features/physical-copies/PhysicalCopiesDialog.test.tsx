@@ -309,7 +309,7 @@ test('menu keyboard, outside close, Tab wrap, Escape and focus restoration', asy
   expect(document.body.style.overflow).toBe('')
 })
 
-test('safe mutation error, focus and refresh on Escape back to listing', async () => {
+test('safe mutation error, focus and refreshed listing on Escape', async () => {
   create.mockRejectedValueOnce(new Error('PostgreSQL secret raw error'))
   setup(); await screen.findByText('Cadeau'); await add(); submit()
   const error = await screen.findByRole('alert')
@@ -319,6 +319,37 @@ test('safe mutation error, focus and refresh on Escape back to listing', async (
   fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
   await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
   expect(create).toHaveBeenCalledTimes(1)
+})
+
+test.each(['create', 'delete'] as const)('uncertain %s rereads copies and invalidates possession without retrying the write', async action => {
+  const { client } = setup()
+  const affected = collectionContentKey('owner', 'collection')
+  client.setQueryData(affected, [{ variantId: '42' }])
+  client.setQueryData(dashboardCollectionsKey('owner'), [])
+  await screen.findByText('Cadeau')
+  if (action === 'create') {
+    create.mockImplementationOnce(() => {
+      rows.push(fixture('committed', 'Ajout confirmé par relecture'))
+      return Promise.reject(new Error('response lost after commit'))
+    })
+    await add()
+  } else {
+    remove.mockImplementationOnce(id => {
+      rows = rows.filter(copy => copy.id !== id)
+      return Promise.reject(new Error('response lost after commit'))
+    })
+    await menu('Cadeau', 'Supprimer')
+  }
+  submit()
+  const error = await screen.findByRole('alert')
+  await waitFor(() => expect(error).toHaveFocus())
+  expect(list).toHaveBeenCalledTimes(2)
+  expect(client.getQueryData<PhysicalCopy[]>(physicalCopiesKey('owner', 'owner', 42)))
+    .toEqual(rows)
+  expect(client.getQueryState(affected)?.isInvalidated).toBe(true)
+  expect(client.getQueryState(dashboardCollectionsKey('owner'))?.isInvalidated).toBe(true)
+  expect(action === 'create' ? create : remove).toHaveBeenCalledOnce()
+  expect(screen.queryByText('response lost after commit')).not.toBeInTheDocument()
 })
 
 test('failed refetch hides stale private rows, including revoked shares', async () => {

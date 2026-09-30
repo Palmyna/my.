@@ -77,7 +77,7 @@ Le destinataire ne peut pas :
 
 - modifier les cartes ou leur ordre ;
 - modifier les états de possession ;
-- modifier les exemplaires, les notes ou les informations de grading ;
+- modifier les exemplaires, leurs noms ou leurs états / notes ;
 - supprimer la collection ;
 - modifier ses paramètres.
 
@@ -150,7 +150,7 @@ Les cartes générées automatiquement constituent la structure de référence d
 
 L'ordre canonique initialise la collection ; il reste une référence système, pas une contrainte permanente d'affichage. `sort_position` représente l'ordre réel affiché dans cette collection. Déplacer un élément automatique modifie sa position, jamais son `automatic_rank`, son `origin`, le hash/version canonique ou `automatic_target_states`. Deux collections de même cible/version peuvent ainsi avoir les mêmes éléments automatiques et des positions différentes.
 
-L'utilisateur reste libre de gérer ses données personnelles sur ces cartes : possession, exemplaires, état, grading et notes.
+L'utilisateur reste libre de gérer ses exemplaires sur ces cartes, leurs noms et leurs états / notes. La possession reste dérivée des exemplaires.
 
 Une carte automatique reste dans la structure même lorsqu'elle n'est pas possédée.
 
@@ -214,29 +214,18 @@ Une collection partagée affiche la progression de son propriétaire.
 
 Chaque exemplaire peut conserver ses propres informations :
 
-- état de conservation ;
-- note ou commentaire personnel ;
-- indication qu'il est gradé ;
-- société de grading ;
-- note de grading.
+- nom personnalisé facultatif ;
+- état / note facultatif en texte libre multiligne.
 
 Les exemplaires d'une même carte peuvent avoir des informations différentes.
 
-#### État de conservation
-
-Un état de conservation peut être indiqué pour une carte non gradée. Des valeurs comme *Near Mint*, *Excellent*, *Good*, *Played* ou *Poor* illustrent le besoin, mais ne constituent pas une nomenclature définitive.
-
-#### Grading
-
-Un exemplaire peut être déclaré gradé. L'utilisateur peut alors renseigner la société de grading et la note obtenue. L'interface ne doit pas supposer que toutes les sociétés utilisent la même échelle.
-
-Les sociétés prises en charge et les formats de notes restent à définir.
+Depuis 6A.2, aucun champ structuré de condition ou de grading n'est actif. Ces informations peuvent être notées librement, sans nomenclature, parsing ni échelle imposée. Sans nom personnalisé, l'affichage utilise `Exemplaire N`, recalculé selon l'ordre des exemplaires, sans stocker ce libellé.
 
 #### Notes personnelles
 
 Une note ou un commentaire libre peut être associé à chaque exemplaire. Il peut notamment décrire un défaut visible, l'origine de la carte, une information d'achat, son rangement physique ou tout autre commentaire personnel.
 
-La longueur maximale et le format précis de ces notes ne sont pas encore définis.
+La note est limitée à 750 caractères Unicode. Un texte vide ou uniquement composé d'espaces blancs devient `NULL` ; les espaces et retours à la ligne utiles sont conservés.
 
 ## Recherche globale et consultation du catalogue
 
@@ -343,7 +332,7 @@ Le partage de la V1 est strictement limité à la consultation. Le destinataire 
 
 - ouvrir la collection et consulter ses cartes ;
 - voir les états de possession ;
-- voir les exemplaires, les notes et les informations de grading ;
+- voir les exemplaires du propriétaire, leurs noms et leurs états / notes ;
 - utiliser les différentes vues ;
 - utiliser la recherche et les autres outils de consultation.
 
@@ -419,7 +408,7 @@ La V1 permet à l'utilisateur de supprimer définitivement son compte MY. Le par
 2. la saisie du mot de passe actuel et du TOTP actuel, vérifiés côté serveur lors de l'appel final ;
 3. une validation finale explicite avant toute destruction.
 
-La suppression efface le profil MY., les préférences, les collections possédées et leurs éléments/partages, les relations donnant à cet utilisateur des accès reçus, ses exemplaires physiques avec leurs notes et informations de grading, puis le compte Supabase Auth. Ses collections partagées deviennent inaccessibles aux destinataires puisqu'elles disparaissent. Retirer ses accès reçus ne supprime pas les collections des autres propriétaires ni leurs autres partages.
+La suppression efface le profil MY., les préférences, les collections possédées et leurs éléments/partages, les relations donnant à cet utilisateur des accès reçus, ses exemplaires physiques avec leurs noms et états / notes, puis le compte Supabase Auth. Ses collections partagées deviennent inaccessibles aux destinataires puisqu'elles disparaissent. Retirer ses accès reçus ne supprime pas les collections des autres propriétaires ni leurs autres partages.
 
 Le catalogue global — Pokémon, séries, Extensions, Cartes, Variantes et données de référence associées — et les données appartenant aux autres utilisateurs sont préservés. Le [modèle](03-DATA-MODEL.md#suppression-dun-compte), l'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) et la [base de données](06-DATABASE.md#suppression-dun-compte) précisent le backend livré et validé localement. La présentation et l'intégration sont livrées localement en [4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md). Le succès explicite entraîne la purge Auth/cache et le retour à l'accueil public. Une réponse perdue reste incertaine et invite à se reconnecter pour vérifier l'état du compte.
 
@@ -497,8 +486,6 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;
 - la fréquence de vérification des mises à jour ;
 - le contenu précis du résumé et le fonctionnement des notifications de mise à jour ;
-- la nomenclature définitive des états de conservation ;
-- les sociétés de grading et leurs formats de notes ;
 - la liste définitive des champs utilisés par la recherche ;
 - le comportement exact de la recherche dans la vue classeur ;
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
