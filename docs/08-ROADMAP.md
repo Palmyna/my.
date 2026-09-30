@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Les Phases 0 à 5 sont terminées et validées.** Le Dashboard, la création personnalisée, l'overview Collection, les actions propriétaire et le backend de création automatique sont livrés. La consultation des collections réellement partagées est disponible en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 5](reports/2026-09-23-PHASE5-CLOSURE.md) précise les acquis et validations. La **Phase 6 — Cœur fonctionnel des collections** est en cours.
+**Phases 0 à 6 terminées et validées.** Le cœur fonctionnel des collections est livré : contenu, exemplaires, réorganisation, ajout/retrait manuel, recherches d'ajout et interne, détail Variante et modernisation UI. Les collections réellement partagées restent consultables en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne les acquis, l'audit technique de Codex et le checkpoint Cloud manuel du propriétaire. La prochaine phase planifiée est la **Phase 7 — Vues, catalogue, recherche globale et préférences** ; elle n'est pas commencée.
 
 | Grandes phases | Statut |
 |---|---|
@@ -25,13 +25,13 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 | 3 — Authentification et socle applicatif authentifié | Terminée |
 | 4 — Profil et gestion du compte | Terminée |
 | 5 — Dashboard, création et gestion des collections | Terminée |
-| 6 — Cœur fonctionnel des collections | En cours |
+| 6 — Cœur fonctionnel des collections | Terminée |
 | 7 — Vues, catalogue, recherche globale et préférences | Planifiée |
 | 8 — Mise à jour des collections automatiques | Planifiée |
 | 9 — Partage des collections | Planifiée |
 | 10 — Finalisation V1 et mise en production | Planifiée |
 
-Le socle SQL, le catalogue et le socle Auth sont déployés et validés dans Supabase Cloud. Les trois migrations Phase 5 sont validées localement et déployées sur Cloud, avec historique Local/Remote confirmé aligné jusqu'à `20260920194903` par le propriétaire. Les interfaces Phase 5 sont validées localement. Le détail des migrations et des validations reste dans le README et les rapports.
+Le socle SQL, le catalogue, Auth et les contrats Phase 6 sont déployés dans Supabase Cloud. Après l'audit technique validé, le propriétaire a exécuté manuellement le checkpoint Cloud : 12 migrations Phase 6 appliquées sans erreur, 23 migrations Local/Remote alignées jusqu'à `20260928083830`, puis dry-run final sans migration restante. Aucun nouvel accès Cloud pendant la clôture documentaire. Le détail des migrations et des validations reste dans le README et les rapports.
 
 **Le développement et les tests courants utilisent Supabase local ; les checkpoints Cloud ponctuels exigent une autorisation explicite et des fixtures temporaires. Supabase cloud reste réservé à la future production avec Vercel.** Aucun déploiement Vercel n'est en place. Les URLs de production seront configurées lors de la mise en production ; aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud.
 
@@ -97,8 +97,7 @@ Le moyen de contact final et les éventuelles exigences légales/rétentions par
 
 Le Dashboard est le point central d'accès aux collections. Sont livrés :
 
-- présentation de `Mes collections`, avec nom, type, progression et accès à chaque collection ;
-- section distincte `Collections partagées avec moi`, avec progression du propriétaire et accès en lecture seule ;
+- collections personnelles et partagées, désormais présentées dans une grille unifiée modernisée en Phase 6, avec nom, type, progression et accès explicite `Personnelle` ou `Partagée · Lecture seule` ;
 - création d'une collection personnalisée depuis le Dashboard ;
 - validation du nom, avec au moins 3 caractères utiles après trim ;
 - respect de l'unicité d'une collection automatique par propriétaire et cible, avec retour de l'existante par le backend ;
@@ -106,7 +105,7 @@ Le Dashboard est le point central d'accès aux collections. Sont livrés :
 - renommage, suppression et ouverture d'une collection ;
 - page `/collections/:collectionId` : overview, type/cible, progression, accès direct, états de chargement/erreur/indisponibilité et actions réservées au propriétaire, avec dialogs et navigation clavier accessibles.
 
-La suppression d'une collection conserve les exemplaires physiques. Le détail des interactions avec son contenu arrive en Phase 6.
+La suppression d'une collection conserve les exemplaires physiques. Les interactions avec son contenu sont livrées en Phase 6.
 
 Le Dashboard ne propose aucun sélecteur Pokémon/Extension ni parcours de création automatique. L'UX de création/ouverture automatique depuis les pages catalogue relève de la Phase 7 ; son backend reste une réalisation de Phase 5.
 
@@ -114,25 +113,21 @@ Le socle DB/RLS et les interfaces Dashboard/Collection permettent déjà de cons
 
 ### Phase 6 — Cœur fonctionnel des collections
 
-**Statut : EN COURS**
+**Statut : TERMINÉE**
 
-Rendre les collections utilisables pour suivre les variantes et les exemplaires possédés :
+Les collections permettent désormais de suivre les variantes et les exemplaires possédés :
 
-- consultation des éléments automatiques et manuels ;
-- recherche et ajout d'une variante exacte du catalogue ;
-- suppression des éléments manuels et réorganisation de tous les éléments, automatiques comme manuels ;
-- suivi possédée/manquante et gestion de plusieurs exemplaires physiques par variante ;
-- nom facultatif et état / note personnelle par exemplaire ;
-- recherche interne à la collection ;
-- calcul de progression sur tous ses éléments, automatiques et manuels ;
-- détail contextuel Variante commun aux collections et, ensuite, au catalogue ;
-- actions adaptées aux droits, avec écritures réservées au propriétaire.
+- plusieurs exemplaires physiques par variante, globaux au compte, avec nom facultatif, fallback dynamique `Exemplaire N` et note libre nullable de 750 caractères maximum ; CRUD propriétaire, lecture seule en partage et possession dérivée, sans grading structuré actif ;
+- réorganisation de tous les éléments par souris, tactile ou clavier, avec placements début/fin/avant/après, backend autoritatif, midpoint et rééquilibrage ; ordre visuel transitoire pendant la sauvegarde et les relectures, sans vérité permanente frontend ;
+- contenu réel autoritatif, éléments automatiques/manuels, ordre backend, possession/progression, manquantes atténuées et images avec fallback, en accès propriétaire ou partage lecture seule ;
+- recherche catalogue, sélection d'une variante exacte, confirmation, ajout début/fin sans doublon et retrait manuel conservant les exemplaires ; recherche normalisée en AND sur carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants et variante, **sans recherche du nom de série** ;
+- recherche interne côté client sur le contenu déjà chargé : carte, Extension, abréviations, série, numéro et variante, avec normalisation et AND multi-termes ; ordre conservé, reorder désactivé seulement si le filtre masque des éléments ;
+- détail Variante autonome via `get_variant_detail`, y compris historique/inactif, métadonnées/dates/stamps et fallback image ; panneau latéral desktop ou plein écran mobile sans route dédiée, exemplaires intégrés et droits propriétaire/partage ; croix seule en haut à droite, aucun header générique visible et aucun bloc `Caractéristiques` pour le type seul ;
+- modernisation UI : fondation graphite globale, accent rouge MY., public/Auth harmonisés, Dashboard en grille unifiée et FAB de création, Collection et FAB contextuel, reorder plus fluide, détail Variante et Profil modernisés, actions/icônes harmonisées. Le contrat métier du Profil reste inchangé ; Paramètres reste volontairement minimal.
 
-La première liste de contenu est branchée sous l'overview, avec réorganisation propriétaire et gestion/consultation des exemplaires. La recherche serveur de variantes exactes, l'interface d'ajout (recherche, sélection, position Début/Fin, confirmation), le retrait des éléments personnels et les repères `Auto` / `Perso` sont livrés : 6C.1 à 6C.3 réalisées. Ajout/retrait vérifiés de bout en bout sur Supabase local ; exemplaires physiques conservés. L'interface 6C.3 initiale n'a nécessité aucune migration ; la correction compacte post-6C.3 ajoute l'abréviation d'Extension aux payloads. Les migrations Phase 6, correction comprise, sont appliquées et validées sur Supabase local ; elles restent non appliquées sur Supabase Cloud, en attente du checkpoint manuel de fin de phase. La recherche interne locale est livrée dans la liste, avec noms de série, AND multi-termes, ordre backend conservé et réorganisation désactivée sur vue partielle. Sa migration additive est appliquée sur Supabase local. Le contrat de lecture autonome du détail Variante est livré et appliqué localement, sans données personnelles et avec support des variantes historiques. Le détail contextuel 6E.2 est livré depuis la zone principale de la liste : panneau latéral responsive, consommation de 6E.1 et exemplaires intégrés, propriétaire ou partage en lecture seule, sans changement de route ni opération DB. La Phase 6 globale n'est pas clôturée.
+Les éléments automatiques restent non supprimables manuellement ; leur déplacement ne modifie ni origine ni rang canonique. Les exemplaires ne sont jamais dupliqués entre collections.
 
-Les exemplaires physiques sont **globaux au compte**, associés à une variante et non à une collection particulière. La possession est dérivée de leur existence : afficher une variante dans plusieurs collections ne duplique pas les exemplaires.
-
-Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique. Leur déplacement libre est validé, sans modification de leur origine ni de leur rang canonique. Le périmètre état/note et la réorganisation (interaction, rééquilibrage, concurrence) sont décrits dans les références UX/DB ; leur exécution est validée sur la base locale, le checkpoint Cloud reste différé.
+Phase 6 terminée et validée après l'audit technique exécuté par Codex et le checkpoint Supabase Cloud exécuté manuellement par le propriétaire. Local/Remote : **23/23 migrations**, dont 12 Phase 6, alignées jusqu'à `20260928083830`, sans migration restante au dry-run final. Le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md) conserve ces preuves. Bundle principal d'environ 680,01 kB, absence du nom de série dans la recherche d'ajout et Paramètres minimal restent non bloquants ; Phase 7+ reste hors périmètre.
 
 ### Phase 7 — Vues, catalogue, recherche globale et préférences
 

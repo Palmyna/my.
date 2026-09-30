@@ -245,7 +245,7 @@ Les collections sont principalement présentées sous forme de cartes ou tuiles 
 
 - le nom de la collection ;
 - son type ;
-- son accès explicite `Personnelle` ou `Partagée` (en lecture seule) ;
+- son accès explicite `Personnelle` ou `Partagée · Lecture seule` ;
 - sa progression sur tablette et desktop.
 
 Dès lors qu'il s'agit d'une collection automatique, la tuile distingue `Automatique · Pokémon` de `Automatique · Extension`, face à `Personnalisée`. Le nom domine et peut revenir à la ligne sans troncature. La cible reste secondaire lorsqu'elle existe ; elle n'est pas répétée si elle est identique au nom.
@@ -323,7 +323,7 @@ L'identité est intégrée directement au fond principal MY., sans grande carte 
 
 Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones.
 
-La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image manquante : placeholder graphique neutre ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques et le menu de retrait uniquement sur les éléments personnels du propriétaire. Les vues Liste/Cartes/Classeur complètes et leurs préférences restent prévues en Phase 7. Les migrations sont appliquées sur Supabase local, correction compacte post-6C.3 comprise ; Cloud attend le checkpoint manuel. Voir le [statut DB Phase 6](06-DATABASE.md#mutations-manuelles--contrat-6c1).
+La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image manquante : placeholder graphique neutre ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques et le menu de retrait uniquement sur les éléments personnels du propriétaire. Les vues Liste/Cartes/Classeur complètes et leurs préférences restent prévues en Phase 7, non commencée. Les 23 migrations Local/Cloud sont alignées après le checkpoint manuel exécuté par le propriétaire. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
 
 Une collection dispose d'une page principale commune à ses trois vues. Elle donne facilement accès à :
 
@@ -370,6 +370,8 @@ Si le filtre masque une partie de la collection, les poignées de réorganisatio
 ### Recherche dans le catalogue pour ajouter une carte
 
 La recherche interne filtre uniquement la collection courante. Elle reste distincte de la recherche globale du header (navigation) et de la recherche de sélection utilisée pour ajouter une variante.
+
+La recherche d'ajout livrée couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants pertinents et variante. Casse, accents, ligatures et ponctuation sont normalisés, avec AND multi-termes. **Elle ne recherche pas le nom de série**, contrairement au filtre interne.
 
 Les résultats du catalogue doivent permettre d'identifier clairement :
 
@@ -486,7 +488,7 @@ Le catalogue provient uniquement de `getVariantDetail(variantId)` (6E.1), avec c
 
 Depuis 6F.3, cette section se distingue du catalogue par l'espace et une surface légère. L'état de possession est compact et conserve toujours son texte explicite. `PhysicalCopiesContent` reste la source commune de consultation et de gestion ; aucun état de possession optimiste supplémentaire n'est introduit.
 
-Cliquer sur une variante depuis une collection (Liste, Cartes ou Classeur) ou depuis une fiche Carte catalogue ouvre le **même détail contextuel**, sans perdre inutilement le contexte ni la position d'origine.
+En Phase 7, les futures vues Cartes/Classeur et fiches Carte catalogue réutiliseront ce **même détail contextuel**, sans perdre inutilement le contexte ni la position d'origine. À la clôture de Phase 6, son ouverture est livrée depuis la liste Collection.
 
 Le détail peut notamment afficher :
 
@@ -581,7 +583,7 @@ La mise à jour préserve autant que possible l'ordre personnalisé des élémen
 
 Une collection appartenant à l'utilisateur propose une action `Partager`. Le propriétaire saisit l'identifiant public MY. du destinataire et, lorsque possible, l'interface identifie clairement l'utilisateur concerné avant validation.
 
-Après confirmation du propriétaire, le partage est directement actif et la collection apparaît dans « Collections partagées avec moi ». Il n'existe ni invitation, ni acceptation, ni refus. Le propriétaire peut consulter les personnes ayant accès et retirer un partage ; le destinataire peut retirer son propre accès. Ce retrait conserve la collection, ses éléments et les exemplaires. L'interface détaillée et la résolution limitée du destinataire seront implémentées ultérieurement.
+Après confirmation du propriétaire, le partage est directement actif et la collection apparaît dans la grille unifiée du Dashboard avec le statut `Partagée · Lecture seule`. Il n'existe ni invitation, ni acceptation, ni refus. Le propriétaire peut consulter les personnes ayant accès et retirer un partage ; le destinataire peut retirer son propre accès. Ce retrait conserve la collection, ses éléments et les exemplaires. L'interface de création/gestion des partages et la résolution limitée du destinataire restent prévues en Phase 9.
 
 ### Expérience en lecture seule
 
@@ -652,7 +654,7 @@ La [réalisation 4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) branc
 
 ## Paramètres et préférences de vues
 
-La page Paramètres est accessible depuis le menu utilisateur et distincte de la page Profil. Sa section **Affichage** propose :
+La page Paramètres est accessible depuis le menu utilisateur et distincte de la page Profil. Elle reste volontairement minimale en Phase 6, sans modernisation fonctionnelle. La section **Affichage** prévue en Phase 7 proposera :
 
 | Préférence | Choix |
 |---|---|

@@ -87,9 +87,9 @@ La navigation applicative est gérée côté client avec React Router. Les route
 
 `AuthenticatedHeader` conserve le logo blanc à gauche, vers `/dashboard`. Le grand champ de recherche, centré dans l'espace disponible, reste uniquement visuel (sans requête, suggestion ni moteur). Le bouton « Mon compte » porte l'initiale de l'email ; son menu accessible propose Profil, Paramètres et Déconnexion via l'action Auth existante. Il se ferme au clic extérieur, avec Escape, en quittant le menu au clavier ou lors d'une navigation. Les micro-animations respectent la préférence de réduction des mouvements. Sur tablette et mobile, la recherche passe sur une seconde ligne ; le logo diminue et le bouton se compacte sur mobile. La fondation 6F.1 utilise un jeu commun de tokens sémantiques dans `:root` : graphite sombre, actions principales rouges unies, actions secondaires neutres, suppressions distinctes et focus à contour visible avec halo discret. Les écrans publics et Auth utilisent cette même palette, avec leurs structures, dimensions et parcours existants. La navigation et la déconnexion temporaires ont été retirées du contenu du shell.
 
-Les pages partagent le shell, des espacements adaptés à l'écran et un `h1` accessible, focalisé lors de la navigation. Dashboard et Collection exploitent le contenu du shell jusqu’à 1 520 px avec au moins 24 px de marge latérale ; Profil et Paramètres conservent une largeur maximale de 720 px. Dashboard affiche les collections personnelles et partagées, leur progression et la création personnalisée ; il conserve le message éventuel après changement de mot de passe. L'identifiant public MY. est présenté dans Profil. Le contenu du footer reste commun ; son apparence publique et authentifiée utilise une surface graphite et une séparation neutre, sans modifier ses dimensions. Le [rapport Phase 3C](reports/2026-09-12-PHASE3C-SHELL.md) conserve l'état historique du shell minimal ; la Phase 4 a livré la gestion du compte et la Phase 5 les interfaces Collections. Paramètres reste minimal. Profil et Paramètres restent accessibles séparément par `Mon compte`, sans raccourci vers Paramètres dans Profil.
+Les pages partagent le shell, des espacements adaptés à l'écran et un `h1` accessible, focalisé lors de la navigation. Dashboard et Collection exploitent le contenu du shell jusqu’à 1 520 px avec au moins 24 px de marge latérale ; Profil est limité à 1 000 px depuis 6F.4, Paramètres à 720 px. Dashboard utilise une seule grille personnelle/partagée, les statuts `Personnelle` et `Partagée · Lecture seule`, et un FAB de création personnalisée ; il conserve le message éventuel après changement de mot de passe. `useFooterAwareFab` partage les mesures du footer et safe areas avec le FAB contextuel propriétaire de Collection. Le Profil modernisé conserve le contrat MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Le contenu du footer reste commun ; son apparence publique et authentifiée utilise une surface graphite et une séparation neutre, sans modifier ses dimensions. Le [rapport Phase 3C](reports/2026-09-12-PHASE3C-SHELL.md) conserve l'état historique du shell minimal. Paramètres reste volontairement minimal ; ses préférences fonctionnelles restent en Phase 7. Profil et Paramètres restent accessibles séparément par `Mon compte`, sans raccourci vers Paramètres dans Profil.
 
-Pour les futures pages métier, le routeur et l'état de navigation devront conserver autant que possible page, vue, filtres et scroll lors du retour d'une fiche Carte. Précédente/Suivante réutilisera l'ordre réel du contexte d'origine ; aucune séquence ne sera fabriquée pour une arrivée globale sans liste. Le détail Variante sera un composant contextuel commun aux pages Carte et aux collections, avec actions et données adaptées aux droits du contexte.
+Pour les futures pages métier, le routeur et l'état de navigation devront conserver autant que possible page, vue, filtres et scroll lors du retour d'une fiche Carte. Précédente/Suivante réutilisera l'ordre réel du contexte d'origine ; aucune séquence ne sera fabriquée pour une arrivée globale sans liste. Le détail Variante livré dans les collections sera réutilisé par les futures pages Carte, avec actions et données adaptées aux droits du contexte.
 
 Vercel devra permettre l'accès direct et le rafraîchissement des routes internes de la SPA. Le mécanisme précis de rewrite ou de fallback SPA sera défini et configuré lors du déploiement effectif. La présente décision d'hébergement n'ajoute aucune configuration de déploiement et ne modifie pas React Router.
 
@@ -126,7 +126,7 @@ Le [service Collections](../src/services/collections.ts) expose `createCollectio
 | Opération | Entrée | Résultat |
 |---|---|---|
 | `listDashboardCollections` | Aucune | `DashboardCollection[]` |
-| `getCollectionOverview` | `collectionId` | `DashboardCollection` |
+| `getCollectionOverview` | `collectionId` | `CollectionOverview` (dont `ownerId`) |
 | `createFree` | `{ name }` | `{ collectionId }` |
 | `createAutomatic` | `{ name, targetType: 'pokemon' \| 'set', targetId }` | `{ collectionId, created }` |
 | `rename` | `collectionId, name` | `{ collectionId }` |
@@ -154,9 +154,17 @@ Les détails d'une erreur ne sont pas analysés comme preuve d'un nom invalide :
 
 La lecture Dashboard effectue un seul `SELECT` sur la [vue `dashboard_collections`](06-DATABASE.md#lecture-dashboard), sans requête par collection. `DashboardCollection` contient `collectionId`, `name`, `collectionType`, `access` (`owned`/`shared`), `targetType`, `targetName`, `ownedCount` et `totalCount`. Le serveur déduit l'accès de l'identité Auth et calcule la possession du propriétaire, même pour une collection partagée. Le service traduit les noms SQL, conserve les noms de cible absents comme `null` et ne calcule ni progression ni ordre visuel. Une liste vide reste `[]` ; les réponses malformées ou incohérentes lèvent `CollectionsError('unexpected')`, et les refus explicites suivent le mapping existant. Les restrictions RLS peuvent produire une liste vide sans erreur explicite : le service ne la présente pas comme une preuve d'authentification.
 
-La page `/collections/:collectionId`, ajoutée sous le même `AuthenticatedLayout`, conserve les gardes Auth existantes et fonctionne en accès direct. `getCollectionOverview` effectue un seul `SELECT` sur `dashboard_collections`, filtré exactement par `collection_id`, avec `maybeSingle()` et le mapper Dashboard existant. Aucune ligne visible produit `collection_unavailable`, sans distinguer absence, collection tierce ou partage retiré. Un UUID manifestement invalide produit le même code avant toute requête ; les réponses malformées restent `unexpected`. Aucune nouvelle vue ni lecture d'items n'est nécessaire.
+La page `/collections/:collectionId`, ajoutée sous le même `AuthenticatedLayout`, conserve les gardes Auth existantes et fonctionne en accès direct. `getCollectionOverview` lit `dashboard_collections`, filtré exactement par `collection_id`, avec `maybeSingle()` et le mapper Dashboard existant, puis complète l'overview avec `collections.owner_id` sous RLS. Le propriétaire réel est transmis aux exemplaires, sans fallback vers le lecteur. Aucune ligne visible produit `collection_unavailable`, sans distinguer absence, collection tierce ou partage retiré. Un UUID manifestement invalide produit le même code avant toute requête ; les réponses malformées restent `unexpected`. Aucune nouvelle vue ni lecture d'items n'est nécessaire pour l'overview.
 
 La [page Collection](../src/features/collections/CollectionPage.tsx) utilise la clé TanStack Query `['collections', 'detail', userId, collectionId]`, indépendante de celle du Dashboard, sans retry automatique. Un échec de lecture masque également une éventuelle donnée en cache. Les libellés, couleurs déterministes et la présentation de progression sont partagés avec les tuiles. La page met à jour `document.title` après réception du nom ; le focus de navigation reste géré par `AppRoutes` sur un `h1` persistant.
+
+### Contenu, exemplaires et réorganisation — Phase 6
+
+Le contenu est chargé après overview autorisé via `getCollectionContent` et la RPC `get_collection_content`, avec `collectionContentKey(viewerId, collectionId)`. Son tableau complet, y compris items historiques, conserve l'ordre backend, les métadonnées et la possession du propriétaire. La recherche interne 6D.1 filtre uniquement ce tableau déjà chargé : normalisation, AND multi-termes sur carte, Extension, abréviations, série, numéro et variante, sans réseau, score ni tri. Un filtre masquant des items désactive le reorder.
+
+Le service des exemplaires conserve les IDs BIGINT en chaînes décimales. `physical_copies` appartient au compte et à la variante, jamais à une collection : CRUD propriétaire, lecture partagée, nom facultatif, fallback dynamique `Exemplaire N`, note libre nullable limitée à 750 caractères et aucun grading structuré actif. Le cache distingue lecteur, propriétaire réel et variante ; ajout/suppression invalident les lectures de possession concernées, modification du nom/note sans recalcul indépendant de possession.
+
+Le reorder appelle `reorder_collection_item` pour `start`/`end`/`before`/`after` ; midpoint, rebalance et concurrence appartiennent au backend. `get_collection_item_order` reste une lecture technique, avec invalidation/relecture de l'ordre et du contenu après succès ou erreur. Le DnD propriétaire souris/tactile/clavier conserve uniquement un ordre visuel transitoire pendant la sauvegarde et les relectures pour éviter le snap-back ; aucun cache optimiste ni calcul JavaScript de `sort_position`. L'ordre backend remplace cet état et le frontend ne devient jamais une vérité permanente. Aucun DnD partagé.
 
 ### Contrat de lecture du détail Variante — 6E.1
 
@@ -564,15 +572,14 @@ Supabase Storage pourra être envisagé plus tard pour de véritables fichiers p
 
 ## Recherche et requêtes
 
-La recherche de la V1 repose sur PostgreSQL et Supabase pour :
+Les recherches serveur prévues pour la V1 reposent sur PostgreSQL et Supabase pour :
 
 - la recherche globale authentifiée de navigation (Pokémon, Extensions, collections accessibles, Cartes) ;
-- la recherche interne aux collections ;
 - la recherche dans le catalogue ;
 - la recherche de Pokémon ;
 - la recherche d'extensions.
 
-La V1 n'introduit pas Algolia, Elasticsearch, Meilisearch hébergé ou un autre moteur externe. Le contrat SQL de recherche d'ajout est livré en 6C.2 ; les contrats de recherche globale et interne restent à réaliser.
+La V1 n'introduit pas Algolia, Elasticsearch, Meilisearch hébergé ou un autre moteur externe. Le contrat SQL de recherche d'ajout est livré en 6C.2 ; il couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants et variante, **sans le nom de série**. La recherche interne 6D.1 est livrée côté client sur le contenu déjà chargé. La recherche globale et les pages catalogue restent planifiées en Phase 7, non commencée.
 
 Le navigateur ne doit pas charger tout le catalogue pour effectuer une recherche. Les requêtes doivent pouvoir être filtrées, paginées et limitées aux données nécessaires.
 
@@ -588,7 +595,7 @@ Pour l'ajout manuel, `search_catalog_variants_for_add(p_query, p_limit, p_offset
 
 La Phase 6C.3 branche cette recherche dans le contenu différé de CollectionPage, uniquement après overview autorisé. La modal propriétaire temporise la saisie de 300 ms et utilise `useInfiniteQuery` : pages de 20, offsets serveur, identité de recherche renouvelée à chaque saisie, déduplication défensive par `variantId`. Les réponses anciennes ne remplacent jamais les nouveaux résultats. L'ajout préserve le BIGINT en chaîne via une adaptation typée du seul argument RPC ; les types générés restent inchangés. Après ajout/retrait confirmé ou incertain, le hook annule les lectures obsolètes et invalide exactement contenu, ordre, overview et Dashboard du lecteur/collection. Il ne touche pas au cache des exemplaires physiques. Les mutations structurelles et le reorder partagent une clé d'occupation UI, sans ordre optimiste ni recalcul de progression. Le retour arrière frontend consiste à retirer ces points d'entrée ; les RPC, lecteurs existants et données restent compatibles. Aucune Vercel Function n'est nécessaire. Le [pipeline catalogue](07-CATALOG-SYNC.md#recherche-de-maintenance-catalogfind) reste la référence de l'outil de maintenance.
 
-Les lectures Pokémon/Extension regroupent les Cartes uniques, respectivement par date de Carte et par numéro naturel ; la fiche Carte charge ensuite les Variantes. Les compteurs `card_count` et `variant_count` sont dérivés du même périmètre que les listings, sans dupliquer la source de vérité ni confondre `official_card_count` et total MY. Ces pages n'agrègent pas de progression personnelle. `physical_copies → user_id + variant_id` demeure inchangé.
+Les futures lectures Pokémon/Extension de Phase 7 regrouperont les Cartes uniques, respectivement par date de Carte et par numéro naturel ; la fiche Carte chargera ensuite les Variantes. Les compteurs `card_count` et `variant_count` devront dériver du même périmètre que les listings, sans dupliquer la source de vérité ni confondre `official_card_count` et total MY. Ces pages n'agrégeront pas de progression personnelle. `physical_copies → user_id + variant_id` demeure inchangé.
 
 ## Vue classeur et temps réel
 
@@ -638,7 +645,7 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. distingue développement et production. Les onze migrations jusqu'à la Phase 5 sont déployées dans Supabase Cloud et détaillées dans le [README](../README.md). Les huit premières ont été confirmées en lecture seule en [4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md), avec validation de la fonction `delete-account` sur des fixtures temporaires. Le propriétaire confirme le déploiement manuel des trois migrations Phase 5 et l'alignement Local/Remote jusqu'à `20260920194903` ; la clôture documentaire ne réalise aucun nouvel accès Cloud. Le pipeline refuse toujours toute base distante. Le staging et les futurs workflows de déploiement restent à cadrer.
+MY. distingue développement et production. Les 23 migrations jusqu'à la Phase 6 sont appliquées Local/Cloud et alignées jusqu'à `20260928083830`. Le propriétaire a exécuté manuellement le checkpoint Cloud après l'audit technique de Codex : 12 migrations Phase 6 appliquées sans erreur, puis dry-run final sans migration restante. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne ces résultats fournis ; cette clôture documentaire ne réalise aucun nouvel accès Cloud. Le pipeline refuse toujours toute base distante. Le staging et les futurs workflows de déploiement restent à cadrer.
 
 Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Le développement et les tests courants ciblent Supabase local, hors checkpoints Cloud explicitement autorisés et consignés ; Supabase cloud constitue la future instance de production associée à Vercel.
 

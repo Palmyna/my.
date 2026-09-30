@@ -24,7 +24,7 @@ La V1 permet principalement de :
 
 Ces fonctionnalités doivent rester simples à comprendre et rapides à utiliser.
 
-**État livré à la clôture de Phase 5 :** Dashboard des collections personnelles et partagées avec progression et navigation ; création personnalisée ; consultation de l'overview Collection ; renommage et suppression par le propriétaire. Les collections réellement partagées sont consultables en lecture seule grâce au socle DB/RLS, sans actions propriétaire. Le backend de création automatique est livré ; son parcours utilisateur depuis les pages catalogue reste prévu en Phase 7. La création et la gestion utilisateur des partages restent prévues en Phase 9. Les interactions avec le contenu décrites dans ce document restent à livrer selon la [roadmap](08-ROADMAP.md).
+**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres reste minimal. Le backend de création automatique est livré ; son parcours catalogue, les vues et préférences et la recherche globale restent en Phase 7, prochaine phase planifiée non commencée. Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
 
 ## Comptes utilisateurs
 
@@ -60,7 +60,7 @@ Après connexion, l'utilisateur accède à son dashboard, point central d'accès
 
 Au sein des collections, l'utilisateur doit pouvoir distinguer les types `Personnalisée`, `Automatique · Pokémon` et `Automatique · Extension`, ainsi que la cible automatique lorsque cela est pertinent.
 
-### Mes collections
+### Collections personnelles
 
 Cette catégorie regroupe les collections dont l'utilisateur est propriétaire. Il peut :
 
@@ -69,7 +69,7 @@ Cette catégorie regroupe les collections dont l'utilisateur est propriétaire. 
 - modifier les informations générales d'une collection ;
 - supprimer une collection.
 
-### Collections partagées avec moi
+### Collections partagées
 
 Cette catégorie regroupe les collections que d'autres utilisateurs ont partagées avec l'utilisateur courant. Elles sont accessibles uniquement en consultation.
 
@@ -81,7 +81,7 @@ Le destinataire ne peut pas :
 - supprimer la collection ;
 - modifier ses paramètres.
 
-Le choix entre des onglets, des sections ou une navigation dédiée relève du cadrage UX.
+Le Dashboard livré présente une grille unifiée, avec statut explicite `Personnelle` ou `Partagée · Lecture seule`.
 
 ## Création et informations générales d'une collection
 
@@ -114,7 +114,7 @@ La wishlist est seulement un exemple d'usage d'une collection personnalisée et 
 
 L'ajout manuel, dans une collection personnalisée ou automatique, sélectionne une variante exacte active et confirmée française, dont la carte source et le set sont actifs. Une variante locale MY. reste admissible sans présence dans la source. Le backend 6C.1 permet l'ajout en début ou fin (fin par défaut), puis le déplacement précis par la réorganisation existante. Un doublon est refusé sans conversion ni déplacement. Le retrait manuel conserve les exemplaires physiques et refuse les éléments automatiques. Une perte ultérieure d'éligibilité ne retire ni ne masque les éléments existants. Les interfaces d'ajout et de retrait sont livrées en 6C.3 : action propriétaire disponible même à vide, recherche → sélection → position → confirmation dans une modal unique, puis retrait confirmé des seuls éléments manuels. Les collections automatiques affichent les repères secondaires `Auto` / `Perso` ; les collections personnalisées n'affichent aucun repère d'origine. Le partage reste en lecture seule, sans ces actions de mutation.
 
-La Phase 6C.2 livre la recherche catalogue serveur et son service applicatif pour sélectionner cette Variante exacte : plusieurs variantes d'une carte donnent plusieurs résultats. La recherche reste indépendante de la collection, y compris pour les variantes déjà présentes ; `already_present` reste autoritatif à l'écriture 6C.1. Elle est distincte de la recherche globale et du filtre interne. L'interface 6C.3 temporise la saisie de 300 ms, sans seuil de trois caractères, et propose `Afficher plus` par pages de 20 variantes. Voir le [contrat 6C.2](06-DATABASE.md#recherche-catalogue-pour-ajout--contrat-6c2).
+La Phase 6C.2 livre la recherche catalogue serveur et son service applicatif pour sélectionner cette Variante exacte : plusieurs variantes d'une carte donnent plusieurs résultats. La recherche reste indépendante de la collection, y compris pour les variantes déjà présentes ; `already_present` reste autoritatif à l'écriture 6C.1. Elle couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants pertinents et variante, avec normalisation de casse, accents, ligatures et ponctuation et AND multi-termes. **Le nom de série n'est pas recherché.** Elle est distincte de la recherche globale et du filtre interne. L'interface 6C.3 temporise la saisie de 300 ms, sans seuil de trois caractères, et propose `Afficher plus` par pages de 20 variantes. Voir le [contrat 6C.2](06-DATABASE.md#recherche-catalogue-pour-ajout--contrat-6c2).
 
 ## Collections automatiques
 
@@ -165,7 +165,7 @@ Le propriétaire peut :
 - l'insérer entre des cartes automatiques ;
 - la supprimer.
 
-Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. Tous les éléments sont librement repositionnables. L'interaction UX exacte, le rééquilibrage de `sort_position` et la concurrence restent ouverts ; la possibilité de déplacer un élément automatique est validée.
+Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. Tous les éléments sont librement repositionnables. La réorganisation livrée accepte début/fin/avant/après, par souris, tactile ou clavier ; le backend calcule midpoint/rééquilibrage et sérialise les déplacements. L'ordre visuel transitoire pendant la sauvegarde et les relectures évite le snap-back ; le frontend ne devient jamais une source permanente de vérité.
 
 ### Mise à jour contrôlée
 
@@ -229,6 +229,8 @@ La note est limitée à 750 caractères Unicode. Un texte vide ou uniquement com
 
 ## Recherche globale et consultation du catalogue
 
+**Phase 7 planifiée, non commencée :** les parcours globaux et pages catalogue ci-dessous restent futurs. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
+
 La recherche globale est une navigation par suggestions dynamiques, disponible partout après connexion à partir de **3 caractères**. Il n'existe ni bouton de lancement requis, ni page générale de résultats. Valider le champ ne sélectionne aucun résultat et ne navigue pas ; l'utilisateur choisit explicitement une suggestion. Sur mobile, cette validation ferme seulement le clavier et conserve les suggestions.
 
 | Catégorie, dans l'ordre d'affichage | Champs de correspondance | Maximum |
@@ -264,9 +266,11 @@ La croix dans le champ efface la recherche, conserve le focus et restaure imméd
 
 Cette recherche est strictement un filtre interne à la collection consultée. Elle ne constitue pas une recherche globale dans l'ensemble du catalogue Pokémon.
 
-La recherche fonctionne dans les vues liste, cartes et classeur. Les vues liste et cartes n'affichent que les résultats correspondants. Dans la vue classeur, les résultats doivent rester consultables de manière cohérente, mais le traitement visuel des emplacements non correspondants reste à définir.
+La recherche est livrée dans la liste Collection. Son intégration aux futures vues Cartes et Classeur relève de Phase 7 : Liste et Cartes n'afficheront que les résultats correspondants ; dans Classeur, le traitement visuel des emplacements non correspondants reste à définir.
 
 ## Vues d'une collection
+
+Les vues supplémentaires et préférences ci-dessous restent planifiées en Phase 7 ; seule la liste fonctionnelle Phase 6 est livrée.
 
 Les trois vues de la V1 présentent la même collection et les mêmes données :
 
@@ -324,7 +328,7 @@ Le comportement détaillé de navigation relève du cadrage UX.
 
 Le propriétaire peut partager une collection avec un autre utilisateur MY. depuis la collection concernée. Il utilise pour cela l'identifiant public unique du destinataire, qui doit être clairement identifié avant ou pendant la validation du partage.
 
-Le partage devient immédiatement actif après confirmation du propriétaire et la collection apparaît dans « Collections partagées avec moi ». La V1 ne comporte ni invitation, ni attente, ni acceptation ou refus par le destinataire. La résolution de l'identifiant reste limitée et ne permet jamais de parcourir les profils.
+Le partage devient immédiatement actif après confirmation du propriétaire et la collection apparaît dans la grille unifiée du Dashboard, avec le statut `Partagée · Lecture seule`. La V1 ne comporte ni invitation, ni attente, ni acceptation ou refus par le destinataire. La résolution de l'identifiant reste limitée et ne permet jamais de parcourir les profils. Ce parcours de création de partage reste prévu en Phase 9 ; la consultation partagée est déjà livrée.
 
 ### Accès en lecture seule
 
@@ -415,6 +419,8 @@ Le catalogue global — Pokémon, séries, Extensions, Cartes, Variantes et donn
 L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuelles exigences légales ou rétentions particulières nécessitent un cadrage spécifique ; aucune durée ni exception de conservation n'est décidée ici.
 
 ## Paramètres et préférences d'affichage
+
+`/settings` reste volontairement minimal à la clôture de Phase 6. Les préférences décrites ci-dessous sont planifiées en Phase 7.
 
 La page Paramètres, accessible depuis le menu utilisateur, possède une section Affichage avec deux préférences persistantes et indépendantes :
 
