@@ -1,0 +1,143 @@
+# Phase 4C — Page Profil
+
+## Résultat et périmètre
+
+`/profile` est construite dans le shell authentifié existant. Avant l'implémentation initiale, le dépôt était propre sur `dev`, commit `70a7b93` (`Document the Git workflow and future Vercel deployment`), après `22ffe35` (`phase 4B.3`). Les règles réelles d'`AGENTS.md` et les références produit, modèle, UX, architecture, base, roadmap et rapports 4B.2/4B.3 ont été relues avant modification. La description ci-dessous reflète l'UI finale validée au commit `d61075c` ; les étapes de validation sont distinguées dans l'historique et la clôture en fin de rapport.
+
+La page contient trois sections :
+
+- **Identité MY.** : date d'inscription française et identifiant permanent sous le libellé **`MY.ID`**, dans un input texte en lecture seule ; bouton Copier aligné à droite, de même hauteur que le champ, avec icône de deux pages et nom accessible.
+- **Adresse email** : adresse courante, demande Auth déjà en attente si présente, formulaire de nouvelle adresse et retours locaux de soumission/erreur.
+- **Authenticator** : statut réel et texte invitant à « contacter un administrateur » pour un remplacement.
+
+Poppins, palette sombre/rouge/blanc, boutons et styles Auth sont réutilisés. Aucun nouveau design system, bibliothèque ou système global de notifications. Le `h1` unique conserve le focus géré par `AppRoutes`. Les actions restent accessibles au clavier et tactiles. Les adresses email peuvent revenir à la ligne ; l'input `MY.ID` reste sur une seule ligne, avec défilement interne si nécessaire et sélection/copie de la valeur complète.
+
+## Sources de données et états
+
+Toutes les données passent par `useAuth()` et l'état Auth existant, sans second client ni état persistant parallèle.
+
+| Affichage | Source |
+|---|---|
+| Adresse actuelle | `user.email` |
+| Nouvelle adresse demandée, non courante | `user.new_email` |
+| Identifiant MY. | `profile.public_id` |
+| Membre depuis | `user.created_at`, formaté avec `Intl.DateTimeFormat('fr-FR')` |
+| Authenticator configuré | `mfa.verifiedFactors`, déjà dérivé des facteurs TOTP vérifiés par le service Auth |
+
+La date technique `profile.created_at` n'est jamais utilisée pour l'inscription. Une date Auth absente/invalide, un profil absent ou un statut MFA indisponible produisent des messages explicites. Le formulaire email est inaccessible sans utilisateur autorisé et adresse courante disponible. Les gardes de routes existantes restent prioritaires pendant chargement, perte d'accès ou récupération.
+
+La copie utilise `navigator.clipboard.writeText` avec la valeur complète et annonce son succès uniquement après résolution. Le bouton affiche alors une coche sur fond vert pendant **2,2 secondes**, puis retrouve son pictogramme initial. Une région `role="status"` masquée visuellement annonce le succès, sans message visuel séparé. Si l'API manque ou refuse l'accès, le texte d'aide explique la sélection/copie manuelle depuis le champ toujours sélectionnable ; cet échec est également annoncé. La copie ne déplace pas le focus. Aucun identifiant n'est modifiable ou régénéré par React.
+
+## Changement d'email
+
+Le formulaire appelle l'action existante `requestEmailChange(email, authRedirectUrl('/auth/confirm-email-change'))`. Il réutilise `AuthForm`, `SubmitButton`, `useAuthTask` et ses messages d'erreur. Validation native `type="email"`/`required`, trim, refus de l'adresse actuelle sans distinction de casse, `autocomplete="email"`, verrou de soumission et désactivation du champ/bouton pendant l'envoi.
+
+Le service 4B.2 reste propriétaire de l'appel Supabase et de la vérification d'accès. Aucun mot de passe ni code TOTP n'est demandé. Aucune mise à jour optimiste de l'adresse courante, aucune écriture dans `profiles`, aucun nouveau callback.
+
+Le succès local indique que la demande attend les confirmations sur **l'ancienne et la nouvelle adresse**. Quand Auth fournit `user.new_email`, le message « Changement en attente » affiche cette adresse comme une demande, explicitement différente de l'adresse courante. Il n'infère pas quelle confirmation manque. L'événement `USER_UPDATED` relance la résolution du store et remonte le Profil : l'attente reste alors visible grâce à la donnée Auth, même si les feedbacks locaux sont réinitialisés. La nouvelle adresse n'est présentée comme courante qu'après mise à jour effective de `user.email` par Auth.
+
+Le callback 4B.2, ses confirmations partielle/finale, le signup et le recovery sont inchangés. Leurs garanties serveur réelles restent celles du [rapport 4B.2](2026-09-13-PHASE4B2-ACCOUNT-AUTH.md), cohérentes avec la [référence Supabase `updateUser`](https://supabase.com/docs/reference/javascript/auth-updateuser). La Phase 4C ne rejoue pas les confirmations dans Mailpit et ne revendique pas un nouveau test réel des emails Supabase.
+
+## Authenticator et éléments différés
+
+Le statut distingue une donnée indisponible, aucun facteur vérifié et « Authenticator configuré ». Le texte de contact est affiché directement. Le bouton `Modifier` est omis pour ne pas suggérer une action disponible alors que le moyen de contact final reste ouvert. Aucun enrollment, remplacement, désactivation ou suppression de facteur ; aucun email de support, ticket ou formulaire inventé.
+
+Restent pour **4D et le checkpoint cloud de clôture de Phase 4** : changement volontaire du mot de passe avec vérification serveur du mot de passe actuel, UX complète de suppression et branchement au backend 4B.3, confirmations finales et purge client après suppression, puis validations finales correspondantes. Aucun contrôle inactif de mot de passe/suppression n'est ajouté. Le recovery n'est pas détourné et le problème CLI `current_password` n'est pas réétudié.
+
+La roadmap conserve **Phase 4 : Cadrée — implémentation en cours**, sans grande phase 4C séparée. Le contact support, les détails UX des parcours restants et les éventuelles exigences légales/rétentions demeurent ouverts. Aucun point ne bloque la livraison de cette page dans le périmètre 4C.
+
+## Validations initiales — Historique du 14 septembre 2026
+
+Ces résultats portent sur la livraison initiale, avant les finitions UI. Les résultats sur l'état final figurent dans la section de clôture du 15 septembre.
+
+| Commande | Résultat |
+|---|---|
+| `npm test -- --project frontend src/features/profile/ProfilePage.test.tsx` | **18 tests réussis, 1 fichier**, revérifiés après correction de l'usage d'`act` dans le test asynchrone |
+| `npm test -- --project frontend src/features/profile/ProfilePage.test.tsx src/services/auth.test.ts src/features/auth/auth-store.test.ts src/features/auth/auth-callback.test.ts src/features/auth/AuthProvider.test.tsx src/app/AppRoutes.test.tsx` | **130 tests réussis, 6 fichiers**, dont les 18 tests Profil |
+| `npm run lint` | **Réussi, zéro avertissement** après correction de l'attente superflue dans un test |
+| `npm run build` (inclut `npm run typecheck`) | **Réussi**, 276 modules ; JS principal **575,68 kB / 165,04 kB gzip** |
+| Liens Markdown locaux et `git diff --check` | **101 liens locaux résolus** ; aucune erreur de diff |
+
+L'avertissement Vite préexistant de bundle supérieur à 500 kB demeure ; aucun changement de découpage hors périmètre. Les tests couvrent sources/date Auth distincte du profil, lecture seule, copie réussie/refusée/absente, attente préexistante, erreurs propres et retry, validation, doubles soumissions, finalisation Auth, données manquantes, facteur non vérifié et absence des actions hors 4C. Le test d'intégration AppRoutes vérifie la soumission suivie de `USER_UPDATED`, le retour au même Profil avec attente, le focus `h1` et l'abonnement Auth unique.
+
+### Navigateur local — Livraison initiale
+
+Vérification via le navigateur intégré, `agent-browser` n'étant pas disponible dans l'environnement. Un aperçu temporaire ignoré par Git sert les **vrais composants, routes et store**, avec un **service Auth simulé**, à `http://127.0.0.1:5174/profile`. Aucun client Supabase ni compte réel n'est utilisé par cet aperçu.
+
+- Largeurs **320, 390, 768, 1 024 et 1 440 px** : aucun débordement horizontal.
+- Inspection visuelle desktop/mobile, longues adresses courante et en attente à 320 px : retours à la ligne sans débordement.
+- Copie au clavier et feedback, focus visibles du champ/du bouton de copie, soumission par Entrée, désactivation pendant l'envoi, erreur simulée puis nouvel essai et attente Auth vérifiés.
+- Navigation Profil → Dashboard par le logo puis retour Profil par le menu au clavier : attente conservée dans Auth et focus du `h1` restauré.
+- **Aucune erreur ni alerte console.** Ce contrôle ne remplace pas une validation manuelle avec lecteur d'écran ni un parcours Auth réel.
+
+L'aperçu est arrêté, l'onglet de test fermé, la taille temporaire du navigateur réinitialisée et les fichiers de fixture supprimés. Aucun démarrage/reset Supabase ni changement de volume/catalogue. Les suites PostgreSQL, catalogue et suppression 4B.3 ne sont pas relancées, puisqu'aucun backend/SQL n'a changé.
+
+## Fichiers de la livraison initiale
+
+**Créés :**
+
+- `src/features/profile/ProfilePage.test.tsx` ;
+- ce rapport, `docs/reports/2026-09-14-PHASE4C-PROFILE.md`.
+
+**Modifiés :**
+
+- `src/features/profile/ProfilePage.tsx` ;
+- `src/styles.css` : styles limités au Profil ;
+- `src/app/AppRoutes.test.tsx` : attentes du Profil réel et soumission avec remontage Auth ;
+- `README.md` ;
+- `docs/01-FEATURES.md`, `docs/04-UX-UI.md`, `docs/05-ARCHITECTURE.md`, `docs/08-ROADMAP.md`.
+
+**Vérifiés mais inchangés :** `AGENTS.md`, `docs/03-DATA-MODEL.md`, `docs/06-DATABASE.md`, rapports historiques 4B.2/4B.3, shell/header et routes de production, services/provider/store/callbacks/helpers Auth, schéma/migrations/types générés, backend de suppression, dépendances et lockfile.
+
+Aucun autre fichier versionné modifié. Aucun travail fonctionnel Paramètres, Dashboard, recherche, catalogue, collections ou Phase 5. Aucun changement Supabase Cloud, déploiement Vercel, commit ou push.
+
+## Complément du 15 septembre 2026 — Finitions UI et reprise
+
+Ce complément décrit les retouches postérieures à la livraison initiale enregistrée au commit `b638a6d`, puis intégrées au commit `d61075c` (`Polish profile identity UI and copy feedback`). Il ne change ni les sources de données, ni le parcours email, ni le périmètre fonctionnel de 4C.
+
+L'identifiant utilise désormais un **input texte en lecture seule**, de même hauteur que les autres champs et le bouton de copie (**50 px**). Après réussite, le pictogramme devient une coche sur fond vert pendant **2,2 secondes**, puis revient à son état normal. Le succès est annoncé par une région `status` masquée visuellement ; aucun message de succès séparé ne déplace le contenu. En cas d'échec, le texte d'aide explique la sélection/copie manuelle. Le temporisateur est nettoyé lorsque l'état change ou que le composant est démonté.
+
+Les trois sections ont des contours discrets, des espacements réguliers, des champs alignés et des états hover/pressed avec transitions courtes respectant la réduction des mouvements. Aucun composant UI tiers ou système visuel supplémentaire. Les retouches manuelles intervenues pendant l'interruption sont conservées, notamment le libellé **`MY.ID`**, le contact « un administrateur » et les ajustements CSS du header et du focus.
+
+### Diagnostic à la reprise — Avant correction des tests
+
+Avant l'interruption, le contrôle navigateur de l'aperçu avec service Auth simulé a vérifié les largeurs **320, 390, 768, 1 024 et 1 440 px**, sans débordement horizontal, ainsi que les hauteurs de contrôles, la coche temporaire, le retour à l'état initial, la sélection complète au clavier et l'absence d'erreur console. Un input reste sur une seule ligne : sur petit écran, son contenu peut défiler à l'intérieur du champ, avec sélection et copie de la valeur complète. L'aperçu et ses fichiers temporaires ont été nettoyés. Ce contrôle visuel précède les dernières retouches manuelles ; il n'a pas été rejoué à la reprise.
+
+Les anciens processus de lint/build interrompus n'étant plus accessibles, les contrôles ci-dessous ont été relancés sur l'état de cette reprise, avant la correction des tests :
+
+| Commande | Diagnostic du 15 septembre avant correction |
+|---|---|
+| `npm test -- --project frontend src/features/profile/ProfilePage.test.tsx src/app/AppRoutes.test.tsx` | **61 réussis, 19 échoués, 80 tests** : 17 échecs Profil et 2 échecs AppRoutes recherchaient encore le libellé `Identifiant MY.` au lieu de `MY.ID` |
+| `npm run lint` | **1 erreur**, `@typescript-eslint/no-floating-promises`, dans `ProfilePage.test.tsx:65`, sur l'appel `act` du test du temporisateur |
+| `npm run build`, avec typecheck | **Réussi**, 276 modules ; JS principal **576,03 kB / 165,16 kB gzip** |
+| `git diff --check` | **Réussi** ; avertissements Git de conversion LF/CRLF, sans erreur de whitespace |
+
+Il restait alors à aligner les sélecteurs de labels dans les deux fichiers de tests sur `MY.ID`, corriger le traitement du retour d'`act` dans le test de copie, puis revérifier ces tests et le lint. Le résultat antérieur de 80 tests réussis ne validait pas cet état. Les tests et l'interface n'avaient pas été modifiés pendant cette reprise, limitée aux vérifications et à ce complément documentaire. Les corrections et validations finales ci-dessous résolvent ce diagnostic.
+
+Documentation ajustée lors de cette reprise : `docs/04-UX-UI.md` et le présent rapport. Aucun changement Auth/backend, nouvelle dépendance, migration, opération Cloud, commit ou push. Les suites PostgreSQL, catalogue et suppression n'ont pas été relancées.
+
+### Clôture définitive du 15 septembre 2026
+
+Avant cette intervention, les vérifications Git ont confirmé la branche **`dev`**, un **arbre de travail propre** et le dernier commit **`d61075c` — `Polish profile identity UI and copy feedback`**.
+
+Seuls les sept sélecteurs de label concernés ont été alignés sur `MY.ID` dans `ProfilePage.test.tsx` et `AppRoutes.test.tsx`. Les noms accessibles du bouton, les messages de copie et d'indisponibilité ainsi que les mentions conceptuelles de l'identifiant MY. sont conservés.
+
+Le test du temporisateur conserve les fake timers. Il attend désormais `act(async () => { await vi.advanceTimersByTimeAsync(2200) })` : l'avance des 2,2 secondes et les mises à jour React sont terminées avant les assertions du retour à l'état initial. Aucune Promise retournée par cet appel n'est ignorée. Les assertions du statut vidé, du bouton disponible et du focus conservé restent en place.
+
+Les validations suivantes ont été exécutées après ces corrections, en commençant par les deux fichiers Profil et AppRoutes :
+
+| Commande | Résultat final du 15 septembre |
+|---|---|
+| `npm test -- --project frontend src/features/profile/ProfilePage.test.tsx src/app/AppRoutes.test.tsx` | **80/80 tests réussis, 2 fichiers**, code de sortie 0 |
+| `npm test -- --project frontend src/features/profile/ProfilePage.test.tsx src/services/auth.test.ts src/features/auth/auth-store.test.ts src/features/auth/auth-callback.test.ts src/features/auth/AuthProvider.test.tsx src/app/AppRoutes.test.tsx` | **130/130 tests réussis, 6 fichiers**, code de sortie 0 |
+| `npm run lint` | **Réussi, zéro erreur et zéro avertissement**, code de sortie 0 |
+| `npm run build`, avec typecheck | **Réussi**, code de sortie 0 ; 276 modules ; JS principal **576,03 kB / 165,16 kB gzip** |
+| `git diff --check` | **Réussi**, code de sortie 0, aucune erreur de whitespace ; avertissements Git de conversion LF/CRLF uniquement |
+
+Seul l'avertissement Vite préexistant sur la taille du bundle supérieur à 500 kB demeure, sans bloquer le build.
+
+Cette clôture modifie uniquement les deux fichiers de tests et le présent rapport. `docs/04-UX-UI.md` a été relu et reste inchangé, car sa description est cohérente avec l'UI validée. `ProfilePage.tsx` et les styles restent inchangés : libellé `MY.ID`, input texte readonly, dimensions et alignements, bouton Copier, coche verte pendant 2,2 secondes, feedback accessible masqué, texte « contacter un administrateur » et corrections CSS Profil/header/focus sont conservés. Aucun contrôle navigateur supplémentaire n'est revendiqué.
+
+Aucun changement Auth/backend, parcours email, mot de passe volontaire, UX de suppression, 4B.3, Phase 4D/5, dépendance ou migration. Aucun test pgTAP, catalogue, suppression 4B.3 ou Cloud, aucune opération Supabase local/Cloud, aucun déploiement Vercel, commit ou push.
+
+**La Phase 4C est définitivement clôturée.** La Phase 4 globale reste en cours ; les travaux 4D et le checkpoint cloud restent différés.

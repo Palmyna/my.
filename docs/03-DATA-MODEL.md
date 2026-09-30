@@ -118,6 +118,8 @@ Une variante peut sortir plus tard que la carte de base. Sa date effective utili
 
 Les variantes historiques conservent leurs dates persistées. Une correction de date ne crée pas une nouvelle variante et ne modifie pas son identité.
 
+La lecture autonome du détail Variante (6E.1) restitue `effective_release_date` et `date_origin` tels que persistés, sans recalcul. Son ID `BIGINT` est sérialisé en texte décimal ; ses stamps restent un tableau dans l'ordre stocké. Les métadonnées carte, extension et série sont indépendantes des collections et des exemplaires. Les valeurs absentes restent nulles ; seule l'image applique le fallback variante puis carte. L'inactivité, l'absence de la source ou la disponibilité française ne filtrent pas ce détail.
+
 #### Identité d'une variante
 
 Deux variantes réellement distinctes doivent toujours pouvoir être représentées par deux entités différentes. Leur identité peut exploiter les informations pertinentes fournies par TCGdex ou MY., notamment :
@@ -205,13 +207,13 @@ Une collection appartient à exactement un utilisateur. Elle doit pouvoir conser
 - ses paramètres fonctionnels ;
 - les informations nécessaires à son affichage.
 
-La V1 distingue les collections libres et les collections automatiques. Une collection automatique possède une cible dont le type est soit Pokémon, soit Set.
+La V1 distingue les collections personnalisées et les collections automatiques. Une collection automatique possède une cible dont le type est soit Pokémon, soit Set.
 
 Le nom de toute collection comporte au moins **3 caractères utiles après trim**, à la création et au renommage.
 
-### Collections libres
+### Collections personnalisées
 
-Une collection libre ne possède pas de cible automatique. Son propriétaire sélectionne et ordonne librement des variantes existantes dans le catalogue MY.
+Une collection personnalisée ne possède pas de cible automatique. Son propriétaire sélectionne et ordonne librement des variantes existantes dans le catalogue MY.
 
 La V1 ne permet pas de créer une carte personnalisée qui n'existe pas dans le catalogue. Si une carte ou une variante française réelle manque, elle doit être ajoutée ou corrigée dans le catalogue global, et non créée uniquement dans une collection utilisateur.
 
@@ -226,7 +228,7 @@ Deux cas existent dans la V1 :
 
 Une collection automatique ne peut pas cibler simultanément un Pokémon et un set. Une cible Set désigne une extension précise, non une série ou un bloc TCGdex.
 
-Le couple propriétaire + cible est unique pour chaque type automatique : au maximum une collection Pokémon par propriétaire/Pokémon et une collection Extension par propriétaire/Set. Cette règle ne concerne pas les collections libres et n'empêche pas deux propriétaires de choisir la même cible.
+Le couple propriétaire + cible est unique pour chaque type automatique : au maximum une collection Pokémon par propriétaire/Pokémon et une collection Extension par propriétaire/Set. Cette règle ne concerne pas les collections personnalisées et n'empêche pas deux propriétaires de choisir la même cible.
 
 Une collection par extension peut inclure toutes les catégories présentes dans le set, notamment les Pokémon, Dresseurs, Énergies et autres catégories.
 
@@ -262,27 +264,29 @@ Chaque élément doit être identifiable comme automatique ou manuel.
 Un élément automatique :
 
 - est généré par MY. ;
-- suit l'ordre canonique ;
+- conserve `origin = automatic` et son rang canonique système `automatic_rank` lors d'un déplacement ;
 - ne peut pas être supprimé manuellement ;
-- ne peut pas être librement réordonné.
+- peut être librement réordonné par le propriétaire, tout en restant structurellement géré par MY.
 
 Un élément manuel :
 
-- est ajouté par l'utilisateur ;
+- est ajouté par l'utilisateur, avec `origin = manual` et sans `automatic_rank` ;
 - référence toujours une variante existante ;
 - peut être déplacé ;
 - peut être supprimé.
 
-Dans une collection automatique, les éléments manuels peuvent être placés entre les éléments automatiques sans modifier l'ordre relatif de ces derniers.
+Dans une collection automatique, le propriétaire peut réordonner tous les éléments, automatiques comme manuels.
 
 ### Ordre d'une collection
 
 Le modèle doit représenter un ordre stable des éléments :
 
-- dans une collection libre, l'ordre est contrôlé par l'utilisateur ;
-- dans une collection automatique, les éléments automatiques suivent l'ordre canonique de MY. et les éléments manuels sont positionnables librement autour d'eux.
+- dans une collection personnalisée, l'ordre est contrôlé par l'utilisateur ;
+- dans une collection automatique, l'ordre canonique de MY. initialise la collection ; tous les éléments sont ensuite positionnables librement.
 
-La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. L'ancrage et le repositionnement des éléments manuels lors d'une synchronisation restent ouverts.
+`automatic_rank` est le rang canonique système ; `sort_position` est l'ordre réel affiché dans cette collection. Un déplacement automatique ne modifie que `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique ou `automatic_target_states`. Deux collections de même cible/version peuvent contenir les mêmes éléments automatiques avec des `sort_position` différents.
+
+La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. Les primitives 6A.3 et 6C.1 calculent les positions en PostgreSQL et sérialisent réorganisation, ajout et retrait par verrou de la collection. Un ajout manuel accepte `start` ou `end` (défaut), avec rééquilibrage si nécessaire ; le retrait ne compacte pas l'ordre. Le placement d'un nouvel élément automatique et la stratégie de préservation/ancrage de l'ordre personnalisé lors des mises à jour restent à cadrer en Phase 8.
 
 ### Ordre canonique du catalogue
 
@@ -326,10 +330,10 @@ Ce résumé peut être calculé à la demande, stocké temporairement ou persist
 Après validation explicite de l'utilisateur :
 
 - les nouveaux éléments automatiques nécessaires sont ajoutés ;
-- leur ordre canonique est appliqué ;
+- leurs `automatic_rank` sont mis à jour, en préservant autant que possible l'ordre personnalisé sans réinitialisation arbitraire de `sort_position` vers l'ordre canonique ;
 - les éléments automatiques encore éligibles sont conservés ;
-- les éléments automatiques devenus non éligibles peuvent être retirés de la collection ;
-- un élément manuel devenu automatiquement éligible est converti sans être dupliqué ;
+- les éléments automatiques devenus non éligibles sont retirés de la collection ;
+- un élément manuel devenu automatiquement éligible conserve le même `collection_item`, passe à `origin = automatic`, reçoit son `automatic_rank` et conserve autant que possible son `sort_position`, sans doublon ;
 - les autres éléments manuels sont préservés ;
 - les exemplaires physiques restent inchangés ;
 - les notes et autres informations personnelles restent inchangées.
@@ -349,7 +353,7 @@ Exemplaire physique N → 1 Variante
 
 Un exemplaire physique **n'appartient pas à une collection particulière**. Il appartient globalement au compte de l'utilisateur.
 
-Si une même variante apparaît dans plusieurs collections du même utilisateur — par exemple une collection Pokémon, une collection par extension et une collection libre — chacune reflète les mêmes exemplaires physiques. Aucun exemplaire supplémentaire ne doit être créé pour cette raison.
+Si une même variante apparaît dans plusieurs collections du même utilisateur — par exemple une collection Pokémon, une collection par extension et une collection personnalisée — chacune reflète les mêmes exemplaires physiques. Aucun exemplaire supplémentaire ne doit être créé pour cette raison.
 
 ### Plusieurs exemplaires
 
@@ -368,15 +372,14 @@ Un état de possession indépendant par collection ne doit pas devenir une sourc
 
 Chaque exemplaire peut conserver :
 
-- son état de conservation ;
-- une note personnelle ;
-- son statut gradé ou non ;
-- sa société de grading ;
-- sa note de grading.
+- un nom personnalisé facultatif ;
+- un état / note personnel facultatif, en texte libre multiligne, limité à 750 caractères Unicode.
 
 Deux exemplaires de la même variante peuvent porter des informations différentes.
 
-La condition et les informations de grading appartiennent à l'exemplaire, jamais à la carte source, à la variante ou à l'élément de collection. Le modèle ne doit pas supposer que toutes les sociétés de grading utilisent la même échelle. La nomenclature des conditions et le format des notes de grading restent ouverts.
+Depuis 6A.2, aucun champ structuré de condition ou de grading n'est actif. Une information de conservation ou de grading peut être écrite librement dans la note, sans parsing ni nomenclature métier. Ces métadonnées appartiennent à l'exemplaire, jamais à la carte source, à la variante ou à l'élément de collection.
+
+Un nom vide devient `NULL` ; l'affichage sans nom utilise `Exemplaire N`, recalculé selon l'ordre des exemplaires, sans persister ce libellé. Une note vide ou composée uniquement d'espaces blancs devient `NULL`. Les espaces et retours à la ligne d'un texte utile sont conservés.
 
 Les notes personnelles appartiennent également à l'utilisateur. Elles peuvent décrire un défaut, une provenance, un achat, un rangement ou tout commentaire personnel.
 
@@ -514,7 +517,7 @@ Le futur modèle technique doit permettre de garantir autant que possible que :
 - son nom contient au moins 3 caractères utiles après trim ;
 - un propriétaire possède au maximum une collection automatique pour une même cible Pokémon ou Set ;
 - les préférences de vues sont uniques par profil, privées et limitées aux valeurs autorisées ;
-- une collection libre ne possède pas de cible automatique ;
+- une collection personnalisée ne possède pas de cible automatique ;
 - une collection automatique possède exactement un type de cible ;
 - une collection automatique de type Pokémon possède un Pokémon cible ;
 - une collection automatique de type Set possède un set cible ;
@@ -575,10 +578,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;
-- l'algorithme de positionnement des éléments manuels ;
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
-- la nomenclature des conditions ;
-- les sociétés de grading et le format de leurs notes ;
 - la persistance du format et du mode d'organisation du classeur ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;

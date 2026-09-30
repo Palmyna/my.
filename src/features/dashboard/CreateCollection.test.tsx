@@ -1,0 +1,274 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { MemoryRouter } from 'react-router'
+import { CollectionsError, createFree, listDashboardCollections } from '../../services/collections'
+import type { DashboardCollection } from '../../types/collections'
+import { DashboardPage } from './DashboardPage'
+import { CreateCollection } from './CreateCollection'
+import { dashboardCollectionsKey } from './dashboard-query'
+
+const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true, passwordChanged: false }))
+vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
+vi.mock('../../services/collections', async importOriginal => ({
+  ...await importOriginal<typeof import('../../services/collections')>(),
+  createFree: vi.fn(), listDashboardCollections: vi.fn(),
+}))
+const create = vi.mocked(createFree)
+const load = vi.mocked(listDashboardCollections)
+const collection: DashboardCollection = { collectionId: 'server-id', name: 'Nom relu du serveur', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
+
+beforeAll(() => {
+  // jsdom: native modal/inert behavior is checked separately in the browser.
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
+})
+beforeEach(() => {
+  auth.user = { id: 'owner' }
+  create.mockReset().mockResolvedValue({ collectionId: 'server-id' })
+  load.mockReset().mockResolvedValue([])
+})
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
+function setup() {
+  const client = new QueryClient({ defaultOptions: { queries: { gcTime: Infinity } } })
+  const tree = () => <QueryClientProvider client={client}><MemoryRouter><DashboardPage /></MemoryRouter></QueryClientProvider>
+  const view = render(tree())
+  return { client, unmount: view.unmount, rerender: () => view.rerender(tree()) }
+}
+function open() {
+  const trigger = screen.getByRole('button', { name: 'Créer une collection personnalisée' })
+  trigger.focus(); fireEvent.click(trigger)
+  return trigger
+}
+const nameInput = () => screen.getByRole('textbox', { name: 'Nom de la collection' })
+const name = (value: string) => fireEvent.change(nameInput(), { target: { value } })
+const submit = () => fireEvent.submit(nameInput().closest('form')!)
+
+test('le FAB suit la partie visible du footer et nettoie ses observations au démontage', () => {
+  let footerTop = window.innerHeight - 20
+  const measure = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    .mockImplementation(() => new DOMRect(0, footerTop, 390, 80))
+  let resized!: () => void
+  const disconnect = vi.fn()
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: () => void) { resized = callback }
+    observe = vi.fn()
+    disconnect = disconnect
+  })
+  const { unmount } = render(<div className="authenticated-shell">
+    <main><CreateCollection userId="owner" /></main>
+    <footer className="site-footer">Conditions d’utilisation</footer>
+  </div>)
+  const trigger = screen.getByRole('button', { name: 'Créer une collection personnalisée' })
+  const overlap = () => trigger.style.getPropertyValue('--fab-footer-overlap')
+  expect(overlap()).toBe('20px')
+  footerTop = window.innerHeight + 100
+  fireEvent.scroll(window)
+  expect(overlap()).toBe('0px')
+  for (const visible of [1, 8, 24, 48, 80]) {
+    footerTop = window.innerHeight - visible
+    fireEvent.scroll(window)
+    expect(overlap()).toBe(`${visible}px`)
+  }
+  footerTop = window.innerHeight - 32
+  fireEvent.resize(window)
+  expect(overlap()).toBe('32px')
+  footerTop = window.innerHeight + 100
+  resized()
+  expect(overlap()).toBe('0px')
+  unmount()
+  expect(disconnect).toHaveBeenCalledOnce()
+  measure.mockClear()
+  fireEvent.scroll(window)
+  fireEvent.resize(window)
+  expect(measure).not.toHaveBeenCalled()
+})
+
+test.each([{ entries: [] }, { entries: [collection] }])('FAB unique avec ou sans collection et formulaire personnalisé accessible : $entries', async ({ entries }) => {
+  load.mockResolvedValue(entries)
+  setup()
+  await waitFor(() => expect(screen.queryByText('Chargement des collections…')).not.toBeInTheDocument())
+  expect(screen.getAllByRole('button', { name: 'Créer une collection personnalisée' })).toHaveLength(1)
+  const trigger = open()
+  expect(trigger).toHaveAttribute('aria-label', 'Créer une collection personnalisée')
+  expect(trigger).toHaveClass('dashboard-fab')
+  expect(trigger).toHaveTextContent('+')
+  const modal = screen.getByRole('dialog', { name: 'Collection personnalisée' })
+  expect(modal).toHaveAttribute('open')
+  expect(modal).toHaveAccessibleDescription('Créez une collection personnalisée et ajoutez-y les cartes de votre choix.')
+  expect(nameInput()).toHaveFocus()
+  expect(within(modal).queryByText(/automatique|bientôt/i)).not.toBeInTheDocument()
+})
+
+test('boucle clavier, Annuler et Échap restituent le focus et réinitialisent le formulaire', () => {
+  setup()
+  const trigger = open()
+  name('Brouillon')
+  fireEvent.keyDown(nameInput(), { key: 'Tab', shiftKey: true })
+  expect(screen.getByRole('button', { name: 'Créer la collection' })).toHaveFocus()
+  fireEvent.keyDown(document.activeElement!, { key: 'Tab' })
+  expect(nameInput()).toHaveFocus()
+  fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(trigger).toHaveFocus()
+  open()
+  expect(nameInput()).toHaveValue('')
+  submit()
+  expect(screen.getByRole('alert')).toBeVisible()
+  fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: false, cancelable: true }))
+  expect(trigger).toHaveFocus()
+  open()
+  expect(nameInput()).toHaveValue('')
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(create).not.toHaveBeenCalled()
+})
+
+test.each(['', '   ', ' ab ', '😀😀'])('validation locale %j sans mutation ni modification du champ', value => {
+  setup(); open(); name(value); submit()
+  expect(nameInput()).toHaveValue(value)
+  expect(nameInput()).toHaveAttribute('aria-invalid', 'true')
+  expect(nameInput()).toHaveFocus()
+  expect(nameInput()).toHaveAccessibleDescription(/au moins 3 caractères/i)
+  expect(screen.getByRole('alert')).toBeVisible()
+  expect(create).not.toHaveBeenCalled()
+})
+
+test('pending empêche double soumission et fermeture ; succès ferme puis refetch exact sans tuile fabriquée', async () => {
+  let finish!: (result: { collectionId: string }) => void
+  let finishRead!: (result: DashboardCollection[]) => void
+  create.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  const { client } = setup()
+  await screen.findByText('Aucune collection pour le moment.')
+  client.setQueryData(dashboardCollectionsKey('other-owner'), ['untouched'])
+  client.setQueryData(['unrelated'], ['untouched'])
+  const invalidate = vi.spyOn(client, 'invalidateQueries')
+  const trigger = open()
+  name(' \tMa collection 😀  '); submit(); submit()
+  await waitFor(() => expect(create).toHaveBeenCalledOnce())
+  expect(create.mock.calls[0]?.[0]).toEqual({ name: ' \tMa collection 😀  ' })
+  expect(nameInput()).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Création…' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Annuler' })).toBeDisabled()
+  expect(screen.getByRole('status')).toHaveTextContent('Création en cours')
+  expect(screen.getByRole('heading', { name: 'Collection personnalisée' })).toHaveFocus()
+  fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: false, cancelable: true }))
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  load.mockReturnValueOnce(new Promise(resolve => { finishRead = resolve }))
+  await act(async () => { finish({ collectionId: 'server-id' }); await Promise.resolve() })
+  expect(await screen.findByText('Collection créée.')).toHaveAttribute('role', 'status')
+  expect(screen.getByText('Collection créée.')).toHaveClass('visually-hidden')
+  expect(trigger).toHaveAttribute('data-state', 'success')
+  expect(trigger).toHaveTextContent('✓')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(trigger).toHaveFocus()
+  expect(invalidate).toHaveBeenCalledExactlyOnceWith({ queryKey: dashboardCollectionsKey('owner'), exact: true })
+  expect(load).toHaveBeenCalledTimes(2)
+  expect(screen.queryByRole('article')).not.toBeInTheDocument()
+  expect(client.getQueryState(dashboardCollectionsKey('other-owner'))?.isInvalidated).toBe(false)
+  expect(client.getQueryState(['unrelated'])?.isInvalidated).toBe(false)
+  await act(async () => { finishRead([collection]); await Promise.resolve() })
+  expect(await screen.findByRole('article', { name: 'Nom relu du serveur' })).toBeVisible()
+  open()
+  expect(nameInput()).toHaveValue('')
+  expect(screen.queryByText('Collection créée.')).not.toBeInTheDocument()
+})
+
+test('création pendant la première lecture : recharge le Dashboard et ignore la réponse antérieure', async () => {
+  let finishInitialRead!: (result: DashboardCollection[]) => void
+  load.mockReturnValueOnce(new Promise(resolve => { finishInitialRead = resolve })).mockResolvedValue([collection])
+  const { client } = setup()
+  expect(screen.getByText('Chargement des collections…')).toBeVisible()
+  open(); name('Ma collection'); submit()
+  await screen.findByText('Collection créée.')
+  expect(await screen.findByRole('article', { name: collection.name })).toBeVisible()
+  expect(load).toHaveBeenCalledTimes(2)
+  await act(async () => { finishInitialRead([]); await Promise.resolve() })
+  expect(client.getQueryData(dashboardCollectionsKey('owner'))).toEqual([collection])
+  expect(screen.getByRole('article', { name: collection.name })).toBeVisible()
+})
+
+test.each([
+  ['invalid_name', /au moins 3 caractères/i],
+  ['not_authorized', /Reconnectez-vous/],
+  ['unexpected', /Vérifiez vos collections/],
+] as const)('erreur %s maintient le dialog et propose un message sûr', async (code, message) => {
+  create.mockRejectedValue(new CollectionsError(code))
+  const { client } = setup()
+  const invalidate = vi.spyOn(client, 'invalidateQueries')
+  open(); name('Nom intact'); submit()
+  const error = await screen.findByRole('alert')
+  expect(error).toHaveTextContent(message)
+  expect(screen.getByRole('dialog')).toBeVisible()
+  expect(nameInput()).toHaveValue('Nom intact')
+  expect(screen.queryByText(code)).not.toBeInTheDocument()
+  expect(invalidate).not.toHaveBeenCalled()
+  if (code === 'invalid_name') {
+    expect(nameInput()).toHaveAttribute('aria-invalid', 'true')
+    expect(nameInput()).toHaveFocus()
+  } else expect(error).toHaveFocus()
+  expect(screen.getByRole('button', { name: 'Créer la collection' })).toBeEnabled()
+  expect(create).toHaveBeenCalledOnce()
+})
+
+test('ne montre jamais une erreur brute et permet de corriger puis soumettre', async () => {
+  create.mockRejectedValueOnce(new Error('PostgREST secret payload')).mockResolvedValueOnce({ collectionId: 'server-id' })
+  setup(); open(); name('Mon nom'); submit()
+  await screen.findByRole('alert')
+  expect(screen.queryByText(/PostgREST|secret payload/)).not.toBeInTheDocument()
+  name('Autre nom'); submit()
+  expect(await screen.findByText('Collection créée.')).toHaveClass('visually-hidden')
+  expect(create).toHaveBeenCalledTimes(2)
+})
+
+test('un changement de compte ferme le formulaire et ne transfère pas son brouillon', () => {
+  const { rerender } = setup()
+  open(); name('Ancien compte')
+  auth.user = { id: 'other-owner' }; rerender()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  open()
+  expect(nameInput()).toHaveValue('')
+})
+
+test('le FAB revient de ✓ à + après deux secondes', async () => {
+  setup()
+  await screen.findByText('Aucune collection pour le moment.')
+  vi.useFakeTimers()
+  const trigger = open()
+  name('Nouvelle collection'); submit()
+  await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+  expect(trigger).toHaveAttribute('data-state', 'success')
+  expect(trigger).toHaveTextContent('✓')
+  expect(screen.getByRole('status')).toHaveTextContent('Collection créée.')
+  await act(async () => { await vi.advanceTimersByTimeAsync(1900) })
+  expect(trigger).toHaveTextContent('✓')
+  await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+  expect(trigger).toHaveAttribute('data-state', 'idle')
+  expect(trigger).toHaveTextContent('+')
+  expect(screen.queryByText('Collection créée.')).not.toBeInTheDocument()
+})
+
+test.each(['réouverture', 'démontage', 'changement de compte'])('nettoie le timer de succès : %s', async action => {
+  const { rerender, unmount } = setup()
+  await screen.findByText('Aucune collection pour le moment.')
+  vi.useFakeTimers()
+  const schedule = vi.spyOn(window, 'setTimeout')
+  const clear = vi.spyOn(window, 'clearTimeout')
+  open(); name('Nouvelle collection'); submit()
+  await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+  expect(screen.getByText('Collection créée.')).toHaveClass('visually-hidden')
+  const timerIndex = schedule.mock.calls.findIndex(([, delay]) => delay === 2000)
+  expect(timerIndex).toBeGreaterThanOrEqual(0)
+  const timer: unknown = schedule.mock.results[timerIndex]!.value
+  if (action === 'réouverture') open()
+  else if (action === 'démontage') unmount()
+  else { auth.user = { id: 'other-owner' }; rerender() }
+  expect(clear).toHaveBeenCalledWith(timer)
+  expect(screen.queryByText('Collection créée.')).not.toBeInTheDocument()
+  if (action !== 'démontage') {
+    const trigger = screen.getByRole('button', { name: 'Créer une collection personnalisée' })
+    expect(trigger).toHaveAttribute('data-state', 'idle')
+    expect(trigger).toHaveTextContent('+')
+  }
+  await act(async () => { await vi.advanceTimersByTimeAsync(2100) })
+  expect(screen.queryByText('Collection créée.')).not.toBeInTheDocument()
+})

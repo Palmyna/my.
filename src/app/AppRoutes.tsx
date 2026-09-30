@@ -4,6 +4,7 @@ import { useAuth } from '../features/auth/auth-context'
 import { AuthLayout } from '../features/auth/AuthLayout'
 import { AuthProblemPage, ConfirmEmailPage, ConfirmEmailChangePage, ForgotPasswordPage, HomePage, LoginPage, MfaChallengePage, MfaEnrollPage, ResetPasswordPage, SignupPage } from '../features/auth/AuthPages'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { CollectionPage } from '../features/collections/CollectionPage'
 import { ProfilePage } from '../features/profile/ProfilePage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { AuthenticatedLayout } from './AuthenticatedLayout'
@@ -38,8 +39,9 @@ export function AppRoutes() {
         <Route path="/auth/mfa/challenge" element={auth.status === 'mfa_challenge_required' ? <MfaChallengePage /> : <Navigate to="/login" replace />} />
         <Route path="/reset-password" element={auth.status === 'password_reset_required' ? <ResetPasswordPage /> : <AuthLayout title="Demandez un nouveau lien." intro="Ouvrez le lien reçu par email pour réinitialiser votre mot de passe."><Link className="button primary" to="/forgot-password">Recevoir un lien</Link></AuthLayout>} />
       </Route>
-      <Route element={auth.isAuthorized ? <AuthenticatedLayout /> : <Navigate to="/login" replace />}>
+      <Route element={auth.isAuthorized ? <AuthenticatedLayout /> : <Navigate to={auth.accountDeleted ? '/' : '/login'} replace />}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/collections/:collectionId" element={<CollectionPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

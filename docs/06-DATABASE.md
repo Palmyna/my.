@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Ce document distingue les Phases 1 et 2 et la préparation des préférences déjà déployées dans le cloud, le socle Auth 3A validé localement et dans Supabase cloud et les opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Les **23 migrations**, dont **12 Phase 6**, sont appliquées Local/Cloud et alignées jusqu'à `20260928083830`, selon le checkpoint Cloud exécuté manuellement par le propriétaire après l'audit technique. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -18,7 +18,7 @@ Le socle stable est implémenté dans les [migrations versionnées](../supabase/
 
 La Phase 1 est terminée et déployée dans Supabase cloud. La Phase 2 est également terminée : [20260906155043_phase2_catalog_pipeline.sql](../supabase/migrations/20260906155043_phase2_catalog_pipeline.sql) et [20260908083516_phase2_variant_release_dates.sql](../supabase/migrations/20260908083516_phase2_variant_release_dates.sql) y sont présentes, soit les **cinq migrations des Phases 1 et 2**. Le catalogue Phase 2 y a été chargé et vérifié selon la validation du propriétaire consignée dans le [README](../README.md#état-du-projet). Les tables utilisateur étaient encore vides lors de cette validation. Le pipeline reste local/protégé ; cette restriction ne décrit pas la localisation du catalogue résultant.
 
-La migration pipeline apporte les stamps multiples et trois tables privées, sans modifier les migrations précédentes. Les RPC utilisateur et le frontend métier restent à développer.
+La migration pipeline apporte les stamps multiples et trois tables privées, sans modifier les migrations précédentes. À l'issue de la Phase 2, les RPC utilisateur et le frontend métier restaient à développer ; la création automatique et le premier périmètre Collections sont désormais livrés en Phase 5.
 
 La migration de dates de variantes, créée avec la CLI, ajoute la date effective et sa provenance aux variantes. Elle conserve les IDs et backfille la valeur depuis les cartes. Faute de provenance historique persistée sur les cartes, le backfill utilise honnêtement `unknown`, même lorsque la date est connue ; la synchronisation suivante recalcule les provenances correctes. Elle fonctionne aussi lors d'une reconstruction complète depuis les migrations. Le catalogue cloud validé ne comporte aucune date de Variante NULL ni nom français Pokémon manquant ; `sm3.5-28` possède cinq variantes après override.
 
@@ -34,7 +34,25 @@ La migration [20260909184529_phase3a_auth_identity.sql](../supabase/migrations/2
 
 La V1 utilise email/mot de passe, email confirmé obligatoire et TOTP obligatoire. La configuration Auth et la [procédure de récupération administrative](05-ARCHITECTURE.md#récupération-mfa-administrative) sont définies dans l'architecture. La présence d'un profil n'accorde pas l'accès : toutes les données applicatives nécessitent `aal2`.
 
-La Phase 4 est cadrée et en cours d'implémentation. Les [protections des actions du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) distinguent email/mot de passe gérés par Auth et suppression renforcée côté serveur MY. Le changement d'email et le backend de suppression sont livrés localement. La nouvelle migration [20260914102414_phase4b3_account_deletion.sql](../supabase/migrations/20260914102414_phase4b3_account_deletion.sql) ajoute le trigger privé de nettoyage et les restrictions RLS contre les JWT d'un compte supprimé, sans table ni FK supplémentaire. Elle porte le total local à **huit migrations**, sans déploiement cloud. Le changement volontaire de mot de passe attend sa validation cloud ciblée à la clôture de Phase 4.
+La **Phase 4 est terminée**. Les [protections des actions du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) distinguent email/mot de passe gérés par Auth et suppression renforcée côté serveur MY. La migration [20260914102414_phase4b3_account_deletion.sql](../supabase/migrations/20260914102414_phase4b3_account_deletion.sql) ajoute le trigger privé de nettoyage et les restrictions RLS contre les JWT d'un compte supprimé, sans table ni FK supplémentaire. Elle est appliquée localement et dans le Cloud, soit **huit migrations**. Les [Phases 4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) et [4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) livrent les formulaires password et suppression sans évolution SQL. Le [checkpoint 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) valide réellement les refus `current_password`, le recovery, la MFA, la fonction de suppression, le nettoyage des données propres et les lectures vides avec un ancien JWT. Aucun schéma, migration, RLS, type ou réglage Cloud n'est modifié pendant ce checkpoint.
+
+## Phase 5 — Collections
+
+Les trois migrations suivantes sont présentes dans le dépôt, validées localement et déployées sur Supabase Cloud :
+
+| Migration | Responsabilité |
+|---|---|
+| [20260920134607_phase5_canonical_collection_structure.sql](../supabase/migrations/20260920134607_phase5_canonical_collection_structure.sql) | Calcul canonique PostgreSQL interne, ordres et rangs des variantes éligibles |
+| [20260920140934_phase5_create_automatic_collection.sql](../supabase/migrations/20260920140934_phase5_create_automatic_collection.sql) | RPC de création automatique atomique, contrôle de l'état/version et du hash, gestion des créations concurrentes |
+| [20260920194903_phase5_dashboard_collections.sql](../supabase/migrations/20260920194903_phase5_dashboard_collections.sql) | Lecture Dashboard/overview, accès owned/shared et progression du propriétaire sous RLS |
+
+À la clôture de Phase 5, le propriétaire confirme le déploiement manuel et l'alignement des historiques Local/Remote jusqu'à `20260920194903`, soit onze migrations à ce checkpoint. L'audit 5E.1 valide la reconstruction locale sans diff, la parité canonique et les tests DB/concurrence. Le [rapport de clôture](reports/2026-09-23-PHASE5-CLOSURE.md) conserve ces résultats ; aucun nouveau contrôle ni changement Cloud n'est effectué en 5E.2.
+
+## Phase 6 — Clôture et alignement
+
+**Phase 6 terminée et validée.** Les 12 migrations Phase 6 listées dans le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md#migrations) complètent les onze précédentes : **23 Local et 23 Remote**, alignées jusqu'à `20260928083830`. Le propriétaire a exécuté manuellement le checkpoint Supabase Cloud après l'audit technique de Codex : état initial 23 Local / 11 Remote, dry-run annonçant exactement les 12 migrations Phase 6, push des 12 sans erreur, état final 23/23 et dry-run final sans migration restante. Ces résultats manuels sont consignés sans nouvel accès Cloud pendant la clôture documentaire.
+
+Audit technique final exécuté précédemment par Codex, validé et fourni pour cette clôture : **DB/pgTAP PASS, 18 fichiers / 977 assertions** ; **Frontend/Vitest PASS, 40 fichiers / 1 202 tests** ; `db:lint`, `typecheck`, `lint`, `build`, `diff-check` PASS ; `db:types` PASS sans diff. Aucune suite ni génération de types n'est relancée ici. Les contrats finaux sont détaillés ci-dessous ; Phase 7 reste seulement planifiée.
 
 ## Principes structurants
 
@@ -338,6 +356,31 @@ TCGdex reste la source principale, mais une correction MY. validée a priorité.
 
 Le catalogue ne stocke pas systématiquement le payload JSON complet de chaque entité TCGdex. Il conserve les données utiles au produit, à la synchronisation et à la traçabilité, ainsi que les métadonnées techniques ciblées réellement nécessaires.
 
+### Lecture du détail Variante — contrat 6E.1
+
+La [migration additive 6E.1](../supabase/migrations/20260928083830_phase6e1_variant_detail.sql) ajoute `public.get_variant_detail(p_variant_id bigint) returns jsonb`, `STABLE`, `SECURITY INVOKER`, `SET search_path = ''`. Elle est strictement en lecture seule : jointures `catalog_variants → source_cards → tcg_sets → tcg_series`, dont les relations sont obligatoires et protégées par clés étrangères. Aucun filtre d'activité, de présence source ou de disponibilité française ; toute variante existante visible sous RLS, même historique/inactive, reste consultable.
+
+Payload exact, sans autre champ :
+
+```text
+variant_id, image_url,
+card_name_fr, local_id, rarity, category,
+set_name_fr, set_name_source, set_abbreviation_fr, set_abbreviation,
+series_name_fr, series_name_source,
+variant_label, variant_type, variant_subtype, variant_size, variant_foil, variant_stamps,
+effective_release_date, date_origin
+```
+
+`variant_id` est `catalog_variants.id::text`, y compris au-delà de `Number.MAX_SAFE_INTEGER`. L'image est `COALESCE(catalog_variants.image_url, source_cards.image_url)` ; tous les autres champs sont projetés tels quels, sans fallback textuel. `stamp TEXT[]` devient `variant_stamps`, sans concaténation, tri ni déduplication. `effective_release_date` et `date_origin` proviennent de la variante persistée, sans recalcul depuis la carte ou le set. Tous les champs descriptifs et la date sont nullables ; l'ID, le tableau de stamps et `date_origin` ne le sont pas. Une provenance `unknown` n'impose pas une date nulle.
+
+Les grants `SELECT` catalogue existants permettent `SECURITY INVOKER`. `EXECUTE` est révoqué à `PUBLIC`, `anon`, `authenticated` et `service_role`, puis accordé seulement à `authenticated`. Les RLS `require_mfa` et `require_my_profile` restent actives sur les quatre tables : `aal1`, claim absent, identité absente ou profil supprimé ne donnent aucune donnée. Leur prédicat de profil existant s'exécute sous RLS ; la RPC ne lit directement aucune table utilisateur et n'ajoute aucun contrôle ou privilège sur `profiles`.
+
+ID inexistant ou `NULL` : résultat SQL `NULL`. Une variante invisible sous RLS donne aussi `NULL`, sans révéler son existence. Les rôles sans `EXECUTE` reçoivent un refus de permission. Le [service dédié](../src/services/variant-detail.ts) traduit ces résultats en `variant_unavailable` ou, pour les refus explicites, `not_authorized` ; son décodeur strict renvoie `unexpected` hors contrat.
+
+Aucune lecture directe ni exposition de `physical_copies`, `collections`, `collection_items`, `collection_shares` ou `profiles` : ni possession, exemplaires, notes, origine Auto/Perso, ni `collection_id`. La consultation n'exige aucune collection. Les [tests pgTAP ciblés](../supabase/tests/database/018_variant_detail.test.sql) vérifient aussi la lecture après retrait transactionnel des grants directs sur ces cinq tables, sans contourner le prédicat RLS de profil.
+
+Migration appliquée sur **Supabase Local et Cloud** : 23 migrations alignées jusqu'à `20260928083830`, types Supabase régénérés depuis le schéma local. Les tests DB et [service/décodeur](../src/services/variant-detail.test.ts) couvrent ce contrat. Le consommateur Collection 6E.2 est livré, sans route dédiée, avec panneau desktop, plein écran mobile et exemplaires intégrés. Retour arrière : retirer le consommateur puis `DROP FUNCTION public.get_variant_detail(bigint)` dans une nouvelle migration ; aucune donnée stockée ni ancien lecteur n'est modifié.
+
 ### Conservation du catalogue
 
 La disparition d'une donnée dans TCGdex ne déclenche pas sa suppression physique automatique. Le modèle distingue :
@@ -432,18 +475,18 @@ Une collection appartient à exactement un utilisateur. La table conserve notamm
 | `id UUID` | Identité de la collection |
 | `owner_id UUID` | Propriétaire unique |
 | `name` | Nom de la collection |
-| `collection_type` | Collection libre ou automatique |
+| `collection_type` | Collection personnalisée ou automatique |
 | `automatic_target_type` | Type de cible d'une collection automatique |
 | `target_pokemon_id` | Cible Pokémon éventuelle |
 | `target_set_id` | Cible Extension éventuelle |
 | `applied_target_version` | Version de structure réellement appliquée |
 | timestamps | Création et mise à jour |
 
-`collection_type` utilise `free` et `automatic`. `automatic_target_type` utilise `pokemon` et `set`. Ces valeurs sont représentées par `TEXT + CHECK`, comme les origines et la disponibilité française, pour faciliter les migrations d'une jeune application sans enum PostgreSQL figé.
+`collection_type` utilise `free` (collection personnalisée dans l'interface) et `automatic`. `automatic_target_type` utilise `pokemon` et `set`. Ces valeurs sont représentées par `TEXT + CHECK`, comme les origines et la disponibilité française, pour faciliter les migrations d'une jeune application sans enum PostgreSQL figé.
 
 Le type d'une collection est stable après sa création dans la V1.
 
-`collections_name_check` exige désormais `char_length(btrim(name, espaces_de_bord)) >= 3`. L'ensemble des espaces de bord correspond au trim JavaScript (espaces, tabulations, sauts de ligne et espaces Unicode concernés). Le contrôle compte les caractères, pas les octets UTF-8 ; il ne réécrit pas le nom stocké et conserve les espaces internes. Il s'applique aux créations et renommages libres comme automatiques ; `NOT NULL` reste en place.
+`collections_name_check` exige désormais `char_length(btrim(name, espaces_de_bord)) >= 3`. L'ensemble des espaces de bord correspond au trim JavaScript (espaces, tabulations, sauts de ligne et espaces Unicode concernés). Le contrôle compte les caractères, pas les octets UTF-8 ; il ne réécrit pas le nom stocké et conserve les espaces internes. Il s'applique aux créations et renommages de collections personnalisées comme automatiques ; `NOT NULL` reste en place.
 
 #### Contraintes de cible
 
@@ -451,7 +494,7 @@ Les invariants suivants doivent être garantis par la base, et pas uniquement pa
 
 | Cas | Type de cible | Pokémon | Set | Version appliquée |
 |---|---|---|---|---|
-| Collection libre | Absente | Absent | Absent | Absente |
+| Collection personnalisée | Absente | Absent | Absent | Absente |
 | Automatique Pokémon | `pokemon` | Obligatoire | Absent | Obligatoire |
 | Automatique Extension | `set` | Absent | Obligatoire | Obligatoire |
 
@@ -462,7 +505,7 @@ Un propriétaire possède **au maximum une collection automatique par cible**. D
 - `collections_owner_pokemon_unique` sur `(owner_id, target_pokemon_id)` lorsque `collection_type = 'automatic' AND automatic_target_type = 'pokemon'` ;
 - `collections_owner_set_unique` sur `(owner_id, target_set_id)` lorsque `collection_type = 'automatic' AND automatic_target_type = 'set'`.
 
-`collections_target_check` reste inchangée et garantit notamment les cibles non nulles compatibles couvertes par ces index. L'unicité s'applique aussi en concurrence et lors de mises à jour privilégiées. Les collections libres sont exclues ; des propriétaires différents peuvent utiliser la même cible. Aucun nom de collection unique n'est imposé.
+`collections_target_check` reste inchangée et garantit notamment les cibles non nulles compatibles couvertes par ces index. L'unicité s'applique aussi en concurrence et lors de mises à jour privilégiées. Les collections personnalisées sont exclues ; des propriétaires différents peuvent utiliser la même cible. Aucun nom de collection unique n'est imposé.
 
 ### `collection_items`
 
@@ -474,8 +517,8 @@ Cette table matérialise les variantes présentes dans une collection. Elle cons
 | `collection_id UUID` | Collection parente |
 | `variant_id BIGINT` | Variante référencée |
 | `origin` | Élément automatique ou manuel |
-| `sort_position` | Ordre global matérialisé |
-| `automatic_rank` | Rang canonique d'un élément automatique |
+| `sort_position` | Ordre réel affiché dans cette collection, pour tous les éléments |
+| `automatic_rank` | Rang canonique système d'un élément automatique |
 | timestamps | Création et mise à jour |
 
 Une variante ne peut apparaître qu'une seule fois dans une collection :
@@ -486,53 +529,164 @@ UNIQUE(collection_id, variant_id)
 
 L'origine utilise `TEXT + CHECK` avec `automatic` et `manual`.
 
-Dans une collection libre, tous les éléments sont manuels. Dans une collection automatique, les deux origines sont possibles.
+Dans une collection personnalisée, tous les éléments sont manuels. Dans une collection automatique, les deux origines sont possibles.
 
 #### Ordre
 
-`sort_position NUMERIC(40,20)` représente l'ordre global affiché avec une arithmétique décimale exacte. Une insertion entre deux positions peut utiliser leur moyenne ; un rééquilibrage limité à une plage sera nécessaire si les 20 décimales disponibles sont épuisées. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 1 fournit le stockage ; le code de repositionnement, de concurrence et d'ancrage lors des synchronisations reste à implémenter dans les opérations contrôlées. Les futures opérations devront préserver cette précision, sans calcul en flottant JavaScript.
+`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 6A.3 fournit le déplacement contrôlé par midpoint, avec rééquilibrage de la collection et sérialisation des déplacements, décrits ci-dessous. Aucun calcul de position en flottant JavaScript. L'insertion/fusion lors des futures mises à jour reste à cadrer en Phase 8.
 
-`automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection libre, y compris lors d'un changement de parent.
+`automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection personnalisée, y compris lors d'un changement de parent.
 
 Cet ordre canonique est distinct de `sort_position`. Pour Pokémon : date de parution effective de la variante croissante (`NULL` en dernier), numéro normalisé, ordre stable des variantes de la carte. Pour Extension : numéro normalisé dans le set, ordre stable des variantes, sans critère de date. Les départages techniques ne peuvent pas modifier ces priorités. Les algorithmes précis sont implémentés en Phase 2 et définis dans `07-CATALOG-SYNC.md`. Le hash ne contient que les IDs ordonnés : une date sans déplacement ne modifie ni hash ni version ; une date seule ne modifie jamais la cible Set.
 
+À la création, `sort_position` initialise l'affichage dans l'ordre canonique. Après création, cet ordre est une référence système, pas une contrainte permanente d'affichage. Un déplacement d'élément automatique modifie `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Deux collections de même cible/version peuvent donc posséder les mêmes éléments automatiques avec des `sort_position` différents.
+
+L'inspection des migrations versionnées confirme que `sort_position` existe et est obligatoire pour tous les `collection_items`, tandis que `automatic_rank` est distinct. Aucun `CHECK` ni trigger n'impose leur égalité ou n'interdit de déplacer un automatique. Le trigger de parent interdit seulement l'origine automatique dans une collection personnalisée. Les écritures directes sur les éléments restent fermées au rôle `authenticated` ; les RPC 6A.3 et 6C.1 sont installées durablement, validées localement et déployées sur Cloud au checkpoint manuel du propriétaire.
+
 La base, les permissions ou les opérations métier doivent garantir que :
 
-- un élément automatique ne peut pas être supprimé ou déplacé arbitrairement ;
-- son rang n'est pas librement modifiable depuis le frontend ;
-- les éléments manuels restent repositionnables ;
-- l'ordre relatif des éléments automatiques est préservé ;
-- une collection libre ne contient aucun élément automatique.
+- un élément automatique reste structurellement géré par MY. et non supprimable manuellement tant qu'il appartient à cette structure ;
+- son rang canonique n'est pas librement modifiable depuis le frontend ;
+- tous les éléments, automatiques comme manuels, sont librement repositionnables par le propriétaire ;
+- un élément manuel conserve `origin = manual` et aucun `automatic_rank` lors d'un déplacement ;
+- une collection personnalisée ne contient aucun élément automatique.
+
+### Mutations manuelles — contrat 6C.1
+
+La [migration 6C.1](../supabase/migrations/20260926070705_phase6c1_manual_collection_items.sql) ajoute uniquement deux RPC métier :
+
+```sql
+public.add_manual_collection_item(
+  p_collection_id uuid, p_variant_id bigint, p_placement text DEFAULT 'end'
+) RETURNS uuid
+public.remove_manual_collection_item(
+  p_collection_id uuid, p_collection_item_id uuid
+) RETURNS void
+```
+
+L'ajout retourne l'UUID du nouvel item. Le futur client doit transmettre `p_variant_id` en chaîne décimale, sans conversion en `Number` ; PostgreSQL conserve exactement le `BIGINT` reçu. Aucun propriétaire, origine, rang, position numérique ni ancre fourni par le client. `SECURITY DEFINER` est nécessaire pour ces écritures contrôlées : `search_path` vide, contrôle explicite `auth.uid()`, `aal2`, profil MY. présent, puis propriété du parent. Seul `authenticated` reçoit `EXECUTE` ; aucun grant `PUBLIC`, `anon` ou `service_role`, aucun changement de RLS/grants de tables. Le partage reste strictement en lecture seule. Parent privé, absent ou inaccessible : même erreur.
+
+**Ajout.** Dans une collection personnalisée ou automatique, créer exactement un item `origin = 'manual'`, `automatic_rank IS NULL`, avec la variante demandée. Un item déjà présent, manuel ou automatique, provoque `already_present` avant toute modification, même si sa variante est devenue inéligible. La contrainte `UNIQUE(collection_id, variant_id)` reste l'arbitre final ; `ON CONFLICT` ciblé transforme une collision concurrente en la même erreur, sans exposer un nom de contrainte. Tout échec annule aussi un éventuel rééquilibrage.
+
+Un nouvel ajout exige variante existante et active, `french_availability = 'confirmed'`, carte source active et set actif. La vérification utilise un même snapshot de lecture du catalogue après verrouillage du parent. Aucun filtre `source_present`, origine TCGdex, format standard ou cible automatique supplémentaire : les variantes locales MY. sont admissibles. Cette vérification ne concerne que l'ajout ; une modification ultérieure du catalogue ne retire, ne convertit et ne masque aucun item existant.
+
+**Placement.** Uniquement `start` ou `end`, défaut `end` ; `NULL`, `before`, `after` et toute autre valeur sont refusés. Collection vide : position exacte `1`. Sinon : minimum moins `1` ou maximum plus `1`, calculés en `NUMERIC` PostgreSQL puis stockés en `NUMERIC(40,20)`. Ordre autoritatif `sort_position, id`. En présence d'égalités héritées ou de dépassement numérique, rééquilibrer les anciens items de cette seule collection en `1…N` selon cet ordre, puis insérer à `0` ou `N+1`. Le reorder 6A.3 conserve les déplacements précis ultérieurs ; aucun helper partagé ni refactor de sa migration.
+
+**Retrait.** L'item doit appartenir au parent autorisé et avoir `origin = 'manual'`. Un automatique produit une erreur dédiée ; un mauvais item produit `manual_item_unavailable`. Seul le `collection_item` demandé est supprimé, sans compaction ni modification des autres positions. Retenter un retrait déjà réussi retourne `manual_item_unavailable`. Exemplaires physiques, catalogue, autres collections, origine/rang des items restants, cible/version appliquée et `automatic_target_states` restent intacts. Les triggers `updated_at` des items restent actifs lors d'un rééquilibrage.
+
+**Concurrence.** Même `collections ... FOR UPDATE` que 6A.3, acquis avant lecture des items et conservé jusqu'à fin de transaction. Ajouts, retraits, reorder et suppression du parent se sérialisent par collection ; aucun verrou global. Les instructions suivantes relisent l'état engagé après attente sous `READ COMMITTED`. `REPEATABLE READ`/`SERIALIZABLE` sont refusés ; les conflits de sérialisation, deadlocks et délais de verrou sont normalisés. Le client devra rafraîchir puis éventuellement relancer une transaction complète, sans retry aveugle après résultat réseau incertain. La création automatique Phase 5 écrit un nouveau parent non encore visible ; elle ne modifie aucun parent existant. Les futurs writers structurels doivent suivre le même verrou.
+
+| SQLSTATE | Message stable | Mapping futur |
+| --- | --- | --- |
+| `42501` | `collection_action_unavailable` | Session/MFA/profil/propriété ou parent indisponible |
+| `22023` | `manual_item_invalid_placement` | Placement invalide |
+| `P0002` | `manual_variant_unavailable` | Variante absente ou inéligible |
+| `23505` | `already_present` | Variante déjà présente, toute origine |
+| `P0002` | `manual_item_unavailable` | Item absent ou hors collection |
+| `23514` | `automatic_item_removal_forbidden` | Retrait manuel d'un automatique interdit |
+| `40001` | `collection_structure_conflict` | Actualisation/reprise transactionnelle nécessaire |
+| `XX000` | `manual_item_unexpected` | Erreur interne assainie |
+
+Le mapping TypeScript 6C.3 reconnaît ces couples code/message sans analyser un message PostgreSQL arbitraire. Les refus avant entrée en fonction (grant, UUID/BIGINT mal formé) et erreurs de transport/annulation restent des erreurs de protocole à traiter génériquement.
+
+**Statut final au 30 septembre 2026.** **Local/Cloud : 23/23 migrations**, dont 12 Phase 6, alignées jusqu'à `20260928083830` après le checkpoint Cloud manuel du propriétaire. Les quatre anciennes colonnes des exemplaires sont supprimées ; les RPC sont installées durablement. Les types proviennent du schéma local réel, sans overlay ; `db:types` PASS sans diff lors de l'audit final. Voir les [preuves de clôture](#phase-6--clôture-et-alignement).
+
+**Preuves.** [pgTAP 6C.1](../supabase/tests/database/016_manual_collection_items.test.sql) : 78 assertions réussies (droits, variantes, positions, doublons, retrait, préservation et erreurs). Tests 6A.3/6B.1 également réussis ; ajustement de syntaxe `VALUES` dans le test 6A.3 pour compatibilité pgTAP, sans changement de migration. [Test concurrent dédié](../scripts/test-manual-collection-items-concurrency.js) : attente réelle observée via `pg_blocking_pids`, ajouts distincts/identiques, add/reorder et remove/reorder dans les deux ordres, suppression du parent, indépendance d'une autre collection, rejet des snapshots fixes, rollback et nettoyage des fixtures. Le script concurrent 6A.3 et le lint SQL passent également. Exécuter `node scripts/test-database.js supabase/tests/database/016_manual_collection_items.test.sql` et `node scripts/test-manual-collection-items-concurrency.js` sur une base locale disposant de ces fonctions ; les scripts n'appliquent aucune migration.
+
+La suite DB complète officielle de l'audit final passe : **977 assertions, 18 fichiers**. Les corrections historiques des tests 6C.1 restent acquises : projections de noms de colonnes/policies en `COLLATE "default"` dans `013_physical_copies` et syntaxe `VALUES (` corrigée, sans modification du schéma ni désactivation d'assertions.
+
+Migration atomique et additive, anciens lecteurs/reorder compatibles. Avant commit, rollback intégral ; après déploiement, retour arrière par nouvelle migration supprimant uniquement ces deux RPC une fois leurs consommateurs retirés. Les items déjà ajoutés restent valides et ne doivent pas être effacés pour retirer l'API.
+
+**Historique — complément 6C.3 au 27 septembre 2026.** Aucun changement de schéma, migration ou type généré. À cette étape, les 19 migrations locales étaient concordantes jusqu'à `20260926132552`. Le service frontend ajoute seulement une adaptation typée de `p_variant_id` en chaîne décimale, comme pour les exemplaires physiques : `9007199254740995` reste exact dans le corps HTTP. Ajout/retrait par RPC vérifiés depuis le navigateur contre Supabase local, avec sessions Auth MFA réelles et fixtures dédiées ; conservation des exemplaires contrôlée en base. Aucun accès Cloud. Les valeurs techniques restent `manual` / `automatic` ; seuls les libellés UI deviennent `Perso` / `Auto`.
+
+**Historique — correction compacte post-6C.3 au 27 septembre 2026.** La [migration additive `20260927132813`](../supabase/migrations/20260927132813_collection_set_abbreviation.sql) ajoute `set_abbreviation` aux deux payloads JSONB de contenu et de recherche, sans modifier les migrations historiques. Appliquée immédiatement sur Supabase local, sans reset : **20 migrations concordantes**, types régénérés depuis la DB réelle (signatures JSONB inchangées). Valeur exacte : `COALESCE(tcg_sets.abbreviation_fr, tcg_sets.abbreviation)` ; priorité FR, puis source, puis `NULL`. `set_name_fr` reste disponible. Les deux abréviations restent recherchables, y compris en AND avec le nom (`Pikachu ASC`), sans changement de scoring/pagination. Tests DB ciblés et HTTP exécutés sur ce schéma ; aucun accès Cloud.
+
+Les décodeurs vérifient un nombre exact de champs : livraison DB/frontend coordonnée nécessaire, les anciens clients rejetant le champ supplémentaire. Un retour arrière exige une nouvelle migration rétablissant les anciens payloads et le frontend correspondant ; aucune donnée utilisateur à supprimer.
+
+**Abréviations séparées — contrat final.** La [migration `20260927140955`](../supabase/migrations/20260927140955_collection_separate_set_abbreviations.sql), appliquée localement, remplace la valeur fusionnée par deux champs bruts : `set_abbreviation_fr = tcg_sets.abbreviation_fr` et `set_abbreviation = tcg_sets.abbreviation`. Historique à la livraison locale : **21 migrations concordantes** ; types régénérés, signatures JSONB inchangées. La présentation commune affiche `FR (source)` si différentes, une seule valeur si identiques ou si une seule existe, aucun segment si absentes. Matching/scoring inchangés ; les deux restent recherchables. Migration désormais appliquée Cloud au checkpoint manuel du propriétaire. Livraison DB/frontend coordonnée selon la contrainte des décodeurs stricts ci-dessus.
+
+### Lecture du contenu — contrat 6B.1
+
+La [migration 6B.1](../supabase/migrations/20260924185335_phase6b1_collection_content.sql) est **appliquée sur Supabase Local et Cloud**. `public.get_collection_content(p_collection_id UUID)` renvoie un **JSONB scalaire contenant un tableau**, en une instruction SQL `STABLE`, sans écriture. Ordre, métadonnées et possession utilisent le même snapshot de lecture. L'ordre du tableau est exactement `collection_items.sort_position, collection_items.id`, identique à `get_collection_item_order` en 6A.3 ; aucune position n'est transmise au frontend.
+
+La [migration additive 6D.1](../supabase/migrations/20260927185405_phase6d1_collection_series.sql) ajoute uniquement les deux noms de série via une jointure gauche `tcg_sets.series_id → tcg_series.id`, sans fallback ni exclusion d'item historique. Elle est appliquée Local/Cloud ; les types sont régénérés localement (signature JSONB inchangée). Les noms de série servent au filtre interne côté client sur le contenu déjà chargé, sans requête, score ni tri ; le reorder est désactivé seulement si le filtre masque des éléments. Les décodeurs stricts nécessitent une livraison DB/frontend coordonnée ; retour arrière par nouvelle migration restaurant le corps précédent et frontend correspondant.
+
+Chaque objet expose uniquement :
+
+| Champ | Type JSON | Source / règle |
+| --- | --- | --- |
+| `collection_item_id` | string UUID | `collection_items.id`, directement utilisable par les primitives de reorder |
+| `variant_id` | string décimale | `collection_items.variant_id`, sérialisation sans perte du `BIGINT` pour JavaScript |
+| `origin` | string | `collection_items.origin` : `manual` ou `automatic`, donnée technique sans libellé UX |
+| `card_name_fr` | string ou null | `source_cards.name_fr` |
+| `local_id` | string ou null | Numéro original `source_cards.local_id`, sans normalisation d'affichage |
+| `set_name_fr` | string ou null | `tcg_sets.name_fr`, Extension précise, jamais sa série |
+| `set_abbreviation_fr` | string ou null | `tcg_sets.abbreviation_fr`, valeur brute |
+| `set_abbreviation` | string ou null | `tcg_sets.abbreviation`, valeur source brute |
+| `series_name_fr` | string ou null | `tcg_series.name_fr` via `tcg_sets.series_id`, valeur brute |
+| `series_name_source` | string ou null | `tcg_series.name_source` via `tcg_sets.series_id`, valeur brute |
+| `image_url` | string ou null | `COALESCE(catalog_variants.image_url, source_cards.image_url)` |
+| `variant_label` | string ou null | `catalog_variants.label` exact, y compris corrections et stamps |
+| `owned` | boolean | Au moins un exemplaire pour `collections.owner_id + collection_items.variant_id` |
+
+Le pipeline persiste déjà l'image variante avec fallback source (`scripts/catalog/plan.ts`). Le contrat réutilise ces valeurs sans reconstruire d'URL : les images TCGdex persistées sont normalement en `high.webp`, une image spécifique conserve son URL et sa résolution, deux valeurs absentes donnent `null`. Aucun remplacement métier, sondage CDN, recalcul de label ou d'identité. Les métadonnées absentes restent nulles. Tous les items visibles sont conservés, manuels et automatiques, même si leur variante est devenue inactive ou inéligible à une nouvelle génération ; les FK et jointures vers des clés uniques évitent les doublons.
+
+`variant_id` suffit à identifier la Variante pour le détail livré : pas d'ID source additionnel. L'abréviation sert au rendu compact ; le nom complet d'Extension reste disponible dans les données. Aucun `sort_position`, `automatic_rank`, compteur d'exemplaires, hash/version, timestamp ou détail de pipeline n'est exposé.
+
+**Sécurité et partage.** Fonction `SECURITY INVOKER`, `search_path` vide, `EXECUTE` accordé seulement à `authenticated` (aucun grant à `PUBLIC`, `anon` ou `service_role`). Les RLS existantes imposent `aal2`, profil MY. présent et propriétaire ou destinataire d'un partage existant. Un partage actif correspond à la présence de sa ligne `collection_shares` ; sa suppression révoque l'accès. Aucun grant de table ni policy n'est changé. La lecture partagée existante des `physical_copies` est conservée. `owned` est un `EXISTS` calculé à chaque lecture pour le **propriétaire**, jamais pour le lecteur : A possède/B non donne `true` à B ; A non/B possède donne `false`. Plusieurs copies ne dupliquent pas l'item.
+
+Collection vide, inexistante, inaccessible, identifiant null, identité/MFA/profil insuffisant sous rôle `authenticated` : `[]`, sans révéler l'existence d'une collection privée, comme le lecteur d'ordre 6A.3. `anon` reçoit un refus de permission d'exécution. Le service 6B.2 conserve cette distinction entre contenu vide et disponibilité du parent selon le contrat de lecture du parent ; `[]` seul n'atteste pas l'accès.
+
+**Volume.** Un tableau JSONB scalaire représente une seule valeur REST : `max_rows = 1000` ne découpe pas ses éléments. Pas de pagination ni de lectures successives susceptibles de diverger. Les jointures sont faites en base ; `EXISTS` utilise la paire indexée `(user_id, variant_id)`, sans N+1 réseau. Taille de réponse, mémoire d'agrégation/validation et temps de traitement croissent avec le nombre d'items ; le tableau complet est matérialisé, sans promesse de volume illimité. Une limite de ressources produit une erreur, pas une réponse volontairement tronquée. Aucune mesure de performances n'est revendiquée avant exécution. Le service 6B.2 valide un tableau de treize champs et conserve les IDs décimaux comme chaînes, sans reconstruire l'ordre.
+
+Le test [pgTAP](../supabase/tests/database/015_collection_content.test.sql), sa [fixture commune](../supabase/tests/database/collection_content.fixtures.inc) et le [test HTTP local](../scripts/test-collection-content-api.js) couvrent accès/RLS, contenu exact, ordre/ties, nulls, images, possession partagée, IDs hors précision JavaScript et 1005 éléments. pgTAP et HTTP ont été exécutés avec succès après application locale durable. Le test HTTP vérifie d'abord que la lecture REST directe est réellement limitée à 1000, puis exige les 1005 IDs ordonnés dans la RPC propriétaire et partagée ; il rapporte taille/durée et nettoie ses fixtures synthétiques. Il se lance avec `node scripts/test-collection-content-api.js` après application des migrations locales et disponibilité du cache de schéma REST ; il n'applique rien et ne modifie aucune configuration.
+
+Contrat de lecture sans changement des écritures. Une migration de retrait pourra supprimer uniquement cette fonction après retrait de ses consommateurs, sans restauration de données. Service livré en 6B.2, affichage branché en 6B.3 ; le service utilise directement les types Supabase régénérés localement, sans overlay de schéma futur. La validation stricte du JSONB inclut désormais `setAbbreviationFr: string | null` et `setAbbreviation: string | null` ; les autres validations restent identiques.
+
+### Première liste fonctionnelle — Phase 6B.3
+
+`CollectionPage` monte `CollectionContentLoader`, puis `CollectionContentList`, uniquement après un overview valide sous session autorisée. Le chargement différé isole notamment le DnD du bundle initial ; son échec conserve l'overview et propose de recharger la page. La query `collectionContentKey(viewerId, collectionId)` appelle `getCollectionContent` : chargement, erreur assainie avec retry, tableau vide valide et contenu. L'ordre du tableau backend reste autoritatif, sans tri ni écriture optimiste de cache. Depuis 6F.3, le reorder conserve seulement un ordre visuel pendant la mutation et ses relectures, pour éviter le retour à la position précédente ; tout nouvel ordre backend ou changement de membership le remplace immédiatement. Succès comme erreur libèrent cet état temporaire. Une erreur d'overview masque immédiatement contenu/modal et annule/purge les caches de contenu, d'ordre et d'exemplaires du viewer concernés ; les changements Auth conservent leur purge globale existante.
+
+La vue `dashboard_collections` n'expose pas le propriétaire. Le service d'overview complète sa lecture par `collections.select('owner_id').eq('id', collectionId).maybeSingle()`, autorisée par le grant SELECT et `collections_read` existants. Zéro ligne reste une collection indisponible ; aucun fallback vers le viewer. Cette donnée appartient à `CollectionOverview`, jamais à chaque ligne de contenu. Aucun contrat DB supplémentaire ni changement RLS.
+
+`CollectionContentRow` réutilise `CompactVariantSummary`, comme la recherche d'ajout : image de 36 px de large au ratio conservé ou placeholder SVG neutre ; première ligne `Nom · Abréviation Extension · Numéro`, deuxième ligne `Version` facultative. Les valeurs absentes n'ajoutent aucun séparateur, le nom garde son fallback et le numéro reste `local_id`. `owned` provient exclusivement du backend : image grisée/atténuée et textes légèrement atténués si false, contrôles actifs et statut visuellement masqué. Aucun compteur d'exemplaires ni badge de possession. Les collections automatiques affichent discrètement `Auto` / `Perso` à côté du titre ; le propriétaire dispose du menu de retrait des items personnels livré en 6C.3. Le partage ne monte aucun DnD interactif ni mutation structurelle.
+
+Le bouton Exemplaires ouvre `PhysicalCopiesDialog` avec le propriétaire réel et le `variantId` décimal exact : gestion complète pour le propriétaire, noms/notes consultables sans écriture en partage. Dialog, clés et service acceptent les chaînes BIGINT. Les anciens nombres restent acceptés uniquement si `Number.isSafeInteger`, puis convertis en chaîne ; aucun passage chaîne → nombre. `PhysicalCopiesDatabase` adapte seulement les types du chemin REST, sans modifier les types générés. Les filtres incluent toujours propriétaire et variante ; les inserts reçoivent une chaîne décimale. Les tests contrôlent l'URL et le corps JSON sérialisés avec `9007199254740995`.
+
+Après création/suppression d'un exemplaire, même si la réponse d'écriture est incertaine, le composant commun relit les exemplaires et invalide les contenus du viewer contenant la variante (ou sans donnée), les overviews et le Dashboard. Les lectures de possession déjà en cours sont annulées avant invalidation, y compris les lectures initiales sans cache, pour empêcher une réponse antérieure à l'écriture de restaurer un état périmé. L'édition nom/note rafraîchit uniquement les exemplaires. La fermeture et la double soumission restent bloquées jusqu'à la fin des relectures ; aucune écriture n'est retentée automatiquement. Aucun recalcul frontend de possession. Le retrait de cette intégration frontend ne nécessite aucune restauration de données ; conserver l'adaptation BIGINT tant que des consommateurs transmettent des chaînes.
+
+Aucune migration créée ni appliquée pendant l'étape 6B.3 ; ses preuves initiales étaient frontend et transport simulé. Les contrats Phase 6 finaux et les validations DB/HTTP ultérieures sont désormais acquis ; leurs migrations sont appliquées Local/Cloud. Les vues et préférences Phase 7 restent futures.
 
 ## Exemplaires physiques
 
 ### `physical_copies`
 
-Une ligne représente un exemplaire physique individuel. Elle conserve notamment :
+Une ligne représente un exemplaire physique individuel. Modèle appliqué Local/Cloud depuis la migration 6A.2 :
 
 | Champ | Type ou rôle retenu |
 |---|---|
 | `id` | UUID |
 | `user_id` | UUID du propriétaire |
 | `variant_id` | `BIGINT` de la variante |
-| `condition` | État de conservation |
-| `is_graded` | Indication de grading |
-| `grading_company` | Société, sous forme textuelle |
-| `grading_score` | Note, sous forme textuelle |
-| `note` | Note personnelle |
+| `name` | Nom personnalisé facultatif (`TEXT` nullable, Phase 6A.1) |
+| `note` | État / note facultatif (`TEXT` nullable, au plus 750 caractères) |
 | timestamps | Création et mise à jour |
 
 Un exemplaire appartient à un utilisateur et à une variante. Il ne possède jamais de `collection_id`.
 
-Chaque exemplaire est une ligne distincte. Un champ de quantité ne doit pas remplacer ces lignes, car chaque copie peut avoir son propre état, son grading et sa note.
+Chaque exemplaire est une ligne distincte. Un champ de quantité ne doit pas remplacer ces lignes, car chaque copie peut avoir son propre nom et sa propre note.
 
-### Condition et grading
+En Phase 6A.1, le nom vide est enregistré à `NULL`. Sans nom personnalisé, l’UI affiche `Exemplaire N`, recalculé selon `created_at`, puis `id`, sans persister ce libellé ni un ordre manuel. L’ajout explicite crée un seul exemplaire ; supprimer le dernier conserve les éléments de collection.
 
-La nomenclature des conditions n'est pas encore validée. `condition` doit rester compatible avec une future liste contrôlée sans figer prématurément un enum définitif.
+### État / note — Phase 6A.2
 
-`grading_company` et `grading_score` restent textuels. Une note de grading ne doit pas être supposée purement numérique.
+La note est un texte libre multiligne, sans interprétation métier, enum ni parsing. Le service refuse plus de 750 caractères Unicode avant envoi ; une chaîne vide ou uniquement composée d'espaces blancs devient `NULL`. Le texte utile, ses espaces et ses retours à la ligne sont conservés. L'UI propose un champ facultatif et un compteur, puis une icône document dépliant la note en lecture seule sous la ligne. Un destinataire autorisé dispose de cette lecture, sans actions d'édition ou de suppression.
 
-Lorsque `is_graded` est faux, un `CHECK` impose l'absence de `grading_company` et `grading_score`. Lorsque l'exemplaire est gradé, la société et la note peuvent encore être absentes tant que le comportement produit exact n'est pas cadré. `condition`, `grading_company` et `grading_score` sont des `TEXT` nullables, sans nomenclature métier définitive.
+La [migration 6A.2](../supabase/migrations/20260923191714_phase6a2_physical_copy_note.sql), appliquée Local/Cloud, supprime `condition`, `is_graded`, `grading_company`, `grading_score`, leur contrainte et les grants de colonnes associés. Elle conserve `name`, `note`, les identifiants, timestamps, index, triggers et policies RLS. `physical_copies_note_length_check` impose `char_length(note) <= 750`, avec `NULL` autorisé. Aucune donnée n'est tronquée : une note existante trop longue fait échouer la transaction entière.
+
+Le schéma local et les 60 assertions `013_physical_copies` confirment réellement 6A.2. Le générateur du dépôt a introspecté cette base : `database.generated.ts` ne contient plus les quatre anciennes colonnes. Le service conserve sa sélection `id`, `name`, `note`, `created_at`. L'adaptation `PhysicalCopiesDatabase` reste nécessaire au transport des IDs BIGINT en chaînes décimales : le générateur les représente encore comme `number` ; ce n'est pas un contournement de migration en attente.
+
+Avant validation de la transaction, un rollback conserve les données. Après application, récupérer les métadonnées supprimées nécessite une sauvegarde et une nouvelle migration corrective ; les migrations historiques restent immuables. La clôture Phase 6 consigne séparément l'audit technique local et le checkpoint Cloud manuel du propriétaire.
 
 ### Possession dérivée
 
@@ -592,7 +746,7 @@ Les dépendances suivantes existent dans la [migration de schéma Phase 1](../su
 
 Il faut donc couvrir les deux sens du partage : collections possédées partagées à autrui, et relations dont le compte supprimé est destinataire. Supprimer un accès reçu conserve la collection de l'autre propriétaire, ses éléments, ses exemplaires et ses autres destinataires. Les collections possédées supprimées deviennent inaccessibles à leurs destinataires.
 
-Les notes, conditions et informations de grading disparaissent avec les `physical_copies` du compte. Aucun exemplaire d'autrui n'est visé, même s'il référence la même Variante. La suppression d'une collection seule continue à conserver les exemplaires ; seule la suppression complète du compte les efface tous.
+Les noms et notes disparaissent avec les `physical_copies` du compte. Aucun exemplaire d'autrui n'est visé, même s'il référence la même Variante. La suppression d'une collection seule continue à conserver les exemplaires ; seule la suppression complète du compte les efface tous.
 
 **Préservation obligatoire :** aucune suppression dans `pokemon`, `tcg_series`, `tcg_sets`, `source_cards`, `catalog_variants`, `card_pokemon`, `automatic_target_states` ou les tables privées du pipeline. Les FK d'éléments/exemplaires vers les Variantes et de collections vers leurs cibles ne justifient aucune suppression du catalogue. Les données des autres comptes sont préservées, hors les seules relations de partage devenues sans objet.
 
@@ -604,7 +758,7 @@ Le nettoyage et la suppression Auth font partie de **la même transaction**. Auc
 
 La fonction de trigger est `SECURITY DEFINER` avec `search_path = ''` et aucun `EXECUTE` pour PUBLIC, anon, authenticated, service_role ou supabase_auth_admin. Son identité vient du DELETE Auth privilégié, comme l'identité du trigger de création vient d'Auth ; elle ne dépend pas d'un `auth.uid()` administratif absent. Les rôles navigateur ne peuvent supprimer ni `auth.users` ni `profiles` et ne peuvent appeler le trigger. Les administrateurs Auth demeurent des opérateurs de confiance : une suppression physique administrative déclenche le même nettoyage.
 
-Le [rapport local](reports/2026-09-14-PHASE4B3-ACCOUNT-DELETION.md) consigne les preuves d'atomicité, de préservation des autres comptes et du catalogue. Les exigences légales/rétentions particulières restent ouvertes à un cadrage spécifique, sans durée ou exception ajoutée ici. Aucune migration historique n'est modifiée.
+Le [rapport local](reports/2026-09-14-PHASE4B3-ACCOUNT-DELETION.md) consigne les preuves d'atomicité, de préservation des autres comptes et du catalogue. Le [checkpoint Cloud 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) vérifie l'intégration réelle Auth + migration + fonction et la préservation des empreintes des données existantes, sans rejouer toute la matrice pgTAP. Les exigences légales/rétentions particulières restent ouvertes à un cadrage spécifique, sans durée ou exception ajoutée ici. Aucune migration historique n'est modifiée.
 
 ## Progression
 
@@ -624,6 +778,18 @@ Par exemple, une collection contenant 100 éléments automatiques et 3 ajouts ma
 Pour une collection partagée, la progression reste celle du propriétaire et utilise donc `collections.owner_id`, non l'identité du destinataire qui la consulte.
 
 La progression est dérivée de `collection_items`, `physical_copies` et du propriétaire. Aucun compteur ou booléen de possession dupliqué ne devient une source de vérité. Une vue ou une requête optimisée peut matérialiser la lecture sans changer cette règle.
+
+### Lecture Dashboard
+
+La [migration Dashboard](../supabase/migrations/20260920194903_phase5_dashboard_collections.sql) livre la vue publique `dashboard_collections`, avec `security_invoker = true` et uniquement un grant `SELECT` à `authenticated`. Elle expose `collection_id UUID`, `name TEXT`, `collection_type TEXT`, `access TEXT`, `target_type TEXT`, `target_name TEXT`, `owned_count BIGINT` et `total_count BIGINT`. Le [service Collections](../src/services/collections.ts) les transforme en champs métier camelCase en une lecture, sans N+1 frontend. Aucun ordre de présentation n'est imposé.
+
+`access` vaut `owned` si `collections.owner_id = auth.uid()`, sinon `shared` pour une collection visible par les policies de partage existantes. Les cibles automatiques utilisent exclusivement `pokemon.name_fr` ou `tcg_sets.name_fr` ; les noms absents restent `NULL`. Une collection personnalisée n'a ni type ni nom de cible. Un set désigne l'Extension précise, jamais sa série.
+
+Une agrégation par collection compte tous ses `collection_items`, manuels et automatiques. Un `EXISTS` sur `physical_copies`, contraint par la variante de l'item et `user_id = collections.owner_id`, compte chaque item possédé au plus une fois. Les copies du destinataire n'influencent donc pas la progression partagée. Une collection vide renvoie `0 / 0` ; les valeurs sont recalculées à chaque lecture, sans compteur stocké.
+
+Les RLS permettent déjà cette vue invoker : `collections_read` expose les collections personnelles et réellement partagées, `collection_items_read` leurs éléments, et `physical_copies_read` seulement les copies du propriétaire pertinentes pour les collections reçues, en plus des copies personnelles. Aucun élargissement des policies ni nouveau `SECURITY DEFINER` n'est nécessaire. Les restrictions `require_mfa` et `require_my_profile` des tables sources continuent de s'appliquer, y compris aux cibles catalogue ; `anon` n'a aucun droit sur la vue. Le résumé n'expose ni identifiant de propriétaire ni détail d'exemplaire et n'ajoute aucune capacité d'écriture ou de partage.
+
+La [suite Dashboard](../supabase/tests/database/012_dashboard_collections.test.sql) vérifie les rôles propriétaire/destinataire/tiers/anon, les restrictions MFA/profil, les cibles, les collections vides, les copies multiples, la progression partagée et le retrait d'accès. Ses fixtures dédiées sont intégralement annulées par `ROLLBACK`.
 
 ## Collections automatiques matérialisées et versionnées
 
@@ -676,21 +842,45 @@ collections.applied_target_version
 
 Cette comparaison signale efficacement la disponibilité d'une mise à jour ; elle ne modifie aucune collection.
 
+### Calcul canonique PostgreSQL interne
+
+La [migration du calcul canonique](../supabase/migrations/20260920134607_phase5_canonical_collection_structure.sql) définit `private.canonical_collection_variants(p_target_type TEXT, p_target_id BIGINT) RETURNS TABLE (variant_id BIGINT, automatic_rank BIGINT)`. Elle renvoie les variantes dans l'ordre canonique avec des rangs continus `1…N`, en lecture seule, sans créer ni modifier de collection ou d'état de cible.
+
+Elle reproduit [le pipeline catalogue](../scripts/catalog/plan.ts) à partir du catalogue effectif persisté : variante active, `size = 'standard'`, disponibilité française `confirmed`, carte et set actifs. `source_present`, la catégorie de carte et l'activité du Pokémon ou de la série n'ajoutent aucun filtre. Une cible Pokémon utilise `card_pokemon`, sans multiplier les variantes des cartes multi-Pokémon ; une cible `set` désigne un set précis et inclut toutes les catégories.
+
+L'ordre Pokémon utilise `catalog_variants.effective_release_date ASC NULLS LAST`, puis `source_cards.normalized_number`, `catalog_variants.sort_order`, la clé canonique de carte et `variant_key`. L'ordre Set reprend ces critères sans date. Les rangs sont ceux matérialisés par le pipeline ; la clé de carte est `tcgdex:<tcgdex_id>` ou l'alias local `my:<id-override>` conservé dans `private.catalog_entity_keys`. Le helper interne `private.catalog_utf16_sort_key(TEXT)` reproduit les départages lexicographiques UTF-16 de `model.ts`, indépendamment de la collation PostgreSQL. Le calcul suppose un catalogue construit par le pipeline, avec ses rangs et clés persistés.
+
+Contrat des arguments : une cible existante sans variante éligible renvoie zéro ligne ; un type autre que `pokemon`/`set`, un type `NULL` ou un ID `NULL` lève `22023` ; un ID inexistant pour le type demandé lève `P0002`. Le helper est `STABLE`, `SECURITY INVOKER`, avec `search_path = ''` et références qualifiées. Les deux fonctions restent internes : aucun droit d'exécution pour `PUBLIC`, `anon`, `authenticated` ou `service_role`, aucun nouveau droit d'écriture utilisateur. Une future opération métier contrôlée devra assurer sa propre autorisation et sa cohérence transactionnelle.
+
+La [suite SQL canonique](../supabase/tests/database/010_canonical_collection_structure.test.sql) couvre éligibilité, ordres, départages, cas limites et privilèges avec des fixtures annulées par `ROLLBACK`. Avant ces fixtures, elle contrôle **tous** les `automatic_target_states` présents : sérialisation compacte des IDs ordonnés comme chaînes décimales, UTF-8, SHA-256, comparaison à `content_hash`. Le nombre de cibles est dynamique et le résultat attendu est zéro divergence, y compris pour les structures vides (`[]`).
+
 ## Opérations métier des collections automatiques
 
 ### Création transactionnelle
 
-Une opération conceptuelle telle que `create_automatic_collection(name, target_type, target_id)` doit :
+La [migration de création automatique](../supabase/migrations/20260920140934_phase5_create_automatic_collection.sql) définit la RPC `public.create_automatic_collection(p_name TEXT, p_target_type TEXT, p_target_id BIGINT) RETURNS TABLE (collection_id UUID, created BOOLEAN)`. Elle retourne exactement une ligne : UUID créé et `true`, ou UUID de la collection personnelle existante et `false`. Le client fournit uniquement le nom, le type `pokemon`/`set` et l'ID interne de cible.
 
-1. vérifier l'utilisateur, le nom et la cible, ainsi que l'absence de collection automatique personnelle correspondante ;
-2. créer la collection ;
-3. lire l'état courant de la cible ;
-4. déterminer les variantes françaises éligibles ;
-5. créer les éléments automatiques ;
-6. attribuer leurs rangs et positions ;
-7. enregistrer la version appliquée.
+La fonction est `VOLATILE`, `SECURITY DEFINER`, avec `search_path = ''`. Elle vérifie explicitement `auth.uid()`, `auth.jwt()->>'aal' = 'aal2'` et l'existence du profil MY. ; elle ne dépend pas de la RLS qu'elle peut contourner. Seul `authenticated` reçoit `EXECUTE`, sans nouveau droit direct sur les items ou les champs protégés des collections. Le propriétaire, le type de collection, la version, les variantes et les positions sont déterminés côté PostgreSQL.
 
-L'ensemble réussit ou échoue de manière atomique. Les index uniques arbitrent les créations concurrentes. Le frontend propose l'ouverture d'une collection personnelle déjà existante et ne doit pas insérer librement lui-même l'ensemble des éléments automatiques.
+Avant toute lecture de cible, d'état ou de structure catalogue, la RPC prend `pg_advisory_xact_lock_shared(771402)`. Le pipeline prend le verrou exclusif correspondant : une sync attend les créations actives, et une création attend la fin d'une sync. Plusieurs créations peuvent détenir le verrou partagé ensemble ; il est conservé jusqu'à la fin de la transaction appelante.
+
+La RPC recherche d'abord la collection automatique du propriétaire pour cette cible. Si elle existe, elle la retourne sans modifier aucun champ ni item, même si le nouveau nom est invalide, si l'état catalogue manque ou diverge, ou si la structure actuelle est vide. Les contrôles d'identité restent obligatoires.
+
+Pour une création, la cible doit exister et posséder un `automatic_target_states`. Sous le verrou partagé, la RPC lit sa version et son hash, appelle le helper canonique une seule fois et matérialise ses IDs ordonnés. Elle calcule SHA-256 du JSON compact UTF-8 de ces IDs sous forme de chaînes décimales, puis exige l'égalité avec `content_hash`. Une nouvelle structure vide est refusée. Le nom est soumis aux contraintes PostgreSQL existantes (`NOT NULL`, au moins trois caractères utiles après trim), sans nouvelle normalisation ni modification de la valeur stockée.
+
+Le parent reçoit `collection_type = 'automatic'`, la cible et `applied_target_version` issue de l'état. Chaque ID vérifié devient un item `origin = 'automatic'`, avec `automatic_rank = rang canonique` et `sort_position = rang canonique::NUMERIC(40,20)`. Cette égalité initialise l'ordre ; elle n'impose aucune égalité permanente entre les deux champs. Toute erreur, même pendant l'insertion des items, annule le parent et tous ses items.
+
+Les index uniques propriétaire+cible existants arbitrent la concurrence via `INSERT ... ON CONFLICT DO NOTHING`. À `READ COMMITTED`, le perdant relit le gagnant dans une instruction distincte, puis renvoie son UUID avec `created = false` ; aucune mise à jour factice ne renomme le gagnant ou ne remplace ses items. La recherche verrouille la ligne existante contre la suppression jusqu'à la fin de la transaction ; une suppression entre le conflit et la relecture entraîne une nouvelle tentative. Les éventuelles erreurs de sérialisation sous un niveau d'isolation supérieur relèvent du retry transactionnel PostgreSQL habituel.
+
+Les erreurs métier spécifiques sont identifiées par leur message stable et leur SQLSTATE :
+
+| Message | SQLSTATE | Cas |
+|---|---|---|
+| `automatic_target_state_missing` | `P0002` | Cible existante sans état de génération |
+| `automatic_target_hash_mismatch` | `23514` | Hash stocké différent de la structure canonique |
+| `automatic_collection_empty` | `23514` | Nouvelle collection sans variante éligible |
+
+Les arguments, contraintes de nom, cible inexistante et refus d'autorisation utilisent les codes PostgreSQL standards. La [suite SQL de création](../supabase/tests/database/011_create_automatic_collection.test.sql) couvre ces contrats et injecte une erreur après insertion du parent et du premier item pour prouver le rollback. Le [test multi-connexion local](../scripts/test-automatic-collection-concurrency.ts), lancé par `npm run db:test:concurrency`, fait attendre deux appels simultanés derrière une sync, observe le conflit réel d'unicité, contrôle une création indépendante par un autre propriétaire et vérifie l'attente inverse de la sync. Ses fixtures sont supprimées explicitement en fin de test ; la suite pgTAP annule les siennes par `ROLLBACK`.
 
 ### Preview de mise à jour
 
@@ -710,9 +900,9 @@ Elle doit pouvoir retourner :
 Lorsqu'une variante ajoutée manuellement devient éligible automatiquement, l'élément existant est converti :
 
 - le même `collection_item` est conservé ;
-- son origine devient automatique ;
-- un rang automatique lui est attribué ;
-- sa position est adaptée à l'ordre canonique ;
+- son `origin` devient `automatic` ;
+- son `automatic_rank` est défini selon le rang canonique système ;
+- son `sort_position` est préservé autant que possible ;
 - aucun doublon n'est créé ;
 - les exemplaires restent inchangés.
 
@@ -736,7 +926,7 @@ Une opération conceptuelle telle que `apply_collection_update(collection_id, ex
 6. ajouter les nouveaux éléments ;
 7. retirer les éléments automatiques devenus non éligibles ;
 8. mettre à jour les rangs automatiques ;
-9. préserver autant que possible les positions manuelles ;
+9. préserver autant que possible l'ordre personnalisé de tous les éléments, automatiques et manuels, sans réinitialiser arbitrairement `sort_position` vers l'ordre canonique ;
 10. enregistrer la nouvelle version appliquée.
 
 Toutes les étapes réussissent ou échouent ensemble.
@@ -751,13 +941,32 @@ L'ajout manuel vérifie côté serveur :
 - que la variante existe et est utilisable dans la V1 ;
 - qu'elle n'est pas déjà présente dans la collection.
 
-Dans une collection automatique, l'élément ajouté est manuel. Dans une collection libre, tous les éléments le sont.
+Dans une collection automatique, l'élément ajouté est manuel. Dans une collection personnalisée, tous les éléments le sont.
 
 L'ajout augmente immédiatement le total de progression. Une variante déjà possédée augmente aussi le numérateur.
 
-Tous les éléments d'une collection libre sont réordonnables. Dans une collection automatique, seuls les éléments manuels peuvent être repositionnés librement ; les éléments automatiques conservent leur ordre relatif.
+Tous les éléments d'une collection personnalisée ou automatique sont librement réordonnables par le propriétaire. Un déplacement modifie `sort_position`, sans modifier `origin`, `automatic_rank`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Les automatiques restent non supprimables manuellement ; les manuels peuvent être ajoutés, retirés et déplacés librement.
 
-Les nouvelles cartes automatiques rejoignent leur position canonique lors d'une mise à jour. Les éléments manuels doivent être perturbés le moins possible, mais la stratégie exacte d'ancrage reste ouverte.
+Les mises à jour actualisent les rangs canoniques tout en préservant autant que possible l'ordre personnalisé. Le placement d'un nouvel élément automatique dans cet ordre et la stratégie de préservation/ancrage des positions restent explicitement ouverts pour la Phase 8, sans algorithme exact d'insertion/fusion fixé. La possibilité de déplacer un automatique est définitivement validée.
+
+#### Réorganisation 6A.3 — migration et primitives
+
+La [migration 6A.3](../supabase/migrations/20260923195220_phase6a3_reorder_collection_item.sql) est **appliquée sur Supabase Local et Cloud**. Elle ajoute deux contrats, sans changer les tables, les RLS ni les grants d'écriture directe :
+
+- `get_collection_item_order(p_collection_id uuid) → uuid[]` : lecture `SECURITY INVOKER`, RLS existantes, IDs triés par `sort_position, id` dans un seul snapshot. Un tableau unique évite la limite de lignes REST et les incohérences de pagination. Aucun chargement détaillé des variantes ni exposition des positions.
+- `reorder_collection_item(p_collection_id uuid, p_item_id uuid, p_placement text, p_anchor_id uuid DEFAULT NULL) → void` : `start`/`end` sans référence, ou `before`/`after` avec une référence distincte. L'item et la référence doivent appartenir à cette collection. Aucun paramètre propriétaire, position, origine ou rang canonique.
+
+La mutation est `SECURITY DEFINER`, avec `search_path` vide et contrôle explicite de `auth.uid()`, `aal2`, du profil présent et de la propriété. Les deux fonctions sont exécutables uniquement par `authenticated`, sans grant `PUBLIC`, `anon` ou `service_role`. Le destinataire autorisé conserve la lecture de l'ordre ; il ne peut pas le modifier.
+
+Un verrou `FOR UPDATE` sur le parent, conservé jusqu'à la fin de la transaction, sérialise les reorders d'une même collection et sa suppression. Après attente, les voisins sont relus sous `READ COMMITTED`, isolation habituelle de PostgREST. Une isolation à snapshot fixe est refusée avec `40001` avant écriture. Deux collections différentes ne partagent pas de verrou global. Les futures opérations structurelles devront respecter ce même verrou avant de changer les items ; aucune synchronisation temps réel n'est ajoutée.
+
+Le serveur retire logiquement l'item de l'ordre courant puis l'insère à la destination demandée. Entre voisins, il arrondit leur midpoint à 20 décimales et vérifie les inégalités strictes ; aux extrémités, il utilise la position voisine moins/plus 1. Si cette position n'est pas représentable sans collision ou dépassement de `NUMERIC(40,20)`, ou si des positions héritées sont déjà égales, il rééquilibre **cette seule collection** en positions `1…N`, dans l'ordre logique exact demandé. Les égalités héritées utilisent l'UUID comme départage. Un déplacement déjà réalisé est sans effet, sauf réparation de positions égales. Les erreurs annulent toute la mutation ; les triggers `updated_at` existants restent actifs. Aucun item ni variante n'est créé/supprimé, aucun champ automatique ni parent n'est modifié.
+
+Le service `collection-items` expose la lecture des IDs et un déplacement métier. Codes publics : `not_authorized`, `item_unavailable`, `order_conflict`, `unexpected`, sans texte SQL/PostgREST. Le hook `useCollectionItemReorder` conserve `collectionItemOrderKey(viewerId, collectionId)` comme lecture technique de l'ordre. Il bloque les autres déplacements pendant la sauvegarde et invalide/refetch cette clé ainsi que `collectionContentKey(viewerId, collectionId)` après succès **ou erreur**. Depuis 6B.3, le tableau de contenu est la source de l'ordre visible. Aucun cache optimiste, aucun rafraîchissement des compteurs du Dashboard. Un échec de lecture masque l'ordre caché et bloque la réorganisation jusqu'à actualisation réussie.
+
+`CollectionItemReorderList` reçoit les IDs/libellés ordonnés, `renderItem`, `availability`, `onMove` et le feedback du hook. Non monté en 6A.3, il est désormais composé par la liste propriétaire 6B.3 avec les IDs et lignes issus du contenu. Son ordre visuel temporaire 6F.3 ne dure que pendant la sauvegarde et les relectures autoritatives ; il ne modifie aucun cache ni `sort_position`. La dépendance épinglée `@hello-pangea/dnd@18.0.1`, compatible React 19, fournit les capteurs éprouvés pour listes : poignée dédiée de 44 px, souris, appui tactile prolongé avec annulation du geste si scroll avant activation, clavier Espace/flèches/Espace et Échap. Instructions et annonces sont en français. Les autres actions de ligne ne déclenchent pas le déplacement. Une disponibilité `{ enabled: false, reason }` couvre notamment les mutations structurelles, les actualisations et le filtre 6D.1 qui masque effectivement des items ; la raison reste accessible au focus. Le partage ne monte pas ce DnD. Aucun mode global d'édition, bouton de sauvegarde d'ordre ou reset.
+
+Les types ont été régénérés depuis le schéma local ; `PendingCollectionReorderDatabase` et le cast associé sont supprimés. Pour `start`/`end`, le service omet `p_anchor_id` : PostgreSQL applique son défaut `NULL`, conformément à la signature générée optionnelle. Pour `before`/`after`, l'ancre reste transmise. Aucun comportement métier modifié. Le test pgTAP `014_collection_reorder.test.sql` et `scripts/test-collection-reorder-concurrency.ts` ont été exécutés avec succès après application locale durable ; le second utilise des fixtures synthétiques et vérifie l'attente réelle de deux connexions, l'indépendance d'une autre collection, l'atomicité et le rollback. Il exige une base locale disposant des fonctions ; il n'applique aucune migration. Un rollback du déploiement peut supprimer les deux fonctions par une nouvelle migration ; les positions stockées restent valides. Ces preuves locales sont complétées par le checkpoint Cloud manuel du propriétaire consigné dans le rapport de clôture Phase 6.
 
 ## Partage par identifiant public
 
@@ -824,7 +1033,7 @@ Le claim `aal2` exprime le niveau de session ; les policies MFA/propriété exis
 
 La suppression ajoute `require_my_profile AS RESTRICTIVE FOR ALL TO authenticated` aux mêmes 13 tables. `USING` et `WITH CHECK` appellent `(select private.has_my_profile())` : un test stable, sans argument, de la présence du profil de `auth.uid()`. Son `SECURITY DEFINER` évite une récursion RLS et son `search_path` est vide. Seul authenticated reçoit `EXECUTE`, sans `USAGE` général du schéma privé, suivant le modèle du prédicat de propriété existant. Après suppression du profil, un JWT `aal2` résiduel ne peut plus lire les données ni écrire, y compris dans le catalogue. Ce prédicat ne constitue pas une vérification générale de révocation par `session_id` pour les comptes qui existent encore.
 
-`service_role` conserve ses grants et `BYPASSRLS`. Le pipeline PostgreSQL privilégié et les trois tables privées restent inchangés ; aucune fonction privilégiée n'est exposée dans `public`. Toute future table ou RPC devra préserver cette frontière, notamment une RPC `SECURITY DEFINER` qui contournerait normalement la RLS. Les JWT déjà émis restent soumis à leur expiration après une révocation administrative ; voir la procédure opérateur.
+`service_role` conserve ses grants et `BYPASSRLS`. Le pipeline PostgreSQL privilégié et les trois tables privées restent inchangés. Les RPC publiques `SECURITY DEFINER` livrées en Phases 5 et 6 disposent d'un `search_path` vide, d'un contrôle explicite identité/MFA/profil et, pour les écritures de collection, de propriété. Leur exécution est réservée à `authenticated` ; aucun accès général au schéma privé n'est ouvert. Toute future table ou RPC devra préserver cette frontière, notamment une RPC `SECURITY DEFINER` qui contournerait normalement la RLS. Les JWT déjà émis restent soumis à leur expiration après une révocation administrative ; voir la procédure opérateur.
 
 ### Automatic RLS existant
 
@@ -924,9 +1133,72 @@ Les partages nécessitent des accès efficaces par `collection_id` et `recipient
 
 ## Recherche, classeur et préférences
 
-L'accès aux données des recherches de la V1 repose sur Supabase/PostgreSQL sous Auth/RLS. La recherche globale retourne des Cartes sources uniques, jamais des Variantes ; Pokémon utilise le nom français, Extension et Collection leur nom uniquement. La recherche interne filtre les variantes de la collection accessible ; la recherche d'ajout sélectionne la Variante exacte. La logique Carte portable de `scripts/catalog/search-catalog.ts` reste le socle de normalisation, tokenisation, matching, score et tri ; `search-catalog-db.ts` avec `pg` reste réservé à la maintenance locale.
+L'accès aux données des recherches de la V1 repose sur Supabase/PostgreSQL sous Auth/RLS. La recherche globale retourne des Cartes sources uniques, jamais des Variantes ; Pokémon utilise le nom français, Extension et Collection leur nom uniquement. La recherche d'ajout sélectionne la Variante exacte. Pour les recherches catalogue, la logique Carte portable de `scripts/catalog/search-catalog.ts` reste le socle de normalisation, tokenisation, matching, score et tri ; `search-catalog-db.ts` avec `pg` reste réservé à la maintenance locale.
+
+La recherche interne 6D.1 dérive ses résultats du seul tableau chargé par `get_collection_content` et du texte saisi, sans fetch ni état de résultats séparé. Champs : `cardNameFr`, `setNameFr`, `setAbbreviationFr`, `setAbbreviation`, `seriesNameFr`, `seriesNameSource`, `localId`, `variantLabel`. Normalisation browser-safe (casse, accents, ligatures, espaces et ponctuation courante ; séparateurs `28/73` et `SL3.5` conservés), AND multi-termes sur plusieurs champs, aucun score ni tri. L'ordre backend est conservé ; le reorder est désactivé lorsque le filtre masque des cartes.
 
 La première implémentation doit rester proportionnée au besoin. `pg_trgm`, les index GIN, des colonnes normalisées ou la recherche full-text ne seront ajoutés que si les mesures le justifient.
+
+### Recherche catalogue pour ajout — contrat 6C.2
+
+La [migration du contrat](../supabase/migrations/20260926130459_phase6c2_catalog_variant_search.sql), la [présélection mesurée](../supabase/migrations/20260926131742_phase6c2_catalog_search_candidates.sql) et la [correction de lint SQL](../supabase/migrations/20260926132552_phase6c2_search_score_lint.sql) sont appliquées Local/Cloud. Cette dernière retire une variable de boucle masquée et aligne le score sur la volatilité `STABLE` d'`array_to_string`, sans changer le calcul. Contrat exact :
+
+```sql
+public.search_catalog_variants_for_add(
+  p_query text, p_limit integer default 20, p_offset integer default 0
+) returns jsonb
+```
+
+Le JSONB scalaire contient un tableau de Variantes exactes, sans dépendance à `max_rows` PostgREST. Chaque objet contient exactement :
+
+```json
+{
+  "variant_id": "9007199254740995",
+  "image_url": null,
+  "card_name_fr": "Pikachu",
+  "set_name_fr": "Légendes Brillantes",
+  "set_abbreviation_fr": "SL3.5",
+  "set_abbreviation": "SLG",
+  "local_id": "28",
+  "variant_label": "Reverse"
+}
+```
+
+`variant_id` est produit par `BIGINT::text`, jamais converti en nombre JavaScript. Les sept champs d'affichage sont `string | null` ; aucune URL, traduction ou label n'est inventé. L'image utilise `COALESCE(catalog_variants.image_url, source_cards.image_url)`. `set_abbreviation_fr` et `set_abbreviation` exposent séparément les valeurs brutes des colonnes homonymes du set ; seul leur assemblage visuel est réalisé côté frontend. Le numéro est le `local_id` stocké ; le dénominateur sert au matching, sans enrichir inutilement le payload.
+
+**Éligibilité.** Variante active et `french_availability = 'confirmed'`, carte source active, set actif : mêmes conditions que 6C.1. Aucune exigence `source_present`, aucun filtre supplémentaire de taille/Pokémon actif, aucun `collection_id` ni exclusion des variantes déjà présentes. Chaque Variante apparaît une fois, même avec plusieurs Pokémon rattachés. La mutation 6C.1 revérifie éligibilité/propriété et traite `already_present` au moment de l'écriture.
+
+**Paramètres.** Requête obligatoire, au maximum 200 caractères Unicode, avec au moins un terme utile ; un seul caractère utile est accepté. Limite de 1 à 100, défaut 20 ; offset entier de 0 à 2147483647, défaut 0. `NULL`, texte vide/ponctuation seule et valeurs hors bornes sont refusés. Aucun clamp silencieux. `[]` signifie succès sans résultat, y compris après la dernière page. Aucun total de résultats n'est promis ; une page pleine peut être suivie d'une page vide. Les pages sont stables à catalogue inchangé ; une synchronisation entre deux requêtes peut déplacer leurs frontières.
+
+**Matching et ranking.** NFKD, minuscules, accents combinatoires français retirés, ligatures `œ/æ`, apostrophes/tirets et espaces normalisés ; termes uniques conservés dans leur ordre et combinés en AND. Champs : nom de carte, noms des Pokémon réellement rattachés, numéro, nom de set, deux abréviations, identifiants TCGdex de carte/set, sélecteur privé MY. et variante. **Le nom de série n'est pas recherché.** Les termes purement numériques ciblent uniquement le numéro : zéros initiaux ignorés, exact simple 200, exact préfixé/suffixé 160, préfixe numérique 80 ; `28/73` exige le total officiel réel et aucun préfixe numérique approximatif. Texte : exact selon champ (120/110/100/90/85/80), mot 60, préfixe 40, partiel 15. Meilleur score par terme, somme puis bonus de phrase exacte, comme `search-catalog.ts`.
+
+Tri total avant pagination : score décroissant, nom carte normalisé, set normalisé, `local_id` normalisé, identifiant carte, ID carte en texte, puis `sort_order NULLS LAST`, `variant_key`, ID variante. Comparaisons textuelles en collation `C`. Le moteur maintenance classe des cartes ; le serveur développe chaque carte en variantes dans cet ordre, sans trier de nouveau côté frontend.
+
+**Différence Unicode bornée.** PostgreSQL retire les cinq blocs usuels de marques combinatoires, couvrant le français, plutôt que toute la catégorie Unicode `M` du moteur JS. Par exemple `का` conserve sa marque en SQL, tandis que JS produit `क`. Les classes de lettres/chiffres suivent la locale Unicode PostgreSQL ; les départages `C` comparent UTF-8 plutôt qu'UTF-16 JS, ce qui peut différer pour des caractères supplémentaires hors BMP. Ces limites ne changent pas les cas français de référence. Pas d'extension dédiée pour des alphabets hors périmètre ; le test d'intégration vérifie explicitement la frontière des marques.
+
+**Sécurité.** RPC `STABLE SECURITY DEFINER`, `search_path = ''`, contrôle explicite de `auth.uid()`, `aal2` et présence du profil. Le definer permet uniquement la lecture du sélecteur MY. dans `private.catalog_entity_keys`, nécessaire à la parité avec la CLI, sans ouvrir le schéma privé. Aucun argument utilisateur/collection. `EXECUTE` accordé uniquement à `authenticated` hors propriétaire PostgreSQL ; révoqué à PUBLIC/anon/service_role. Deux helpers purs privés, sans droits API. Aucun grant de table ni policy existante modifié.
+
+**Service.** [`searchCatalogVariantsForAdd`](../src/services/catalog-search.ts) appelle seulement cette RPC avec les signatures officielles de `database.generated.ts`. Il valide tableau, taille de page, objets à huit champs, nullabilité exacte, ID décimal canonique dans les bornes BIGINT et absence de doublons. Il conserve l'ordre, les absences et l'ID en chaîne. Erreurs publiques limitées à `not_authorized`, `invalid_query`, `unexpected`, sans message serveur brut. L’interface, le debounce et les mutations frontend sont livrés séparément en 6C.3.
+
+**Mesures et preuves.** [`node scripts/test-catalog-search-api.js`](../scripts/test-catalog-search-api.js) teste le vrai chemin PostgreSQL → PostgREST → supabase-js → service, pagination, droits, BIGINT et graphe de dépendances navigateur sans `pg`. Il utilise des JWT signés avec la clé locale pour tester les niveaux aal1/aal2, sans simuler le transport ni réaliser un parcours UI TOTP. Il compare scores et ordre du moteur portable sur 24 requêtes synthétiques, puis développe les variantes ; fixtures explicitement nettoyées. Le [pgTAP dédié](../supabase/tests/database/017_catalog_search.test.sql) teste contrat, grants, refus, éligibilité et pagination dans une transaction annulée.
+
+Catalogue mesuré le 26 septembre : 19 907 cartes, 31 904 variantes, dont 31 881 éligibles. `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT public.search_catalog_variants_for_add(query,20,0)`, trois passages sous rôle authenticated/aal2/profil, avec petites fixtures présentes. Baseline : `Pikachu` 2078–2103 ms, `Légendes` 2075–2136 ms, `Pikachu 28` 2096–2197 ms, `28/73` 1152–1217 ms, `SLG Pikachu` 2084–2106 ms, `Raichu GX` 2066–2078 ms, `2` 1246–1274 ms. Cause : normalisation de tous les champs et scoring de toutes les cartes pour chaque requête. La seconde migration applique une condition nécessaire : présence des termes texte dans la concaténation normalisée et matching numérique via le helper existant, avant normalisation détaillée/scoring des seuls candidats. Aucun index, extension, projection persistante ni nouveau moteur.
+
+| Requête | Après présélection, trois passages (ms) |
+| --- | --- |
+| `Pikachu` | 472 / 474 / 474 |
+| `Légendes` | 497 / 510 / 513 |
+| `Pikachu 28` | 410 / 393 / 383 |
+| `28/73` | 313 / 324 / 314 |
+| `SLG Pikachu` | 452 / 434 / 439 |
+| `Raichu GX` | 433 / 434 / 437 |
+| `2` | 609 / 578 / 583 |
+
+Gain d'environ 2 à 5 fois sans changement de matching/ranking. Mesures locales, hors latence réseau Cloud et charge concurrente ; le coût reste linéaire sur le catalogue. Réévaluer uniquement si l'usage 6C.3 ou la croissance réelle le justifie. Le test documente aussi le départage hors BMP (U+E000 / U+10000) distinct d'UTF-16, sans effet sur les cas français testés.
+
+**Compatibilité et retour arrière.** Ajout de fonctions uniquement ; collections, catalogue, pipeline et anciens lecteurs/écrivains restent inchangés. Application transactionnelle et historique CLI rendent un échec visible et annulable. Après retrait des consommateurs, une nouvelle migration peut supprimer la RPC puis les deux helpers sans restaurer de données ; l'optimisation peut aussi être annulée en réinstallant le corps précédent. Aucun rollback ni reset exécuté sur le schéma de développement.
+
+### Classeur et préférences
 
 Les pages du classeur ne sont pas persistées dans une table `binder_pages`. Elles sont calculées côté frontend à partir des `collection_items`, de leur ordre, du format de page et du mode continu ou par blocs. La hiérarchie variante → carte → set → série permet d'identifier les changements de bloc.
 
@@ -994,24 +1266,28 @@ Les migrations définissent la structure. Le catalogue TCGdex complet est alimen
 
 ## Vérifications attendues
 
-Les suites [de tests PostgreSQL](../supabase/tests/database/) de Phase 1 couvrent la structure, les contraintes, les suppressions, les droits de table et de colonne, la RLS et Automatic RLS. `npm run db:test` exécute pgTAP via la CLI installée. Les fixtures synthétiques sont créées dans des transactions annulées, avec propriétaire, deux destinataires, tiers et rôle anonyme. Les scénarios fonctionnels de génération, conversion, progression et ancrage ci-dessous restent à tester lors de leur implémentation ; le socle ne prétend pas les calculer.
+Les suites [de tests PostgreSQL](../supabase/tests/database/) de Phase 1 couvrent la structure, les contraintes, les suppressions, les droits de table et de colonne, la RLS et Automatic RLS. `npm run db:test` exécute pgTAP via la CLI installée. Les fixtures synthétiques sont créées dans des transactions annulées, avec propriétaire, deux destinataires, tiers et rôle anonyme. Les suites suivantes couvrent également le calcul canonique, la création automatique et la progression Dashboard livrés. Les scénarios de conversion, mise à jour et ancrage restent à tester lors de leur implémentation.
 
 ### Contraintes et logique métier
 
 Les tests de base devront notamment vérifier :
 
-- l'unicité automatique propriétaire/Pokémon et propriétaire/Extension, sans limiter les propriétaires différents ou les collections libres ;
+- l'unicité automatique propriétaire/Pokémon et propriétaire/Extension, sans limiter les propriétaires différents ou les collections personnalisées ;
 - le minimum de 3 caractères utiles après trim pour tous les noms de collections ;
 - les valeurs autorisées des préférences, leur lecture et modification par le propriétaire et leur isolation RLS ;
 - l'impossibilité de dupliquer une variante dans une collection ;
 - l'impossibilité d'une double cible automatique ;
-- l'absence de cible et de version sur une collection libre ;
+- l'absence de cible et de version sur une collection personnalisée ;
 - la conservation des exemplaires après suppression d'une collection ;
 - la suppression complète du seul compte visé, y compris exemplaires hors collection, préférences et partages dans les deux sens, avec préservation du catalogue et des données d'autrui ;
-- la conversion manuel vers automatique sans doublon ;
+- la conversion manuel vers automatique sur le même `collection_item`, sans doublon, avec `origin = automatic`, `automatic_rank` défini et `sort_position` préservé autant que possible ;
 - le retrait automatique sans suppression d'exemplaire ;
 - la progression incluant les éléments manuels ;
-- la conservation de l'ordre relatif des éléments automatiques.
+- l'initialisation dans l'ordre canonique Pokémon ou Extension ;
+- la réorganisation par le propriétaire des éléments automatiques et manuels via `sort_position`, sans changement d'origine, de rang canonique, de hash/version canonique, de version appliquée ni d'`automatic_target_states` ;
+- des collections de même cible/version avec les mêmes éléments automatiques et des positions différentes ;
+- l'interdiction de suppression manuelle d'un élément automatique ;
+- la mise à jour des `automatic_rank` et la préservation autant que possible de l'ordre personnalisé, sans réinitialisation arbitraire des positions ; les scénarios précis d'insertion/ancrage seront définis après le cadrage Phase 8.
 
 ### RLS
 
@@ -1035,12 +1311,13 @@ Le futur SQL et les opérations métier doivent garantir autant que possible que
 - son nom contient au moins 3 caractères utiles après trim ;
 - une seule collection automatique existe par propriétaire et cible Pokémon ou Set ;
 - les préférences sont uniques par profil, contrôlées et privées au propriétaire ;
-- une collection libre n'a ni cible automatique ni version appliquée ;
+- une collection personnalisée n'a ni cible automatique ni version appliquée ;
 - une collection automatique possède exactement une cible Pokémon ou Set compatible ;
 - une variante apparaît au maximum une fois dans une collection ;
 - un élément référence une variante existante ;
-- une collection libre ne contient aucun élément automatique ;
-- un élément automatique n'est ni supprimable ni déplaçable arbitrairement ;
+- une collection personnalisée ne contient aucun élément automatique ;
+- un élément automatique est librement déplaçable par le propriétaire, mais reste non supprimable manuellement tant qu'il appartient à la structure automatique ;
+- un déplacement modifie `sort_position` sans modifier `automatic_rank`, `origin`, le hash/version canonique, la version appliquée ou `automatic_target_states` ;
 - un exemplaire appartient à un utilisateur et à une variante, jamais à une collection ;
 - chaque exemplaire physique est une ligne distincte ;
 - la possession est dérivée des exemplaires ;
@@ -1073,10 +1350,7 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
-- la nomenclature des conditions ;
-- les sociétés et formats de grading ;
-- le code de positionnement et de rééquilibrage de `sort_position`, dont le stockage fractionnaire est fixé ;
-- la stratégie d'ancrage des cartes manuelles après une mise à jour ;
+- pour la Phase 8, le placement d'un nouvel élément automatique dans un ordre personnalisé et la stratégie de préservation/ancrage des positions de tous les éléments ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code et les signatures finaux des RPC ;

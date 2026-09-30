@@ -104,9 +104,9 @@ select throws_ok($$delete from collection_items where collection_id = '20000000-
 select throws_ok($$update profiles set public_id = 'MY-22222-22222-22222-22222'$$, '42501', null, 'Owner cannot write public ID');
 select throws_ok($$insert into profiles(id) values ('10000000-0000-0000-0000-000000000001')$$, '42501', null, 'No browser profile insertion: Auth trigger owns creation');
 select throws_ok($$insert into collection_shares(collection_id, recipient_user_id) values ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002')$$, '42501', null, 'Share creation awaits public-ID operation');
-select lives_ok($$insert into physical_copies(variant_id, condition, note) values (-3, 'Unspecified test', 'Browser copy')$$, 'Owner creates individual copy');
+select lives_ok($$insert into physical_copies(variant_id, name, note) values (-3, 'Unspecified test', 'Browser copy')$$, 'Owner creates individual copy');
 select is((select count(*) from physical_copies ), 4::bigint, 'Copy assigned to caller');
-select lives_ok($$update physical_copies set note = 'Edited', is_graded = true, grading_score = 'A+' where variant_id = -3$$, 'Owner edits copy');
+select lives_ok($$update physical_copies set note = 'Edited', name = 'A+' where variant_id = -3$$, 'Owner edits copy');
 select throws_ok($$update physical_copies set user_id = '10000000-0000-0000-0000-000000000002' where variant_id = -3$$, '42501', null, 'Cannot transfer copy through API');
 select throws_ok($$insert into physical_copies(user_id, variant_id) values ('10000000-0000-0000-0000-000000000002', -1)$$, '42501', null, 'Cannot create copy for another user');
 select lives_ok($$delete from physical_copies where variant_id = -3$$, 'Owner deletes own copy');
@@ -196,6 +196,11 @@ revoke update(user_id) on physical_copies from authenticated;
 revoke update(owner_id) on collections from authenticated;
 
 -- Both parties can remove a share, with immediate loss of access and no cascade.
+-- Compare complete rows, including pre-existing local data, without resetting DB.
+create temporary table share_removal_snapshot as select
+  (select jsonb_agg(to_jsonb(c) order by c.id) from collections c) as collections,
+  (select jsonb_agg(to_jsonb(i) order by i.id) from collection_items i) as items,
+  (select jsonb_agg(to_jsonb(p) order by p.id) from physical_copies p) as copies;
 set local role authenticated;
 set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000002';
@@ -204,9 +209,12 @@ select is((select count(*) from collections ), 0::bigint, 'Recipient loses colle
 select is((select count(*) from collection_items ), 0::bigint, 'Recipient loses item access after removal');
 select is((select count(*) from physical_copies ), 0::bigint, 'Recipient loses owner-copy access after removal');
 reset role;
-select is((select count(*) from collections ), 4::bigint, 'Share deletion preserved all collections');
-select is((select count(*) from collection_items ), 3::bigint, 'Share deletion preserved all items');
-select is((select count(*) from physical_copies ), 4::bigint, 'Share deletion preserved all copies');
+select is((select jsonb_agg(to_jsonb(c) order by c.id) from collections c),
+  (select collections from share_removal_snapshot), 'Share deletion preserved all collections');
+select is((select jsonb_agg(to_jsonb(i) order by i.id) from collection_items i),
+  (select items from share_removal_snapshot), 'Share deletion preserved all items');
+select is((select jsonb_agg(to_jsonb(p) order by p.id) from physical_copies p),
+  (select copies from share_removal_snapshot), 'Share deletion preserved all copies');
 set local role authenticated;
 set local request.jwt.claims = '{"aal":"aal2"}';
 set local request.jwt.claim.sub = '10000000-0000-0000-0000-000000000001';

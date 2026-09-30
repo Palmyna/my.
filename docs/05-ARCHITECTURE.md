@@ -47,6 +47,8 @@ La V1 n'utilise ni Next.js ni un framework SSR équivalent. Ce choix répond au 
 
 ## Architecture générale
 
+Architecture cible ; l'hébergement Vercel n'est pas encore configuré :
+
 ```text
 Utilisateur
     ↓
@@ -73,7 +75,7 @@ Processus de synchronisation dans un environnement de confiance
                 Catalogue local MY.
 ```
 
-Vercel héberge le frontend compilé par Vite. La SPA React s'exécute dans le navigateur et accède directement à Supabase pour les opérations applicatives simples, sous contrôle Auth et RLS. Supabase reste le backend principal ; aucune logique backend n'est déplacée vers Vercel. TCGdex alimente le catalogue local, mais n'est pas interrogé à chaque consultation utilisateur.
+Vercel hébergera le frontend compilé par Vite lors de la mise en production. La SPA React s'exécute dans le navigateur et accède directement à Supabase pour les opérations applicatives simples, sous contrôle Auth et RLS. Supabase reste le backend principal ; aucune logique backend n'est déplacée vers Vercel. TCGdex alimente le catalogue local, mais n'est pas interrogé à chaque consultation utilisateur.
 
 ## Frontend
 
@@ -81,13 +83,13 @@ Vercel héberge le frontend compilé par Vite. La SPA React s'exécute dans le n
 
 MY. est une SPA React. Cette approche correspond à une application authentifiée et interactive centrée sur un dashboard, des collections, des listes, des grilles, des classeurs, des recherches et des panneaux de détail.
 
-La navigation applicative est gérée côté client avec React Router. Les routes conceptuelles comprennent la homepage, les parcours d'authentification et pages légales, puis Dashboard, Pokémon catalogue, Extension catalogue, Carte catalogue, Collection, Profil et Paramètres. Ces sept dernières destinations restent authentifiées. La Phase 3C, terminée et validée localement, regroupe `/dashboard`, `/profile` et `/settings` sous `AuthenticatedLayout`, distinct d'`AuthLayout`, avec des pages minimales. Leur accès exige toujours l'état autorisé email confirmé / TOTP vérifié / `aal2` ; les parcours MFA et de récupération restent prioritaires. Un utilisateur autorisé conserve sa route authentifiée, tandis que les routes publiques/Auth le redirigent vers `/dashboard`. Les chemins, slugs ou IDs des autres destinations restent à définir pour garantir stabilité, accès direct et absence d'ambiguïté avec les IDs MY./TCGdex.
+La navigation applicative est gérée côté client avec React Router. Les routes conceptuelles comprennent la homepage, les parcours d'authentification et pages légales, puis Dashboard, Pokémon catalogue, Extension catalogue, Carte catalogue, Collection, Profil et Paramètres. Ces sept dernières destinations restent authentifiées. `AuthenticatedLayout`, distinct d'`AuthLayout`, regroupe les routes livrées `/dashboard`, `/collections/:collectionId`, `/profile` et `/settings`. Leur accès exige toujours l'état autorisé email confirmé / TOTP vérifié / `aal2` ; les parcours MFA et de récupération restent prioritaires. Un utilisateur autorisé conserve sa route authentifiée, tandis que les routes publiques/Auth le redirigent vers `/dashboard`. Les chemins, slugs ou IDs des destinations catalogue futures restent à définir pour garantir stabilité, accès direct et absence d'ambiguïté avec les IDs MY./TCGdex.
 
-`AuthenticatedHeader` conserve le logo blanc vers `/dashboard` et lui associe le nom de la page à la même hauteur visuelle, avec un écart de 8 px. Le grand champ de recherche, centré dans l'espace disponible, reste uniquement visuel (sans requête, suggestion ni moteur). Le bouton « Mon compte » porte l'initiale de l'email ; son menu accessible propose Profil, Paramètres et Déconnexion via l'action Auth existante. Il se ferme au clic extérieur, avec Escape, en quittant le menu au clavier ou lors d'une navigation. Les micro-animations respectent la préférence de réduction des mouvements. Sur tablette et mobile, la recherche passe sur une seconde ligne ; le logo et le texte diminuent ensemble et le bouton se compacte sur mobile. Les boutons reprennent le dégradé rouge du logo, sans bordure, et les inputs utilisent un halo de focus. La navigation et la déconnexion temporaires ont été retirées du contenu du shell.
+`AuthenticatedHeader` conserve le logo blanc à gauche, vers `/dashboard`. Le grand champ de recherche, centré dans l'espace disponible, reste uniquement visuel (sans requête, suggestion ni moteur). Le bouton « Mon compte » porte l'initiale de l'email ; son menu accessible propose Profil, Paramètres et Déconnexion via l'action Auth existante. Il se ferme au clic extérieur, avec Escape, en quittant le menu au clavier ou lors d'une navigation. Les micro-animations respectent la préférence de réduction des mouvements. Sur tablette et mobile, la recherche passe sur une seconde ligne ; le logo diminue et le bouton se compacte sur mobile. La fondation 6F.1 utilise un jeu commun de tokens sémantiques dans `:root` : graphite sombre, actions principales rouges unies, actions secondaires neutres, suppressions distinctes et focus à contour visible avec halo discret. Les écrans publics et Auth utilisent cette même palette, avec leurs structures, dimensions et parcours existants. La navigation et la déconnexion temporaires ont été retirées du contenu du shell.
 
-Les trois pages partagent une largeur de lecture maximale de 720 px dans le contenu du shell, des espacements adaptés à l'écran et un `h1` accessible, focalisé lors de la navigation. Dashboard conserve le message éventuel après changement de mot de passe et l'identifiant public MY. ; dans l'implémentation livrée en Phase 3C, Profil et Paramètres restent des placeholders sans édition ni réglage métier. Le footer reste commun. Les validations de clôture sont consignées dans le [rapport Phase 3C](reports/2026-09-12-PHASE3C-SHELL.md). La Phase 4 débute par les services et callbacks Auth décrits ci-dessous ; la page Profil finale reste à construire. Profil et Paramètres restent accessibles séparément par `Mon compte`, sans raccourci vers Paramètres dans Profil.
+Les pages partagent le shell, des espacements adaptés à l'écran et un `h1` accessible, focalisé lors de la navigation. Dashboard et Collection exploitent le contenu du shell jusqu’à 1 520 px avec au moins 24 px de marge latérale ; Profil est limité à 1 000 px depuis 6F.4, Paramètres à 720 px. Dashboard utilise une seule grille personnelle/partagée, les statuts `Personnelle` et `Partagée · Lecture seule`, et un FAB de création personnalisée ; il conserve le message éventuel après changement de mot de passe. `useFooterAwareFab` partage les mesures du footer et safe areas avec le FAB contextuel propriétaire de Collection. Le Profil modernisé conserve le contrat MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Le contenu du footer reste commun ; son apparence publique et authentifiée utilise une surface graphite et une séparation neutre, sans modifier ses dimensions. Le [rapport Phase 3C](reports/2026-09-12-PHASE3C-SHELL.md) conserve l'état historique du shell minimal. Paramètres reste volontairement minimal ; ses préférences fonctionnelles restent en Phase 7. Profil et Paramètres restent accessibles séparément par `Mon compte`, sans raccourci vers Paramètres dans Profil.
 
-Pour les futures pages métier, le routeur et l'état de navigation devront conserver autant que possible page, vue, filtres et scroll lors du retour d'une fiche Carte. Précédente/Suivante réutilisera l'ordre réel du contexte d'origine ; aucune séquence ne sera fabriquée pour une arrivée globale sans liste. Le détail Variante sera un composant contextuel commun aux pages Carte et aux collections, avec actions et données adaptées aux droits du contexte.
+Pour les futures pages métier, le routeur et l'état de navigation devront conserver autant que possible page, vue, filtres et scroll lors du retour d'une fiche Carte. Précédente/Suivante réutilisera l'ordre réel du contexte d'origine ; aucune séquence ne sera fabriquée pour une arrivée globale sans liste. Le détail Variante livré dans les collections sera réutilisé par les futures pages Carte, avec actions et données adaptées aux droits du contexte.
 
 Vercel devra permettre l'accès direct et le rafraîchissement des routes internes de la SPA. Le mécanisme précis de rewrite ou de fallback SPA sera défini et configuré lors du déploiement effectif. La présente décision d'hébergement n'ajoute aucune configuration de déploiement et ne modifie pas React Router.
 
@@ -115,9 +117,74 @@ Le frontend doit distinguer conceptuellement :
 - la logique métier partagée ;
 - les types applicatifs.
 
-Le socle de la Phase 0 distingue `src/app/` pour l'application, les providers et les routes, `src/services/` pour l'accès aux données et services, `src/lib/` pour la logique partagée, `src/types/` pour les types et `src/test/` pour la configuration des tests. Les tests sont placés à côté du code testé. `src/components/` et `src/features/` accueilleront les composants partagés et les fonctionnalités au premier besoin, sans dossiers vides anticipés. Une architecture dite « enterprise » ou excessivement abstraite n'est pas justifiée pour la V1.
+Le socle de la Phase 0 distingue `src/app/` pour l'application, les providers et les routes, `src/services/` pour l'accès aux données et services, `src/lib/` pour la logique partagée, `src/types/` pour les types et `src/test/` pour la configuration des tests. Les tests sont placés à côté du code testé. `src/components/` et `src/features/` accueillent les composants partagés et les fonctionnalités livrées, dont Dashboard et Collection. Une architecture dite « enterprise » ou excessivement abstraite n'est pas justifiée pour la V1.
+
+### Contrat applicatif Collections
+
+Le [service Collections](../src/services/collections.ts) expose `createCollectionsService(client: SupabaseClient<Database>)`, suivant l'injection déjà utilisée par Auth. Ses [types métier](../src/types/collections.ts) décrivent les entrées et résultats ; les arguments et retours SQL restent inférés depuis les types Supabase générés.
+
+| Opération | Entrée | Résultat |
+|---|---|---|
+| `listDashboardCollections` | Aucune | `DashboardCollection[]` |
+| `getCollectionOverview` | `collectionId` | `CollectionOverview` (dont `ownerId`) |
+| `createFree` | `{ name }` | `{ collectionId }` |
+| `createAutomatic` | `{ name, targetType: 'pokemon' \| 'set', targetId }` | `{ collectionId, created }` |
+| `rename` | `collectionId, name` | `{ collectionId }` |
+| `delete` | `collectionId` | `{ collectionId }` |
+
+La création personnalisée via `createFree()` insère uniquement `name` et `collection_type = 'free'`. Le renommage met à jour uniquement `name`, filtré par ID. La suppression cible uniquement le parent `collections` : les cascades des items/partages et la conservation des exemplaires physiques relèvent de PostgreSQL. Les mutations directes utilisent la session du client injecté, sous RLS, sans fournir de propriétaire ni contourner les restrictions de colonnes. Renommage et suppression demandent l'ID effectivement affecté ; zéro ligne renvoie `collection_unavailable`, sans distinguer artificiellement absence et interdiction RLS.
+
+La création automatique appelle exclusivement `create_automatic_collection` avec ses trois paramètres. Elle ne lit ni ne calcule variantes, rangs, hash ou version. `created = false` est un résultat normal d'ouverture de l'existante. Les noms sont transmis intacts ; aucune prévalidation TypeScript ne remplace la règle PostgreSQL des trois caractères utiles après trim, ni n'empêche la RPC de retourner une existante avec un nom fourni invalide. `targetId` reprend le type numérique de la signature générée.
+
+`CollectionsError` expose uniquement un code métier stable dans `code` et `message`, sans erreur serveur brute, `details`, `hint` ni `cause`. Le mapping utilise les erreurs observées dans la base locale et les contrats de la [RPC autoritative](06-DATABASE.md#création-transactionnelle) :
+
+| Code métier | Signal reconnu |
+|---|---|
+| `invalid_name` | `23514` avec la contrainte `collections_name_check`, ou `23502` identifiant `collections.name` |
+| `invalid_target` | `22023` avec le message livré pour type invalide ou ID absent |
+| `target_not_found` | `P0002` avec `Automatic target does not exist` |
+| `automatic_state_missing` | `P0002` avec `automatic_target_state_missing` |
+| `automatic_state_inconsistent` | `23514` avec `automatic_target_hash_mismatch` |
+| `empty_automatic_target` | `23514` avec `automatic_collection_empty` |
+| `not_authorized` | `42501` ou refus JWT PostgREST `PGRST301`, `PGRST302`, `PGRST303` |
+| `collection_unavailable` | Renommage/suppression sans ligne affectée ; overview sans ligne visible ou identifiant manifestement invalide |
+| `unexpected` | Toute autre erreur, rejet réseau ou réponse absente/malformée hors contrat |
+
+Les détails d'une erreur ne sont pas analysés comme preuve d'un nom invalide : ils peuvent contenir la ligne et ses valeurs. Un code SQL générique sans le signal spécifique attendu reste `unexpected`. Aucun retry de mutation n'est effectué par le service ; une erreur réseau ne prouve pas que la mutation a été annulée. Les [tests unitaires du service](../src/services/collections.test.ts) contrôlent les payloads, filtres, retours et erreurs sans reproduire le calcul canonique SQL. L'interface et son intégration restent séparées de ce contrat.
+
+La lecture Dashboard effectue un seul `SELECT` sur la [vue `dashboard_collections`](06-DATABASE.md#lecture-dashboard), sans requête par collection. `DashboardCollection` contient `collectionId`, `name`, `collectionType`, `access` (`owned`/`shared`), `targetType`, `targetName`, `ownedCount` et `totalCount`. Le serveur déduit l'accès de l'identité Auth et calcule la possession du propriétaire, même pour une collection partagée. Le service traduit les noms SQL, conserve les noms de cible absents comme `null` et ne calcule ni progression ni ordre visuel. Une liste vide reste `[]` ; les réponses malformées ou incohérentes lèvent `CollectionsError('unexpected')`, et les refus explicites suivent le mapping existant. Les restrictions RLS peuvent produire une liste vide sans erreur explicite : le service ne la présente pas comme une preuve d'authentification.
+
+La page `/collections/:collectionId`, ajoutée sous le même `AuthenticatedLayout`, conserve les gardes Auth existantes et fonctionne en accès direct. `getCollectionOverview` lit `dashboard_collections`, filtré exactement par `collection_id`, avec `maybeSingle()` et le mapper Dashboard existant, puis complète l'overview avec `collections.owner_id` sous RLS. Le propriétaire réel est transmis aux exemplaires, sans fallback vers le lecteur. Aucune ligne visible produit `collection_unavailable`, sans distinguer absence, collection tierce ou partage retiré. Un UUID manifestement invalide produit le même code avant toute requête ; les réponses malformées restent `unexpected`. Aucune nouvelle vue ni lecture d'items n'est nécessaire pour l'overview.
+
+La [page Collection](../src/features/collections/CollectionPage.tsx) utilise la clé TanStack Query `['collections', 'detail', userId, collectionId]`, indépendante de celle du Dashboard, sans retry automatique. Un échec de lecture masque également une éventuelle donnée en cache. Les libellés, couleurs déterministes et la présentation de progression sont partagés avec les tuiles. La page met à jour `document.title` après réception du nom ; le focus de navigation reste géré par `AppRoutes` sur un `h1` persistant.
+
+### Contenu, exemplaires et réorganisation — Phase 6
+
+Le contenu est chargé après overview autorisé via `getCollectionContent` et la RPC `get_collection_content`, avec `collectionContentKey(viewerId, collectionId)`. Son tableau complet, y compris items historiques, conserve l'ordre backend, les métadonnées et la possession du propriétaire. La recherche interne 6D.1 filtre uniquement ce tableau déjà chargé : normalisation, AND multi-termes sur carte, Extension, abréviations, série, numéro et variante, sans réseau, score ni tri. Un filtre masquant des items désactive le reorder.
+
+Le service des exemplaires conserve les IDs BIGINT en chaînes décimales. `physical_copies` appartient au compte et à la variante, jamais à une collection : CRUD propriétaire, lecture partagée, nom facultatif, fallback dynamique `Exemplaire N`, note libre nullable limitée à 750 caractères et aucun grading structuré actif. Le cache distingue lecteur, propriétaire réel et variante ; ajout/suppression invalident les lectures de possession concernées, modification du nom/note sans recalcul indépendant de possession.
+
+Le reorder appelle `reorder_collection_item` pour `start`/`end`/`before`/`after` ; midpoint, rebalance et concurrence appartiennent au backend. `get_collection_item_order` reste une lecture technique, avec invalidation/relecture de l'ordre et du contenu après succès ou erreur. Le DnD propriétaire souris/tactile/clavier conserve uniquement un ordre visuel transitoire pendant la sauvegarde et les relectures pour éviter le snap-back ; aucun cache optimiste ni calcul JavaScript de `sort_position`. L'ordre backend remplace cet état et le frontend ne devient jamais une vérité permanente. Aucun DnD partagé.
+
+### Contrat de lecture du détail Variante — 6E.1
+
+Le [service `getVariantDetail`](../src/services/variant-detail.ts) appelle exclusivement `get_variant_detail(p_variant_id bigint)` via le client Supabase authentifié. Le [type `VariantDetail`](../src/types/variant-detail.ts) décrit ses vingt champs camelCase, sans contexte de collection, possession ou donnée personnelle. La RPC lit seulement les quatre tables catalogue en `SECURITY INVOKER` : les RLS MFA/profil existantes restent applicables, sans lecture directe de `profiles` dans son corps.
+
+Le service valide les vingt champs, leurs nullabilités, le tableau de stamps et les valeurs de provenance, refuse les champs supplémentaires et un ID de réponse différent de l'ID demandé. Il réutilise `variantIdString` et adapte uniquement le type de l'argument RPC `BIGINT` en texte, sans conversion en nombre. Un ID invalide échoue avant l'accès Supabase (`variant_unavailable`). Un résultat SQL `NULL`, pour absence ou invisibilité RLS, donne également `variant_unavailable` ; les refus explicites de permission/JWT donnent `not_authorized`, les réponses malformées et autres erreurs `unexpected`, sans exposer les détails serveur.
+
+La lecture inclut les variantes historiques/inactives, conserve date/provenance et stamps persistés, et délègue le fallback image variante/carte à PostgreSQL. Aucun assemblage catalogue côté navigateur. Ce contrat autonome est consommé par l'interface 6E.2. La migration additive précède son consommateur ; les lecteurs existants restent compatibles.
+
+### Détail contextuel et exemplaires intégrés — 6E.2
+
+[`VariantDetailPanel`](../src/features/variant-detail/VariantDetailPanel.tsx) est monté depuis la zone principale de `CollectionContentRow`, sans navigation. Son état conserve uniquement l'ID exact en chaîne et le déclencheur de focus ; aucune métadonnée n'est reconstruite depuis `CollectionContentItem`. La query `['variant-detail', viewerId, variantId]` appelle seulement `getVariantDetail`, sans retry automatique ni données de substitution d'une autre variante. La frontière Auth et la clé de composant lecteur/propriétaire/variante isolent le contenu ; la perte d'autorisation démonte le panneau. Les champs vides sont omis et la date civile est formatée en français avec un fuseau UTC explicite.
+
+[`PhysicalCopiesContent`](../src/features/physical-copies/PhysicalCopiesContent.tsx) porte la query existante lecteur/propriétaire/variante, les mutations, formulaires, notes, noms automatiques, focus de formulaire, erreurs et invalidations. Il est partagé par `PhysicalCopiesDialog` et le panneau, chacun conservant son enveloppe de dialog natif. Le petit contrat impératif de fermeture consulte le verrou synchrone de mutation : aucune double soumission ni fermeture pendant la mutation et les relectures attendues. La même gestion clavier contient le focus ; chaque enveloppe bloque le scroll arrière et restaure le focus sans scroll. Le panneau mesure au plus 620 px, occupe `100dvh` et passe plein écran à 640 px ; la croix reste hors du scroll interne, sans en-tête visuel. `CardImage` partage son fallback entre tailles compacte et détail.
+
+La possession affichée dérive de la liste d'exemplaires relue, jamais d'un état optimiste indépendant. Le `ownerId` réel est transmis en partage, avec consultation des noms/notes et aucune écriture. `invalidateCopyPossession` reste inchangé : ajout/suppression invalident les lectures existantes concernées ; modifier nom/note ne rafraîchit pas la possession des collections. Les actions ne changent pas leur structure. Le dialogue direct demeure compatible ; retour arrière frontend possible en retirant le déclencheur et le panneau, sans opération DB ni altération de données. Aucun changement de route, de règle de reorder, de DB ou de Cloud dans cette étape.
 
 ### État frontend
+
+En 5D.2, les wrappers runtime `renameCollection(collectionId, name)` et `deleteCollection(collectionId)` obtiennent le client Supabase courant puis délèguent aux méthodes injectées existantes, avec `not_authorized` en l'absence de client. Les deux dialogs utilisent `useMutation`, sans retry automatique. Après un renommage confirmé, les lectures en cours du détail et du Dashboard courant sont annulées ; leur nom en cache est mis à jour sans modifier les autres champs, puis ces deux clés exactes sont invalidées pour relecture autoritative. Après suppression confirmée, la lecture détail est annulée et sa query retirée ; sa tuile est également retirée du cache Dashboard avant sa relecture, puis la page navigue vers `/dashboard` et invalide uniquement son Dashboard. Une mutation renvoyant `collection_unavailable` retire le détail en cache et affiche l'état sûr. Aucun cache d'un autre utilisateur ni invalidation globale n'est concerné ; une réponse tardive après démontage ne recrée pas les données d'une session quittée.
 
 L'état local reste local lorsqu'il n'a pas besoin d'être partagé. Les données serveur sont traitées comme des données distantes. Aucun système lourd de gestion d'état global n'est imposé par défaut.
 
@@ -237,7 +304,7 @@ La [structure de configuration de la CLI 2.116.0](https://github.com/supabase/cl
 
 Le cloud ne reprend pas automatiquement les réglages locaux. Selon la [validation 3A fournie par le propriétaire](reports/2026-09-09-PHASE3A-AUTH.md#validation-cloud), le provider Email, les inscriptions et la confirmation email obligatoire sont activés. TOTP/App Authenticator est activé avec **un seul facteur MFA par utilisateur en V1** ; les sessions `aal1` sont limitées à **15 minutes** et Phone/SMS MFA reste désactivé. L'accès MY. exige toujours `aal2`, notamment via les 13 policies restrictives déployées.
 
-Le développement et les tests utilisent **Supabase local uniquement**, avec l'URL et la clé publishable locales. Les quatre retours ci-dessus restent dans la configuration locale : **aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée aux Redirect URLs du cloud**. Supabase cloud est réservé à la future production avec Vercel ; la Site URL et les Redirect URLs de production seront configurées lors de la phase finale de mise en production. Aucune URL de production n'est encore définie et aucune configuration cloud n'est modifiée en 3C.
+Le développement et les tests courants utilisent **Supabase local**, avec l'URL et la clé publishable locales. Le [checkpoint Cloud 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) est une exception ponctuelle explicitement autorisée, limitée aux fixtures synthétiques temporaires. Les quatre retours ci-dessus restent dans la configuration locale : **aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée aux Redirect URLs du cloud**. Supabase cloud est réservé à la future production avec Vercel ; la Site URL et les Redirect URLs de production seront configurées lors de la phase finale de mise en production. Aucune URL de production n'est encore définie et aucune configuration cloud n'est modifiée en 3C.
 
 ### Récupération MFA administrative
 
@@ -265,11 +332,11 @@ commit;
 
 ### Profil et gestion du compte — cible Phase 4
 
-Le périmètre fonctionnel et UX de `/profile` est cadré dans [01-FEATURES.md](01-FEATURES.md#profil-utilisateur) et [04-UX-UI.md](04-UX-UI.md#profil-utilisateur). La page finale et l'intégration des parcours restent à construire. Le contrat Auth des Phases 3A/3B est prolongé par le service email et le backend de suppression décrits ci-dessous. Le changement volontaire de mot de passe reste non livré.
+Le périmètre fonctionnel et UX de `/profile` est cadré dans [01-FEATURES.md](01-FEATURES.md#profil-utilisateur) et [04-UX-UI.md](04-UX-UI.md#profil-utilisateur). La [Phase 4C](reports/2026-09-14-PHASE4C-PROFILE.md) livre l'identité MY., la date d'inscription, le formulaire email et le statut Authenticator. La [Phase 4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) organise le Profil en Identité MY., Adresse email et Sécurité du compte, avec formulaire password puis Authenticator secondaire. La page utilise exclusivement `useAuth()`, sans second client, cache de données du compte ou requête Supabase dans React. Saisie, copie et erreurs de formulaire restent locales ; le statut de soumission/succès password décrit ci-dessous survit au remontage Auth. Le contrat et les messages email 4B.2 restent inchangés. La [Phase 4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) ajoute la suppression depuis Profil ; le [checkpoint Cloud final 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) valide les protections serveur et clôture la Phase 4.
 
 L'email courant et la date de création du compte se lisent sur l'utilisateur renvoyé par Supabase Auth : `user.email` et `user.created_at`, ce dernier correspondant à `auth.users.created_at`, selon la [référence de l'utilisateur Auth](https://supabase.com/docs/guides/auth/users#the-user-object). `profiles.public_id` fournit l'identifiant MY. ; `profiles.created_at` reste la date technique de la ligne applicative, notamment lors d'un backfill. Aucune duplication d'email ou de date d'inscription, aucun accès direct du navigateur à `auth.users` et aucun champ social ne sont nécessaires.
 
-Le statut Authenticator provient du facteur TOTP vérifié géré par Auth. L'éventuelle action `Modifier` de Profil affiche seulement l'information de contact MY. ; elle n'appelle aucune API de remplacement ou de suppression de facteur. Le contact définitif reste ouvert et la procédure administrative existante est conservée.
+Le statut Authenticator provient de `mfa.verifiedFactors`, dérivé des facteurs TOTP vérifiés par le service Auth existant. La page distingue un statut indisponible, aucun facteur vérifié et `Authenticator configuré`. Elle affiche directement l'information de contact MY., sans action `Modifier` ni appel d'enrollment, de remplacement ou de suppression de facteur. Le contact définitif reste ouvert et la procédure administrative existante est conservée.
 
 ### Sécurité des actions de gestion du compte
 
@@ -281,7 +348,7 @@ L'accès normal à MY. conserve email confirmé, facteur TOTP vérifié et `aal2
 | Changement d'email | Session `aal2` + Secure Email Change + confirmation ancienne ET nouvelle adresse |
 | Suppression | Confirmation explicite + mot de passe actuel + TOTP frais + validation finale + opération serveur privilégiée contrôlée par MY. |
 
-Le [rapport de vérification initial](reports/2026-09-13-PHASE4B1-REAUTH.md) reste conservé sans réécriture : il décrit l'échec de l'ancien contrat commun sur les endpoints natifs. Il ne bloque plus globalement la Phase 4. Pour email/mot de passe, aucun nouveau TOTP, booléen `freshAuth`, timestamp, claim MY., permission temporaire, table ou RPC de fraîcheur n'est ajouté. La RLS ne contrôle pas les mutations Auth ; les protections doivent être imposées par Auth lui-même. La suppression reste un chantier serveur distinct.
+Le [rapport de vérification initial](reports/2026-09-13-PHASE4B1-REAUTH.md) reste conservé sans réécriture : il décrit l'échec de l'ancien contrat commun sur les endpoints natifs. Il ne bloque plus globalement la Phase 4. Pour email/mot de passe, aucun nouveau TOTP, booléen `freshAuth`, timestamp, claim MY., permission temporaire, table ou RPC de fraîcheur n'est ajouté. La RLS ne contrôle pas les mutations Auth ; les protections doivent être imposées par Auth lui-même. La suppression repose sur une orchestration serveur distincte, livrée et validée ci-dessous.
 
 ### Changement d'email et de mot de passe
 
@@ -291,25 +358,29 @@ Le [fichier local versionné](../supabase/config.toml) conserve `auth.email.doub
 
 **Callback email :** `/auth/confirm-email-change` partage le lecteur et le store des callbacks existants. Le premier lien retourne un fragment `message` sans tokens : il produit seulement un avis en mémoire invitant à confirmer les deux boîtes. Cet avis ne prouve aucune mutation et n'accorde aucun accès. Le second lien retourne `type=email_change` et une session technique ; le service utilise `setSession`, relit l'utilisateur Auth, vérifie l'absence de `new_email`, puis termine cette seule session avec `signOut({ scope: 'local' })`. L'écran affiche alors `Adresse email modifiée` et propose une connexion avec la nouvelle adresse. Le prochain login impose la MFA normale.
 
-Les paramètres sensibles sont retirés immédiatement de l'URL. `emailChangeResult` est un résultat de navigation en mémoire, distinct de `emailConfirmed` du signup et de toute autorisation. Les erreurs de lien restent fermées ; signup, recovery, listeners et purge du cache conservent leur traitement. Les retours ajoutés sont uniquement `http://localhost:5173/auth/confirm-email-change` et `http://127.0.0.1:5173/auth/confirm-email-change`. Aucun formulaire Profil n'est ajouté.
+Les paramètres sensibles sont retirés immédiatement de l'URL. `emailChangeResult` est un résultat de navigation en mémoire, distinct de `emailConfirmed` du signup et de toute autorisation. Les erreurs de lien restent fermées ; signup, recovery, listeners et purge du cache conservent leur traitement. Les retours ajoutés sont uniquement `http://localhost:5173/auth/confirm-email-change` et `http://127.0.0.1:5173/auth/confirm-email-change`. Le formulaire Profil de 4C utilise `authRedirectUrl('/auth/confirm-email-change')`, `AuthForm`, `useAuthTask` et l'action `requestEmailChange` existants. Après `USER_UPDATED`, le store résout à nouveau l'accès et remonte la page ; le message d'attente provient alors de `user.new_email`, sans dépendre d'un succès local perdu au démontage. `user.email` reste la seule adresse courante affichée.
 
-**Mot de passe — blocage local ciblé :** le SDK **2.115.0** accepte `current_password` et Auth **v2.196.0** sait l'exiger via `GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD=true`. La vérification historique avec la CLI **2.116.0** établit l'absence de cette option dans son [schéma email](https://github.com/supabase/cli/blob/v2.116.0/packages/config/src/auth/email.ts) et son [lancement](https://github.com/supabase/cli/blob/v2.116.0/apps/cli/src/legacy/commands/start/services/gotrue.service.ts) : les appels directs sans mot de passe actuel ou avec une valeur incorrecte sont acceptés. La CLI du dépôt est désormais **2.117.0** ; le propriétaire confirme qu'elle ne résout pas ce point. L'opération volontaire reste non livrée. Cette limite n'est pas réétudiée dans le chantier de suppression.
+**Mot de passe volontaire livré en 4D.1 et validé sur Cloud en 4D.3 :** l'action `changePassword(currentPassword, password)` exige l'état `authorized`. Le service distinct du recovery relit la session, vérifie l'email confirmé et le facteur TOTP vérifié avec `aal2`, puis appelle exactement `auth.updateUser({ password, current_password: currentPassword })`. Il transmet les saisies sans trim. Supabase Auth vérifie le mot de passe actuel ; aucun `signInWithPassword`, challenge TOTP, nonce email ou preuve frontend ne le remplace. Les erreurs sont propagées au traducteur Auth, notamment `current_password_invalid` (observé sur Cloud), `current_password_mismatch`, `weak_password`, erreurs de session, `insufficient_aal` et rate limit.
+
+`accountPasswordChange` est un état de présentation en mémoire (`idle`, `pending`, `success`), sans secret, persistance ni rôle d'autorisation. Il conserve le verrou de formulaire et le succès après `USER_UPDATED`, tandis que les gardes de routes et la résolution Auth restent inchangées. Une réussite n'est publiée qu'après résolution de `updateUser`. Le formulaire vide alors ses champs et affiche `Mot de passe modifié.` ; aucune déconnexion ni changement du contexte recovery. Le statut est effacé à la prochaine soumission, à la déconnexion, au changement d'utilisateur ou à l'arrêt du provider. Les réponses tardives d'un ancien cycle de connexion ne publient aucun succès.
+
+**Limite locale conservée :** le SDK **2.115.0** accepte `current_password` et Auth **v2.196.0** sait l'exiger via `GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD=true`. La vérification historique avec la CLI **2.116.0** établit l'absence de cette option dans son [schéma email](https://github.com/supabase/cli/blob/v2.116.0/packages/config/src/auth/email.ts) et son [lancement](https://github.com/supabase/cli/blob/v2.116.0/apps/cli/src/legacy/commands/start/services/gotrue.service.ts) : les appels directs sans mot de passe actuel ou avec une valeur incorrecte sont acceptés. La CLI du dépôt est **2.117.0** ; le propriétaire confirme qu'elle ne résout pas ce point. La Phase 4D.1 valide uniquement formulaire, contrat SDK et non-régressions locales ; aucun test simulé de refus ne prouve cette protection serveur. La limite n'est pas réinvestiguée.
 
 Le réglage distinct `auth.email.secure_password_change = false` reste inchangé. `Secure password change` / `reauthenticate()` utilise un nonce email et peut dispenser les sessions de moins de 24 heures ; il ne remplace pas l'obligation du mot de passe actuel. La V1 n'ajoute pas ce nonce. La [référence Supabase](https://supabase.com/docs/guides/auth/password-security) décrit ces deux mécanismes séparément.
 
-Le recovery livré reste distinct : MFA avant le nouveau mot de passe, sans exiger le mot de passe oublié, session conservée après succès. Son fonctionnement est revérifié localement avec la configuration actuelle ; la non-régression après activation future du réglage reste à démontrer. Le [handler Auth](https://github.com/supabase/auth/blob/v2.196.0/internal/api/user.go) prévoit une exception pour les sessions recovery.
+Le recovery livré reste distinct : MFA avant le nouveau mot de passe, sans exiger le mot de passe oublié, session conservée après succès. Son contrat `updatePassword(password)` / `updateUser({ password })` reste inchangé et couvert par les tests frontend/Auth. Les essais réels locaux historiques figurent dans le rapport 4B.2 ; ils ne sont pas rejoués en 4D.1. La non-régression après activation du réglage est démontrée sur Cloud en [4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md), via une vraie session recovery, le challenge MFA et le service/store MY., sans ancien mot de passe. Le [handler Auth](https://github.com/supabase/auth/blob/v2.196.0/internal/api/user.go) prévoit une exception pour les sessions recovery.
 
-La validation ciblée cloud de **Require current password when changing password** (`GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD=true`), des refus directs et du recovery est réservée à la clôture de la Phase 4, avant la Phase 5. Selon le propriétaire, les bons réglages cloud sont déjà activés ; ils ne sont ni modifiés ni revérifiés par le travail local de suppression. Secure Email Change reste requis. Aucun contrôle frontend de remplacement ni configuration Auth parallèle n'est introduit.
+La [validation Cloud 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) démontre l'effet de **Require current password when updating** : absence refusée avec `current_password_required`, valeur incorrecte refusée avec `current_password_invalid`, valeur correcte acceptée par le vrai service MY. ; le nouveau mot de passe fonctionne et l'ancien échoue. Le recovery conserve son exception et fonctionne sans ancien mot de passe après MFA. Les réglages déclarés par le propriétaire restent inchangés : Secure Email Change activé, Secure Password Change désactivé, minimum de 6 caractères sans composition additionnelle. Aucun contrôle frontend de remplacement ni configuration Auth parallèle n'est introduit.
 
 ### Suppression du compte — contraintes d'orchestration
 
 La suppression définitive exige confirmation des conséquences, ré-authentification fraîche mot de passe + TOTP, puis validation finale explicite. Elle doit être exécutée par une opération contrôlée côté base/backend, ciblant uniquement l'identité authentifiée et vérifiée ; React n'orchestre pas une suite de suppressions privilégiées.
 
-**Backend livré et validé localement :** l'[Edge Function `delete-account`](../supabase/functions/delete-account/index.ts) utilise uniquement les API Auth officielles ; la [migration dédiée](../supabase/migrations/20260914102414_phase4b3_account_deletion.sql) ajoute le nettoyage transactionnel. Aucune RPC de suppression n'est exposée, aucune FK historique n'est changée, aucun serveur généraliste ou endpoint Vercel n'est ajouté. Le [rapport de réalisation](reports/2026-09-14-PHASE4B3-ACCOUNT-DELETION.md) détaille les tests réels.
+**Backend livré et validé localement et sur Cloud :** l'[Edge Function `delete-account`](../supabase/functions/delete-account/index.ts) utilise uniquement les API Auth officielles ; la [migration dédiée](../supabase/migrations/20260914102414_phase4b3_account_deletion.sql) ajoute le nettoyage transactionnel. Aucune RPC de suppression n'est exposée, aucune FK historique n'est changée, aucun serveur généraliste ou endpoint Vercel n'est ajouté. Le [rapport de réalisation](reports/2026-09-14-PHASE4B3-ACCOUNT-DELETION.md) détaille les tests locaux. Le [checkpoint 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) confirme la migration déployée, la fonction active, les refus password/TOTP, la suppression Auth/données et les lectures vides avec un ancien JWT sur les 13 tables protégées.
 
 **Contrat final :** `POST /functions/v1/delete-account`, avec le JWT utilisateur courant dans `Authorization: Bearer …` et un corps JSON contenant uniquement `currentPassword`, `totpCode` (six chiffres), `confirmConsequences: true` et `confirmDeletion: true`. Le navigateur ne fournit ni UUID cible, ni email, ni facteur, ni challenge, ni preuve de ré-authentification. La réponse réussie est HTTP 200 `{ "deleted": true }`. Les erreurs utilisent un code fermé (`password_verification_failed`, `totp_verification_failed`, `final_confirmation_required`, `deletion_failed`, etc.), sans contenu Auth/SQL ni secret.
 
-Chaque appel final refait toute la vérification côté serveur. Le frontend futur pourra recueillir les saisies et les confirmations successives avant cet appel ; aucune autorisation intermédiaire réutilisable ne circule entre étapes. Cela laisse l'annulation possible avant envoi, sans conserver de mot de passe ou de preuve dans un store global ou durable. Aucun texte de confirmation UX définitif n'est imposé.
+Chaque appel final refait toute la vérification côté serveur. Le frontend 4D.2 recueille les saisies et les confirmations successives avant cet appel ; aucune autorisation intermédiaire réutilisable ne circule entre étapes. Les secrets restent dans l'état local de la modal, vidés à la fermeture et après succès. `useAuth().actions.deleteAccount` appelle le service Auth, qui recontrôle la session puis utilise le client Supabase existant via `functions.invoke('delete-account')`, avec timeout de 60 secondes et sans retry. Aucun appel `signInWithPassword`, `mfa.challenge` ou `mfa.verify` n'est ajouté au frontend de suppression. Le data router React Router conserve les routes existantes et permet `useBlocker` pendant l'envoi ; le dialog natif assure l'inertie du fond et le focus modal.
 
 1. Le serveur vérifie le JWT avec `getClaims(token)` et l'utilisateur avec `getUser(token)` ; il exige le même UUID, email confirmé, `aal2`, un seul TOTP vérifié et un profil accessible sous la RLS utilisateur. `verify_jwt = false` désactive uniquement le contrôle JWT historique de la passerelle : la vérification Auth dans le handler reste obligatoire, y compris pour les clés de signature asymétriques.
 2. Un client Auth anonyme distinct, limité à cette requête et sans persistance, appelle `signInWithPassword` avec l'email relu depuis Auth et le mot de passe fourni. Il doit obtenir le même UUID et une nouvelle session `aal1`, distincte de la session initiale.
@@ -320,13 +391,13 @@ Les clients sont isolés par requête. Le client privilégié n'est jamais utili
 
 **Atomicité de la destruction :** le trigger privé `private.delete_account_data_for_auth_user()` s'exécute `BEFORE DELETE ON auth.users`, dans la transaction de l'[opération Auth Admin](https://github.com/supabase/auth/blob/v2.196.0/internal/api/admin.go). Il utilise exclusivement `OLD.id`, verrouille le profil, supprime les partages reçus, collections possédées (éléments et partages sortants en cascade), exemplaires puis profil (préférences en cascade). Le verrou du profil sérialise les nouvelles références FK ; une course ou un deadlock provoque au besoin un échec transactionnel à réessayer. Aucun nettoyage applicatif n'est validé dans une RPC séparée avant la suppression Auth.
 
-Une erreur Auth/SQL annule toute la destruction ; le test réel d'une FK bloquante tardive le démontre. La révocation des sessions précède cette transaction : elle reste effective si la destruction échoue et impose une nouvelle connexion pour réessayer. Un nouvel appel refait les deux facteurs ; un appel après suppression est refusé faute d'utilisateur, sans autre mutation. Si la réponse réseau est perdue après commit, le serveur ne promet pas un succès observable : la future UX devra gérer cette incertitude. Une requête déjà en cours peut terminer selon son snapshot ; les nouvelles requêtes après commit n'accèdent plus aux données.
+Une erreur Auth/SQL annule toute la destruction ; le test réel d'une FK bloquante tardive le démontre. La révocation des sessions précède cette transaction : elle reste effective si la destruction échoue et impose une nouvelle connexion pour réessayer. Un nouvel appel refait les deux facteurs ; un appel après suppression est refusé faute d'utilisateur, sans autre mutation. Si la réponse réseau est perdue après commit, le serveur ne promet pas un succès observable : l'UX affiche un résultat incertain et demande une reconnexion pour vérifier l'état du compte avant toute nouvelle tentative. Une requête déjà en cours peut terminer selon son snapshot ; les nouvelles requêtes après commit n'accèdent plus aux données.
 
 **JWT résiduels :** leur signature peut rester valide jusqu'à expiration, comme l'indique la [documentation Supabase](https://supabase.com/docs/guides/auth/managing-user-data#deleting-users). La policy restrictive `require_my_profile` est ajoutée aux 13 tables applicatives, en plus des policies MFA/propriété existantes. Son prédicat privé sans argument `has_my_profile()` ne révèle que l'existence du profil de `auth.uid()`. Après suppression, les lectures deviennent vides et les écritures sont refusées, y compris dans le catalogue. Ce contrôle ferme le compte supprimé ; il n'est pas un contrôle général de chaque session révoquée tant que son profil existe.
 
 Les fonctions privées ont un `search_path` vide. Le trigger n'a aucun droit d'appel pour PUBLIC, anon, authenticated, service_role ou supabase_auth_admin ; PostgreSQL l'exécute lors du DELETE privilégié. Le prédicat RLS n'accorde `EXECUTE` qu'à authenticated, sans ouvrir le schéma privé. Les opérateurs disposant déjà d'Auth Admin peuvent aussi déclencher le nettoyage en supprimant physiquement un utilisateur ; les privilèges opérateur restent une frontière de confiance.
 
-Les objets Storage détenus par un utilisateur peuvent bloquer sa suppression Auth ; aucun stockage utilisateur de ce type n'est prévu actuellement. Cette erreur conserve les données applicatives. Les éventuelles exigences légales/rétentions particulières restent ouvertes. La page Profil, le service frontend de suppression, la purge client après succès et l'intégration UX finale ne sont pas implémentés ici.
+Les objets Storage détenus par un utilisateur peuvent bloquer sa suppression Auth ; aucun stockage utilisateur de ce type n'est prévu actuellement. Cette erreur conserve les données applicatives. Les éventuelles exigences légales/rétentions particulières restent ouvertes. L'intégration frontend et ses preuves sont décrites dans le [rapport 4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md). Après `{ deleted: true }`, le store invalide ses lectures en vol, appelle le `clearData` existant (`queryClient.clear()`), vide les données Auth et le contexte recovery, publie `signed_out` et le retour public, puis demande `signOut({ scope: 'local' })` au SDK. Ce nettoyage secondaire ne peut annuler le succès confirmé. Les anciens événements du compte supprimé sont refusés ; les événements Auth arrivant pendant l'appel sont différés jusqu'au résultat, pour préserver la modal inerte. Après refus, fermer la modal reprend l'événement différé ; une reconnexion purge les données locales via le même cycle. Aucun stockage global de secrets ni effacement manuel des clés SDK.
 
 ### Row Level Security
 
@@ -389,7 +460,7 @@ Une opération qui touche plusieurs ensembles de données, doit être atomique, 
 
 Elle doit être centralisée dans une opération métier côté base ou backend. Lorsqu'elle est principalement liée aux données et doit être transactionnelle, une fonction PostgreSQL exposée via RPC est privilégiée si elle simplifie correctement le système.
 
-Les RPC servent notamment à créer une collection automatique, produire et appliquer sa mise à jour, résoudre un destinataire et créer un partage, ou réaliser une réorganisation complexe. Leur code et leurs signatures SQL finales restent à définir.
+La RPC de [création automatique](06-DATABASE.md#création-transactionnelle) est définie par `public.create_automatic_collection(p_name TEXT, p_target_type TEXT, p_target_id BIGINT)` et retourne `(collection_id UUID, created BOOLEAN)`. Les autres RPC envisagées — mise à jour de collection, destinataire/partage, réorganisation — restent à définir.
 
 ### Edge Functions
 
@@ -409,7 +480,7 @@ Le frontend ne doit pas charger tout le catalogue pertinent, décider seul de l'
 
 La création utilise le catalogue local MY. et une opération métier autoritative.
 
-PostgreSQL garantit déjà une seule collection automatique par propriétaire et cible Pokémon ou Set, ainsi qu'un nom d'au moins 3 caractères utiles après trim. La future opération de création respecte ces contraintes même en concurrence ; l'interface Créer/Ouvrir lit la collection personnelle correspondante sous RLS. Aucun nouveau droit de création automatique directe n'est ouvert au navigateur.
+PostgreSQL garantit une seule collection automatique par propriétaire et cible Pokémon ou Set, ainsi qu'un nom d'au moins 3 caractères utiles après trim. La RPC autoritative crée la collection ou retourne l'existante sans modification, y compris en concurrence. Elle exige une identité issue d'Auth, `aal2` et un profil MY., prend le verrou catalogue partagé transactionnel `771402`, vérifie l'état/version et le hash du helper canonique, puis insère atomiquement parent et items. Les nouvelles structures vides sont refusées. Les droits d'écriture directe restent inchangés ; la future interface Créer/Ouvrir pourra utiliser le résultat `created` et l'UUID retourné.
 
 ```text
 Cible Pokémon
@@ -423,13 +494,15 @@ Set → cartes du set
     → éléments automatiques
 ```
 
-Une Extension désigne ici un set précis, non une série ou un bloc TCGdex. Dans les deux cas, chaque variante française pertinente demeure une unité distincte et l'ordre canonique de MY. est appliqué.
+Une Extension désigne ici un set précis, non une série ou un bloc TCGdex. Dans les deux cas, chaque variante française pertinente demeure une unité distincte et l'ordre canonique de MY. initialise la collection : Pokémon par date effective croissante, numéro naturel puis variante ; Extension par numéro naturel dans le set puis variante.
+
+Après création, le propriétaire peut réordonner tous les éléments automatiques et manuels via la primitive contrôlée 6A.3. `automatic_rank` reste le rang canonique système ; `sort_position` porte l'ordre réellement affiché. Déplacer un automatique conserve `origin`, `automatic_rank`, le hash/version canonique et `automatic_target_states`. Il reste structurellement géré par MY. et non supprimable manuellement. Deux collections de même cible/version peuvent donc avoir les mêmes éléments automatiques et des positions différentes. Les RPC distinctes `add_manual_collection_item` et `remove_manual_collection_item` (6C.1) partagent le verrou du parent avec le reorder, sous `READ COMMITTED`. PostgreSQL vérifie propriétaire/MFA/profil, éligibilité d'un nouvel ajout, unicité et origine au retrait ; il calcule seul `start`/`end` (défaut `end`) et le rééquilibrage éventuel. Aucun CRUD générique ni grant d'écriture directe n'est ouvert. Les exemplaires physiques restent indépendants. Le [contrat DB](06-DATABASE.md#mutations-manuelles--contrat-6c1) précise erreurs, concurrence et statut des migrations ; les mutations frontend d'ajout-retrait sont branchées en 6C.3 via le service `collection-items`, sans écriture directe sur les tables.
 
 ### Mise à jour autoritative et contrôlée
 
 Le frontend demande ou reçoit le résumé des changements, l'affiche puis recueille la validation explicite de l'utilisateur.
 
-La base ou le backend applique ensuite la mise à jour de manière cohérente et transactionnelle, garantit les invariants et préserve les éléments manuels, les exemplaires et les autres données utilisateur. Le frontend ne décide pas seul quels éléments automatiques insérer.
+La base ou le backend applique ensuite la mise à jour de manière cohérente et transactionnelle : ajout des nouveaux automatiques, retrait des non-éligibles, conversion sans doublon des manuels devenus automatiques et actualisation des `automatic_rank`. La conversion conserve le même `collection_item`, passe `origin` à `automatic` et préserve autant que possible `sort_position`. Les autres éléments manuels, les exemplaires et les données personnelles sont préservés. L'ordre personnalisé de tous les éléments est conservé autant que possible, sans réinitialisation arbitraire vers l'ordre canonique. Le placement des nouveaux automatiques et la stratégie de préservation/ancrage restent ouverts pour la Phase 8, sans algorithme exact d'insertion/fusion décidé. Le frontend ne décide pas seul quels éléments automatiques insérer.
 
 La synchronisation du catalogue ne modifie jamais silencieusement une collection utilisateur.
 
@@ -499,15 +572,14 @@ Supabase Storage pourra être envisagé plus tard pour de véritables fichiers p
 
 ## Recherche et requêtes
 
-La recherche de la V1 repose sur PostgreSQL et Supabase pour :
+Les recherches serveur prévues pour la V1 reposent sur PostgreSQL et Supabase pour :
 
 - la recherche globale authentifiée de navigation (Pokémon, Extensions, collections accessibles, Cartes) ;
-- la recherche interne aux collections ;
 - la recherche dans le catalogue ;
 - la recherche de Pokémon ;
 - la recherche d'extensions.
 
-La V1 n'introduit pas Algolia, Elasticsearch, Meilisearch hébergé ou un autre moteur externe. Le mécanisme SQL exact reste ouvert.
+La V1 n'introduit pas Algolia, Elasticsearch, Meilisearch hébergé ou un autre moteur externe. Le contrat SQL de recherche d'ajout est livré en 6C.2 ; il couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants et variante, **sans le nom de série**. La recherche interne 6D.1 est livrée côté client sur le contenu déjà chargé. La recherche globale et les pages catalogue restent planifiées en Phase 7, non commencée.
 
 Le navigateur ne doit pas charger tout le catalogue pour effectuer une recherche. Les requêtes doivent pouvoir être filtrées, paginées et limitées aux données nécessaires.
 
@@ -519,9 +591,11 @@ La future recherche Carte réutilisera autant que possible `search-catalog.ts` p
 
 L'orchestration globale applique les règles de [FEATURES](01-FEATURES.md) et [UX-UI](04-UX-UI.md) : seuil de 3 caractères, suggestions seules, maximum 10, ordre Pokémon/Extensions/Collections/Cartes et quotas 2/2/2 puis places restantes. Pokémon utilise le nom français ; Extension et Collection utilisent exclusivement leur nom, sans matching de leur contenu. Les collections candidates sont uniquement celles visibles par propriété ou partage ; la globalité ne contourne jamais la RLS. Le résultat Carte se déduplique au niveau `source_cards`, sans suggestion Variante.
 
-La projection, les requêtes, le cache TanStack Query, le debounce éventuel, les index et l'utilité d'une vue ou RPC optimisée restent à choisir lors de l'implémentation. Une vue/RPC éventuelle doit conserver les droits des tables sous-jacentes. Aucun mécanisme de recherche supplémentaire n'est nécessaire à la migration intermédiaire et aucune Vercel Function n'est justifiée par ce seul besoin. Le [pipeline catalogue](07-CATALOG-SYNC.md#recherche-de-maintenance-catalogfind) reste la référence de l'outil de maintenance.
+Pour l'ajout manuel, `search_catalog_variants_for_add(p_query, p_limit, p_offset)` assure matching, éligibilité, ranking et pagination dans PostgreSQL. Le [service `searchCatalogVariantsForAdd`](../src/services/catalog-search.ts) utilise uniquement cette RPC via le client authentifié, valide strictement ses huit champs (dont les valeurs brutes `set_abbreviation_fr` / `set_abbreviation`, exposées en `setAbbreviationFr` / `setAbbreviation`, chacune `string | null`) et conserve `variantId` en chaîne décimale. Aucune importation du moteur ou de l'adaptateur Node dans le navigateur. Le [contrat 6C.2](06-DATABASE.md#recherche-catalogue-pour-ajout--contrat-6c2) précise sécurité, différences Unicode minimales, parité et mesures. La lecture des sélecteurs MY. privés justifie `SECURITY DEFINER` avec contrôles explicites ; aucun grant de table privée n'est ouvert.
 
-Les lectures Pokémon/Extension regroupent les Cartes uniques, respectivement par date de Carte et par numéro naturel ; la fiche Carte charge ensuite les Variantes. Les compteurs `card_count` et `variant_count` sont dérivés du même périmètre que les listings, sans dupliquer la source de vérité ni confondre `official_card_count` et total MY. Ces pages n'agrègent pas de progression personnelle. `physical_copies → user_id + variant_id` demeure inchangé.
+La Phase 6C.3 branche cette recherche dans le contenu différé de CollectionPage, uniquement après overview autorisé. La modal propriétaire temporise la saisie de 300 ms et utilise `useInfiniteQuery` : pages de 20, offsets serveur, identité de recherche renouvelée à chaque saisie, déduplication défensive par `variantId`. Les réponses anciennes ne remplacent jamais les nouveaux résultats. L'ajout préserve le BIGINT en chaîne via une adaptation typée du seul argument RPC ; les types générés restent inchangés. Après ajout/retrait confirmé ou incertain, le hook annule les lectures obsolètes et invalide exactement contenu, ordre, overview et Dashboard du lecteur/collection. Il ne touche pas au cache des exemplaires physiques. Les mutations structurelles et le reorder partagent une clé d'occupation UI, sans ordre optimiste ni recalcul de progression. Le retour arrière frontend consiste à retirer ces points d'entrée ; les RPC, lecteurs existants et données restent compatibles. Aucune Vercel Function n'est nécessaire. Le [pipeline catalogue](07-CATALOG-SYNC.md#recherche-de-maintenance-catalogfind) reste la référence de l'outil de maintenance.
+
+Les futures lectures Pokémon/Extension de Phase 7 regrouperont les Cartes uniques, respectivement par date de Carte et par numéro naturel ; la fiche Carte chargera ensuite les Variantes. Les compteurs `card_count` et `variant_count` devront dériver du même périmètre que les listings, sans dupliquer la source de vérité ni confondre `official_card_count` et total MY. Ces pages n'agrégeront pas de progression personnelle. `physical_copies → user_id + variant_id` demeure inchangé.
 
 ## Vue classeur et temps réel
 
@@ -571,9 +645,9 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. distingue développement et production. Les Phases 1 et 2, le catalogue, la migration intermédiaire des préférences et la migration Auth 3A sont déployés dans Supabase cloud, selon le propriétaire : sept migrations, détaillées dans le [README](../README.md). Le pipeline refuse toujours toute base distante. La Phase 3A est validée localement et dans Supabase cloud. Le staging et les futurs workflows de déploiement restent à cadrer.
+MY. distingue développement et production. Les 23 migrations jusqu'à la Phase 6 sont appliquées Local/Cloud et alignées jusqu'à `20260928083830`. Le propriétaire a exécuté manuellement le checkpoint Cloud après l'audit technique de Codex : 12 migrations Phase 6 appliquées sans erreur, puis dry-run final sans migration restante. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne ces résultats fournis ; cette clôture documentaire ne réalise aucun nouvel accès Cloud. Le pipeline refuse toujours toute base distante. Le staging et les futurs workflows de déploiement restent à cadrer.
 
-Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Le développement et les tests ciblent exclusivement Supabase local ; Supabase cloud constitue la future instance de production associée à Vercel.
+Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Le développement et les tests courants ciblent Supabase local, hors checkpoints Cloud explicitement autorisés et consignés ; Supabase cloud constitue la future instance de production associée à Vercel.
 
 ## Versionnement et déploiement
 
@@ -581,13 +655,17 @@ Les URL, clés publiques et autres paramètres sont injectés par environnement.
 
 Le dépôt GitHub est la source de référence du code et de la configuration versionnée. Il doit contenir le frontend, les scripts, les migrations, la documentation et la configuration non secrète. Aucun secret ne doit y être commité.
 
-Lors du déploiement effectif, Vercel construira et déploiera le frontend depuis GitHub selon le flux prévu :
+`dev` est la branche GitHub par défaut et la branche normale de développement et d'intégration. `main` représente l'état stable et la future production. Les changements validés passent de `dev` vers `main` par Pull Request, sans push direct sur `main` dans le workflow normal.
+
+Un GitHub Ruleset actif protège `main` : suppression et force-push bloqués, Pull Request obligatoire avant merge, sans approbation exigée actuellement. Seul le merge classique est autorisé.
+
+Vercel n'est pas encore configuré et aucun déploiement Vercel n'est en place. Lors de la phase finale de mise en production, à la fin du développement V1, Vercel devra utiliser `main` comme branche de production selon le flux prévu :
 
 ```text
-Push GitHub → build Vite sur Vercel → frontend statique déployé sur Vercel
+PR dev → main fusionnée → build Vite sur Vercel → frontend statique de production sur Vercel
 ```
 
-La branche de production, la configuration Vercel et les règles détaillées restent à définir. Les previews de branches ou de pull requests pourront être utilisées ultérieurement lorsqu'elles apportent une valeur réelle, sans provoquer volontairement un grand nombre de builds inutiles. Ce flux n'est pas encore configuré.
+La configuration détaillée de Vercel reste à réaliser. L'utilisation éventuelle de previews pour `dev` ou les Pull Requests sera décidée lors de cette configuration, selon leur valeur réelle et sans multiplier inutilement les builds. Ni ce flux de production ni les previews ne sont configurés à ce stade.
 
 ### Migrations PostgreSQL
 
@@ -678,8 +756,6 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 
 - les extensions futures du socle SQL, des index et des policies RLS de Phase 1 ;
 - le code final des fonctions RPC métier ;
-- l'intégration UX du backend de suppression dans Profil et la purge client après succès ;
-- la validation cloud ciblée de l'obligation du mot de passe actuel puis l'opération volontaire correspondante, à la clôture de Phase 4 ;
 - le moyen de contact final pour le remplacement d'Authenticator et les éventuelles exigences légales/rétentions particulières ;
 - la bibliothèque d'interface éventuelle ;
 - le découpage détaillé des futures fonctionnalités dans la structure initialisée ;
@@ -688,7 +764,7 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 - la fréquence et le déclencheur de l'automatisation future du pipeline décrit dans [07-CATALOG-SYNC.md](07-CATALOG-SYNC.md) ;
 - les éventuels usages d'Edge Functions au-delà de la suppression de compte déjà livrée ;
 - la politique détaillée de sauvegarde ;
-- la branche de production et l'automatisation CI ;
+- l'automatisation CI ;
 - les seuils précis de passage aux offres payantes ;
 - le modèle Premium et un éventuel fournisseur de paiement.
 

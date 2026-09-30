@@ -8,9 +8,13 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 ## État du projet
 
-**Phases 0 à 3 terminées et validées.** La **Phase 4 — Profil et gestion du compte** est **cadrée et en cours d'implémentation**. Le [socle de changement d'email](docs/reports/2026-09-13-PHASE4B2-ACCOUNT-AUTH.md) et le [backend de suppression sécurisée](docs/reports/2026-09-14-PHASE4B3-ACCOUNT-DELETION.md) sont livrés et validés localement. La page Profil et l'intégration UX finale restent à construire. Le changement volontaire de mot de passe reste non livré, en attente de validation ciblée cloud à la clôture de la Phase 4, avant la Phase 5 ; le propriétaire confirme que la CLI 2.117.0 ne résout pas sa limitation locale. La [vérification initiale Auth](docs/reports/2026-09-13-PHASE4B1-REAUTH.md) reste conservée. La [roadmap globale](docs/08-ROADMAP.md) définit l'ordre des grandes phases jusqu'à la V1.
+**Phases 0 à 6 terminées et validées.** Le Dashboard présente une grille unifiée de collections, avec les statuts `Personnelle` et `Partagée · Lecture seule`, et un FAB de création personnalisée. La Collection affiche son contenu réel autoritatif, la possession/progression, les items automatiques/manuels, la recherche interne locale, l'ajout/retrait manuel et la réorganisation propriétaire. Les exemplaires physiques sont globaux au compte, avec nom facultatif, note libre nullable de 750 caractères maximum et possession dérivée ; leur consultation est en lecture seule en partage. Le détail Variante est contextuel, en panneau desktop ou plein écran mobile, avec exemplaires intégrés. La fondation graphite et l'accent rouge MY. harmonisent public/Auth, Dashboard, Collection et Profil sans nouvelle fonctionnalité métier du compte ; Paramètres reste volontairement minimal.
 
-La préparation des préférences est déployée ; le socle Auth est validé localement et dans Supabase cloud ; les écrans Auth et le shell authentifié sont validés localement. Les sept migrations déployées, selon la validation fournie par le propriétaire, sont :
+Le backend des collections automatiques est livré : calcul canonique PostgreSQL, état/version de cible, création atomique et concurrente via `create_automatic_collection(...)`, et service TypeScript. La prochaine phase planifiée, non commencée, est la **Phase 7 — Vues, catalogue, recherche globale et préférences**, dont la création/ouverture depuis les pages catalogue Pokémon/Extension. La création et la gestion utilisateur des partages restent prévues en Phase 9. Voir la [roadmap](docs/08-ROADMAP.md) et le [rapport de clôture Phase 6](docs/reports/2026-09-30-PHASE6-CLOSURE.md).
+
+**Supabase : 23 migrations Local et 23 migrations Cloud, dont 12 migrations Phase 6, alignées jusqu'à `20260928083830`.** Après l'audit technique exécuté précédemment par Codex, le propriétaire a exécuté manuellement le checkpoint Cloud : dry-run initial de 12 migrations, push des 12 sans erreur, état final 23/23 et dry-run final sans migration restante. Ces résultats fournis par le propriétaire sont consignés sans nouvel accès Cloud pendant cette clôture documentaire. Les IDs BIGINT restent des chaînes décimales ; le backend reste autoritatif, y compris après réorganisation. Voir le [contrat et l'intégration](docs/06-DATABASE.md#première-liste-fonctionnelle--phase-6b3).
+
+Les onze migrations des Phases 0 à 5 ci-dessous sont présentes dans le dépôt, validées localement et déployées dans Supabase Cloud. Les huit premières ont été confirmées au checkpoint 4D.3 ; le propriétaire a confirmé le déploiement manuel des trois migrations Phase 5. Les [douze migrations Phase 6](docs/reports/2026-09-30-PHASE6-CLOSURE.md#migrations) complètent désormais cet historique, soit 23 au total.
 
 - `20260906082312_phase1_schema` ;
 - `20260906082313_phase1_security` ;
@@ -18,9 +22,13 @@ La préparation des préférences est déployée ; le socle Auth est validé loc
 - `20260906155043_phase2_catalog_pipeline` ;
 - `20260908083516_phase2_variant_release_dates` ;
 - `20260909124950_pre_phase3_collection_preferences` ;
-- `20260909184529_phase3a_auth_identity`.
+- `20260909184529_phase3a_auth_identity` ;
+- `20260914102414_phase4b3_account_deletion` ;
+- `20260920134607_phase5_canonical_collection_structure` ;
+- `20260920140934_phase5_create_automatic_collection` ;
+- `20260920194903_phase5_dashboard_collections`.
 
-Une huitième migration, [20260914102414_phase4b3_account_deletion.sql](supabase/migrations/20260914102414_phase4b3_account_deletion.sql), est appliquée **localement uniquement** : nettoyage transactionnel lors d'une suppression Auth et retrait d'accès des JWT résiduels. Elle n'est pas déployée dans le cloud.
+La huitième migration, [20260914102414_phase4b3_account_deletion.sql](supabase/migrations/20260914102414_phase4b3_account_deletion.sql), est appliquée localement et dans le Cloud : nettoyage transactionnel lors d'une suppression Auth et retrait d'accès des JWT résiduels. La fonction `delete-account` est active avec `verify_jwt = false` ; leur intégration réelle est validée dans le [rapport 4D.3](docs/reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md). Aucun déploiement n'a été effectué pendant ce checkpoint.
 
 | Catalogue cloud vérifié lors de cette validation | Lignes |
 |---|---:|
@@ -32,25 +40,29 @@ Une huitième migration, [20260914102414_phase4b3_account_deletion.sql](supabase
 | `card_pokemon` | 16 820 |
 | `automatic_target_states` | 1 213 |
 
-Aucun nom français Pokémon ne manque et aucune date de Variante n'est NULL dans ce catalogue validé. `sm3.5-28` possède cinq variantes après override. Les tables utilisateur étaient encore vides à ce moment. Cet état cloud est celui transmis par le propriétaire ; la tâche intermédiaire n'effectue ni nouvelle vérification distante ni déploiement cloud.
+Aucun nom français Pokémon ne manque et aucune date de Variante n'est NULL dans ce catalogue validé. `sm3.5-28` possède cinq variantes après override. Les tables utilisateur étaient encore vides à ce moment. Ces constats historiques proviennent du propriétaire. Le checkpoint 4D.3 confirme les volumes ci-dessus et la préservation des empreintes des lignes du catalogue et du pipeline après nettoyage des fixtures, sans nouveau déploiement.
 
-Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. **Le pipeline reste local/protégé ; le catalogue résultant existe également dans le cloud.** La [Phase 3B](docs/reports/2026-09-10-PHASE3B-AUTH-UI.md) ajoute les écrans Auth et le routing public/protégé sur le socle 3A. La [Phase 3C](docs/reports/2026-09-12-PHASE3C-SHELL.md) finalise le shell authentifié, son header et les pages minimales `/dashboard`, `/profile` et `/settings`. La recherche du header reste visuelle ; les RPC de collections et les interfaces métier restent à construire.
+Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. **Le pipeline reste local/protégé ; le catalogue résultant existe également dans le cloud.** La [Phase 3B](docs/reports/2026-09-10-PHASE3B-AUTH-UI.md) a livré les écrans Auth et le routing public/protégé ; la [Phase 3C](docs/reports/2026-09-12-PHASE3C-SHELL.md), le shell authentifié. Celui-ci accueille désormais `/dashboard`, `/collections/:collectionId`, `/profile` et `/settings`. La recherche du header reste visuelle ; les vues supplémentaires, pages catalogue, préférences et mises à jour automatiques restent planifiées selon la roadmap.
 
 Le cadrage Recherche globale / Catalogue / Navigation / Préférences est intégré dans les références produit, modèle, UX, architecture et SQL. La migration intermédiaire [20260909124950_pre_phase3_collection_preferences.sql](supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) assure l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et les préférences de vues privées. **Cette sixième migration est déjà déployée dans Supabase cloud**, selon le propriétaire ; l'ancien statut local était obsolète.
 
 La [Phase 3A](docs/reports/2026-09-09-PHASE3A-AUTH.md) ajoute email/mot de passe, confirmation email obligatoire, TOTP obligatoire et session MY. autorisée en `aal2`. La migration [20260909184529_phase3a_auth_identity.sql](supabase/migrations/20260909184529_phase3a_auth_identity.sql), **déployée et validée dans Supabase cloud**, crée automatiquement le profil depuis Auth et ajoute une restriction MFA aux 13 tables applicatives. Aucune ancienne migration n'a été modifiée.
 
-La configuration Auth cloud est validée : provider Email et inscriptions activés, confirmation email obligatoire, TOTP/App Authenticator activé avec **un seul facteur par utilisateur en V1**, sessions `aal1` limitées à **15 minutes**, Phone/SMS MFA désactivé. **Développement et tests utilisent Supabase local uniquement.** Les URLs de retour locales définies en 3B restent locales : aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud. Supabase cloud est réservé à la future instance de production avec Vercel ; ses Site URL et Redirect URLs de production seront configurées lors de la mise en production.
+La configuration Auth cloud est validée : provider Email et inscriptions activés, confirmation email obligatoire, TOTP/App Authenticator activé avec **un seul facteur par utilisateur en V1**, sessions `aal1` limitées à **15 minutes**, Phone/SMS MFA désactivé. **Le développement et les tests courants utilisent Supabase local.** Le [checkpoint Cloud 4D.3](docs/reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) constitue une validation ponctuelle explicitement autorisée, limitée à des fixtures temporaires. Les URLs de retour locales définies en 3B restent locales : aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud. Supabase cloud est réservé à la future instance de production avec Vercel ; ses Site URL et Redirect URLs de production seront configurées lors de la mise en production.
 
 Routes 3B : `/`, `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/confirm-email`, `/auth/mfa/enroll`, `/auth/mfa/challenge` et `/dashboard`. La confirmation termine la session technique du lien et impose une connexion email/mot de passe. La récupération impose enrollment ou challenge TOTP **avant** le nouveau mot de passe, puis conserve la session après succès. Les données MY. restent fermées pendant ces parcours.
 
 Le complément Phase 2 fournit les noms français des espèces via un référentiel PokéAPI généré manuellement et destiné au versionnement. Les 1 025 Pokémon locaux ont désormais un nom français, sans changement des 1 213 états de cible ; la seconde application est un noop fonctionnel. La synchronisation du catalogue utilise uniquement ce fichier local et ne contacte jamais PokéAPI.
 
-La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue local en lecture seule. Son moteur `search-catalog.ts` est portable, sans Node, SQL, réseau ou terminal ; il doit être réutilisé autant que possible pour la future recherche Carte. L'adaptateur `search-catalog-db.ts` utilisant `pg` reste réservé à la maintenance et ne doit pas être importé dans React. Le futur frontend accédera aux données via Supabase/Auth/RLS. Aucune interface de recherche ni API supplémentaire n'est ajoutée.
+La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue local en lecture seule. Son moteur `search-catalog.ts` est portable, sans Node, SQL, réseau ou terminal ; il doit être réutilisé autant que possible pour la future recherche Carte. L'adaptateur `search-catalog-db.ts` utilisant `pg` reste réservé à la maintenance et ne doit pas être importé dans React. La recherche catalogue d'ajout Phase 6 utilise une RPC Supabase/Auth/RLS ; elle couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants et variante, avec normalisation et AND multi-termes, mais **pas le nom de série**. La recherche globale reste prévue en Phase 7.
 
 Chaque variante porte désormais sa date effective nullable et sa provenance persistée. Elle hérite de la date résolue de sa carte lorsqu'aucune date spécifique fiable n'est connue. Le classement Pokémon utilise cette date de variante ; le classement Set reste numéro puis variante. La [correction des dates de variantes](docs/reports/2026-09-08-PHASE2-VARIANT-DATES.md) conserve les preuves de migration du volume local, de stabilité des IDs et d'idempotence.
 
 **Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place. Le déploiement Vercel et ses URLs de production sont réservés à la phase finale de mise en production.
+
+## Workflow Git
+
+`dev` est la branche GitHub par défaut et la branche de développement et d'intégration. `main` représente l'état stable et sera la branche de production Vercel ; les changements validés y passent par Pull Request depuis `dev`. Vercel reste non configuré et non déployé à ce stade.
 
 ## Développement local
 
@@ -87,7 +99,7 @@ Le projet Vitest `functions` couvre le handler de suppression (`npm test -- --pr
 - `src/types/` : variables Vite et `database.generated.ts`, généré par la CLI Supabase ;
 - `src/test/` : configuration commune des tests ; les tests restent à côté du code testé.
 
-`src/features/auth/` contient le provider Auth, son état unique, `useAuth`, les callbacks email et les écrans Auth. `src/features/dashboard/`, `profile/` et `settings/` contiennent les pages minimales du shell. La présentation utilise le logo existant et Poppins 400/600 servis localement depuis `src/assets/fonts/`, avec leur licence OFL. `main.tsx` se limite au montage React ; le QueryClient reste stable pendant la vie des providers. Les changements Auth purgent son cache pour éviter de conserver des données privées après perte d'accès ou changement de compte.
+`src/features/auth/` contient le provider Auth, son état unique, `useAuth`, les callbacks email et les écrans Auth. `src/features/profile/` contient la page Profil et la gestion du compte ; `dashboard/` porte les tuiles et la création personnalisée ; `collections/` porte l'overview, la progression partagée avec les tuiles, la liste de contenu et les actions propriétaire ; `physical-copies/` porte la modal des exemplaires. `settings/` reste minimal. La présentation utilise le logo existant et Poppins 400/600 servis localement depuis `src/assets/fonts/`, avec leur licence OFL. `main.tsx` se limite au montage React ; le QueryClient reste stable pendant la vie des providers. Les changements Auth purgent son cache pour éviter de conserver des données privées après perte d'accès ou changement de compte.
 
 ## Supabase local et variables d'environnement
 
@@ -114,14 +126,17 @@ Ces valeurs sont publiques dans le navigateur. N'y placer aucun secret, clé pri
 
 La Site URL locale est `http://localhost:5173`, avec `http://127.0.0.1:5173` également autorisée. Les retours exacts `/auth/confirm-email` et `/reset-password` sont autorisés pour ces deux origines ; le frontend construit les liens depuis son origine courante. Les emails sont capturés par Mailpit sur `55324`. `max_enrolled_factors = 1` aligne le local sur la V1. La CLI 2.116.0 n'expose pas la durée propre à `aal1` dans `config.toml` : les 15 minutes restent un réglage cloud. Après modification de `config.toml`, redémarrer Supabase avec `supabase:stop` puis `supabase:start`, en conservant les volumes.
 
-Les fichiers `.env` réels, `node_modules/`, `dist/`, les caches et l'état local Supabase sont ignorés par Git. `.env.example`, `supabase/config.toml`, `package-lock.json`, les migrations, les tests SQL et les types générés sont versionnés. Aucun seed applicatif ni Edge Function n'est présent.
+Les fichiers `.env` réels, `node_modules/`, `dist/`, les caches et l'état local Supabase sont ignorés par Git. `.env.example`, `supabase/config.toml`, `package-lock.json`, les migrations, les tests SQL et les types générés sont versionnés. Aucun seed applicatif n'est présent. L'Edge Function `delete-account` assure la suppression du compte ; la création automatique des collections repose directement sur PostgreSQL/RPC, sans Edge Function intermédiaire.
 
 ## Validation de la base locale
 
 Après `npm ci`, démarrer Docker Desktop. Pour appliquer les migrations en attente au volume local existant puis vérifier le schéma :
 
+Toute migration validée est appliquée à **Supabase local** au fil du développement. Le checkpoint Cloud Phase 6 a été exécuté manuellement par le propriétaire ; Local et Cloud comptent désormais 23 migrations alignées. `migration list --local` compare les fichiers à l'historique de la base locale : sa colonne `Remote` désigne ici cette base locale, pas Supabase Cloud. Aucun reset requis pour appliquer les migrations manquantes.
+
 ```sh
 npm run supabase:start
+npx supabase migration list --local
 node node_modules/supabase/dist/supabase.js migration up --local
 npm run db:test
 npm run db:lint
@@ -134,19 +149,20 @@ npm test
 | Commande ajoutée | Usage |
 |---|---|
 | `npm run db:reset` | Reconstruit entièrement la base **locale**, en supprimant ses données, depuis les migrations |
-| `npm run db:test` | Exécute les huit suites pgTAP via `supabase test db --local` ; accepte un chemin pour cibler une suite |
+| `npm run db:test` | Exécute les 18 fichiers pgTAP via `supabase test db --local` ; accepte un chemin pour cibler une suite |
+| `npm run db:test:concurrency` | Vérifie la création automatique concurrente et le verrou catalogue avec plusieurs connexions locales ; nettoie ses fixtures dédiées |
 | `npm run db:lint` | Vérifie `public` et `private`, avec échec dès un avertissement SQL |
 | `npm run db:types` | Régénère `src/types/database.generated.ts` depuis `public` local ; le fichier existant est conservé si la CLI échoue |
 
-Les assertions PostgreSQL couvrent le schéma, les grants/RLS métier, le pipeline, les dates, les préférences, la création des profils, le backfill Auth et les restrictions `aal1`/`aal2`. Les fixtures sont annulées à la fin de chaque suite. Le lanceur prépare temporairement les migrations Automatic RLS et Auth nécessaires aux tests de régression, puis supprime ces copies ignorées. Aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif. Les résultats de la passe 3A sont consignés dans son [rapport](docs/reports/2026-09-09-PHASE3A-AUTH.md).
+Les assertions PostgreSQL couvrent le schéma, les grants/RLS métier, le pipeline, les dates, les préférences, la création des profils, le backfill Auth, les restrictions `aal1`/`aal2`, la suppression du compte, le calcul canonique, la création automatique, la lecture Dashboard owned/shared et les contrats Phase 6. **Audit technique final Phase 6 exécuté précédemment par Codex : DB/pgTAP PASS, 18 fichiers et 977 assertions ; Frontend/Vitest PASS, 40 fichiers et 1 202 tests.** `db:lint`, `typecheck`, `lint`, `build` et `diff-check` : PASS ; `db:types` : PASS sans diff. Ces résultats validés sont consignés dans le [rapport de clôture Phase 6](docs/reports/2026-09-30-PHASE6-CLOSURE.md), sans réexécution pendant cette clôture. Le bundle principal d'environ 680,01 kB reste un point non bloquant, avec optimisation reportée à la finalisation V1. Les fixtures DB sont annulées à la fin de chaque fichier. Le lanceur prépare temporairement les migrations Automatic RLS et Auth nécessaires aux tests de régression, puis supprime ces copies ignorées ; aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif.
 
 Adapter les contrôles aux changements : tests ciblés pendant le développement, puis une seule passe globale pertinente. `build` inclut déjà `typecheck`. Régénérer les types une seule fois après stabilisation du schéma. Pour vérifier une reconstruction sans détruire le volume importé, `supabase db diff --local --schema public,private` compare le schéma à une base shadow reconstruite depuis les migrations. `db:reset` reste réservé à un besoin explicite de base locale vide ; `supabase:stop` conserve les données.
 
 La validation historique Phase 1 a réussi sur PostgreSQL 17 local : reconstruction depuis les migrations, 258 assertions pgTAP, lint SQL sans avertissement, contrôle de sécurité Supabase sans problème signalé et génération CLI des types. La passe finale 3A réussit 446 assertions PostgreSQL et 36 tests frontend, avec `build` et `lint`.
 
-Les déclarations de types restent celles produites par la CLI ; le script normalise seulement la fin de fichier. Seule la règle ESLint `no-redundant-type-constituents` est désactivée pour ce fichier, car les helpers générés incluent des unions avec les vues actuellement absentes ; la vérification TypeScript et les autres règles restent actives.
+Les déclarations de types restent celles produites par la CLI ; le script normalise seulement la fin de fichier. Seule la règle ESLint `no-redundant-type-constituents` est désactivée pour ce fichier afin de conserver les unions telles que générées ; la vérification TypeScript et les autres règles restent actives.
 
-Les migrations sont détaillées dans [06-DATABASE.md](docs/06-DATABASE.md). Le trigger Auth crée le profil et réutilise la génération de son identifiant public immuable. Les créations de collections automatiques, les modifications d'éléments et la création d'un partage restent fermées à l'écriture directe jusqu'aux opérations contrôlées correspondantes.
+Les migrations sont détaillées dans [06-DATABASE.md](docs/06-DATABASE.md). Le trigger Auth crée le profil et réutilise la génération de son identifiant public immuable. La création automatique passe par la RPC contrôlée livrée en Phase 5. Les écritures directes de collections automatiques, les modifications d'éléments et la création d'un partage restent fermées ; les RPC contrôlées d'ajout/retrait manuel et de réorganisation sont livrées en Phase 6. Le parcours utilisateur de création de partage reste futur.
 
 ## Catalogue TCGdex local
 

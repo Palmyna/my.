@@ -22,7 +22,6 @@ test('conserve le logo et fournit une recherche visuelle sans action ni requête
   const fetchSpy = vi.fn()
   vi.stubGlobal('fetch', fetchSpy)
   expect(screen.getByRole('link', { name: 'MY. — Dashboard' })).toHaveAttribute('href', '/dashboard')
-  expect(within(screen.getByRole('banner')).getByText('Dashboard')).toHaveAttribute('aria-current', 'page')
   const search = screen.getByRole('searchbox', { name: 'Rechercher sur MY.' })
   expect(within(screen.getByRole('banner')).getByRole('search')).toContainElement(search)
   expect(search).toHaveAttribute('placeholder', 'Rechercher une carte, une extension…')
@@ -37,10 +36,12 @@ test('conserve le logo et fournit une recherche visuelle sans action ni requête
   expect(screen.queryByRole('menu')).not.toBeInTheDocument()
 })
 
-test.each([['/profile', 'Profil'], ['/settings/?tab=account#details', 'Paramètres']])('affiche la page à côté du logo dès l’arrivée sur %s', (path, name) => {
+test.each([['/profile', 'Profil'], ['/settings/?tab=account#details', 'Paramètres']])('indique la page active dans le menu dès l’arrivée sur %s', (path, name) => {
   setup(path)
-  expect(within(screen.getByRole('banner')).getByText(name)).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: 'MY. — Dashboard' })).toHaveAttribute('href', '/dashboard')
+  const menu = openMenu()
+  expect(within(menu).getByRole('menuitem', { name })).toHaveAttribute('aria-current', 'page')
+  expect(within(menu).getByRole('menuitem', { name: name === 'Profil' ? 'Paramètres' : 'Profil' })).not.toHaveAttribute('aria-current')
 })
 
 test('ouvre au clic avec le focus sur Profil et se ferme au second clic', () => {
@@ -116,16 +117,19 @@ test('ferme sur navigation vers Profil/Paramètres et indique la page active', (
     expect(screen.getByTestId('path')).toHaveTextContent(path)
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(screen.getByRole('banner')).toBe(header)
-    expect(within(header).getByText(name)).toHaveAttribute('aria-current', 'page')
     expect(within(openMenu()).getByRole('menuitem', { name })).toHaveAttribute('aria-current', 'page')
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
   }
   fireEvent.click(screen.getByRole('link', { name: 'MY. — Dashboard' }))
-  expect(within(header).getByText('Dashboard')).toHaveAttribute('aria-current', 'page')
-  openMenu()
+  expect(screen.getByTestId('path')).toHaveTextContent('/dashboard')
+  const menu = openMenu()
+  for (const name of ['Profil', 'Paramètres']) {
+    expect(within(menu).getByRole('menuitem', { name })).not.toHaveAttribute('aria-current')
+  }
   fireEvent.click(screen.getByRole('link', { name: 'Navigation extérieure' }))
   expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-  expect(within(header).getByText('Paramètres')).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByTestId('path')).toHaveTextContent('/settings')
+  expect(within(openMenu()).getByRole('menuitem', { name: 'Paramètres' })).toHaveAttribute('aria-current', 'page')
 })
 
 test('appelle la déconnexion existante une seule fois et affiche les erreurs sans détail sensible', async () => {

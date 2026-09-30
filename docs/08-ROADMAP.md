@@ -17,23 +17,23 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Les Phases 0 à 3 sont terminées et validées. La Phase 4 — Profil et gestion du compte est cadrée et en cours d'implémentation.** Le changement d'email et le backend de suppression renforcée sont livrés localement. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) précise leurs garanties. La page Profil, l'intégration UX et la validation finale restent à réaliser ; le changement volontaire de mot de passe attend sa validation ciblée cloud en clôture de phase.
+**Phases 0 à 6 terminées et validées.** Le cœur fonctionnel des collections est livré : contenu, exemplaires, réorganisation, ajout/retrait manuel, recherches d'ajout et interne, détail Variante et modernisation UI. Les collections réellement partagées restent consultables en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne les acquis, l'audit technique de Codex et le checkpoint Cloud manuel du propriétaire. La prochaine phase planifiée est la **Phase 7 — Vues, catalogue, recherche globale et préférences** ; elle n'est pas commencée.
 
 | Grandes phases | Statut |
 |---|---|
 | 0 à 2 — Fondations, base de données et catalogue | Terminées |
 | 3 — Authentification et socle applicatif authentifié | Terminée |
-| 4 — Profil et gestion du compte | Cadrée — implémentation en cours |
-| 5 — Dashboard, création et gestion des collections | Planifiée |
-| 6 — Cœur fonctionnel des collections | Planifiée |
+| 4 — Profil et gestion du compte | Terminée |
+| 5 — Dashboard, création et gestion des collections | Terminée |
+| 6 — Cœur fonctionnel des collections | Terminée |
 | 7 — Vues, catalogue, recherche globale et préférences | Planifiée |
 | 8 — Mise à jour des collections automatiques | Planifiée |
 | 9 — Partage des collections | Planifiée |
 | 10 — Finalisation V1 et mise en production | Planifiée |
 
-Le socle SQL, le catalogue et le socle Auth sont déployés et validés dans Supabase cloud ; les écrans Auth et le shell sont validés localement. Le détail des migrations et des validations reste dans le README et les rapports.
+Le socle SQL, le catalogue, Auth et les contrats Phase 6 sont déployés dans Supabase Cloud. Après l'audit technique validé, le propriétaire a exécuté manuellement le checkpoint Cloud : 12 migrations Phase 6 appliquées sans erreur, 23 migrations Local/Remote alignées jusqu'à `20260928083830`, puis dry-run final sans migration restante. Aucun nouvel accès Cloud pendant la clôture documentaire. Le détail des migrations et des validations reste dans le README et les rapports.
 
-**Développement et tests utilisent Supabase local uniquement. Supabase cloud est réservé à la future production avec Vercel.** Aucun déploiement Vercel n'est en place. Les URLs de production seront configurées lors de la mise en production ; aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud.
+**Le développement et les tests courants utilisent Supabase local ; les checkpoints Cloud ponctuels exigent une autorisation explicite et des fixtures temporaires. Supabase cloud reste réservé à la future production avec Vercel.** Aucun déploiement Vercel n'est en place. Les URLs de production seront configurées lors de la mise en production ; aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud.
 
 ## Roadmap V1
 
@@ -67,11 +67,11 @@ Cette phase fournit les parcours d'authentification et la structure commune aux 
 - shell authentifié, header permanent et menu Profil / Paramètres / Déconnexion ;
 - pages minimales `/dashboard`, `/profile` et `/settings`, avec finitions responsive et accessibilité.
 
-La recherche du header est encore un champ visuel sans requête ni suggestion. Les pages authentifiées restent minimales : le vrai Dashboard, le contenu du Profil et les Paramètres fonctionnels relèvent des phases suivantes.
+La recherche du header est encore un champ visuel sans requête ni suggestion. À l'issue de cette phase, les pages authentifiées étaient minimales : le vrai Dashboard, le contenu du Profil et les Paramètres fonctionnels relèvent des phases suivantes.
 
 ### Phase 4 — Profil et gestion du compte
 
-**Statut : CADRÉE — IMPLÉMENTATION EN COURS**
+**Statut : TERMINÉE**
 
 L'objectif est de terminer le bloc utilisateur/compte après l'authentification, avant de construire le Dashboard et la gestion des collections.
 
@@ -89,46 +89,45 @@ Les [fonctionnalités](01-FEATURES.md#profil-utilisateur), l'[UX](04-UX-UI.md#pr
 
 Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. L'interface des préférences de vues reste prévue en Phase 7. Aucun profil social n'est ajouté.
 
-Le moyen de contact final, les textes UX et détails visuels, ainsi que les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Les services email et le backend de suppression sont validés localement. La page Profil, l'intégration des parcours sensibles et la validation finale restent à réaliser. Le changement volontaire de mot de passe reste non livré, avec validation ciblée cloud prévue à la clôture de cette phase avant la Phase 5. La phase n'est pas encore terminée et la Phase 5 n'a pas commencé.
+Le moyen de contact final et les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Les parcours Profil et leurs protections sont livrés et validés, avec leurs preuves locales et Cloud consignées dans le [rapport de clôture](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md).
 
 ### Phase 5 — Dashboard, création et gestion des collections
 
-**Statut : PLANIFIÉE**
+**Statut : TERMINÉE**
 
-Transformer le Dashboard minimal en point central d'accès aux collections :
+Le Dashboard est le point central d'accès aux collections. Sont livrés :
 
-- présentation de `Mes collections`, avec nom, type, progression et accès à chaque collection ;
-- distinction prévue avec `Collections partagées avec moi` ;
-- création d'une collection libre ou automatique ciblant un Pokémon ou une Extension précise ;
-- sélection de la cible et validation du nom, avec au moins 3 caractères utiles après trim ;
-- respect de l'unicité d'une collection automatique par propriétaire et cible, avec ouverture de l'existante ;
-- création automatique autoritative et transactionnelle depuis le catalogue MY. ;
+- collections personnelles et partagées, désormais présentées dans une grille unifiée modernisée en Phase 6, avec nom, type, progression et accès explicite `Personnelle` ou `Partagée · Lecture seule` ;
+- création d'une collection personnalisée depuis le Dashboard ;
+- validation du nom, avec au moins 3 caractères utiles après trim ;
+- respect de l'unicité d'une collection automatique par propriétaire et cible, avec retour de l'existante par le backend ;
+- backend de création automatique autoritative et transactionnelle depuis le catalogue MY. : calcul canonique PostgreSQL, état/version de cible, parité validée et création concurrente via la RPC `create_automatic_collection(...)` et le service `createAutomatic()` ;
 - renommage, suppression et ouverture d'une collection ;
-- première structure de page collection pour accueillir les interactions suivantes.
+- page `/collections/:collectionId` : overview, type/cible, progression, accès direct, états de chargement/erreur/indisponibilité et actions réservées au propriétaire, avec dialogs et navigation clavier accessibles.
 
-La suppression d'une collection conserve les exemplaires physiques. Le détail des interactions avec son contenu arrive en Phase 6.
+La suppression d'une collection conserve les exemplaires physiques. Les interactions avec son contenu sont livrées en Phase 6.
 
-La distinction des collections reçues est anticipée dans le Dashboard ; leur accès effectif et le parcours de partage seront livrés en Phase 9. Les collections partagées resteront distinctes de celles dont l'utilisateur est propriétaire.
+Le Dashboard ne propose aucun sélecteur Pokémon/Extension ni parcours de création automatique. L'UX de création/ouverture automatique depuis les pages catalogue relève de la Phase 7 ; son backend reste une réalisation de Phase 5.
+
+Le socle DB/RLS et les interfaces Dashboard/Collection permettent déjà de consulter une collection réellement partagée, sans action propriétaire. La création et la gestion utilisateur des partages restent prévues en Phase 9. Les collections partagées restent distinctes de celles dont l'utilisateur est propriétaire.
 
 ### Phase 6 — Cœur fonctionnel des collections
 
-**Statut : PLANIFIÉE**
+**Statut : TERMINÉE**
 
-Rendre les collections utilisables pour suivre les variantes et les exemplaires possédés :
+Les collections permettent désormais de suivre les variantes et les exemplaires possédés :
 
-- consultation des éléments automatiques et manuels ;
-- recherche et ajout d'une variante exacte du catalogue ;
-- suppression et réorganisation des éléments manuels, sans modifier l'ordre relatif des éléments automatiques ;
-- suivi possédée/manquante et gestion de plusieurs exemplaires physiques par variante ;
-- état de conservation, notes personnelles et informations de grading par exemplaire ;
-- recherche interne à la collection ;
-- calcul de progression sur tous ses éléments, automatiques et manuels ;
-- détail contextuel Variante commun aux collections et, ensuite, au catalogue ;
-- actions adaptées aux droits, avec écritures réservées au propriétaire.
+- plusieurs exemplaires physiques par variante, globaux au compte, avec nom facultatif, fallback dynamique `Exemplaire N` et note libre nullable de 750 caractères maximum ; CRUD propriétaire, lecture seule en partage et possession dérivée, sans grading structuré actif ;
+- réorganisation de tous les éléments par souris, tactile ou clavier, avec placements début/fin/avant/après, backend autoritatif, midpoint et rééquilibrage ; ordre visuel transitoire pendant la sauvegarde et les relectures, sans vérité permanente frontend ;
+- contenu réel autoritatif, éléments automatiques/manuels, ordre backend, possession/progression, manquantes atténuées et images avec fallback, en accès propriétaire ou partage lecture seule ;
+- recherche catalogue, sélection d'une variante exacte, confirmation, ajout début/fin sans doublon et retrait manuel conservant les exemplaires ; recherche normalisée en AND sur carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants et variante, **sans recherche du nom de série** ;
+- recherche interne côté client sur le contenu déjà chargé : carte, Extension, abréviations, série, numéro et variante, avec normalisation et AND multi-termes ; ordre conservé, reorder désactivé seulement si le filtre masque des éléments ;
+- détail Variante autonome via `get_variant_detail`, y compris historique/inactif, métadonnées/dates/stamps et fallback image ; panneau latéral desktop ou plein écran mobile sans route dédiée, exemplaires intégrés et droits propriétaire/partage ; croix seule en haut à droite, aucun header générique visible et aucun bloc `Caractéristiques` pour le type seul ;
+- modernisation UI : fondation graphite globale, accent rouge MY., public/Auth harmonisés, Dashboard en grille unifiée et FAB de création, Collection et FAB contextuel, reorder plus fluide, détail Variante et Profil modernisés, actions/icônes harmonisées. Le contrat métier du Profil reste inchangé ; Paramètres reste volontairement minimal.
 
-Les exemplaires physiques sont **globaux au compte**, associés à une variante et non à une collection particulière. La possession est dérivée de leur existence : afficher une variante dans plusieurs collections ne duplique pas les exemplaires.
+Les éléments automatiques restent non supprimables manuellement ; leur déplacement ne modifie ni origine ni rang canonique. Les exemplaires ne sont jamais dupliqués entre collections.
 
-Les éléments automatiques ne sont pas librement supprimables ou réordonnables. La nomenclature des états, les règles détaillées de grading et les mécanismes de positionnement manuel encore ouverts devront être précisés dans les références concernées.
+Phase 6 terminée et validée après l'audit technique exécuté par Codex et le checkpoint Supabase Cloud exécuté manuellement par le propriétaire. Local/Remote : **23/23 migrations**, dont 12 Phase 6, alignées jusqu'à `20260928083830`, sans migration restante au dry-run final. Le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md) conserve ces preuves. Bundle principal d'environ 680,01 kB, absence du nom de série dans la recherche d'ajout et Paramètres minimal restent non bloquants ; Phase 7+ reste hors périmètre.
 
 ### Phase 7 — Vues, catalogue, recherche globale et préférences
 
@@ -148,7 +147,7 @@ Classeur reste réservé aux collections. La liste définitive des formats et la
 
 - pages Pokémon, Extension et Carte, en vues Liste / Cartes ;
 - consultation des Cartes distinctes puis de leurs Variantes, selon les ordres définis dans les références ;
-- depuis Pokémon ou Extension, création ou ouverture de la collection automatique personnelle correspondante.
+- depuis les pages Pokémon ou Extension, actions `Créer ma collection…` / `Ouvrir ma collection…` pour la collection automatique personnelle correspondante.
 
 Ces pages présentent le catalogue sans progression ni statistiques personnelles. Une collection partagée ne remplace pas la collection personnelle correspondant à une cible.
 
@@ -185,22 +184,22 @@ Permettre au propriétaire d'actualiser une collection lorsque la structure de s
 - application après validation explicite de l'utilisateur ;
 - opération autoritative et atomique, avec contrôle de la version présentée ;
 - absence de doublons lors des conversions et préservation des exemplaires physiques ;
-- conservation des éléments restant manuels et prise en compte de leurs positions.
+- actualisation des rangs canoniques et préservation autant que possible de l'ordre personnalisé des éléments automatiques et manuels, sans réinitialisation arbitraire des positions vers l'ordre canonique.
 
 La synchronisation du catalogue ne modifie jamais silencieusement la structure d'une collection. Si la cible change après l'aperçu, un résumé actualisé est nécessaire avant application.
 
-La stratégie précise de maintien des positions et d'ancrage des éléments manuels reste à cadrer ; cette roadmap ne la fixe pas.
+Le placement d'un nouvel élément automatique dans un ordre personnalisé et la stratégie de préservation/ancrage des positions restent ouverts pour cette Phase 8 ; cette roadmap ne fixe aucun algorithme exact d'insertion/fusion. Une conversion conserve le même élément et préserve autant que possible sa position.
 
 ### Phase 9 — Partage des collections
 
 **Statut : PLANIFIÉE**
 
-Permettre le partage en lecture seule avec un autre utilisateur MY. :
+Compléter le socle DB/RLS et la consultation Dashboard/overview en lecture seule livrés en Phase 5 par le parcours utilisateur de partage :
 
 - recherche limitée d'un destinataire par son identifiant public MY., sans annuaire de profils ;
 - identification du destinataire et confirmation par le propriétaire ;
 - création et retrait des accès, sans doublon ni partage à soi-même ;
-- consultation des collections reçues dans le Dashboard et intégration aux résultats de recherche accessibles ;
+- intégration des collections reçues aux résultats de recherche accessibles, en complément de leur présence déjà livrée dans le Dashboard ;
 - consultation des variantes, de la progression et des exemplaires du propriétaire, avec les vues et outils de lecture ;
 - restrictions cohérentes dans l'interface et via RLS.
 
@@ -225,7 +224,7 @@ Stabiliser l'ensemble de la V1 et préparer son utilisation en production :
 - configuration de l'envoi réel des emails, dont SMTP, et vérification des parcours ;
 - déploiement puis contrôles en production.
 
-Le développement et les tests restent locaux avant cette étape. Les URLs de production ne sont ni inventées à l'avance ni remplacées par des URLs localhost dans Supabase cloud.
+Le développement et les tests courants restent locaux avant cette étape, hors checkpoints Cloud ponctuels explicitement autorisés. Les URLs de production ne sont ni inventées à l'avance ni remplacées par des URLs localhost dans Supabase cloud.
 
 La V1 conserve son périmètre de gestion de collections Pokémon TCG : aucun paiement ou abonnement Premium n'est requis, et les collections automatiques restent accessibles normalement.
 
@@ -249,7 +248,7 @@ Cette liste n'intègre aucun de ces sujets à la V1 et ne lève pas ses exclusio
 
 MY. est conçu pour évoluer au-delà de sa première version, tout en gardant la gestion des collections au centre du produit.
 
-La V1 établit un catalogue Pokémon TCG fiable, des variantes identifiées distinctement, des collections libres ou automatiques et des données personnelles cohérentes à l'échelle du compte.
+La V1 établit un catalogue Pokémon TCG fiable, des variantes identifiées distinctement, des collections personnalisées ou automatiques et des données personnelles cohérentes à l'échelle du compte.
 
 Les orientations à long terme seront précisées selon :
 

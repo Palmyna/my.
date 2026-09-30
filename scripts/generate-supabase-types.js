@@ -16,6 +16,8 @@ if (result.error || result.status !== 0 || !result.stdout.includes('export type 
   process.exit(result.status || 1)
 }
 
-// Normalize only the final newline; all generated declarations stay unchanged.
-writeFileSync(new URL('../src/types/database.generated.ts', import.meta.url), `${result.stdout.trimEnd()}\n`, 'utf8')
+// Current CLI output is unformatted and includes trailing spaces. Normalize only
+// line-end whitespace and the final newline; generated declarations stay intact.
+const generated = result.stdout.replace(/[\t ]+$/gm, '').trimEnd()
+writeFileSync(new URL('../src/types/database.generated.ts', import.meta.url), `${generated}\n`, 'utf8')
 console.log('Generated src/types/database.generated.ts from local Supabase.')

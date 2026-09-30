@@ -4,12 +4,6 @@ import logo from '../assets/brand/my-logo.svg'
 import { useAuth } from '../features/auth/auth-context'
 import { useAuthTask } from '../features/auth/auth-ui'
 
-const pageNames: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/profile': 'Profil',
-  '/settings': 'Paramètres',
-}
-
 function UserMenu() {
   const { actions, user } = useAuth()
   const task = useAuthTask()
@@ -97,11 +91,9 @@ function UserMenu() {
 export function AuthenticatedHeader() {
   const searchId = useId()
   const location = useLocation()
-  const pageName = pageNames[location.pathname.replace(/\/+$/, '')]
   return <header className="site-header authenticated-header">
     <div className="header-identity">
       <Link className="brand" to="/dashboard" aria-label="MY. — Dashboard"><img src={logo} alt="" /></Link>
-      {pageName && <span className="header-page-name" aria-current="page">{pageName}</span>}
     </div>
     <div className="header-search" role="search" aria-label="Recherche MY.">
       <label className="visually-hidden" htmlFor={searchId}>Rechercher sur MY.</label>

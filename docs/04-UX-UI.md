@@ -35,14 +35,30 @@ Les actions principales doivent demander peu d'étapes. L'utilisateur doit pouvo
 
 ## Identité graphique
 
-### Palette
+### Fondation graphique commune — 6F.1
 
-- `#E42B35`
-- `#AF2328`
-- `#931F1F`
-- `#231A1A`
-- `#3C3333`
-- `#FFFFFF`
+Toute l'application utilise la même fondation graphite sombre et rouge MY., avant et après connexion. Un seul jeu de tokens sémantiques est défini dans `:root` ; les primitives partagées (champs, boutons, liens, focus et feedbacks) l'utilisent directement. Les variantes de composants ne répondent qu'à leur contexte.
+
+| Rôle / token | Valeur |
+| --- | --- |
+| `--app-bg` | `#0E1014` |
+| `--surface` / `--surface-raised` / `--surface-hover` | `#15181D` / `#1C2027` / `#242932` |
+| `--border` / `--border-strong` | `#2B3039` / `#3A414C` |
+| `--text` / `--text-muted` / `--text-subtle` | `#F5F7FA` / `#A6ADB7` / `#747D89` |
+| `--brand` / `--brand-hover` | `#E22B35` / `#DC2731` |
+| `--brand-soft` | `rgb(228 43 53 / 12%)` |
+| `--on-brand` | `#FFFFFF` |
+| `--success` / `--danger` | `#3FB950` / `#FF969B` |
+| `--focus` | `var(--brand)` |
+| `--overlay` | `rgb(0 0 0 / 72%)` |
+
+Les rouges des boutons sont légèrement assombris par rapport à `#E42B35` pour préserver un contraste supérieur à 4,5:1 avec les petits libellés blancs, y compris au survol. Le rouge reste réservé aux actions principales, au focus et aux accents ponctuels. Les suppressions utilisent une surface graphite avec texte et bordure danger ; leurs libellés explicites restent indispensables.
+
+Les champs et textarea partagent fond, texte, placeholder et focus. Leur bord inférieur utilise `--text-subtle` pour rester identifiable ; ce token n'atténue pas les informations importantes. Le focus conserve un contour net, un halo discret et les couleurs système en mode `forced-colors`. Les transitions courtes respectent `prefers-reduced-motion`.
+
+Le header authentifié conserve logo à gauche, recherche centrale et menu utilisateur à droite, avec le responsive existant. Les footers publics et authentifiés utilisent `--surface` et une séparation neutre sans modifier leurs dimensions. Dialogs, menus et panneau Version utilisent `--surface-raised` ; leurs structures internes sont conservées. Les feedbacks génériques restent neutres, les erreurs utilisent `--danger` et la confirmation de copie de MY.ID utilise `--success`. Les accents déterministes des collections et les feedbacks de réorganisation sont conservés.
+
+Dashboard et Collection exploitent le contenu du shell jusqu'à **1 520 px**, avec au moins **24 px de marge latérale**. Profil et Paramètres restent limités à **720 px**. Cette fondation ne restructure aucune de ces pages. Les pages publiques et Auth (homepage, connexion, inscription, récupération, confirmations et MFA) changent uniquement de palette : composition, dimensions, responsive, textes, illustration et parcours sont conservés. Le fond blanc du QR MFA reste dédié à sa lisibilité ; il ne constitue pas un second thème.
 
 ### Typographie
 
@@ -197,7 +213,7 @@ La partie basse affiche chaque Carte une seule fois, en Liste ou Cartes, par **n
 
 Pour Pokémon comme Extension, `card_count` correspond aux Cartes distinctes réellement concernées par la liste et `variant_count` aux Variantes correspondantes selon le même périmètre catalogue. Ces nombres dérivés ne mesurent aucune possession. Le nombre officiel du set peut être présenté séparément si utile ; il ne remplace pas automatiquement le nombre réel de Cartes MY.
 
-Si l'utilisateur ne possède pas de collection automatique pour la cible, l'action propose `Créer ma collection…`. Si elle existe, l'action devient `Ouvrir ma collection…`. La règle d'une seule collection automatique par propriétaire et cible s'applique aussi depuis le Dashboard. Une collection reçue en partage ne compte pas comme une collection personnelle de cette cible.
+Si l'utilisateur ne possède pas de collection automatique pour la cible, l'action propose `Créer ma collection…`. Si elle existe, l'action devient `Ouvrir ma collection…`. Une seule collection automatique est autorisée par propriétaire et cible. Une collection reçue en partage ne compte pas comme une collection personnelle de cette cible.
 
 ### Page Carte
 
@@ -207,7 +223,7 @@ La partie basse présente les **Variantes de cette Carte**, en Liste ou Cartes, 
 
 ### Actions rapides et navigation contextuelle
 
-Le clic principal sur une Carte ouvre sa fiche. Un menu secondaire `…` peut proposer les actions rapides pertinentes, comme ajouter à une collection ou ajouter un exemplaire, sans devenir un menu général. L'action doit identifier la Variante exacte lorsque nécessaire ; elle ne choisit pas arbitrairement une Variante derrière une Carte.
+Le clic principal sur une Carte ouvre sa fiche. Un menu secondaire à trois carrés peut proposer les actions rapides pertinentes, comme ajouter à une collection ou ajouter un exemplaire, sans devenir un menu général. L'action doit identifier la Variante exacte lorsque nécessaire ; elle ne choisit pas arbitrairement une Variante derrière une Carte.
 
 La fiche Carte préserve son contexte d'arrivée. **Retour** restaure autant que possible la même page, la vue, les filtres, le scroll et le contexte de navigation. Ce retour dans une consultation en cours ne réapplique pas une préférence d'ouverture au détriment de l'état précédent.
 
@@ -219,12 +235,9 @@ Sur mobile, le swipe horizontal est prévu pour cette même navigation lorsqu'el
 
 Le dashboard est le point central après connexion. Il permet de comprendre immédiatement quelles collections appartiennent à l'utilisateur, lesquelles lui sont partagées, leur progression et comment créer une nouvelle collection.
 
-Il distingue clairement :
+Depuis 6F.2, le titre `Collections` et un compteur discret regroupent les collections personnelles et partagées dans une seule grille adaptative. Le compteur apparaît uniquement après une lecture réussie, au singulier ou au pluriel. L'ordre retourné par l'unique lecture serveur est conservé, sans filtre ni tri supplémentaire. Le Dashboard dispose d'une largeur propre, supérieure à celle des pages Profil et Paramètres.
 
-- `Mes collections` ;
-- `Collections partagées avec moi`.
-
-Cette séparation peut prendre la forme d'onglets, de sections ou d'un autre mécanisme simple. Le choix précis reste ouvert, mais la distinction doit être immédiate.
+Sur mobile, le haut de page reste compact (`Collections` et le nombre). La recherche globale du header reste immédiatement disponible au-dessus de la liste ; son fonctionnement et sa structure ne changent pas. Aucune introduction ni hero ne précède les collections.
 
 ### Tuiles de collection
 
@@ -232,23 +245,31 @@ Les collections sont principalement présentées sous forme de cartes ou tuiles 
 
 - le nom de la collection ;
 - son type ;
-- sa progression ;
-- l'accès à la collection.
+- son accès explicite `Personnelle` ou `Partagée · Lecture seule` ;
+- sa progression sur tablette et desktop.
 
-Dès lors qu'il s'agit d'une collection automatique, la tuile doit pouvoir distinguer `Automatique · Pokémon` de `Automatique · Extension`. La cible peut également être indiquée lorsque pertinent, par exemple `Pokémon · Pikachu` ou `Extension · Légendes Brillantes`.
+Dès lors qu'il s'agit d'une collection automatique, la tuile distingue `Automatique · Pokémon` de `Automatique · Extension`, face à `Personnalisée`. Le nom domine et peut revenir à la ligne sans troncature. La cible reste secondaire lorsqu'elle existe ; elle n'est pas répétée si elle est identique au nom.
 
-D'autres informations peuvent être ajoutées seulement si elles restent utiles et peu encombrantes.
+La même tuile devient une ligne compacte sur mobile : nom, accès, type et cible utile, avec des espacements réduits. Barre de progression, nombres possédés/total et pourcentage y sont masqués, sans second composant ni duplication de données pour les lecteurs d'écran.
+
+Les tuiles utilisent des surfaces sombres subtilement teintées, avec bordure et accent de la même famille chromatique. Une palette frontend sobre couvre corail, ambre, jaune chaud, vert, turquoise, bleu, violet et rose ; l'accent est repris par la progression. La couleur reste secondaire aux libellés et conserve un contraste suffisant. Son attribution est déterministe depuis le type et le nom de cible disponibles, avec repli sur l'identifiant stable de collection, également utilisé pour les collections personnalisées. Aucune table métier de couleurs par Pokémon ni donnée couleur en base n'est nécessaire. Un changement de nom de cible peut donc changer cet accent.
+
+Le trait latéral coloré et la surface légèrement teintée gardent cette identité perceptible, y compris sur mobile, sur la fondation graphite 6F.1. La grille fluide adapte son nombre de colonnes à la largeur disponible.
+
+Les tuiles personnelles et partagées sont entièrement des liens vers `/collections/:collectionId`, sans bouton imbriqué, accessibles au clavier avec un focus coloré visible. Sur les appareils compatibles, le hover renforce légèrement bordure et surface, avec une élévation de 2 px au maximum ; la réduction des mouvements supprime déplacement et transition.
+
+Une seule grille de skeletons accompagne `Chargement des collections…`, avec des lignes compactes sur mobile. Le seul état vide est global : `Aucune collection pour le moment.` Aucun état vide par catégorie n'apparaît. L'erreur reste `Impossible de charger les collections. Veuillez réessayer.`, avec `Réessayer`, sans détail serveur ni compteur. Le feedback après changement de mot de passe est conservé.
 
 ### Progression
 
-La progression est directement visible sur le dashboard, sous une forme conceptuelle telle que :
+La progression existante reste directement visible sur tablette et desktop, sous une forme telle que :
 
 ```text
 82 / 120
 68 %
 ```
 
-Un indicateur graphique léger peut accompagner ces valeurs. Sa forme exacte reste à définir.
+Une barre discrète accompagne ces valeurs, avec un pourcentage arrondi à l'entier le plus proche. Pour une collection vide, `0 / 0` est accompagné de `Collection vide`, sans pourcentage artificiel.
 
 Une collection partagée affiche la progression réelle de son propriétaire et doit être identifiable comme partagée en lecture seule.
 
@@ -256,37 +277,35 @@ Une collection partagée affiche la progression réelle de son propriétaire et 
 
 Le parcours de création reste court et évite tout wizard complexe.
 
-Le nom, libre ou automatique, exige au moins **3 caractères utiles après trim** ; la même validation s'applique au renommage. Une cible automatique déjà possédée conduit à l'ouverture de sa collection existante. PostgreSQL garantit ces invariants indépendamment de l'interface.
+Le nom d'une collection personnalisée ou automatique exige au moins **3 caractères utiles après trim** ; la même validation s'applique au renommage. Une cible automatique déjà possédée conduit à l'ouverture de sa collection existante. PostgreSQL garantit ces invariants indépendamment de l'interface.
 
-### Collection libre
+### Collection personnalisée
 
 ```text
-Nouvelle collection → Collection libre → Nom → Création
+Dashboard → FAB + → Nom → Création
 ```
 
 La collection peut être créée vide. L'utilisateur y ajoute ensuite des variantes depuis le catalogue MY.
 
+Le Dashboard propose un seul FAB rouge MY. carré de 56 px, avec un arrondi de 8 px, fixe en bas à droite, y compris sans collection. Lorsque le footer entre dans le viewport, le FAB remonte progressivement pour conserver au-dessus du footer le même espace qu'au-dessus du bas du viewport (24 px sur desktop, 16 px sur mobile, plus la safe area). Il ne recouvre jamais le footer. Son `+` porte le nom accessible `Créer une collection personnalisée`. Les safe areas et un espacement en bas du contenu préservent l'accès à la dernière collection. Le FAB reste sous les dialogs natifs. Il ouvre le dialog existant `Collection personnalisée` avec une courte explication et le champ Nom. Le Dashboard crée uniquement des collections personnalisées ; il ne propose ni choix automatique ni sélecteur Pokémon/Extension. Aucun accès détail fictif n'est présenté.
+
+Le nom est validé avant envoi selon la règle existante, sans modifier la valeur saisie ni ses espaces. Les erreurs de nom apparaissent près du champ ; les erreurs générales restent dans le formulaire, sans détail technique. Pendant la création, un état d'attente empêche les doubles envois et la fermeture du dialog. Aucun nouvel essai automatique n'est effectué.
+
+Annuler ou Échap avant envoi ferme sans confirmation ; le focus revient au déclencheur et la réouverture présente un formulaire vierge. Le dialog place initialement le focus sur le nom, garde le clavier à l'intérieur et rend le fond inerte. Après succès, il se ferme et le Dashboard relit ses collections depuis le serveur, sans navigation vers une page détail. Le FAB affiche `+ → ✓ → +` : une coche verte utilisant `--success` pendant deux secondes remplace le texte de succès visible. Une annonce masquée `Collection créée.` reste accessible via `role="status"`. Réouvrir le dialog remet immédiatement le FAB à `+` ; le timer est nettoyé à la réouverture, au démontage et au changement de compte. Ce feedback demeure local à l'interface, sans nouvel état métier.
+
 ### Collection automatique
 
 ```text
-Nouvelle collection
-  → Collection automatique
-  → Pokémon ou Extension
-  → Choix de la cible
+Recherche / navigation catalogue
+  → Page Pokémon ou page d'une Extension précise
+  → Créer ma collection…
   → Nom
-  → Création
+  → Création automatique
 ```
 
-L'ordre exact entre le nom et le choix de la cible peut être adapté, mais le parcours doit rester court.
+Ce parcours sera livré avec les pages catalogue Pokémon et Extension. La cible est celle de la page consultée ; aucun wizard automatique n'est proposé depuis le Dashboard. Si la collection personnelle existe déjà, l'action devient `Ouvrir ma collection…`, sans nouvelle création ni saisie de nom. Une collection partagée ne remplace jamais cette collection personnelle.
 
-Pour une cible Pokémon, une recherche ou sélection rapide permet de choisir le Pokémon et de confirmer clairement la cible avant la création.
-
-Pour une cible Extension, une recherche ou sélection permet de choisir un set précis dans le catalogue MY. Les résultats doivent pouvoir identifier l'extension à l'aide des informations disponibles, notamment :
-
-- son nom français ;
-- sa série ou son bloc ;
-- sa date de sortie ;
-- son logo ou son symbole lorsqu'il existe.
+La recherche globale ne fait que naviguer vers la page catalogue : elle ne crée aucune collection depuis ses suggestions. Les informations de la page identifient le Pokémon ou l'Extension précise avant l'action de création.
 
 L'interface doit employer de préférence le terme `Extension` et éviter de confondre ce set précis avec sa série ou son bloc TCGdex. MY. génère ensuite la structure depuis son catalogue local.
 
@@ -295,6 +314,16 @@ Les deux types doivent être expliqués en quelques mots afin que leur différen
 Dans la V1, toutes les collections automatiques sont accessibles sans abonnement. Aucun écran Premium, checkout ou parcours de paiement ne doit être introduit.
 
 ## Page principale d'une collection
+
+La page livrée en 5D.1, modernisée en 6F.3, présente l'identité de la collection : nom dominant en `h1`, type (`Personnalisée`, `Automatique · Pokémon` ou `Automatique · Extension`) et cible automatique dans une ligne secondaire, progression compacte et mode d'accès. Elle reprend la famille chromatique de sa tuile, y compris l'état neutre `0 / 0`. Le lien `← Collections` mène toujours à `/dashboard`, dans tous les états. Les collections partagées portent le libellé discret `Partagée · Lecture seule`, avec la progression du propriétaire et sans menu propriétaire. La Phase 5D.2 ajoute le renommage et la suppression des collections personnelles, personnalisées comme automatiques.
+
+L'identité est intégrée directement au fond principal MY., sans grande carte teintée. L'overview compact conserve le nom, les métadonnées secondaires et une progression de largeur contenue, séparés de la recherche par un filet discret. `collectionPresentation()` définit une seule fois `--collection-accent`, `--collection-surface` et `--collection-border` sur le conteneur Collection : overview, progression, FAB, focus contextuel et détail Version héritent du même accent. Le nom peut revenir à la ligne ; son en-tête flexible accueille le bouton contextuel à trois carrés en haut à droite pour le propriétaire, y compris sur mobile.
+
+**Réalisation 6F.3 :** le propriétaire dispose d'un FAB `+`, carré de 56 px avec rayon de 8 px, fixé en bas à droite dans la couleur de sa collection. Le hook commun `useFooterAwareFab` partage avec le Dashboard la mesure du footer, les observations de taille et les événements scroll/resize, avec nettoyage au démontage. L'espacement responsive et les safe areas sont communs ; le FAB remonte au-dessus du footer visible. Une réserve en bas de page permet de dégager la dernière ligne. Le partage n'a aucun FAB.
+
+Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones.
+
+La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image manquante : placeholder graphique neutre ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques et le menu de retrait uniquement sur les éléments personnels du propriétaire. Les vues Liste/Cartes/Classeur complètes et leurs préférences restent prévues en Phase 7, non commencée. Les 23 migrations Local/Cloud sont alignées après le checkpoint manuel exécuté par le propriétaire. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
 
 Une collection dispose d'une page principale commune à ses trois vues. Elle donne facilement accès à :
 
@@ -308,7 +337,15 @@ Une collection dispose d'une page principale commune à ses trois vues. Elle don
 - une éventuelle mise à jour disponible ;
 - le contenu de la collection.
 
-Les actions secondaires peuvent être regroupées afin que la barre d'outils ne devienne pas excessivement chargée. Passer d'une vue à une autre ne doit pas donner l'impression de charger une expérience sans rapport avec la précédente.
+Le pattern de bouton contextuel compact est réutilisable pour les Collections, Cartes, Variantes et autres actions contextuelles. Son contour extérieur peut être arrondi ; son icône décorative comporte trois carrés identiques sans aucun arrondi, alignés horizontalement, régulièrement espacés et centrés dans le bouton, en rappel de la géométrie du logo MY. Le bouton reste discret au repos ; le survol, le focus visible et l'état ouvert reprennent subtilement l'accent de la collection sur les carrés, la bordure et un fond léger, sans halo.
+
+Une action principale importante reste directement visible si nécessaire ; les actions secondaires ou contextuelles sont regroupées dans ce menu, selon les droits et le contexte. Le menu propriétaire livré propose `Renommer`, puis `Supprimer la collection` séparé visuellement. `Partager` reste futur et n'est pas affiché. Les actions non destructives propres à une collection peuvent reprendre sa couleur d'accent pour leur bordure, hover ou focus. Les actions destructives restent visuellement distinctes et utilisent toujours le langage danger indépendant de cet accent.
+
+Le bouton est nommé `Actions de la collection` pour les technologies d'assistance. Le panneau utilise des boutons natifs dans l'ordre du document, place le focus sur `Renommer`, se ferme avec Échap ou au clic extérieur et restitue le focus au déclencheur. Quitter le panneau au clavier le ferme également. Les dialogs natifs reprennent le fond modal inerte, la boucle de tabulation, le scroll mobile et la restitution du focus ; Annuler et Échap fonctionnent avant envoi. Pendant la mutation, les contrôles et la fermeture sont verrouillés, sans double soumission ni retry automatique.
+
+Le dialog de renommage préremplit le nom et réutilise la règle des trois caractères utiles, sans altérer la valeur envoyée. Après confirmation, le nom et le titre du document sont mis à jour immédiatement, puis relus du serveur ; le Dashboard est synchronisé. La confirmation de suppression explique que la collection, ses éléments et ses partages disparaissent, que les destinataires perdent leur accès et que les exemplaires physiques du propriétaire sont conservés. Elle ne demande ni mot de passe, ni TOTP, ni texte à recopier. Le succès confirmé ramène au Dashboard. Un résultat inattendu reste présenté comme incertain : `La suppression n’a pas pu être confirmée. Vérifiez vos collections avant de réessayer.` Une collection devenue inaccessible bascule vers l'état indisponible commun, sans détail serveur.
+
+Passer d'une vue à une autre ne doit pas donner l'impression de charger une expérience sans rapport avec la précédente.
 
 ## Recherche
 
@@ -322,11 +359,19 @@ Lorsqu'un filtre est actif, l'utilisateur doit comprendre :
 - quelle recherche est active ;
 - comment revenir à la collection complète.
 
-Un résultat vide doit indiquer clairement qu'aucune carte ne correspond, permettre d'effacer facilement le filtre et ne jamais laisser croire que la collection a été modifiée.
+Livrée en 6D.1 au-dessus de la liste, la barre `Rechercher dans la collection…` occupe seule la toolbar depuis 6F.3 ; l'ajout est accessible par le FAB propriétaire. La recherche reste présente en partage lecture seule, sans action d'ajout ni mutation propriétaire.
+
+Le filtre est local, immédiat, sans requête réseau : nom français de carte, nom complet d'Extension, abréviations FR/source, noms FR/source de série, numéro et version. Casse, accents, ligatures françaises, espaces et ponctuation courante sont normalisés ; `28/73`, `ASC`, `SL3.5` restent utilisables. Chaque terme doit correspondre à un champ (**AND** multi-champs), sans score ni tri ; l'ordre backend est conservé, y compris après actualisation.
+
+Dès que le champ contient du texte, une croix interne (`aria-label="Effacer la recherche"`) restaure immédiatement la liste complète et rend le focus au champ. Aucun bouton texte sous la liste. Une collection non vide sans résultat affiche exactement `Aucune carte ne correspond à cette recherche.` ; une collection réellement vide conserve son message propre.
+
+Si le filtre masque une partie de la collection, les poignées de réorganisation sont visuellement indisponibles avec l'indication masquée `Effacez la recherche pour réorganiser la collection.`, liée par `aria-describedby`. Aucun message volumineux n'est ajouté au flux. Une recherche correspondant à toutes les cartes ne bloque pas la réorganisation. Effacer rétablit les règles habituelles ; consultation, exemplaires et retrait Perso autorisé restent disponibles.
 
 ### Recherche dans le catalogue pour ajouter une carte
 
 La recherche interne filtre uniquement la collection courante. Elle reste distincte de la recherche globale du header (navigation) et de la recherche de sélection utilisée pour ajouter une variante.
+
+La recherche d'ajout livrée couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants pertinents et variante. Casse, accents, ligatures et ponctuation sont normalisés, avec AND multi-termes. **Elle ne recherche pas le nom de série**, contrairement au filtre interne.
 
 Les résultats du catalogue doivent permettre d'identifier clairement :
 
@@ -367,7 +412,11 @@ La vue Liste privilégie la densité, la lisibilité, la rapidité, la recherche
 
 La composition exacte des colonnes reste ouverte.
 
-Cliquer sur une ligne ouvre le détail de la variante sans obliger l'utilisateur à quitter la collection ni à perdre inutilement sa position.
+La zone principale de chaque ligne (image, nom, abréviation d'Extension, numéro et version) ouvre le détail contextuel. La poignée de réorganisation, le raccourci Exemplaires et le menu `…` restent des interactions séparées ; la ligne entière n'est pas cliquable.
+
+**Présentation 6F.3 :** lignes légères sans bordure de tableau, rayon discret et survol doux limité à la zone principale. Image compacte intégrée, informations hiérarchisées et actions discrètes ; sur mobile, espaces resserrés et cibles tactiles de 44 px conservées. Les cartes manquantes restent atténuées avec contrôles actifs ; leur état est annoncé par du texte masqué, sans libellé visible Possédée/Manquante dans la liste.
+
+Le reorder conserve ses capteurs souris/tactile/clavier et ses annonces DnD. Seule la poignée de l'item déplacé passe à un indicateur discret d'attente, puis à une coche verte pendant deux secondes après mutation et relectures autoritatives réussies. L'ordre exact du drop est conservé uniquement pour le rendu pendant l'attente, sans écriture optimiste dans le cache ni calcul de positions. La confirmation attend aussi les notifications de lecture vers React pour éviter une frame sur les anciennes props. Une nouvelle séquence autoritative ou une vue filtrée remplace immédiatement cet ordre transitoire ; succès et échec le suppriment. Le backend reste la source d'ordre permanente. Les annonces de déplacement restent dans une zone `aria-live` masquée, sans paragraphe de succès ni pending dans le flux. Le timer est nettoyé au nouveau déplacement, à la navigation et au démontage. Les erreurs sûres restent visibles au-dessus de la liste, dans un bloc qui reste à portée pendant le scroll, avec `Actualiser l’ordre` lorsque nécessaire.
 
 ### Vue Cartes
 
@@ -429,7 +478,17 @@ Le bloc actuellement consulté doit être identifiable et cette information peut
 
 ## Détail d'une variante
 
-Cliquer sur une variante depuis une collection (Liste, Cartes ou Classeur) ou depuis une fiche Carte catalogue ouvre le **même détail contextuel**, sans perdre inutilement le contexte ni la position d'origine.
+**Réalisation 6E.2 depuis la liste Collection :** le bouton `Voir le détail de {nom}` ouvre un panneau natif modal à droite, large de 620 px au maximum et haut de `100dvh`, avec la collection perceptible derrière le backdrop sombre. Jusqu'à 640 px, le même panneau occupe tout l'écran. Son contenu défile indépendamment ; la croix seule reste accessible en haut à droite, hors du scroll interne et sans en-tête visuel. Aucun changement d'URL, de recherche interne, de résultats ou d'ordre ; le scroll de collection est conservé. Le focus est contenu dans le panneau et rendu au déclencheur encore présent, sans déplacement du scroll. `Escape` ferme le détail ou revient du formulaire à la liste ; pendant une mutation et sa relecture, fermeture et double soumission sont bloquées. Aucune navigation Précédente/Suivante ni swipe.
+
+Le catalogue provient uniquement de `getVariantDetail(variantId)` (6E.1), avec chargement immédiat, erreur sûre et bouton `Réessayer`. Le nom FR (ou `Nom indisponible`), la grande image, la version et les métadonnées disponibles sont affichés sans ID interne. Extension et abréviations combinent les valeurs différentes en `FR (source)` ; la série privilégie le FR. Les valeurs vides sont omises, la taille standard est masquée, les autres valeurs catalogue restent intactes. `Date de sortie` affiche la date effective en français sans décalage de jour ni provenance technique.
+
+**Composition 6F.3 corrigée :** le hero associe image raisonnable, nom visuellement principal, version, Extension et numéro. Le nom réel de la carte nomme aussi le dialogue via un titre masqué, avec le fallback stable `Informations de la carte` pendant le chargement ou sans nom disponible. Aucune barre de titre générique n'est visible. Les métadonnées principales (Extension, abréviation, série, numéro, rareté, catégorie, date de sortie) forment une grille compacte à labels discrets. Le groupe `Caractéristiques` apparaît uniquement avec un sous-type, une finition, un stamp non vide ou une taille non standard ; il peut alors inclure le type une seule fois. Le type seul ne crée aucun groupe. Sur mobile, image réduite et grille lisible conservent l'accès aux exemplaires dans le même scroll interne, fermeture visible et safe areas respectées.
+
+`Mes exemplaires` (propriétaire) ou `Exemplaires` (partage) est intégré directement : liste, notes dépliables, ajout, modification et suppression confirmée restent dans le même panneau, sans modal imbriquée. `Possédée` / `Manquante` dérive des exemplaires relus du propriétaire réel. Le partage n'affiche aucune action d'écriture. Le raccourci Exemplaires de la ligne conserve son dialogue direct. Aucun ajout/retrait structurel de collection n'est proposé dans le détail.
+
+Depuis 6F.3, cette section se distingue du catalogue par l'espace et une surface légère. L'état de possession est compact et conserve toujours son texte explicite. `PhysicalCopiesContent` reste la source commune de consultation et de gestion ; aucun état de possession optimiste supplémentaire n'est introduit.
+
+En Phase 7, les futures vues Cartes/Classeur et fiches Carte catalogue réutiliseront ce **même détail contextuel**, sans perdre inutilement le contexte ni la position d'origine. À la clôture de Phase 6, son ouverture est livrée depuis la liste Collection.
 
 Le détail peut notamment afficher :
 
@@ -467,15 +526,7 @@ L'ajout du premier exemplaire fait automatiquement passer la variante de manquan
 
 ### Informations d'un exemplaire
 
-Le formulaire peut permettre de saisir :
-
-- la condition ;
-- le statut gradé ou non ;
-- la société de grading ;
-- la note de grading ;
-- une note personnelle.
-
-L'interface suit le principe de **progressive disclosure** : elle révèle les champs seulement lorsqu'ils deviennent pertinents. Par exemple, la société et la note de grading n'ont pas besoin d'être affichées pour un exemplaire déclaré non gradé.
+Le formulaire actuel contient un nom facultatif et un champ `État / note (facultatif)` limité à 750 caractères Unicode. Les espaces et retours à la ligne utiles sont conservés ; une note vide devient `NULL`. Sans nom, la liste affiche `Exemplaire 1`, `Exemplaire 2`… ; sans exemplaire, `Aucun exemplaire.`. Les notes se déplient individuellement, y compris en lecture seule. Aucun champ structuré de grading n'est présent dans ce modèle.
 
 ### Suppression d'un exemplaire
 
@@ -487,25 +538,32 @@ Les exemplaires demeurent globaux au compte, comme défini dans `03-DATA-MODEL.m
 
 ## Ajout et réorganisation des cartes
 
-### Collection libre
+### Collection personnalisée
 
-Une collection libre propose une action claire :
+Une collection personnalisée propose une action claire :
 
 `Ajouter une carte`
 
-Cette action ouvre la recherche de sélection dans le catalogue, distincte de celle du header. L'utilisateur sélectionne une variante existante et peut ensuite organiser librement les éléments.
+Livrée en 6C.3, cette action reste disponible à vide pour le propriétaire. Depuis 6F.3, elle utilise le FAB `+` décrit dans l'overview Collection, avec les mêmes états focus/hover et le même parcours. Elle ouvre une modal native unique à deux étapes, distincte de la recherche du header :
 
-Le drag and drop est une possibilité naturelle sur desktop. Une alternative adaptée au mobile doit être prévue si cette interaction n'est pas suffisante.
+1. **Recherche** : champ vide et focalisé à l'ouverture, aucun résultat initial ; temporisation de 300 ms, aucune requête sans lettre/chiffre utile, aucun seuil de trois caractères. États de chargement, erreur avec réessai et résultat vide explicites. Chaque résultat reste un bouton entier activable au clavier, avec image (ou placeholder) de 36 px de large au ratio conservé. Comme la liste Collection, il affiche au plus deux lignes principales : `Nom · Abréviation Extension · Numéro`, puis `Version` uniquement si présente. Les valeurs absentes ne produisent aucun séparateur orphelin ; le numéro reste exactement `local_id`. Les deux abréviations brutes sont exposées séparément : `set_abbreviation_fr` et `set_abbreviation`. La présentation commune affiche `HER (ASC)` si elles diffèrent, la valeur unique si une seule existe ou si elles sont identiques, et aucun segment si les deux sont absentes. Aucune valeur n'est reconstruite depuis le nom du set. Les deux restent recherchables, notamment avec le nom (`Pikachu ASC`). `set_name_fr` reste disponible dans les données, sans ligne principale dédiée. Dans une collection automatique, `Auto` / `Perso` reste discret à côté du titre. Une sélection ne déclenche aucune écriture. `Afficher plus` charge les pages suivantes de 20, concaténées et dédupliquées par ID de variante ; une nouvelle saisie remet les résultats et l'offset à zéro.
+2. **Confirmation** : variante sélectionnée, radios `Fin` (défaut) / `Début`, retour aux résultats et bouton `Ajouter à la collection`. Succès confirmé : fermeture et actualisation autoritative du contenu, de l'ordre, de l'overview et du Dashboard. En 6F.3, le FAB passe de `+` à une coche verte pendant deux secondes, puis revient à `+` ; le focus lui est rendu sans déplacer le scroll. `Carte ajoutée.` reste annoncé dans un statut masqué, sans succès visible dans le flux. Le timer est nettoyé au démontage, à la navigation et à une nouvelle action. Un doublon garde la sélection ouverte avec `Cette version est déjà dans votre collection.` Une variante devenue indisponible affiche `Cette version n’est plus disponible.` et permet le retour aux résultats.
+
+Escape/Annuler ferment hors mutation ; Tab reste dans la modal, le focus revient au déclencheur. Une réouverture repart d'un état vierge. Pendant l'écriture, doubles soumissions et réorganisation concurrente sont bloquées. Après conflit ou résultat incertain, un message sûr et une actualisation remplacent toute supposition locale sur le résultat. Aucun exemplaire physique n'est créé pendant l'ajout.
+
+L'interaction exacte de réorganisation reste à cadrer pour desktop et mobile : aucun choix final de drag & drop, poignée, boutons ou geste tactile n'est fixé.
 
 ### Collection automatique
 
-Une collection automatique peut également proposer l'action `Ajouter une carte`. La variante choisie dans le catalogue devient alors un élément manuel.
+Une collection automatique propose également au propriétaire l'action `Ajouter une carte` et le même parcours 6C.3. La variante choisie dans le catalogue devient alors un élément manuel.
 
-Les éléments automatiques ne sont ni réordonnables ni supprimables manuellement. Les éléments manuels peuvent être repositionnés ou retirés sans modifier l'ordre relatif des éléments automatiques.
+Les éléments automatiques et manuels sont tous librement réordonnables par le propriétaire. L'ordre canonique MY. initialise la collection, puis sert de référence système. Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique ; les éléments manuels peuvent être ajoutés, retirés et déplacés librement. La possibilité de déplacer un automatique est validée ; l'interaction UX exacte reste ouverte, comme pour les collections personnalisées.
 
-Lorsque nécessaire pour comprendre les actions disponibles, l'origine manuelle d'un élément doit être identifiable de manière discrète, sans surcharger toute la collection.
+Chaque ligne d'une collection automatique affiche discrètement `Auto` pour `origin='automatic'` ou `Perso` pour `origin='manual'`, avec un libellé d'origine accessible. Les valeurs DB/code restent `automatic` / `manual`. Aucun indicateur d'origine dans une collection personnalisée.
 
-Retirer un élément manuel de la collection et supprimer un exemplaire physique sont deux actions distinctes que l'interface ne doit pas confondre.
+Le menu `…` des seuls éléments manuels du propriétaire propose `Retirer de la collection`. La confirmation affiche `Retirer cette carte de la collection ?`, puis `Cette carte sera retirée de la collection. Vos exemplaires seront conservés.` et les actions `Annuler` / `Retirer`. Le succès ferme la confirmation et actualise contenu, ordre, overview et Dashboard ; exemplaires et notes restent inchangés. Aucun menu de retrait sur Auto ni en lecture seule, aucun bouton Ajouter dans le partage. Retirer un élément manuel et supprimer un exemplaire physique restent deux actions distinctes.
+
+En 6F.3, la disparition autoritative de la ligne suffit comme feedback visuel après retrait. `Carte retirée. Vos exemplaires sont conservés.` reste annoncé dans une zone de statut masquée. Les erreurs restent visibles et actionnables.
 
 ## Mise à jour d'une collection automatique
 
@@ -519,11 +577,13 @@ L'action finale est explicite :
 
 La collection n'est jamais mise à jour silencieusement. L'utilisateur reste maître de l'application et ne doit pas subir plusieurs confirmations successives après qu'un résumé clair lui a été présenté.
 
+La mise à jour préserve autant que possible l'ordre personnalisé des éléments automatiques et manuels, y compris lors d'une conversion manuel → automatique, sans retour arbitraire à l'ordre canonique. Le placement des nouveaux éléments et la stratégie de préservation/ancrage restent à cadrer en Phase 8.
+
 ## Partage
 
 Une collection appartenant à l'utilisateur propose une action `Partager`. Le propriétaire saisit l'identifiant public MY. du destinataire et, lorsque possible, l'interface identifie clairement l'utilisateur concerné avant validation.
 
-Après confirmation du propriétaire, le partage est directement actif et la collection apparaît dans « Collections partagées avec moi ». Il n'existe ni invitation, ni acceptation, ni refus. Le propriétaire peut consulter les personnes ayant accès et retirer un partage ; le destinataire peut retirer son propre accès. Ce retrait conserve la collection, ses éléments et les exemplaires. L'interface détaillée et la résolution limitée du destinataire seront implémentées ultérieurement.
+Après confirmation du propriétaire, le partage est directement actif et la collection apparaît dans la grille unifiée du Dashboard avec le statut `Partagée · Lecture seule`. Il n'existe ni invitation, ni acceptation, ni refus. Le propriétaire peut consulter les personnes ayant accès et retirer un partage ; le destinataire peut retirer son propre accès. Ce retrait conserve la collection, ses éléments et les exemplaires. L'interface de création/gestion des partages et la résolution limitée du destinataire restent prévues en Phase 9.
 
 ### Expérience en lecture seule
 
@@ -546,7 +606,13 @@ La route `/profile` devient l'unique page **Profil / gestion du compte** de la V
 
 Profil et Paramètres restent deux destinations distinctes du menu `Mon compte`. **Aucun lien ni raccourci vers Paramètres ne figure dans la page Profil.**
 
-La page peut regrouper visuellement identité MY., sécurité du compte et suppression en bas de page. Ces ensembles fonctionnels ne figent ni les titres visibles, ni une mise en page pixel-perfect.
+La hiérarchie livrée est **Identité MY. → Adresse email → Sécurité du compte → Zone sensible**. L'action discrète `Supprimer mon compte`, livrée en 4D.2, suit la section Sécurité tout en bas de page.
+
+**Réalisation Phases 4C et 4D.1 :** trois sections sobres — Identité MY., Adresse email, Sécurité du compte — reprennent le shell, Poppins et les styles existants, avec des contours discrets et des espacements réguliers. L'identifiant apparaît sous le libellé `MY.ID`, dans un input texte en lecture seule de hauteur standard, aligné avec le bouton de copie à droite ; les adresses peuvent revenir à la ligne. Les données absentes ont un message explicite, sans valeur de remplacement inventée. Les retours sont accessibles. Le `h1` unique conserve le focus de navigation géré par `AppRoutes`. Les [rapports 4C](reports/2026-09-14-PHASE4C-PROFILE.md) et [4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) consignent les contrôles responsive et clavier.
+
+**Modernisation 6F.4 :** le titre `Profil` et son introduction discrète précèdent un contenu centré, limité à 1000 px. Sur desktop, Identité MY. et Adresse email occupent deux colonnes sur des surfaces graphite sobres. La sécurité forme une section distincte : Mot de passe et Authenticator ont leurs propres titres et une séparation fine, sans cartes imbriquées. Les formulaires restent limités à 420 px. Jusqu'à 760 px, les groupes passent en une colonne ; sur mobile, les champs et boutons de formulaire utilisent la largeur disponible. Les actions tactiles ont une hauteur minimale de 44 px. Aucun hero ni raccourci Paramètres n'est ajouté.
+
+Le formulaire email est conservé : validation native de l'adresse, refus de l'adresse courante, désactivation pendant l'envoi, message d'erreur réutilisant Auth et possibilité de réessayer. L'adresse actuelle précède la saisie de la nouvelle adresse et l'explication des deux confirmations. L'attente issue de `user.new_email` reste visible après le rechargement Auth, distincte de l'adresse actuelle, sans supposer quelle confirmation manque. `Changement en attente` et la demande envoyée sont des informations compactes visibles, sans style d'erreur. Les erreurs, feedbacks de mot de passe et états indisponibles restent visibles. La suppression dispose de son action séparée après la sécurité.
 
 ### Identité MY.
 
@@ -554,39 +620,41 @@ La page affiche l'email actuel, l'identifiant public MY. et la date de création
 
 L'identifiant, généré automatiquement, unique et immuable au format `MY-XXXXX-XXXXX-XXXXX-XXXXX`, apparaît dans un **champ en lecture seule**, avec **à droite un bouton de copie représentant deux feuilles/pages superposées**. Le rôle de cet identifiant de partage reste compréhensible. Le bouton copie directement sa valeur complète dans le presse-papiers.
 
-Le champ possède un libellé et reste sélectionnable ; le bouton est accessible au clavier, avec un focus visible et un nom accessible tel que `Copier l'identifiant MY.`. Un retour léger, par exemple `Copié !`, confirme uniquement une copie réussie et est annoncé aux technologies d'assistance sans déplacer le focus. Si la copie échoue, l'interface le signale et laisse possible la sélection/copie manuelle. L'icône seule et la couleur ne portent pas toute l'information.
+Le champ possède le libellé exact `MY.ID` et reste sélectionnable ; le bouton carré de 44 px, sur surface graphite avec bordure discrète, est accessible au clavier, avec un focus visible et un nom accessible tel que `Copier l'identifiant MY.`. Après une copie réussie, le bouton affiche une coche avec un accent vert pendant 2,2 secondes, puis retrouve son pictogramme initial. Une région de statut masquée visuellement annonce le succès, sans déplacer le focus ni ajouter de message visuel séparé. Si la copie échoue, le texte d'aide du champ explique le repli par sélection/copie manuelle, également annoncé. La date d'inscription reste secondaire, sous l'identifiant. La couleur n'est jamais le seul indicateur ; les transitions discrètes et l'état pressé respectent la réduction des mouvements.
 
 ### Sécurité du compte
 
 Les actions de changement d'email et de mot de passe partent directement de Profil pour un utilisateur autorisé en `aal2`. Leurs contrôles correspondent aux protections natives Supabase : aucun nouveau challenge TOTP propre à l'opération ni étape de ré-authentification frontend artificielle.
 
 - **Email** : saisie de la nouvelle adresse, sans demander mot de passe ou TOTP. L'interface invite à confirmer les liens reçus sur l'ancienne **et** la nouvelle adresse et distingue `user.email` de `user.new_email`. Un seul lien confirmé laisse le changement en attente. Si l'ancienne boîte est inaccessible, une récupération manuelle après vérification d'identité sera nécessaire ; aucun contournement automatique n'est proposé.
-- **Mot de passe** : saisie du mot de passe actuel et du nouveau mot de passe ; Supabase vérifie le premier côté serveur. Le succès suit uniquement la mutation effective. Aucun nonce email supplémentaire n'est ajouté. Le parcours `Mot de passe oublié` conserve son comportement pour les personnes ayant oublié leur mot de passe.
-- **Authenticator** : afficher simplement le statut, par exemple `Authenticator configuré`. Un bouton tel que `Modifier` peut ouvrir uniquement une modale ou un message expliquant qu'il faut contacter MY. pour modifier/remplacer l'Authenticator. Aucun remplacement automatique, désactivation de la MFA obligatoire ou suppression de facteur n'est proposé depuis Profil.
+- **Mot de passe** : trois champs password requis — `Mot de passe actuel` (`autocomplete=current-password`), `Nouveau mot de passe` et `Confirmer le nouveau mot de passe` (`autocomplete=new-password`). Le nouveau mot de passe suit le minimum existant de 6 caractères, doit correspondre à la confirmation et différer de la saisie actuelle ; cette dernière comparaison ne vérifie pas le secret du compte. Supabase vérifie `current_password` côté serveur, avec garantie validée sur Cloud en [4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md). Pendant la requête, les champs et le bouton `Modifier le mot de passe` sont désactivés, y compris après remontage lié à Auth. Après réussite effective : `Mot de passe modifié.`, champs vidés et session conservée. Les erreurs Auth sont traduites sans texte brut et la saisie reste réutilisable après échec. Aucun nonce email, TOTP supplémentaire ni détournement de `Mot de passe oublié`.
+- **Authenticator** : sous-bloc informatif secondaire à côté du formulaire de mot de passe sur desktop, puis dessous sur mobile, avec séparation subtile. Son titre et son statut encadré, par exemple `Authenticator configuré`, sont immédiatement identifiables ; le statut provient uniquement des facteurs vérifiés réels. Il conserve le texte demandant de contacter un administrateur pour le modifier/remplacer. Aucun bouton, modale, remplacement automatique, enrollment, désactivation de la MFA obligatoire ou suppression de facteur depuis Profil.
 
 Le moyen de contact final reste ouvert. Aucun formulaire support, adresse email support définitive, ticket ou procédure automatisée n'est ajouté. La récupération en cas de perte d'Authenticator reste administrative et manuelle.
 
-Le callback `/auth/confirm-email-change` réutilise le traitement Auth existant. Après le premier lien, il affiche une invitation à terminer les deux confirmations, sans annoncer un changement définitif. Après le dernier lien, le service relit l'utilisateur Auth, termine uniquement la session technique du lien et affiche `Adresse email modifiée`, avec retour à la connexion sur la nouvelle adresse. Ce résultat est distinct de la confirmation d'inscription. Aucun paramètre sensible du callback ne reste dans l'URL. Ces écrans minimaux sont livrés avant la page Profil finale et ses formulaires.
+Le callback `/auth/confirm-email-change` réutilise le traitement Auth existant. Après le premier lien, il affiche une invitation à terminer les deux confirmations, sans annoncer un changement définitif. Après le dernier lien, le service relit l'utilisateur Auth, termine uniquement la session technique du lien et affiche `Adresse email modifiée`, avec retour à la connexion sur la nouvelle adresse. Ce résultat est distinct de la confirmation d'inscription. Aucun paramètre sensible du callback ne reste dans l'URL. Ces écrans minimaux livrés en 4B.2 restent inchangés lors de l'intégration du formulaire Profil en 4C.
 
 ### Suppression du compte
 
-Tout en bas de Profil, un lien ou une action sobre telle que `Supprimer mon compte` permet la suppression définitive. Une couleur d'alerte peut être utilisée avec un libellé explicite. **Aucun gros bloc ni libellé utilisateur `Zone dangereuse` n'est affiché** ; ce terme peut uniquement rester interne si utile.
+Tout en bas de Profil, la section légère `Zone sensible` sépare la suppression du reste du compte : bordure danger discrète, rappel du caractère définitif et bouton `Supprimer mon compte` avec accent rouge mesuré. Aucun gros bloc rouge ni libellé utilisateur `Zone dangereuse` n'est affiché.
 
 Le parcours comporte au minimum, dans cet ordre :
 
 1. une confirmation explicite expliquant le caractère définitif et les conséquences : compte, profil, préférences, collections possédées et leurs éléments/partages, accès reçus et exemplaires physiques supprimés ; les destinataires perdent l'accès aux collections disparues ;
-2. la ré-authentification complète par mot de passe actuel puis nouveau challenge TOTP actuel ;
+2. la saisie du mot de passe actuel et d'un code Authenticator à six chiffres ; le serveur effectuera la ré-authentification et créera le challenge TOTP lors de l'appel final ;
 3. une validation finale explicite avant destruction.
 
 La confirmation distingue les données supprimées du catalogue global et des données d'autrui préservés. Une simple session ouverte ne suffit jamais. Le parcours permet l'annulation avant la validation finale et ne présente la suppression comme réussie qu'après son achèvement effectif.
 
-Les formulaires, messages et éventuelles modales conservent des labels explicites, des erreurs accessibles et une gestion cohérente du focus au clavier et avec les technologies d'assistance. Les textes définitifs des modales, le choix exact modale/message, les intitulés de groupes et les détails visuels restent ouverts ; les étapes et garanties fonctionnelles sont fixées.
+La présentation 6F.4 conserve les trois étapes et le texte discret visible `Étape X sur 3`. Le dialog graphite est limité à 560 px et à la hauteur disponible, avec scroll interne sur petit écran. `Continuer` et la reconnexion utilisent une action primaire normale ; `Retour` et `Annuler` sont secondaires. Seule l'action finale `Supprimer définitivement mon compte` utilise le style danger. La conséquence concernant les exemplaires suit les données actuelles : `Vos exemplaires physiques, leurs noms et leurs notes seront supprimés.` Aucun champ structuré de gradation n'est mentionné.
 
-Le backend de suppression est livré localement ; aucun écran, formulaire ou branchement Profil n'est ajouté à ce stade. Son [contrat final](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) reçoit les saisies et les deux intentions explicites, puis refait lui-même les vérifications Auth. L'intégration ultérieure devra purger session/cache privés après succès. Un échec de destruction après révocation des sessions conserve toutes les données et impose une nouvelle connexion pour réessayer ; une réponse réseau perdue ne doit jamais être présentée comme un succès certain.
+La modal native livrée possède un titre et une description accessibles, un focus initial, un fond inerte natif et un bouclage explicite de Tab/Maj+Tab et une restitution du focus au bouton d'ouverture après fermeture. La case de conséquences conditionne Continuer ; les champs password et code à six chiffres acceptent les gestionnaires de mots de passe et le collage. Le bouton final est `Supprimer définitivement mon compte`, sans texte à recopier. Annuler, Retour, Échap et le clic hors modal sont disponibles avant l'envoi. Pendant l'appel final, tous les contrôles, la navigation SPA et le retour navigateur sont bloqués ; quitter/recharger la page déclenche la protection native du navigateur. La modal utilise un scroll interne sur petits écrans.
+
+La [réalisation 4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) branche cette modal au [contrat final](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) existant : aucun contrôle d'identité serveur n'est simulé dans React. Un mauvais mot de passe ou TOTP ramène à la saisie avec focus sur le champ concerné et conséquences conservées. Un échec de révocation ou de suppression indique que le compte n'a pas été supprimé et exige une reconnexion. Réseau, timeout et réponse illisible sont présentés comme incertains, sans relance automatique. Seul `{ deleted: true }` provoque la purge Auth/cache et le retour à l'accueil avec confirmation ; un échec du nettoyage SDK secondaire ne transforme pas ce succès en échec.
 
 ## Paramètres et préférences de vues
 
-La page Paramètres est accessible depuis le menu utilisateur et distincte de la page Profil. Sa section **Affichage** propose :
+La page Paramètres est accessible depuis le menu utilisateur et distincte de la page Profil. Elle reste volontairement minimale en Phase 6, sans modernisation fonctionnelle. La section **Affichage** prévue en Phase 7 proposera :
 
 | Préférence | Choix |
 |---|---|
@@ -605,8 +673,8 @@ Le format du classeur et le mode continu/par blocs restent ouverts quant à leur
 
 Les états vides doivent guider l'utilisateur :
 
-- sans collection, proposer `Créer ma première collection` ;
-- dans une collection libre vide, fournir une courte explication et proposer `Ajouter une carte` ;
+- sans collection, conserver le CTA unique `Créer une collection personnalisée` du Dashboard ;
+- dans une collection personnalisée vide, fournir une courte explication et proposer `Ajouter une carte` ;
 - sans partage reçu, afficher un état simple et clair.
 
 ### Chargement
@@ -675,8 +743,6 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - les textes définitifs des modales du Profil, ses intitulés de groupes et ses détails visuels, dans le respect des parcours validés ;
 - le moyen de contact final pour demander un remplacement d'Authenticator et la forme exacte de son message d'information ;
 - les dimensions, espacements, tailles typographiques et rayons exacts ;
-- le design précis des boutons, formulaires et tuiles du dashboard ;
-- la représentation graphique exacte de la progression ;
 - l'apparence exacte des cartes possédées et manquantes ;
 - les badges exacts de variantes ;
 - le design, la texture éventuelle et les animations du classeur ;

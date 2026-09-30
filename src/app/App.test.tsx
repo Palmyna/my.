@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { StrictMode } from 'react'
-import { Link, useLocation } from 'react-router'
+import { BrowserRouter, Link, useLocation } from 'react-router'
 import { expect, test, vi } from 'vitest'
 import { App } from './App'
 import { AppProviders } from './AppProviders'
@@ -41,11 +41,11 @@ function InfrastructureProbe() {
   )
 }
 
-test('fournit le routeur et conserve le cache Query entre les rendus et la navigation', () => {
-  const { rerender } = render(<AppProviders><InfrastructureProbe /></AppProviders>)
+test('conserve le cache Query entre les rendus et la navigation', () => {
+  const { rerender } = render(<AppProviders><BrowserRouter><InfrastructureProbe /></BrowserRouter></AppProviders>)
 
   fireEvent.click(screen.getByRole('button', { name: 'Préparer le cache' }))
-  rerender(<AppProviders><InfrastructureProbe /></AppProviders>)
+  rerender(<AppProviders><BrowserRouter><InfrastructureProbe /></BrowserRouter></AppProviders>)
   expect(screen.getByText('Cache conservé')).toBeVisible()
 
   fireEvent.click(screen.getByRole('link', { name: 'Changer de route' }))

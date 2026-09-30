@@ -21,6 +21,7 @@
     "supabase:status": "supabase status",
     "db:reset": "supabase db reset --local",
     "db:test": "node scripts/test-database.js",
+    "db:test:concurrency": "node scripts/test-automatic-collection-concurrency.ts",
     "db:lint": "supabase db lint --local --schema public,private --level warning --fail-on warning",
     "db:types": "node scripts/generate-supabase-types.js",
     "pokemon:update": "node scripts/catalog/pokemon-update.ts",
@@ -30,6 +31,7 @@
     "catalog:test:db": "node scripts/catalog/integration.ts"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "18.0.1",
     "@supabase/supabase-js": "2.115.0",
     "@tanstack/react-query": "5.102.8",
     "react": "19.2.8",
@@ -53,7 +55,7 @@
     "globals": "17.12.0",
     "jsdom": "30.0.1",
     "pg": "8.23.0",
-    "supabase": "^2.117.0",
+    "supabase": "^2.118.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0",
     "vite": "8.2.2",

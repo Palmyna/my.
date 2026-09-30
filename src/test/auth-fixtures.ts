@@ -51,8 +51,10 @@ export function mockAuthClient() {
   const eq = vi.fn(() => ({ single }))
   const select = vi.fn(() => ({ eq }))
   const from = vi.fn(() => ({ select }))
+  const functions = { invoke: vi.fn().mockResolvedValue({ data: { deleted: true }, error: null }) }
   return {
-    client: { auth, from } as unknown as SupabaseClient<Database>,
+    client: { auth, from, functions } as unknown as SupabaseClient<Database>,
+    functions,
     auth, mfa, from, select, eq, single, unsubscribe,
     emit: (event: AuthChangeEvent, value: Session | null) => callbacks.forEach(callback => callback(event, value)),
     listenerCount: () => callbacks.size,

@@ -13,7 +13,7 @@ MY. est centré sur la gestion personnelle de collections de cartes Pokémon TCG
 La V1 permet principalement de :
 
 - gérer plusieurs collections ;
-- créer des collections libres ou automatiques ;
+- créer des collections personnalisées ou automatiques ;
 - suivre les cartes possédées et manquantes ;
 - gérer plusieurs exemplaires physiques d'une même carte ;
 - consulter une collection sous plusieurs vues ;
@@ -23,6 +23,8 @@ La V1 permet principalement de :
 - partager une collection avec un autre utilisateur en lecture seule.
 
 Ces fonctionnalités doivent rester simples à comprendre et rapides à utiliser.
+
+**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres reste minimal. Le backend de création automatique est livré ; son parcours catalogue, les vues et préférences et la recherche globale restent en Phase 7, prochaine phase planifiée non commencée. Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
 
 ## Comptes utilisateurs
 
@@ -56,18 +58,18 @@ Le header authentifié permanent donne accès au Dashboard par le logo MY., à l
 
 Après connexion, l'utilisateur accède à son dashboard, point central d'accès aux collections. Celui-ci distingue clairement au minimum deux catégories, sans imposer encore leur présentation exacte dans l'interface.
 
-Au sein des collections, l'utilisateur doit pouvoir distinguer les types `Libre`, `Automatique · Pokémon` et `Automatique · Extension`, ainsi que la cible automatique lorsque cela est pertinent.
+Au sein des collections, l'utilisateur doit pouvoir distinguer les types `Personnalisée`, `Automatique · Pokémon` et `Automatique · Extension`, ainsi que la cible automatique lorsque cela est pertinent.
 
-### Mes collections
+### Collections personnelles
 
 Cette catégorie regroupe les collections dont l'utilisateur est propriétaire. Il peut :
 
-- créer une collection ;
+- créer une collection personnalisée depuis le Dashboard ;
 - ouvrir une collection ;
 - modifier les informations générales d'une collection ;
 - supprimer une collection.
 
-### Collections partagées avec moi
+### Collections partagées
 
 Cette catégorie regroupe les collections que d'autres utilisateurs ont partagées avec l'utilisateur courant. Elles sont accessibles uniquement en consultation.
 
@@ -75,31 +77,30 @@ Le destinataire ne peut pas :
 
 - modifier les cartes ou leur ordre ;
 - modifier les états de possession ;
-- modifier les exemplaires, les notes ou les informations de grading ;
+- modifier les exemplaires, leurs noms ou leurs états / notes ;
 - supprimer la collection ;
 - modifier ses paramètres.
 
-Le choix entre des onglets, des sections ou une navigation dédiée relève du cadrage UX.
+Le Dashboard livré présente une grille unifiée, avec statut explicite `Personnelle` ou `Partagée · Lecture seule`.
 
 ## Création et informations générales d'une collection
 
-Lors de la création d'une collection, l'utilisateur choisit entre deux types :
+Deux types de collections existent, avec des points d'entrée distincts :
 
-- une collection libre ;
-- une collection automatique.
+- une collection personnalisée se crée depuis le Dashboard : `Créer une collection personnalisée` → Nom → Création ;
+- une collection automatique se crée depuis la page catalogue d'un Pokémon ou d'une Extension précise : `Créer ma collection…` → Nom → création automatique. Ce parcours sera livré avec les pages catalogue.
 
-Pour une collection automatique, il choisit ensuite un type de cible puis la cible correspondante :
+Le Dashboard crée uniquement des collections personnalisées, sans wizard ni sélecteur de cible automatique. Pour une cible automatique déjà possédée, la page catalogue propose `Ouvrir ma collection…`. Une collection reçue en partage ne remplace jamais la collection automatique personnelle de cette cible.
 
-- un Pokémon ;
-- une extension, c'est-à-dire un set précis.
+La recherche globale reste un outil de navigation vers ces pages : aucune création directe depuis ses suggestions.
 
-Une collection possède un nom d'au moins **3 caractères utiles après trim**, à la création comme au renommage, pour les collections libres et automatiques. L'interface et PostgreSQL garantissent cette règle. Aucune autre métadonnée ne doit être supposée tant qu'elle n'est pas cadrée.
+Une collection possède un nom d'au moins **3 caractères utiles après trim**, à la création comme au renommage, pour les collections personnalisées et automatiques. L'interface et PostgreSQL garantissent cette règle. Aucune autre métadonnée ne doit être supposée tant qu'elle n'est pas cadrée.
 
 Le propriétaire peut modifier les informations générales de sa collection et, au minimum, son nom. Le type d'une collection ne doit pas être considéré comme modifiable après sa création sans cadrage spécifique.
 
-## Collections libres
+## Collections personnalisées
 
-Une collection libre est entièrement construite par son propriétaire. Celui-ci peut :
+Une collection personnalisée est entièrement construite par son propriétaire. Celui-ci peut :
 
 - ajouter les cartes de son choix ;
 - supprimer les cartes ajoutées ;
@@ -109,15 +110,19 @@ Une collection libre est entièrement construite par son propriétaire. Celui-ci
 
 Elle ne dépend d'aucune logique automatique liée à un Pokémon. Elle peut notamment représenter une collection personnelle spécifique, une sélection de cartes favorites, une collection thématique, une wishlist ou un objectif personnel.
 
-La wishlist est seulement un exemple d'usage d'une collection libre et ne constitue pas une fonctionnalité supplémentaire de la V1.
+La wishlist est seulement un exemple d'usage d'une collection personnalisée et ne constitue pas une fonctionnalité supplémentaire de la V1.
+
+L'ajout manuel, dans une collection personnalisée ou automatique, sélectionne une variante exacte active et confirmée française, dont la carte source et le set sont actifs. Une variante locale MY. reste admissible sans présence dans la source. Le backend 6C.1 permet l'ajout en début ou fin (fin par défaut), puis le déplacement précis par la réorganisation existante. Un doublon est refusé sans conversion ni déplacement. Le retrait manuel conserve les exemplaires physiques et refuse les éléments automatiques. Une perte ultérieure d'éligibilité ne retire ni ne masque les éléments existants. Les interfaces d'ajout et de retrait sont livrées en 6C.3 : action propriétaire disponible même à vide, recherche → sélection → position → confirmation dans une modal unique, puis retrait confirmé des seuls éléments manuels. Les collections automatiques affichent les repères secondaires `Auto` / `Perso` ; les collections personnalisées n'affichent aucun repère d'origine. Le partage reste en lecture seule, sans ces actions de mutation.
+
+La Phase 6C.2 livre la recherche catalogue serveur et son service applicatif pour sélectionner cette Variante exacte : plusieurs variantes d'une carte donnent plusieurs résultats. La recherche reste indépendante de la collection, y compris pour les variantes déjà présentes ; `already_present` reste autoritatif à l'écriture 6C.1. Elle couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants pertinents et variante, avec normalisation de casse, accents, ligatures et ponctuation et AND multi-termes. **Le nom de série n'est pas recherché.** Elle est distincte de la recherche globale et du filtre interne. L'interface 6C.3 temporise la saisie de 300 ms, sans seuil de trois caractères, et propose `Afficher plus` par pages de 20 variantes. Voir le [contrat 6C.2](06-DATABASE.md#recherche-catalogue-pour-ajout--contrat-6c2).
 
 ## Collections automatiques
 
 Une collection automatique possède une cible. Deux types de cible sont proposés dans la V1 : Pokémon et Extension.
 
-Un utilisateur ne peut posséder qu'une seule collection automatique pour une même cible : une par Pokémon et une par Extension. Deux utilisateurs différents peuvent choisir la même cible ; les collections libres ne sont pas concernées. Cette unicité est garantie par PostgreSQL, y compris en cas de créations concurrentes.
+Un utilisateur ne peut posséder qu'une seule collection automatique pour une même cible : une par Pokémon et une par Extension. Deux utilisateurs différents peuvent choisir la même cible ; les collections personnalisées ne sont pas concernées. Cette unicité est garantie par PostgreSQL, y compris en cas de créations concurrentes.
 
-Le contenu automatique est généré depuis le catalogue local MY. selon des règles communes et reproductibles. Quel que soit le type de cible, la structure est matérialisée, les éléments automatiques sont fixes, l'ordre est stable, les ajouts manuels restent possibles et toute mise à jour structurelle nécessite une validation explicite.
+Le contenu automatique est généré depuis le catalogue local MY. selon des règles communes et reproductibles. Quel que soit le type de cible, la structure est matérialisée et gérée par MY., l'ordre initial est canonique, les ajouts manuels restent possibles et toute mise à jour structurelle nécessite une validation explicite. Après création, le propriétaire peut librement réordonner tous les éléments, automatiques comme manuels.
 
 ### Cible Pokémon
 
@@ -133,17 +138,19 @@ Chaque variante française pertinente produit une entrée distincte. L'extension
 
 Une collection automatique par extension calcule sa progression comme les autres collections. Tous ses éléments, automatiques comme manuels, contribuent au total ; une variante contribue au nombre possédé lorsque le propriétaire en possède au moins un exemplaire.
 
-### Structure automatique fixe
+### Structure automatique et ordre personnalisable
 
 L'ordre canonique Pokémon suit la date de parution effective complète de la variante (`YYYY-MM-DD`) croissante, puis le numéro normalisé de sa carte, puis l'ordre stable des variantes d'une même carte. Une variante sortie plus tard peut donc apparaître après une autre carte intermédiaire. L'ordre Extension reste numéro normalisé dans le set, puis ordre stable des variantes, sans critère de date. Le [pipeline](07-CATALOG-SYNC.md) conserve la provenance réelle des dates et utilise le fallback fiable de carte lorsqu'aucune date spécifique n'est connue, puis NULL en dernier. Il implémente le tri naturel et les familles Normal/Holo/Reverse/autres. Seules les variantes standard actives et confirmées françaises sont éligibles ; les Jumbo sont exclues.
 
 Les cartes générées automatiquement constituent la structure de référence de la collection. Elles :
 
-- conservent l'ordre défini par MY. ;
+- conservent leur origine automatique et leur rang canonique système (`automatic_rank`) lors d'un déplacement ;
 - ne peuvent pas être supprimées manuellement ;
-- ne peuvent pas être déplacées librement.
+- peuvent être déplacées librement par le propriétaire.
 
-L'utilisateur reste libre de gérer ses données personnelles sur ces cartes : possession, exemplaires, état, grading et notes.
+L'ordre canonique initialise la collection ; il reste une référence système, pas une contrainte permanente d'affichage. `sort_position` représente l'ordre réel affiché dans cette collection. Déplacer un élément automatique modifie sa position, jamais son `automatic_rank`, son `origin`, le hash/version canonique ou `automatic_target_states`. Deux collections de même cible/version peuvent ainsi avoir les mêmes éléments automatiques et des positions différentes.
+
+L'utilisateur reste libre de gérer ses exemplaires sur ces cartes, leurs noms et leurs états / notes. La possession reste dérivée des exemplaires.
 
 Une carte automatique reste dans la structure même lorsqu'elle n'est pas possédée.
 
@@ -158,7 +165,7 @@ Le propriétaire peut :
 - l'insérer entre des cartes automatiques ;
 - la supprimer.
 
-Les déplacements de cartes manuelles ne modifient jamais l'ordre relatif des cartes automatiques. Le mécanisme technique de positionnement n'est pas défini par ce document.
+Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. Tous les éléments sont librement repositionnables. La réorganisation livrée accepte début/fin/avant/après, par souris, tactile ou clavier ; le backend calcule midpoint/rééquilibrage et sérialise les déplacements. L'ordre visuel transitoire pendant la sauvegarde et les relectures évite le snap-back ; le frontend ne devient jamais une source permanente de vérité.
 
 ### Mise à jour contrôlée
 
@@ -172,7 +179,7 @@ Lorsqu'une mise à jour est disponible :
 
 Le résumé doit permettre de comprendre les changements : variantes ajoutées ou retirées, éléments manuels qui deviendront automatiques et changements d'ordre pertinents. Une évolution peut provenir d'une nouvelle carte, d'une nouvelle variante française, d'une correction TCGdex ou d'une correction locale MY.
 
-Lorsqu'elle est validée, la mise à jour insère les nouvelles cartes automatiques à leur position correcte, convertit sans doublon les éléments manuels devenus automatiques et retire de la structure les éléments automatiques devenus non éligibles. Elle ne supprime jamais les exemplaires physiques. Les autres cartes manuelles sont préservées sans être perturbées inutilement ; leur logique précise de repositionnement reste ouverte.
+Lorsqu'elle est validée, la mise à jour ajoute les nouveaux éléments automatiques, retire ceux devenus non éligibles et actualise les `automatic_rank`. Une conversion manuel → automatique conserve le même `collection_item`, passe `origin` à `automatic`, définit `automatic_rank` et préserve autant que possible `sort_position`, sans doublon. Les autres éléments manuels et les exemplaires physiques sont conservés. La mise à jour préserve autant que possible l'ordre personnalisé de tous les éléments et ne réinitialise pas arbitrairement `sort_position` vers l'ordre canonique. Le placement des nouveaux éléments automatiques et la stratégie de préservation/ancrage des positions restent explicitement ouverts pour la Phase 8 ; aucun algorithme exact d'insertion/fusion n'est fixé.
 
 ## Cartes de référence et exemplaires physiques
 
@@ -207,31 +214,22 @@ Une collection partagée affiche la progression de son propriétaire.
 
 Chaque exemplaire peut conserver ses propres informations :
 
-- état de conservation ;
-- note ou commentaire personnel ;
-- indication qu'il est gradé ;
-- société de grading ;
-- note de grading.
+- nom personnalisé facultatif ;
+- état / note facultatif en texte libre multiligne.
 
 Les exemplaires d'une même carte peuvent avoir des informations différentes.
 
-#### État de conservation
-
-Un état de conservation peut être indiqué pour une carte non gradée. Des valeurs comme *Near Mint*, *Excellent*, *Good*, *Played* ou *Poor* illustrent le besoin, mais ne constituent pas une nomenclature définitive.
-
-#### Grading
-
-Un exemplaire peut être déclaré gradé. L'utilisateur peut alors renseigner la société de grading et la note obtenue. L'interface ne doit pas supposer que toutes les sociétés utilisent la même échelle.
-
-Les sociétés prises en charge et les formats de notes restent à définir.
+Depuis 6A.2, aucun champ structuré de condition ou de grading n'est actif. Ces informations peuvent être notées librement, sans nomenclature, parsing ni échelle imposée. Sans nom personnalisé, l'affichage utilise `Exemplaire N`, recalculé selon l'ordre des exemplaires, sans stocker ce libellé.
 
 #### Notes personnelles
 
 Une note ou un commentaire libre peut être associé à chaque exemplaire. Il peut notamment décrire un défaut visible, l'origine de la carte, une information d'achat, son rangement physique ou tout autre commentaire personnel.
 
-La longueur maximale et le format précis de ces notes ne sont pas encore définis.
+La note est limitée à 750 caractères Unicode. Un texte vide ou uniquement composé d'espaces blancs devient `NULL` ; les espaces et retours à la ligne utiles sont conservés.
 
 ## Recherche globale et consultation du catalogue
+
+**Phase 7 planifiée, non commencée :** les parcours globaux et pages catalogue ci-dessous restent futurs. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
 
 La recherche globale est une navigation par suggestions dynamiques, disponible partout après connexion à partir de **3 caractères**. Il n'existe ni bouton de lancement requis, ni page générale de résultats. Valider le champ ne sélectionne aucun résultat et ne navigue pas ; l'utilisateur choisit explicitement une suggestion. Sur mobile, cette validation ferme seulement le clavier et conserve les suggestions.
 
@@ -258,25 +256,21 @@ Cette recherche complète deux outils distincts : la recherche interne filtre la
 
 ## Recherche interne
 
-Chaque collection dispose d'une barre de recherche permettant de saisir un terme libre et de filtrer immédiatement les cartes de la collection actuelle.
+Livrée en 6D.1 dans la liste Collection, la recherche filtre immédiatement le tableau déjà chargé par `get_collection_content`, pour le propriétaire comme en partage lecture seule. Aucun appel réseau, pagination ou délai de saisie n'est ajouté.
 
-La recherche peut exploiter plusieurs informations pertinentes lorsqu'elles sont disponibles, notamment :
+Champs recherchés lorsqu'ils existent : `cardNameFr`, `setNameFr`, `setAbbreviationFr`, `setAbbreviation`, `seriesNameFr`, `seriesNameSource`, `localId`, `variantLabel`. Casse, accents, ligatures françaises, espaces multiples et ponctuation courante sont normalisés ; les séparateurs utiles de `28/73` et `SL3.5` sont conservés.
 
-- le nom de la carte ;
-- le nom de la série ;
-- le nom du set ;
-- le bloc ou l'ère ;
-- le numéro de carte ;
-- les identifiants ou autres informations textuelles pertinentes ;
-- les métadonnées utiles provenant de TCGdex.
+Les termes suivent une logique **AND** : chaque terme doit correspondre à au moins un champ, éventuellement différent des autres termes (`Pikachu Reverse ASC`, `Soleil Lune Pikachu`). Aucun score ni tri : l'ordre backend reste intact. Après ajout/retrait et actualisation existante, la requête courante filtre le nouveau tableau.
 
-La liste technique définitive des champs recherchés n'est pas figée.
+La croix dans le champ efface la recherche, conserve le focus et restaure immédiatement la collection complète. La réorganisation est désactivée uniquement lorsque le filtre masque des cartes ; consultation, exemplaires et retrait personnel restent accessibles selon les droits existants.
 
 Cette recherche est strictement un filtre interne à la collection consultée. Elle ne constitue pas une recherche globale dans l'ensemble du catalogue Pokémon.
 
-La recherche fonctionne dans les vues liste, cartes et classeur. Les vues liste et cartes n'affichent que les résultats correspondants. Dans la vue classeur, les résultats doivent rester consultables de manière cohérente, mais le traitement visuel des emplacements non correspondants reste à définir.
+La recherche est livrée dans la liste Collection. Son intégration aux futures vues Cartes et Classeur relève de Phase 7 : Liste et Cartes n'afficheront que les résultats correspondants ; dans Classeur, le traitement visuel des emplacements non correspondants reste à définir.
 
 ## Vues d'une collection
+
+Les vues supplémentaires et préférences ci-dessous restent planifiées en Phase 7 ; seule la liste fonctionnelle Phase 6 est livrée.
 
 Les trois vues de la V1 présentent la même collection et les mêmes données :
 
@@ -334,7 +328,7 @@ Le comportement détaillé de navigation relève du cadrage UX.
 
 Le propriétaire peut partager une collection avec un autre utilisateur MY. depuis la collection concernée. Il utilise pour cela l'identifiant public unique du destinataire, qui doit être clairement identifié avant ou pendant la validation du partage.
 
-Le partage devient immédiatement actif après confirmation du propriétaire et la collection apparaît dans « Collections partagées avec moi ». La V1 ne comporte ni invitation, ni attente, ni acceptation ou refus par le destinataire. La résolution de l'identifiant reste limitée et ne permet jamais de parcourir les profils.
+Le partage devient immédiatement actif après confirmation du propriétaire et la collection apparaît dans la grille unifiée du Dashboard, avec le statut `Partagée · Lecture seule`. La V1 ne comporte ni invitation, ni attente, ni acceptation ou refus par le destinataire. La résolution de l'identifiant reste limitée et ne permet jamais de parcourir les profils. Ce parcours de création de partage reste prévu en Phase 9 ; la consultation partagée est déjà livrée.
 
 ### Accès en lecture seule
 
@@ -342,7 +336,7 @@ Le partage de la V1 est strictement limité à la consultation. Le destinataire 
 
 - ouvrir la collection et consulter ses cartes ;
 - voir les états de possession ;
-- voir les exemplaires, les notes et les informations de grading ;
+- voir les exemplaires du propriétaire, leurs noms et leurs états / notes ;
 - utiliser les différentes vues ;
 - utiliser la recherche et les autres outils de consultation.
 
@@ -366,6 +360,8 @@ La route `/profile` devient la page **Profil / gestion du compte** de la V1. Ell
 
 Profil et Paramètres sont deux destinations distinctes du menu `Mon compte`. La page Profil ne contient aucun lien ni raccourci vers Paramètres.
 
+**Livré localement en Phases 4C, 4D.1 et 4D.2 :** le Profil présente, dans l'ordre, **Identité MY.**, **Adresse email**, puis **Sécurité du compte**. L'identité et le changement d'email 4C sont conservés ; la section Sécurité ajoute le changement volontaire du mot de passe et accueille le statut Authenticator comme information secondaire. Les [rapports 4C](reports/2026-09-14-PHASE4C-PROFILE.md) et [4D.1](reports/2026-09-15-PHASE4D1-PASSWORD-PROFILE.md) précisent les validations locales. La [suppression 4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md) est intégrée en bas de Profil. Le [checkpoint Cloud final](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) valide les protections serveur et clôture la Phase 4.
+
 ### Informations du compte
 
 La page présente au minimum :
@@ -384,7 +380,7 @@ L'accès normal à MY. conserve email confirmé, facteur TOTP vérifié et sessi
 - **Email** : session `aal2`, Secure Email Change et confirmation de l'adresse actuelle **et** de la nouvelle adresse.
 - **Suppression** : confirmations explicites, mot de passe actuel puis nouveau challenge TOTP frais et opération privilégiée côté serveur contrôlée par MY.
 
-Aucun nouveau TOTP par opération n'est ajouté pour email/mot de passe. La limite native établie lors de la vérification précédente est prise en compte ; aucun booléen, délai ou preuve frontend ne simule cette protection. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) distingue les garanties livrées des éléments restant à implémenter.
+Aucun nouveau TOTP par opération n'est ajouté pour email/mot de passe. La limite native établie lors de la vérification précédente est prise en compte ; aucun booléen, délai ou preuve frontend ne simule cette protection. L'[architecture](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) précise les garanties livrées et les limites de validation locale.
 
 ### Modification de l'adresse email
 
@@ -396,31 +392,35 @@ L'email reste exclusivement une donnée Auth : aucun champ email n'est créé da
 
 ### Modification volontaire du mot de passe
 
-Un utilisateur connecté en `aal2` peut changer son mot de passe depuis Profil en fournissant son mot de passe actuel et un nouveau mot de passe. Supabase Auth doit refuser côté serveur l'absence du mot de passe actuel ou une valeur incorrecte. Aucun nouveau challenge TOTP ni nonce email supplémentaire n'est ajouté à ce parcours V1. Sa disponibilité dépend de l'activation et de la validation de cette exigence serveur, selon l'architecture.
+Un utilisateur connecté en `aal2` peut changer son mot de passe depuis Profil en fournissant son mot de passe actuel, un nouveau mot de passe et sa confirmation. Les trois champs sont requis ; le nouveau mot de passe respecte le minimum existant de 6 caractères, correspond à sa confirmation et diffère de la saisie actuelle. Le formulaire bloque les doubles soumissions, affiche les erreurs Auth traduites et permet de réessayer. Après réussite réelle de `auth.updateUser({ password, current_password })`, il affiche `Mot de passe modifié.` et vide les champs, sans déconnexion. Supabase Auth doit refuser côté serveur l'absence du mot de passe actuel ou une valeur incorrecte ; cette garantie est validée sur Cloud par le [checkpoint 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md). Aucun nouveau challenge TOTP ni nonce email supplémentaire n'est ajouté. La présence du formulaire livré localement en 4D.1 ne valide pas à elle seule cette protection serveur.
 
 Ce parcours est distinct de `Mot de passe oublié`. La récupération par email déjà livrée reste inchangée pour une personne ayant réellement oublié son mot de passe ; elle conserve ses propres règles de MFA avant réinitialisation, sans exiger le mot de passe oublié.
 
 ### Authenticator
 
-La MFA TOTP reste obligatoire pour tous. Profil affiche son statut, par exemple `Authenticator configuré`. Une action telle que `Modifier` peut ouvrir uniquement une modale ou un message demandant de contacter MY. pour modifier/remplacer l'Authenticator.
+La MFA TOTP reste obligatoire pour tous. Dans **Sécurité du compte**, après le formulaire de mot de passe et une séparation subtile, Profil affiche le statut, par exemple `Authenticator configuré`, puis indique directement que toute modification ou tout remplacement nécessite de contacter un administrateur. Aucun bouton, modale ni workflow de gestion de facteur n'est ajouté.
 
 La V1 ne propose aucun remplacement automatique du facteur depuis Profil. Le moyen de contact final reste à choisir : aucun formulaire support, adresse support définitive, ticket ou procédure automatisée supplémentaire n'est défini. La récupération en cas de perte d'Authenticator reste la procédure administrative manuelle existante.
+
+La page livrée affiche directement l'information de contact administratif, sans bouton `Modifier` qui suggérerait une action disponible.
 
 ### Suppression définitive du compte
 
 La V1 permet à l'utilisateur de supprimer définitivement son compte MY. Le parcours exige au minimum :
 
 1. une confirmation explicite présentant les conséquences de la suppression ;
-2. une ré-authentification complète par mot de passe actuel puis TOTP actuel ;
+2. la saisie du mot de passe actuel et du TOTP actuel, vérifiés côté serveur lors de l'appel final ;
 3. une validation finale explicite avant toute destruction.
 
-La suppression efface le profil MY., les préférences, les collections possédées et leurs éléments/partages, les relations donnant à cet utilisateur des accès reçus, ses exemplaires physiques avec leurs notes et informations de grading, puis le compte Supabase Auth. Ses collections partagées deviennent inaccessibles aux destinataires puisqu'elles disparaissent. Retirer ses accès reçus ne supprime pas les collections des autres propriétaires ni leurs autres partages.
+La suppression efface le profil MY., les préférences, les collections possédées et leurs éléments/partages, les relations donnant à cet utilisateur des accès reçus, ses exemplaires physiques avec leurs noms et états / notes, puis le compte Supabase Auth. Ses collections partagées deviennent inaccessibles aux destinataires puisqu'elles disparaissent. Retirer ses accès reçus ne supprime pas les collections des autres propriétaires ni leurs autres partages.
 
-Le catalogue global — Pokémon, séries, Extensions, Cartes, Variantes et données de référence associées — et les données appartenant aux autres utilisateurs sont préservés. Le [modèle](03-DATA-MODEL.md#suppression-dun-compte), l'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) et la [base de données](06-DATABASE.md#suppression-dun-compte) précisent le backend livré et validé localement. La présentation dans Profil et l'intégration UX finale restent à réaliser.
+Le catalogue global — Pokémon, séries, Extensions, Cartes, Variantes et données de référence associées — et les données appartenant aux autres utilisateurs sont préservés. Le [modèle](03-DATA-MODEL.md#suppression-dun-compte), l'[architecture](05-ARCHITECTURE.md#suppression-du-compte--contraintes-dorchestration) et la [base de données](06-DATABASE.md#suppression-dun-compte) précisent le backend livré et validé localement. La présentation et l'intégration sont livrées localement en [4D.2](reports/2026-09-15-PHASE4D2-ACCOUNT-DELETION-UX.md). Le succès explicite entraîne la purge Auth/cache et le retour à l'accueil public. Une réponse perdue reste incertaine et invite à se reconnecter pour vérifier l'état du compte.
 
 L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuelles exigences légales ou rétentions particulières nécessitent un cadrage spécifique ; aucune durée ni exception de conservation n'est décidée ici.
 
 ## Paramètres et préférences d'affichage
+
+`/settings` reste volontairement minimal à la clôture de Phase 6. Les préférences décrites ci-dessous sont planifiées en Phase 7.
 
 La page Paramètres, accessible depuis le menu utilisateur, possède une section Affichage avec deux préférences persistantes et indépendantes :
 
@@ -492,14 +492,10 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;
 - la fréquence de vérification des mises à jour ;
 - le contenu précis du résumé et le fonctionnement des notifications de mise à jour ;
-- la nomenclature définitive des états de conservation ;
-- les sociétés de grading et leurs formats de notes ;
 - la liste définitive des champs utilisés par la recherche ;
 - le comportement exact de la recherche dans la vue classeur ;
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
 - le moyen de contact final pour modifier/remplacer l'Authenticator ;
-- les textes UX définitifs des modales et le design détaillé du Profil, dont le périmètre fonctionnel est cadré ;
-- l'intégration UX finale du parcours de suppression, dont le backend est livré localement ;
 - les éventuelles exigences légales ou rétentions particulières liées à la suppression, à cadrer spécifiquement ;
 - le design détaillé du dashboard et des vues ;
 - le responsive et l'accessibilité ;

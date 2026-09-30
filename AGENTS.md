@@ -13,6 +13,13 @@ Ce document définit le cadre général applicable à tout agent intervenant sur
 - Maintenir la [roadmap globale](docs/08-ROADMAP.md) lorsque l'état, l'ordre ou le périmètre des grandes phases évolue, sans y reporter le découpage opérationnel.
 - Garder en permanence le code et la documentation cohérents.
 
+## Workflow Git
+
+- Vérifier la branche courante et l'état réel du dépôt avant toute modification.
+- `dev` est la branche GitHub par défaut et la branche normale de développement et d'intégration ; y réaliser les changements courants, sauf instruction explicite contraire.
+- `main` représente l'état stable et la production ; ne pas y pousser directement dans le workflow normal. La promotion des changements validés de `dev` vers `main` passe par une Pull Request.
+- Les branches temporaires (`feature/...`, `fix/...`, etc.) ne sont pas systématiques : ne les créer que si elles apportent une réelle valeur ou sont explicitement demandées.
+
 ## Principes de réalisation
 
 - Respecter la structure du dépôt ainsi que les conventions définies dans les documents du projet.

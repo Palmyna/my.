@@ -2,6 +2,70 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createAuthService } from '../../services/auth'
 import { confirmedUser, mockAuthClient, profile, session } from '../../test/auth-fixtures'
 import { createAuthStore } from './auth-store'
+import { AccountDeletionError, type AccountDeletionInput } from '../../services/account-deletion'
+
+const deletionInput: AccountDeletionInput = { currentPassword: 'secret-only-local', totpCode: '654321', confirmConsequences: true, confirmDeletion: true }
+
+test('suppression refuse un store non autorisé sans appeler le service', async () => {
+  const { store, mock, stop } = setup()
+  await settle()
+  await expect(store.actions.deleteAccount(deletionInput)).rejects.toMatchObject({ code: 'authorized_account_required' })
+  expect(mock.functions.invoke).not.toHaveBeenCalled()
+  stop()
+})
+
+test('suppression protège les doubles appels et ne conserve aucun secret dans le snapshot', async () => {
+  const { store, mock, stop, clearData } = setup()
+  mock.authorize(); await settle()
+  let finish!: (value: unknown) => void
+  mock.functions.invoke.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  const pending = store.actions.deleteAccount(deletionInput)
+  await settle()
+  expect(JSON.stringify(store.getSnapshot())).not.toContain(deletionInput.currentPassword)
+  expect(JSON.stringify(store.getSnapshot())).not.toContain(deletionInput.totpCode)
+  await expect(store.actions.deleteAccount(deletionInput)).rejects.toBeInstanceOf(AccountDeletionError)
+  clearData.mockClear()
+  finish({ data: { deleted: true }, error: null }); await pending
+  expect(clearData).toHaveBeenCalledTimes(1)
+  expect(store.getSnapshot()).toMatchObject({ status: 'signed_out', session: null, user: null, profile: null, mfa: null, accountDeleted: true })
+  await store.actions.refresh(); await settle()
+  expect(store.getSnapshot().status).toBe('signed_out')
+  expect(mock.functions.invoke).toHaveBeenCalledTimes(1)
+  stop()
+})
+
+test('un refus après SIGNED_OUT reste visible puis reprend Auth à la fermeture', async () => {
+  const { store, mock, stop } = setup()
+  mock.authorize(); await settle()
+  let failRequest!: (value: unknown) => void
+  mock.functions.invoke.mockImplementation(() => new Promise((_resolve, reject) => { failRequest = reject }))
+  const pending = store.actions.deleteAccount(deletionInput)
+  const refused = expect(pending).rejects.toMatchObject({ code: 'uncertain' })
+  await settle()
+  mock.emit('SIGNED_OUT', null)
+  failRequest(new Error('network')); await refused
+  expect(store.getSnapshot().status).toBe('authorized')
+  await expect(store.actions.deleteAccount(deletionInput)).rejects.toMatchObject({ code: 'authentication_required' })
+  store.actions.resumeAuthAfterDeletion()
+  expect(store.getSnapshot()).toMatchObject({ status: 'signed_out', accountDeleted: false })
+  stop()
+})
+
+test('une réponse tardive ne déconnecte pas un autre compte arrivé pendant la suppression', async () => {
+  const { store, mock, stop } = setup()
+  mock.authorize(); await settle()
+  let finish!: (value: unknown) => void
+  mock.functions.invoke.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  const pending = store.actions.deleteAccount(deletionInput); await settle()
+  const other = { ...confirmedUser, id: 'other-user' }
+  mock.auth.getUser.mockResolvedValue({ data: { user: other }, error: null })
+  mock.emit('SIGNED_IN', { ...session, user: other })
+  finish({ data: { deleted: true }, error: null }); await pending; await settle()
+  expect(mock.auth.signOut).not.toHaveBeenCalled()
+  expect(store.getSnapshot().user?.id).toBe(other.id)
+  expect(store.getSnapshot().accountDeleted).toBe(false)
+  stop()
+})
 
 beforeEach(() => { vi.useFakeTimers() })
 afterEach(() => { vi.useRealTimers() })
@@ -219,6 +283,64 @@ test('demande email uniquement depuis le compte autorisé et relecture des évé
   expect(store.getSnapshot()).toMatchObject({ status: 'authorized', user, emailChangeResult: null })
   expect(store.getSnapshot().user?.email).toBe(confirmedUser.email)
   expect(mock.mfa.challenge).not.toHaveBeenCalled()
+  stop()
+})
+
+test('le changement volontaire exige authorized et reste distinct du recovery', async () => {
+  const { mock, store, stop } = setup()
+  await settle()
+  await expect(store.actions.changePassword('current-password', 'new-password')).rejects.toThrow('MFA')
+  mock.authorize()
+  mock.emit('PASSWORD_RECOVERY', session)
+  await settle()
+  expect(store.getSnapshot().status).toBe('password_reset_required')
+  await expect(store.actions.changePassword('current-password', 'new-password')).rejects.toThrow('MFA')
+  expect(mock.auth.updateUser).not.toHaveBeenCalled()
+  stop()
+})
+
+test('un succès volontaire survit à USER_UPDATED sans changer le contexte recovery ni autoriser un autre compte', async () => {
+  const { mock, store, stop } = setup()
+  mock.authorize()
+  await settle()
+  mock.auth.updateUser.mockImplementation(() => {
+    mock.emit('USER_UPDATED', session)
+    return Promise.resolve({ data: { user: confirmedUser }, error: null })
+  })
+  await store.actions.changePassword('current-password', 'new-password')
+  await settle()
+  expect(store.getSnapshot()).toMatchObject({ status: 'authorized', accountPasswordChange: 'success', passwordRecovery: false, passwordChanged: false, session })
+  mock.emit('TOKEN_REFRESHED', session)
+  await settle()
+  expect(store.getSnapshot().accountPasswordChange).toBe('success')
+  store.actions.clearPasswordChangeFeedback()
+  expect(store.getSnapshot().accountPasswordChange).toBe('idle')
+  await expect(store.actions.updatePassword('recovery-password')).rejects.toThrow('récupération')
+  expect(mock.auth.signOut).not.toHaveBeenCalled()
+  expect(mock.mfa.challenge).not.toHaveBeenCalled()
+  stop()
+})
+
+test.each(['logout', 'autre compte', 'arrêt'])('une réponse password tardive après %s ne publie aucun succès', async mode => {
+  const { mock, store, stop } = setup()
+  mock.authorize()
+  await settle()
+  let finish!: (value: Awaited<ReturnType<typeof mock.auth.updateUser>>) => void
+  mock.auth.updateUser.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  const task = store.actions.changePassword('current-password', 'new-password')
+  await settle()
+  if (mode === 'logout') {
+    mock.emit('SIGNED_OUT', null)
+    mock.emit('SIGNED_IN', session)
+  } else if (mode === 'autre compte') {
+    const other = { ...confirmedUser, id: 'other-user' }
+    mock.auth.getUser.mockResolvedValue({ data: { user: other }, error: null })
+    mock.emit('SIGNED_IN', { ...session, user: other })
+  } else stop()
+  await settle()
+  finish({ data: { user: confirmedUser }, error: null })
+  await task
+  expect(store.getSnapshot().accountPasswordChange).toBe('idle')
   stop()
 })
 
