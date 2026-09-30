@@ -45,6 +45,7 @@ h1:focus { outline: none; }
 .dashboard-heading { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
 .dashboard-total { margin: 0; color: var(--text-muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
 .button.context-fab { position: fixed; right: calc(24px + env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px) + var(--fab-footer-overlap, 0px)); z-index: 15; display: grid; place-items: center; width: 56px; height: 56px; min-height: 56px; padding: 0; border: 1px solid transparent; border-radius: 8px; font-size: 2rem; line-height: 1; box-shadow: 0 6px 24px #0006; }
+.button.dashboard-fab:hover { background: var(--brand); box-shadow: 0 6px 24px #0006, 0 0 0 4px var(--brand-soft); }
 .button.context-fab[data-state="success"] { color: var(--success); background: var(--surface-raised); border-color: var(--success); }
 .collection-dialog { width: min(520px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 28px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface-raised); color: var(--text); font-size: .9rem; }
 .collection-dialog::backdrop { background: var(--overlay); }

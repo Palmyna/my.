@@ -25,7 +25,9 @@ export function CollectionItemMenu({ name, busy, onRemove }: { name: string; bus
   }}>
     <button ref={trigger} type="button" className="collection-actions-trigger" aria-label={`Actions de ${name}`}
       aria-expanded={open} aria-controls={open ? id : undefined} aria-disabled={busy}
-      onClick={() => { if (!busy) setOpen(value => !value) }}><span aria-hidden="true">…</span></button>
+      onClick={() => { if (!busy) setOpen(value => !value) }}>
+      <span className="collection-actions-icon" aria-hidden="true"><span /><span /><span /></span>
+    </button>
     {open && <div id={id} className="collection-actions-panel" role="group" aria-label={`Actions de ${name}`}>
       <button ref={first} type="button" className="collection-delete-option" disabled={busy}
         onClick={() => { setOpen(false); onRemove(trigger.current!) }}>Retirer de la collection</button>
