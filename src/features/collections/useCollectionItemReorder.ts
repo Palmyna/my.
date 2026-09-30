@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { notifyManager, useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CollectionItemsError, listCollectionItemOrder, moveCollectionItem } from '../../services/collection-items'
 import type { ItemMove, ReorderAvailability } from '../../types/collection-items'
 import { useAuth } from '../auth/auth-context'
@@ -47,6 +47,9 @@ export function useCollectionItemReorder({ collectionId, access, availability }:
     running.current = true
     try {
       await mutation.mutateAsync({ collectionId, userId: user.id, move: next })
+      // Query notifications are batched after refetch promises settle. Let the
+      // authoritative rows reach React before presentation releases the drop order.
+      await new Promise<void>(resolve => notifyManager.schedule(resolve))
       // The local check mark confirms both existing authoritative rereads, not
       // merely a successful write (invalidateQueries can settle after read errors).
       return [queryKey, collectionContentKey(user.id, collectionId)]

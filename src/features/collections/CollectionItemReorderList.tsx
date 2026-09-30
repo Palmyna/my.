@@ -26,6 +26,7 @@ function ReorderList({ collectionId, items, availability, onMove, renderItem, fe
   const saving = useRef(false)
   const [message, setMessage] = useState('')
   const [pending, setPending] = useState(false)
+  const [visualOrder, setVisualOrder] = useState<{ sourceIds: string[]; ids: string[] } | null>(null)
   const [handleFeedback, setHandleFeedback] = useState<{ itemId: string; state: 'pending' | 'success' } | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const active = useRef(false)
@@ -40,6 +41,13 @@ function ReorderList({ collectionId, items, availability, onMove, renderItem, fe
   }, [handleFeedback])
   const reason = !availability.enabled ? availability.reason : pending ? 'Déplacement en cours…' : null
   const label = (itemId: string) => items.find(item => item.id === itemId)?.label ?? 'Carte'
+  // Ignore reference-only prop changes during saving. Any new authoritative order
+  // or filtered membership replaces the temporary presentation immediately.
+  const retainVisualOrder = pending && visualOrder && visualOrder.sourceIds.length === items.length
+    && visualOrder.sourceIds.every((itemId, index) => itemId === items[index]?.id)
+  if (visualOrder && !retainVisualOrder) setVisualOrder(null)
+  const byId = retainVisualOrder ? new Map(items.map(item => [item.id, item])) : null
+  const displayedItems = retainVisualOrder ? visualOrder.ids.map(itemId => byId!.get(itemId)!) : items
 
   const onDragEnd: OnDragEndResponder = (result, { announce }) => {
     const destination = result.destination
@@ -52,24 +60,31 @@ function ReorderList({ collectionId, items, availability, onMove, renderItem, fe
     if (destination.index === result.source.index) { announce('Position inchangée.'); return }
     const anchor = items[destination.index]
     if (!anchor) { announce('Déplacement annulé.'); return }
+    const nextIds = displayedItems.map(item => item.id)
+    const [movedId] = nextIds.splice(result.source.index, 1)
+    if (movedId !== result.draggableId) { announce('Déplacement annulé.'); return }
+    nextIds.splice(destination.index, 0, movedId)
     const move: ItemMove = { itemId: result.draggableId, destination: {
       placement: destination.index < result.source.index ? 'before' : 'after', anchorId: anchor.id,
     } }
     saving.current = true
     setPending(true)
+    setVisualOrder({ sourceIds: items.map(item => item.id), ids: nextIds })
     setHandleFeedback({ itemId: result.draggableId, state: 'pending' })
     setFailure(null)
     setMessage('Enregistrement du déplacement…')
     announce(`${label(result.draggableId)} : déplacement vers la position ${destination.index + 1} sur ${items.length}. Enregistrement…`)
-    // No second source of order or optimistic positions: keep the last authoritative
-    // list until the write and refetch finish. A failed write is also refreshed.
+    // Presentation only: no cache writes or sort positions. onMove awaits the
+    // existing authoritative rereads; success and failure both release this order.
     void onMove(move).then(success => {
       if (!active.current) return
+      setVisualOrder(null)
       setHandleFeedback(success ? { itemId: result.draggableId, state: 'success' } : null)
       setFailure(success ? null : 'Déplacement non confirmé. Vérifiez l’ordre puis réessayez.')
       setMessage(success ? 'Carte déplacée.' : 'Déplacement non confirmé. Vérifiez l’ordre puis réessayez.')
     }).catch(() => {
       if (!active.current) return
+      setVisualOrder(null)
       setHandleFeedback(null)
       setFailure('Déplacement non confirmé. Actualisez la liste avant de réessayer.')
       setMessage('Déplacement non confirmé. Actualisez la liste avant de réessayer.')
@@ -81,7 +96,7 @@ function ReorderList({ collectionId, items, availability, onMove, renderItem, fe
       <p role="alert">{feedback || failure}</p>{recovery}
     </div>}
     {reason && <p id={`${id}-reason`} className="visually-hidden">{reason}</p>}
-    <DragDropContext onBeforeDragStart={() => { capturedIds.current = items.map(item => item.id); setHandleFeedback(null); setMessage('') }}
+    <DragDropContext onBeforeDragStart={() => { capturedIds.current = items.map(item => item.id); setVisualOrder(null); setHandleFeedback(null); setMessage('') }}
       dragHandleUsageInstructions="Appuyez sur Espace pour sélectionner la carte, utilisez les flèches haut et bas pour la déplacer, puis Espace pour valider ou Échap pour annuler."
       onDragStart={(start, { announce }) => announce(`${label(start.draggableId)} : carte sélectionnée, position ${start.source.index + 1} sur ${items.length}.`)}
       onDragUpdate={(update, { announce }) => announce(update.destination
@@ -90,7 +105,7 @@ function ReorderList({ collectionId, items, availability, onMove, renderItem, fe
       onDragEnd={onDragEnd}>
       <Droppable droppableId={collectionId} isDropDisabled={!!reason}>
         {provided => <ul ref={provided.innerRef} {...provided.droppableProps} className="collection-reorder-list">
-          {items.map((item, index) => <Draggable key={item.id} draggableId={item.id} index={index}
+          {displayedItems.map((item, index) => <Draggable key={item.id} draggableId={item.id} index={index}
             isDragDisabled={!!reason} disableInteractiveElementBlocking>
             {(row, snapshot) => <li ref={row.innerRef} {...row.draggableProps}
               className={`collection-reorder-row${snapshot.isDragging ? ' is-dragging' : ''}`}>

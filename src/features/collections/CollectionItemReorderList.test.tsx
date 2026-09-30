@@ -3,7 +3,8 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { ItemMove, ReorderAvailability } from '../../types/collection-items'
 import { CollectionItemReorderList } from './CollectionItemReorderList'
 
-const items = [{ id: 'a', label: 'Alpha' }, { id: 'b', label: 'Bravo' }, { id: 'c', label: 'Charlie' }]
+const items: [{ id: string; label: string }, { id: string; label: string }, { id: string; label: string }] =
+  [{ id: 'a', label: 'Alpha' }, { id: 'b', label: 'Bravo' }, { id: 'c', label: 'Charlie' }]
 beforeEach(() => {
   // jsdom has no layout. Supply browser geometry, leaving all DnD sensors real.
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
@@ -20,19 +21,108 @@ function setup(availability: ReorderAvailability = { enabled: true }) {
   const action = vi.fn()
   const view = render(<CollectionItemReorderList collectionId="collection" items={items} availability={availability} onMove={onMove}
     renderItem={item => <><span>{item.label}</span><button onClick={action}>Actions de {item.label}</button></>} />)
-  return { onMove, action, ...view }
+  const updateItems = (next: { id: string; label: string }[], nextAvailability = availability) => view.rerender(
+    <CollectionItemReorderList collectionId="collection" items={next} availability={nextAvailability} onMove={onMove}
+      renderItem={item => <><span>{item.label}</span><button onClick={action}>Actions de {item.label}</button></>} />)
+  return { onMove, action, updateItems, ...view }
 }
 function key(target: HTMLElement, value: string, keyCode: number) { fireEvent.keyDown(target, { key: value, keyCode, which: keyCode }) }
-async function keyboardMove(label: string, direction: 'ArrowUp' | 'ArrowDown') {
+const displayedOrder = () => screen.getAllByRole('listitem').map(row => row.querySelector('button')?.getAttribute('aria-label'))
+async function keyboardMove(label: string, direction: 'ArrowUp' | 'ArrowDown', steps = 1) {
   const handle = screen.getByRole('button', { name: `Déplacer ${label}` })
   handle.focus(); key(handle, ' ', 32)
   await waitFor(() => expect(screen.getByText(new RegExp(`${label} : carte sélectionnée`))).toBeInTheDocument())
-  key(handle, direction, direction === 'ArrowUp' ? 38 : 40)
-  await waitFor(() => expect(screen.getByText(new RegExp(`${label}, position`))).toBeInTheDocument())
+  for (let step = 0; step < steps; step++) {
+    const previous = screen.getByText(new RegExp(`${label}.*position`)).textContent
+    key(handle, direction, direction === 'ArrowUp' ? 38 : 40)
+    await waitFor(() => expect(screen.getByText(new RegExp(`${label}, position`)).textContent).not.toBe(previous))
+  }
   key(handle, ' ', 32)
   // Finish a native drop transition, which jsdom does not animate.
   fireEvent.transitionEnd(handle.closest('li')!, { propertyName: 'transform' })
 }
+
+test('drop keeps B C A through save and refetch, then confirms without snap-back', async () => {
+  const { onMove, updateItems } = setup()
+  let finish!: (success: boolean) => void
+  onMove.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await keyboardMove('Alpha', 'ArrowDown', 2)
+  expect(onMove).toHaveBeenCalledExactlyOnceWith({ itemId: 'a', destination: { placement: 'after', anchorId: 'c' } })
+  const expected = ['Déplacer Bravo', 'Déplacer Charlie', 'Déplacer Alpha']
+  expect(displayedOrder()).toEqual(expected)
+  const handle = screen.getByRole('button', { name: 'Déplacer Alpha' })
+  expect(handle).toHaveAttribute('data-state', 'pending')
+  expect(handle).not.toHaveTextContent('✓')
+  // A parent rerender with old authoritative rows must not undo the drop.
+  updateItems(items.map(item => ({ ...item })), { enabled: false, reason: 'Actualisation des cartes…' })
+  expect(displayedOrder()).toEqual(expected)
+  updateItems([items[1], items[2], items[0]], { enabled: true })
+  expect(displayedOrder()).toEqual(expected)
+  expect(handle).toHaveAttribute('data-state', 'pending')
+  await act(async () => { finish(true); await Promise.resolve() })
+  expect(displayedOrder()).toEqual(expected)
+  expect(handle).toHaveAttribute('data-state', 'success')
+  expect(screen.getByRole('button', { name: 'Déplacer Bravo' })).toHaveAttribute('data-state', 'idle')
+})
+
+test.each(['false', 'rejection'] as const)('failed pending drop releases visual order, reports error and never checks: %s', async failure => {
+  const { onMove } = setup()
+  let finish!: (success: boolean) => void, reject!: (error: Error) => void
+  onMove.mockImplementation(() => new Promise((resolve, fail) => { finish = resolve; reject = fail }))
+  await keyboardMove('Alpha', 'ArrowDown', 2)
+  expect(displayedOrder()).toEqual(['Déplacer Bravo', 'Déplacer Charlie', 'Déplacer Alpha'])
+  await act(async () => {
+    if (failure === 'false') finish(false)
+    else reject(new Error('private error'))
+    await Promise.resolve()
+  })
+  expect(displayedOrder()).toEqual(['Déplacer Alpha', 'Déplacer Bravo', 'Déplacer Charlie'])
+  expect(screen.getByRole('alert')).toHaveTextContent('Déplacement non confirmé.')
+  expect(screen.getByRole('status')).toHaveTextContent('Déplacement non confirmé.')
+  expect(screen.queryByText('✓')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Déplacer Alpha' })).toHaveAttribute('data-state', 'idle')
+})
+
+test.each(['authoritative', 'search', 'navigation'] as const)('new props discard stale visual order during pending: %s', async change => {
+  const { onMove, updateItems, rerender } = setup()
+  let finish!: (success: boolean) => void
+  onMove.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await keyboardMove('Alpha', 'ArrowDown', 2)
+  if (change === 'navigation') {
+    rerender(<CollectionItemReorderList collectionId="next" items={items} availability={{ enabled: true }} onMove={onMove} renderItem={item => item.label} />)
+    expect(displayedOrder()).toEqual(['Déplacer Alpha', 'Déplacer Bravo', 'Déplacer Charlie'])
+  } else if (change === 'search') {
+    updateItems([items[0], items[2]], { enabled: false, reason: 'Effacez la recherche pour réorganiser la collection.' })
+    expect(displayedOrder()).toEqual(['Déplacer Alpha', 'Déplacer Charlie'])
+    expect(screen.getByRole('button', { name: 'Déplacer Alpha' })).toHaveAttribute('aria-disabled', 'true')
+  } else {
+    updateItems([items[2], items[0], items[1]])
+    expect(displayedOrder()).toEqual(['Déplacer Charlie', 'Déplacer Alpha', 'Déplacer Bravo'])
+  }
+  // Restoring old props cannot resurrect the discarded presentation.
+  if (change !== 'navigation') updateItems(items)
+  expect(displayedOrder()).toEqual(['Déplacer Alpha', 'Déplacer Bravo', 'Déplacer Charlie'])
+  await act(async () => { finish(true); await Promise.resolve() })
+  expect(displayedOrder()).toEqual(['Déplacer Alpha', 'Déplacer Bravo', 'Déplacer Charlie'])
+  if (change === 'navigation') expect(screen.queryByText('✓')).not.toBeInTheDocument()
+})
+
+test('next drag clears success and starts from the confirmed displayed order', async () => {
+  const { onMove, updateItems } = setup()
+  let finish!: (success: boolean) => void
+  onMove.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  await keyboardMove('Alpha', 'ArrowDown', 2)
+  updateItems([items[1], items[2], items[0]])
+  await act(async () => { finish(true); await Promise.resolve() })
+  expect(screen.getByRole('button', { name: 'Déplacer Alpha' })).toHaveAttribute('data-state', 'success')
+  await keyboardMove('Alpha', 'ArrowUp', 2)
+  expect(onMove).toHaveBeenLastCalledWith({ itemId: 'a', destination: { placement: 'before', anchorId: 'b' } })
+  expect(displayedOrder()).toEqual(['Déplacer Alpha', 'Déplacer Bravo', 'Déplacer Charlie'])
+  expect(screen.queryByText('✓')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Déplacer Alpha' })).toHaveAttribute('data-state', 'pending')
+  await act(async () => { finish(false); await Promise.resolve() })
+  expect(displayedOrder()).toEqual(['Déplacer Bravo', 'Déplacer Charlie', 'Déplacer Alpha'])
+})
 
 test('dedicated 44px handle, instructions, separate actions, no internal fields or reset', () => {
   const { action, onMove } = setup()

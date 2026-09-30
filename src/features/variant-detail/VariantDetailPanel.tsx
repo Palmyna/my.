@@ -25,7 +25,7 @@ function DetailPanel({ variantId, ownerId, readOnly, opener, onClose, viewerId }
   const detail = useQuery({ queryKey: ['variant-detail', viewerId, variantId],
     queryFn: () => getVariantDetail(variantId), retry: false })
   const dialog = useRef<HTMLDialogElement>(null)
-  const heading = useRef<HTMLHeadingElement>(null)
+  const title = useRef<HTMLSpanElement>(null)
   const copies = useRef<PhysicalCopiesContentHandle>(null)
   const id = useId()
   useEffect(() => {
@@ -33,7 +33,7 @@ function DetailPanel({ variantId, ownerId, readOnly, opener, onClose, viewerId }
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     node.showModal()
-    heading.current?.focus({ preventScroll: true })
+    title.current?.focus({ preventScroll: true })
     return () => {
       node.close()
       document.body.style.overflow = overflow
@@ -44,13 +44,13 @@ function DetailPanel({ variantId, ownerId, readOnly, opener, onClose, viewerId }
   return <dialog ref={dialog} className="collection-dialog collection-action-dialog variant-detail-panel"
     aria-labelledby={`${id}-title`} onKeyDown={trapDialogFocus}
     onCancel={event => { event.preventDefault(); if (copies.current) copies.current.dismiss(); else onClose() }}>
-    <header className="variant-detail-header">
-      <h2 ref={heading} tabIndex={-1} id={`${id}-title`}>Détail de la version</h2>
-      <button type="button" className="collection-copies-trigger" aria-label="Fermer le détail"
-        onClick={() => { if (copies.current) copies.current.close(); else onClose() }}>
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
-      </button>
-    </header>
+    <span ref={title} tabIndex={-1} id={`${id}-title`} className="visually-hidden">
+      {detail.data?.cardNameFr || 'Informations de la carte'}
+    </span>
+    <button type="button" className="collection-copies-trigger variant-detail-close" aria-label="Fermer le détail"
+      onClick={() => { if (copies.current) copies.current.close(); else onClose() }}>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+    </button>
     <div className="variant-detail-body">
       {detail.isPending && <p role="status">Chargement de la version…</p>}
       {detail.isError && <div>
@@ -86,7 +86,7 @@ function CatalogDetail({ detail }: { detail: VariantDetail }) {
     ['Rareté', detail.rarity], ['Catégorie', detail.category], ['Date de sortie', releaseDate(detail.effectiveReleaseDate)],
   ].filter(([, value]) => value?.trim())
   const characteristics = [
-    ['Type', detail.variantType], ['Sous-type', detail.variantSubtype],
+    ['Sous-type', detail.variantSubtype],
     ['Finition', detail.variantFoil], ['Stamps', detail.variantStamps.filter(value => value.trim()).join(', ')],
     ['Taille', detail.variantSize === 'standard' ? null : detail.variantSize],
   ].filter(([, value]) => value?.trim())
@@ -102,6 +102,7 @@ function CatalogDetail({ detail }: { detail: VariantDetail }) {
     {characteristics.length > 0 && <section className="variant-detail-characteristics" aria-label="Caractéristiques">
       <h3>Caractéristiques</h3>
       <dl className="variant-detail-metadata">
+        {detail.variantType?.trim() && <div><dt>Type</dt><dd>{detail.variantType}</dd></div>}
         {characteristics.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
     </section>}

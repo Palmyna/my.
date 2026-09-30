@@ -54,6 +54,53 @@ async function copyAction(label: string, action: 'Modifier' | 'Supprimer') {
   fireEvent.click(screen.getByRole('button', { name: action }))
 }
 
+test('no visible generic header; initial focus and accessible name survive loading and close', async () => {
+  let loaded!: (value: VariantDetail) => void
+  get.mockReturnValueOnce(new Promise(resolve => { loaded = resolve }))
+  const focus = vi.spyOn(HTMLElement.prototype, 'focus')
+  const { opener } = setup()
+  const dialog = screen.getByRole('dialog', { name: 'Informations de la carte' })
+  expect(document.activeElement?.id).toBe(dialog.getAttribute('aria-labelledby'))
+  expect(focus).toHaveBeenLastCalledWith({ preventScroll: true })
+  expect(screen.queryByText('Détail de la version')).not.toBeInTheDocument()
+  expect(within(dialog).getByRole('button', { name: 'Fermer le détail' })).toBeVisible()
+  await act(async () => { loaded(detail); await Promise.resolve() })
+  await screen.findByRole('heading', { name: 'Pikachu' })
+  expect(dialog).toHaveAccessibleName('Pikachu')
+  expect(document.activeElement?.id).toBe(dialog.getAttribute('aria-labelledby'))
+  close()
+  expect(opener).toHaveFocus()
+  expect(focus).toHaveBeenLastCalledWith({ preventScroll: true })
+  focus.mockRestore()
+})
+
+test('type alone and empty additional values do not create characteristics', async () => {
+  get.mockResolvedValue({ ...detail, variantSubtype: null, variantFoil: null, variantStamps: ['', '  '], variantSize: 'standard' })
+  setup(); await screen.findByRole('heading', { name: 'Pikachu' })
+  expect(screen.queryByRole('region', { name: 'Caractéristiques' })).not.toBeInTheDocument()
+  for (const text of ['Caractéristiques', 'Type', 'holo', 'Sous-type', 'Finition', 'Stamps', 'Taille']) {
+    expect(screen.queryByText(text)).not.toBeInTheDocument()
+  }
+  expect(screen.getByText('Holo spéciale')).toBeVisible()
+})
+
+test.each([
+  ['Sous-type', { variantSubtype: 'reverse' }, 'reverse'],
+  ['Finition', { variantFoil: 'cosmos' }, 'cosmos'],
+  ['Stamps', { variantStamps: ['', 'staff', '  '] as string[] }, 'staff'],
+  ['Taille', { variantSize: 'jumbo' }, 'jumbo'],
+] as const)('%s alone in addition to type creates characteristics without duplicate type', async (label, fields, value) => {
+  get.mockResolvedValue({ ...detail, variantSubtype: null, variantFoil: null, variantStamps: [], variantSize: 'standard', ...fields })
+  setup(); await screen.findByRole('heading', { name: 'Pikachu' })
+  const section = screen.getByRole('region', { name: 'Caractéristiques' })
+  expect(within(section).getByText(label)).toBeVisible()
+  expect(within(section).getByText(value)).toBeVisible()
+  expect(screen.getAllByText('holo', { selector: 'dd' })).toHaveLength(1)
+  for (const omitted of ['Sous-type', 'Finition', 'Stamps', 'Taille'].filter(other => other !== label)) {
+    expect(within(section).queryByText(omitted)).not.toBeInTheDocument()
+  }
+})
+
 test('catalogue metadata, French date, omissions, image and safe unavailable fallback', async () => {
   setup(); await screen.findByRole('heading', { name: 'Pikachu' })
   expect(get).toHaveBeenCalledExactlyOnceWith(variantId)
@@ -72,6 +119,7 @@ test('null fields, equal and source-only values are rendered without invented fa
     setAbbreviationFr: 'SV', setAbbreviation: 'SV', seriesNameFr: null, seriesNameSource: 'Source series', rarity: null,
     category: null, variantLabel: null, variantType: null, variantFoil: null, variantSize: 'jumbo', variantStamps: [], effectiveReleaseDate: null })
   setup(); await screen.findByRole('heading', { name: 'Nom indisponible' })
+  expect(screen.getByRole('dialog')).toHaveAccessibleName('Informations de la carte')
   expect(screen.getByText('Source', { selector: 'dd' })).toBeVisible()
   expect(screen.getByText('SV', { selector: 'dd' })).toBeVisible()
   expect(screen.getByText('Source series')).toBeVisible(); expect(screen.getByText('jumbo')).toBeVisible()

@@ -286,6 +286,12 @@ test.each([false, true])('real keyboard reorder refetches content on success/unc
   client.setQueryData(other, [first, second])
   content.mockResolvedValue([second, first])
   if (fail) move.mockRejectedValue(new Error('uncertain private error'))
+  const transitions: { order: string[]; state: string | undefined }[] = []
+  const observer = new MutationObserver(() => transitions.push({
+    order: contentRows().map(row => row.querySelector('.collection-reorder-handle')?.getAttribute('aria-label') ?? ''),
+    state: handle.dataset.state,
+  }))
+  observer.observe(handle.closest('ul')!, { subtree: true, childList: true, attributes: true })
   const key = (value: string, keyCode: number) => fireEvent.keyDown(handle, { key: value, keyCode, which: keyCode })
   handle.focus(); key(' ', 32)
   await screen.findByText(/Pikachu : carte sélectionnée/)
@@ -296,6 +302,12 @@ test.each([false, true])('real keyboard reorder refetches content on success/unc
   expect(content).toHaveBeenCalledTimes(2); expect(order).toHaveBeenCalledTimes(2)
   expect(client.getQueryState(other)?.isInvalidated).toBe(false)
   if (fail) expect(await screen.findByText(/Le déplacement n’a pas pu être confirmé/)).toBeVisible()
+  else {
+    await waitFor(() => expect(handle).toHaveAttribute('data-state', 'success'))
+    expect(transitions.filter(event => event.state === 'pending' || event.state === 'success').map(event => event.order))
+      .not.toContainEqual(['Déplacer Pikachu', 'Déplacer Évoli'])
+  }
+  observer.disconnect()
 })
 
 test('order read error is accessible beside the list and refresh restores handles', async () => {
