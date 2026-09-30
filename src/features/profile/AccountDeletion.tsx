@@ -129,7 +129,7 @@ function DeletionDialog({ close }: { close: () => void }) {
             <li>Votre compte, votre profil et vos préférences seront supprimés.</li>
             <li>Vos collections, leur contenu et leurs partages seront supprimés. Leurs destinataires perdront ces accès.</li>
             <li>Vos accès reçus à des collections partagées seront supprimés.</li>
-            <li>Vos exemplaires physiques, leur état, leurs notes et leurs informations de gradation seront supprimés.</li>
+            <li>Vos exemplaires physiques, leurs noms et leurs notes seront supprimés.</li>
           </ul>
           <p>Le catalogue Pokémon global MY. et les données des autres utilisateurs seront conservés.</p>
           <label className="deletion-checkbox"><input type="checkbox" checked={consequences} onChange={event => setConsequences(event.target.checked)} />
@@ -155,7 +155,7 @@ function DeletionDialog({ close }: { close: () => void }) {
           {failure?.target === 'reconnect' ? <button className="button primary" type="button" onClick={() => {
             actions.reconnectAfterDeletion(); void navigate('/login', { replace: true })
           }}>Revenir à la connexion</button>
-            : <button className="button primary" type="submit" disabled={busy || (step === 1 && !consequences)}>
+            : <button className={`button ${step === 3 ? 'deletion-danger' : 'primary'}`} type="submit" disabled={busy || (step === 1 && !consequences)}>
               {busy ? 'Suppression en cours…' : step === 3 ? 'Supprimer définitivement mon compte' : 'Continuer'}
             </button>}
           {step > 1 && failure?.target !== 'reconnect' && <button className="button" type="button" onClick={() => { setFailure(null); setStep(step === 3 ? 2 : 1) }}>Retour</button>}
@@ -170,8 +170,12 @@ export function AccountDeletion() {
   const { isAuthorized } = useAuth()
   const [open, setOpen] = useState(false)
   if (!isAuthorized) return null
-  return <div className="profile-deletion">
+  return <section className="profile-deletion" aria-labelledby="profile-deletion-title">
+    <div>
+      <h2 id="profile-deletion-title">Zone sensible</h2>
+      <p>La suppression du compte et de ses données est définitive.</p>
+    </div>
     <button type="button" className="deletion-trigger" onClick={() => setOpen(true)}>Supprimer mon compte</button>
     {open && <DeletionDialog close={() => setOpen(false)} />}
-  </div>
+  </section>
 }

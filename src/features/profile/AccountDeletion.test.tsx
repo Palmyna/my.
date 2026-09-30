@@ -49,6 +49,7 @@ test('trois étapes séparées, conséquences obligatoires, aucun appel avant le
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Tab', shiftKey: true })
   expect(modal().getByRole('button', { name: 'Annuler' })).toHaveFocus()
   expect(modal().getByText(/catalogue Pokémon global/)).toBeVisible()
+  expect(modal().getByText('Vos exemplaires physiques, leurs noms et leurs notes seront supprimés.')).toBeVisible()
   consequences()
   const password = modal().getByLabelText('Mot de passe actuel')
   expect(password).toHaveFocus()

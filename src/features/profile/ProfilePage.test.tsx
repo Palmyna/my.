@@ -236,7 +236,8 @@ const submitPassword = () => fireEvent.click(screen.getByRole('button', { name: 
 
 test('ordonne identité, email, sécurité et intègre l’Authenticator secondaire', async () => {
   await setup()
-  expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Identité MY.', 'Adresse email', 'Sécurité du compte'])
+  expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Identité MY.', 'Adresse email', 'Sécurité du compte', 'Zone sensible'])
+  expect(within(screen.getByRole('region', { name: 'Sécurité du compte' })).getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual(['Mot de passe', 'Authenticator'])
   const security = screen.getByRole('region', { name: 'Sécurité du compte' })
   expect(within(security).getByText('Authenticator configuré')).toBeVisible()
   expect(within(security).getByText(/contacter un administrateur/)).toBeVisible()

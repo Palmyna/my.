@@ -157,18 +157,26 @@ export function ProfilePage() {
   return <section className="authenticated-page profile-page" aria-labelledby="page-title">
     <h1 id="page-title" tabIndex={-1}>Profil</h1>
     <p className="intro">Vos informations personnelles et la sécurité de votre compte.</p>
-    <section className="profile-section" aria-labelledby="identity-title">
-      <h2 id="identity-title">Identité MY.</h2>
-      <p className="profile-membership">{memberSince ? <>Membre depuis le <time dateTime={user?.created_at}>{memberSince}</time>.</> : 'Date d’inscription indisponible.'}</p>
-      {profile?.public_id ? <PublicIdentity key={profile.public_id} publicId={profile.public_id} /> : <p className="feedback" role="status">Identifiant MY. indisponible.</p>}
-    </section>
-    <EmailChange key={user?.id} />
-    <section className="profile-section" aria-labelledby="security-title">
+    <div className="profile-account-grid">
+      <section className="profile-section" aria-labelledby="identity-title">
+        <h2 id="identity-title">Identité MY.</h2>
+        {profile?.public_id ? <PublicIdentity key={profile.public_id} publicId={profile.public_id} /> : <p className="feedback" role="status">Identifiant MY. indisponible.</p>}
+        <p className="profile-membership">{memberSince ? <>Membre depuis le <time dateTime={user?.created_at}>{memberSince}</time>.</> : 'Date d’inscription indisponible.'}</p>
+      </section>
+      <EmailChange key={user?.id} />
+    </div>
+    <section className="profile-section profile-security" aria-labelledby="security-title">
       <h2 id="security-title">Sécurité du compte</h2>
-      <PasswordChange key={user?.id} />
-      <div className="profile-authenticator-info">
-        <p className="profile-authenticator">{!mfa ? 'Statut Authenticator indisponible.' : mfa.verifiedFactors.length > 0 ? 'Authenticator configuré' : 'Aucun Authenticator vérifié.'}</p>
-        <p className="hint">Pour modifier ou remplacer votre Authenticator, il est nécessaire de contacter un administrateur.</p>
+      <div className="profile-security-grid">
+        <div className="profile-password-info">
+          <h3>Mot de passe</h3>
+          <PasswordChange key={user?.id} />
+        </div>
+        <div className="profile-authenticator-info">
+          <h3>Authenticator</h3>
+          <p className="profile-authenticator">{!mfa ? 'Statut Authenticator indisponible.' : mfa.verifiedFactors.length > 0 ? 'Authenticator configuré' : 'Aucun Authenticator vérifié.'}</p>
+          <p className="hint">Pour modifier ou remplacer votre Authenticator, il est nécessaire de contacter un administrateur.</p>
+        </div>
       </div>
     </section>
     <AccountDeletion />

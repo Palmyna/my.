@@ -159,52 +159,76 @@ h1:focus { outline: none; }
 .my-identity { margin: 32px 0 0; }
 .my-identity dt { color: var(--text-muted); font-size: .875rem; }
 .my-identity .public-id { margin: 6px 0 0; font-size: 1rem; }
-.profile-page h1 { margin-bottom: 12px; }
-.profile-page .intro { font-size: .95rem; max-width: 58ch; }
-.profile-section { margin-top: 24px; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
-.profile-section h2 { font-size: 1.05rem; font-weight: 600; letter-spacing: -.015em; margin: 0 0 16px; }
-.profile-membership { color: var(--text-muted); font-size: .85rem; margin-bottom: 20px; }
-.profile-label, .profile-details dt { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: .8rem; }
-.profile-copy { display: grid; grid-template-columns: minmax(0, 1fr) 50px; gap: 8px; align-items: center; margin-bottom: 10px; }
-.profile-section input { min-width: 0; height: 50px; background: var(--surface); transition: border-color .15s, box-shadow .15s; }
-.profile-section .button { transition: background-color .15s, border-color .15s, box-shadow .15s, transform .15s; }
+.profile-page { max-width: 1000px; margin-inline: auto; }
+.profile-page h1 { margin: 0 0 8px; font-size: 1.75rem; }
+.profile-page .intro { font-size: .85rem; max-width: 58ch; }
+.profile-account-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 24px; }
+.profile-section { min-width: 0; padding: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.profile-section h2, .profile-deletion h2 { font-size: 1rem; font-weight: 600; letter-spacing: -.015em; margin: 0 0 16px; }
+.profile-section h3 { margin: 0 0 12px; font-size: .85rem; font-weight: 600; }
+.profile-membership { color: var(--text-muted); font-size: .78rem; margin: 20px 0 0; }
+.profile-label, .profile-details dt { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: .78rem; }
+.profile-copy { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; align-items: center; margin-bottom: 8px; }
+.profile-section input { min-width: 0; min-height: 44px; height: 44px; padding: 10px 12px; background: var(--app-bg); transition: border-color .15s, box-shadow .15s; }
+.profile-section .button { min-height: 44px; padding: 10px 14px; font-size: .8rem; transition: background-color .15s, border-color .15s, box-shadow .15s, transform .15s; }
 .profile-section .button:active:not(:disabled) { transform: scale(.98); }
-.profile-copy .button { padding: 12px; border: 1px solid var(--border-strong); background: var(--surface); }
-.profile-copy .button:hover:not(:disabled) { background: var(--surface); border-color: var(--text-subtle); box-shadow: none; }
+.profile-copy .public-id { font-size: .8rem; padding-inline: 10px; cursor: text; }
+.profile-copy .button { width: 44px; height: 44px; padding: 10px; border: 1px solid var(--border-strong); background: var(--surface-raised); color: var(--text-muted); }
+.profile-copy .button:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--text-muted); color: var(--text); box-shadow: none; }
 .profile-copy .button[data-state="success"] { color: var(--success); background: var(--surface); border-color: var(--success); }
 .profile-copy .button[data-state="success"]:hover { color: var(--success); background: var(--surface-hover); border-color: var(--success); }
-.profile-copy svg { width: 22px; height: 22px; }
-.profile-section .hint { font-size: .8rem; line-height: 1.6; }
+.profile-copy svg { width: 20px; height: 20px; }
+.profile-section .hint { font-size: .75rem; line-height: 1.6; }
 .profile-section > .hint:last-child, .profile-copy + .hint { margin-bottom: 0; }
-.profile-details { margin: 0 0 20px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
-.profile-details dd { margin: 0; font-size: .95rem; }
-.profile-section .field { margin-bottom: 16px; }
-.profile-section .feedback { margin: 0 0 20px; border-radius: 0 8px 8px 0; }
+.profile-details { margin: 0 0 16px; }
+.profile-details dd { margin: 0; font-size: .9rem; }
+.profile-section .field { gap: 6px; margin-bottom: 12px; font-size: .78rem; }
+.profile-section .feedback { margin: 0 0 16px; padding: 10px 12px; background: var(--surface-raised); border-radius: 0 6px 6px 0; overflow-wrap: anywhere; font-size: .78rem; }
 .profile-section .feedback p { margin: 8px 0 0; }
-.profile-section form + .feedback { margin: 20px 0 0; }
-.profile-section form .button { width: fit-content; }
-.profile-authenticator { margin-bottom: 8px; font-size: .95rem; font-weight: 600; }
-.profile-authenticator-info { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+.profile-section form + .feedback, .profile-section form .feedback { margin: 12px 0 0; }
+.profile-section form { max-width: 420px; }
+.profile-section form .button { width: fit-content; max-width: 100%; }
+.profile-security { margin-top: 24px; }
+.profile-security-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: 32px; }
+.profile-password-info { min-width: 0; }
+.profile-authenticator { width: fit-content; max-width: 100%; margin: 0 0 12px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-raised); font-size: .8rem; font-weight: 600; }
+.profile-authenticator-info { min-width: 0; padding-left: 24px; border-left: 1px solid var(--border); }
 .profile-authenticator-info .hint { margin-bottom: 0; }
-.profile-password form .feedback { margin: 20px 0 0; }
-.profile-deletion { margin-top: 24px; }
-.deletion-trigger { background: none; border: 0; color: var(--text-muted); padding: 12px 0; min-height: 44px; font-size: .8rem; text-decoration: underline; text-underline-offset: .25em; cursor: pointer; }
-.deletion-trigger:hover { color: var(--danger); }
-.account-deletion-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface-raised); color: var(--text); font-size: .85rem; }
+.profile-deletion { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; margin-top: 24px; padding: 16px 20px; border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border)); border-radius: 8px; }
+.profile-deletion h2 { margin-bottom: 4px; font-size: .85rem; }
+.profile-deletion p { margin: 0; color: var(--text-muted); font-size: .75rem; }
+.profile-page .deletion-trigger { flex-shrink: 0; min-height: 44px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border)); border-radius: 6px; background: transparent; color: var(--danger); font-size: .78rem; cursor: pointer; }
+.profile-page .deletion-trigger:hover { border-color: var(--danger); background: var(--surface-hover); }
+.account-deletion-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; overflow-y: auto; overscroll-behavior: contain; overflow-wrap: anywhere; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-raised); color: var(--text); font-size: .82rem; }
 .account-deletion-dialog::backdrop { background: var(--overlay); }
-.account-deletion-dialog h2 { font-size: 1.2rem; line-height: 1.4; margin: 0 0 16px; }
-.account-deletion-dialog .deletion-step { margin-bottom: 8px; }
-.deletion-consequences { padding-left: 20px; margin: 0 0 20px; }
-.deletion-consequences li + li { margin-top: 8px; }
-.deletion-checkbox { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; margin-bottom: 24px; }
+.account-deletion-dialog h2 { font-size: 1.2rem; line-height: 1.4; margin: 0 0 12px; }
+.account-deletion-dialog p { margin-bottom: 16px; }
+.account-deletion-dialog .deletion-step { margin: 0 0 6px; font-size: .72rem; }
+.account-deletion-dialog .field { gap: 6px; margin-bottom: 12px; font-size: .8rem; }
+.account-deletion-dialog .field input { min-height: 44px; padding: 10px 12px; background: var(--surface); }
+.deletion-consequences { padding-left: 20px; margin: 0 0 16px; }
+.deletion-consequences li + li { margin-top: 6px; }
+.deletion-checkbox { display: flex; gap: 10px; align-items: flex-start; min-height: 44px; cursor: pointer; margin-top: 20px; }
 .deletion-checkbox input { width: 20px; height: 20px; min-height: 20px; flex-shrink: 0; padding: 0; margin: 3px 0 0; accent-color: var(--brand); }
-.deletion-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
-.deletion-actions .button { width: auto; flex: 1; }
-.deletion-actions .primary { flex-basis: 100%; }
-.deletion-actions .button:not(.primary) { background: var(--surface); border: 1px solid var(--border-strong); }
+.deletion-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.deletion-actions .button { width: auto; min-height: 44px; padding: 10px 14px; flex: 1; font-size: .8rem; }
+.deletion-actions .deletion-danger { flex-basis: 100%; }
+.deletion-actions .button:not(.primary):not(.deletion-danger) { background: var(--surface); border: 1px solid var(--border-strong); }
 .deletion-actions .button:active:not(:disabled) { transform: scale(.98); }
-.account-deletion-dialog .feedback { margin: 0 0 20px; }
-@media (max-width: 360px) { .account-deletion-dialog { padding: 20px 16px; } }
+.account-deletion-dialog .feedback { margin: 0 0 16px; padding: 10px 12px; }
+@media (max-width: 760px) {
+  .profile-account-grid, .profile-security-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .profile-authenticator-info { padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--border); }
+}
+@media (max-width: 600px) {
+  .profile-page h1 { font-size: 1.4rem; }
+  .profile-account-grid { margin-top: 20px; }
+  .profile-security, .profile-deletion { margin-top: 16px; }
+  .profile-deletion { flex-direction: column; align-items: stretch; padding: 16px; }
+  .profile-section form { max-width: none; }
+  .account-deletion-dialog { padding: 20px 16px; }
+  .deletion-actions .primary { flex-basis: 100%; }
+}
 .site-header { display: flex; align-items: flex-start; justify-content: space-between; min-height: 82px; padding: 28px 21px 0 21px; position: sticky; top: 0; background: var(--app-bg); }
 .authenticated-header { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; gap: 24px; align-items: center; }
 .header-identity { display: flex; align-items: center; gap: 8px; justify-self: start; white-space: nowrap; }
@@ -284,7 +308,7 @@ button:disabled, fieldset:disabled { opacity: .65; cursor: wait; }
   .site-footer { padding: 28px 24px; min-height: 80px; }
 }
 @media (max-width: 600px) {
-  .profile-section { padding: 20px 16px; margin-top: 20px; }
+  .profile-section { padding: 16px; }
   .profile-section form .button { width: 100%; }
   .header-identity .brand img { width: 52px; }
   .user-menu-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -308,15 +332,15 @@ button:disabled, fieldset:disabled { opacity: .65; cursor: wait; }
 
 .authenticated-shell :is(.user-menu-trigger, .user-menu-signout) { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text); }
 .authenticated-shell :is(.collection-cancel, .collection-add-trigger, .user-menu-trigger, .user-menu-signout):hover,
-.authenticated-shell .deletion-actions .button:not(.primary):hover { background: var(--surface-hover); border-color: var(--text-subtle); color: var(--text); }
+.authenticated-shell .deletion-actions .button:not(.primary):not(.deletion-danger):hover { background: var(--surface-hover); border-color: var(--text-subtle); color: var(--text); }
 .authenticated-shell .user-menu-trigger[aria-expanded="true"] { border-color: var(--focus); }
 .authenticated-shell .user-menu-avatar { background: var(--brand-soft); color: var(--text); }
 .authenticated-shell .user-menu-item[aria-current="page"] { background: var(--brand-soft); }
 .authenticated-shell .user-menu-item:hover { background: var(--surface-hover); }
 .authenticated-shell .user-menu-popover { animation: none; box-shadow: 0 8px 24px #0003; }
 .authenticated-shell .collection-actions-panel { box-shadow: 0 8px 24px #0003; }
-.authenticated-shell :is(.collection-danger-action, .deletion-actions .primary) { background: var(--surface); color: var(--danger); border: 1px solid var(--danger); }
-.authenticated-shell :is(.collection-danger-action, .deletion-actions .primary, .deletion-trigger):hover { background: var(--surface-hover); color: var(--danger); }
+.authenticated-shell :is(.collection-danger-action, .deletion-actions .deletion-danger) { background: var(--surface); color: var(--danger); border: 1px solid var(--danger); }
+.authenticated-shell :is(.collection-danger-action, .deletion-actions .deletion-danger, .deletion-trigger):hover { background: var(--surface-hover); color: var(--danger); }
 .authenticated-shell .deletion-trigger { background: transparent; color: var(--danger); }
 
 :is(input, textarea) { background: var(--surface); border-color: var(--border); color: var(--text); transition: border-color .15s, box-shadow .15s; }
