@@ -665,6 +665,12 @@ Les URL, clés publiques et autres paramètres sont injectés par environnement.
 
 ## Versionnement et déploiement
 
+### Version applicative
+
+La phase majeure 7 correspond à la série `0.7.x`. Une sous-sous-phase applicative réellement livrée peut incrémenter le PATCH ; une étape de cadrage/documentation uniquement n'impose pas de version. Convention : 7A.1 → `0.7.1`, 7A.2 → cadrage sans version, 7A.3 → `0.7.2`, 7B.1 → `0.7.3`, 7B.2 → `0.7.4`. La Phase 8 démarre à `0.8.0` ; la cible V1 est `1.0.0`.
+
+`package.json` reste la source unique de version, synchronisée avec `package-lock.json` via `npm version <version> --no-git-tag-version`, sans commit ni tag Git. Vite injecte cette valeur dans le footer commun ; l'année reste calculée à l'exécution.
+
 ### GitHub et Vercel
 
 Le dépôt GitHub est la source de référence du code et de la configuration versionnée. Il doit contenir le frontend, les scripts, les migrations, la documentation et la configuration non secrète. Aucun secret ne doit y être commité.

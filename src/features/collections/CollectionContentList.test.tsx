@@ -237,6 +237,11 @@ test('Cards reuses exact image/placeholder, keeps variant visible, actions separ
   expect(screen.getByRole('img', { name: 'Pikachu' })).toHaveAttribute('src', first.imageUrl)
   expect(screen.getByText('Holo')).toBeVisible()
   expect(container.querySelector('.collection-content-card')).toHaveClass('is-missing')
+  const overlay = container.querySelector<HTMLDivElement>('.collection-card-image-overlay')!
+  expect(overlay).toContainElement(screen.getByRole('button', { name: /^Gérer les exemplaires de Pikachu/ }))
+  expect(overlay).toContainElement(screen.getByRole('button', { name: /^Actions de Pikachu/ }))
+  expect(container.querySelector('.collection-detail-trigger')).not.toContainElement(overlay)
+  expect(container.querySelector('.collection-content-image')).not.toContainElement(overlay)
   fireEvent.error(screen.getByRole('img', { name: 'Pikachu' }))
   expect(screen.getByRole('img', { name: 'Image indisponible' }).tagName).toBe('svg')
   fireEvent.click(screen.getByRole('button', { name: /^Gérer les exemplaires de Pikachu/  }))

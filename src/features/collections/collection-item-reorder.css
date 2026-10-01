@@ -21,7 +21,7 @@
 .collection-card-drag-zone:hover { background: transparent; }
 .collection-card-drag-zone:hover > svg, .collection-card-drag-zone:focus-visible > svg, .is-dragging > .collection-card-drag-zone > svg,
 .collection-card-drag-zone[data-state="pending"] > span, .collection-card-drag-zone[data-state="success"] > span { opacity: 1; }
-.collection-card-drag-zone > svg, .collection-card-drag-zone > span { border-radius: 5px; background: var(--surface-raised); }
+.collection-card-drag-zone > svg, .collection-card-drag-zone > span { width: 24px; height: 24px; border-radius: 5px; background: var(--surface-raised); }
 .collection-card-drag-zone[data-state="pending"] { background: transparent; }
 .collection-card-drag-zone[aria-disabled="true"] { cursor: default; }
 .collection-card-dnd-item > span.collection-card-drag-zone { pointer-events: none; }
