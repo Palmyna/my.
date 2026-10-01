@@ -38,13 +38,15 @@
 .collection-content-card .collection-content-name { font-size: .78rem; }
 .collection-content-card .collection-content-variant { font-size: .72rem; }
 .collection-card-image-overlay { position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 48 / 67; pointer-events: none; }
-.collection-card-image-overlay .collection-content-actions { position: absolute; right: 6px; bottom: 6px; pointer-events: auto; transition: opacity 120ms ease; }
+.collection-card-image-overlay .collection-content-actions { position: absolute; right: 6px; bottom: 6px; pointer-events: auto; }
+.collection-card-image-overlay .collection-content-actions :is(.collection-copies-trigger, .collection-actions-trigger) { background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--text); border-color: color-mix(in srgb, var(--border-strong) 70%, transparent); transition: background-color 120ms ease; }
 @media (hover: hover) and (pointer: fine) {
-  .collection-card-image-overlay .collection-content-actions { opacity: .1; }
-  .collection-content-card:hover .collection-content-actions, .collection-card-image-overlay:focus-within .collection-content-actions { opacity: 1; }
+  .collection-card-image-overlay .collection-content-actions :is(.collection-copies-trigger, .collection-actions-trigger) { background: color-mix(in srgb, var(--surface) 82%, transparent); }
+  .collection-content-card:hover .collection-content-actions :is(.collection-copies-trigger, .collection-actions-trigger),
+  .collection-card-image-overlay:focus-within .collection-content-actions :is(.collection-copies-trigger, .collection-actions-trigger) { background: color-mix(in srgb, var(--surface) 94%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .collection-card-image-overlay .collection-content-actions { transition: none; }
+  .collection-card-image-overlay .collection-content-actions :is(.collection-copies-trigger, .collection-actions-trigger) { transition: none; }
 }
 .collection-content-card .collection-copies-trigger, .collection-content-card .collection-actions-trigger { width: 44px; min-height: 44px; }
 @media (max-width: 600px) {
