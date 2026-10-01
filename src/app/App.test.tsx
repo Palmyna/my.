@@ -22,6 +22,8 @@ test('affiche MY. sur la route initiale sans configuration Supabase ni appel ré
   expect(screen.getByRole('link', { name: 'Se connecter' })).toBeVisible()
   expect(screen.getByRole('banner')).toContainElement(screen.getByRole('link', { name: 'Connexion' }))
   expect(screen.getByRole('contentinfo')).toHaveTextContent('Conditions d’utilisation')
+  expect(screen.getByRole('contentinfo')).toHaveTextContent(`© 2026 · MY. · v${__APP_VERSION__}`)
+  expect(screen.getByRole('contentinfo')).toBe(document.querySelector('.public-shell > .site-footer'))
   expect(fetchSpy).not.toHaveBeenCalled()
 })
 

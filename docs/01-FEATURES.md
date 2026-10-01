@@ -24,7 +24,7 @@ La V1 permet principalement de :
 
 Ces fonctionnalités doivent rester simples à comprendre et rapides à utiliser.
 
-**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres reste minimal. Le backend de création automatique est livré ; son parcours catalogue, les vues et préférences et la recherche globale restent en Phase 7, prochaine phase planifiée non commencée. Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
+**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres reste minimal. Le backend de création automatique est livré ; son parcours catalogue, les vues et préférences et la recherche globale restent en Phase 7, désormais en cours avec la préparation de son socle uniquement. Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
 
 ## Comptes utilisateurs
 
@@ -229,7 +229,7 @@ La note est limitée à 750 caractères Unicode. Un texte vide ou uniquement com
 
 ## Recherche globale et consultation du catalogue
 
-**Phase 7 planifiée, non commencée :** les parcours globaux et pages catalogue ci-dessous restent futurs. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
+**Phase 7 en cours, préparation du socle uniquement :** les parcours globaux et pages catalogue ci-dessous restent futurs. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
 
 La recherche globale est une navigation par suggestions dynamiques, disponible partout après connexion à partir de **3 caractères**. Il n'existe ni bouton de lancement requis, ni page générale de résultats. Valider le champ ne sélectionne aucun résultat et ne navigue pas ; l'utilisateur choisit explicitement une suggestion. Sur mobile, cette validation ferme seulement le clavier et conserve les suggestions.
 

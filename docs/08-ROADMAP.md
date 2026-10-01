@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 6 terminées et validées.** Le cœur fonctionnel des collections est livré : contenu, exemplaires, réorganisation, ajout/retrait manuel, recherches d'ajout et interne, détail Variante et modernisation UI. Les collections réellement partagées restent consultables en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne les acquis, l'audit technique de Codex et le checkpoint Cloud manuel du propriétaire. La prochaine phase planifiée est la **Phase 7 — Vues, catalogue, recherche globale et préférences** ; elle n'est pas commencée.
+**Phases 0 à 6 terminées et validées.** Le cœur fonctionnel des collections est livré : contenu, exemplaires, réorganisation, ajout/retrait manuel, recherches d'ajout et interne, détail Variante et modernisation UI. Les collections réellement partagées restent consultables en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne les acquis, l'audit technique de Codex et le checkpoint Cloud manuel du propriétaire. La **Phase 7 — Vues, catalogue, recherche globale et préférences** est en cours ; sa première étape prépare le socle Phase 7, sans livrer les fonctionnalités de consultation, catalogue, recherche globale ou préférences.
 
 | Grandes phases | Statut |
 |---|---|
@@ -26,7 +26,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 | 4 — Profil et gestion du compte | Terminée |
 | 5 — Dashboard, création et gestion des collections | Terminée |
 | 6 — Cœur fonctionnel des collections | Terminée |
-| 7 — Vues, catalogue, recherche globale et préférences | Planifiée |
+| 7 — Vues, catalogue, recherche globale et préférences | En cours |
 | 8 — Mise à jour des collections automatiques | Planifiée |
 | 9 — Partage des collections | Planifiée |
 | 10 — Finalisation V1 et mise en production | Planifiée |
@@ -131,7 +131,9 @@ Phase 6 terminée et validée après l'audit technique exécuté par Codex et le
 
 ### Phase 7 — Vues, catalogue, recherche globale et préférences
 
-**Statut : PLANIFIÉE**
+**Statut : EN COURS**
+
+Première étape : préparation du socle Phase 7, avec version applicative, footer et alignement de l'outillage local. Les fonctionnalités ci-dessous restent à développer.
 
 Compléter les modes de consultation et la navigation dans les collections et le catalogue authentifié.
 

@@ -177,6 +177,8 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
   expect(page).toContainElement(screen.getByRole('heading', { level: 1, name: title }))
   expect(screen.getByRole('main')).toContainElement(page)
   expect(screen.getByRole('contentinfo')).toHaveTextContent('Conditions d’utilisation')
+  expect(screen.getByRole('contentinfo')).toHaveTextContent(`© 2026 · MY. · v${__APP_VERSION__}`)
+  expect(screen.getByRole('contentinfo')).toBe(document.querySelector('.authenticated-shell > .site-footer'))
   if (path === '/dashboard') {
     expect(within(page).getByRole('heading', { name: 'Collections', level: 1 })).toBeVisible()
     expect(within(page).queryByRole('region', { name: 'Mes collections' })).not.toBeInTheDocument()
