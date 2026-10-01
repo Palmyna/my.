@@ -1,11 +1,15 @@
 import { Component, lazy, Suspense, type ReactNode } from 'react'
 import type { CollectionOverview } from '../../types/collections'
+import type { CollectionView } from '../../types/view-preferences'
 
-const ContentList = lazy(() => import('./CollectionContentList').then(module => ({ default: module.CollectionContentList })))
+const ContentView = lazy(() => import('./CollectionContentView').then(module => ({ default: module.CollectionContentView })))
 
 // Keep DnD and copy management out of the initial app bundle. A failed chunk
 // download must leave the overview usable, with an explicit recovery action.
-export class CollectionContentLoader extends Component<{ collection: CollectionOverview; viewerId: string }, { failed: boolean }> {
+export class CollectionContentLoader extends Component<{
+  collection: CollectionOverview; viewerId: string; currentView: CollectionView
+  query: string; setQuery: (query: string) => void
+}, { failed: boolean }> {
   override state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
 
@@ -15,7 +19,7 @@ export class CollectionContentLoader extends Component<{ collection: CollectionO
       <button className="button" onClick={() => window.location.reload()}>Recharger la page</button>
     </div>
     return <Suspense fallback={<p role="status">Chargement des cartes…</p>}>
-      <ContentList {...this.props} />
+      <ContentView {...this.props} />
     </Suspense>
   }
 }

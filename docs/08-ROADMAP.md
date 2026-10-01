@@ -133,7 +133,7 @@ Phase 6 terminée et validée après l'audit technique exécuté par Codex et le
 
 **Statut : EN COURS**
 
-Le socle Phase 7 comprend version applicative, footer et alignement de l'outillage local. La Phase 7A.3 ajoute la persistance locale des préférences de vues et du format Classeur, les types, services et helpers purs validés. Les interfaces des fonctionnalités ci-dessous restent à développer ; Paramètres demeure minimal.
+Le socle Phase 7 comprend version applicative, footer et alignement de l'outillage local. La Phase 7A.3 ajoute la persistance locale des préférences de vues et du format Classeur, les types, services et helpers purs validés. Le socle frontend Collection est branché : état de vue depuis les préférences du viewer, fallback temporaire vers Liste pour les vues indisponibles sans réécriture des préférences, primitive de sauvegarde du dernier choix explicite et recherche indépendante du renderer sur un contenu commun. Seule Liste est disponible ; aucun sélecteur ni vue Cartes/Classeur n'est livré. Les interfaces restantes ci-dessous restent à développer ; Paramètres demeure minimal.
 
 Compléter les modes de consultation et la navigation dans les collections et le catalogue authentifié.
 

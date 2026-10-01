@@ -1,3 +1,4 @@
+import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
@@ -15,6 +16,7 @@ import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } f
 import { physicalCopiesKey } from '../physical-copies/physical-copies-query'
 
 const auth = vi.hoisted(() => ({ user: { id: 'viewer' }, isAuthorized: true }))
+vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES), saveUserPreferences: vi.fn() }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
 vi.mock('../../services/collections', async original => ({ ...await original<typeof import('../../services/collections')>(), getCollectionOverview: vi.fn() }))
 vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn() }))

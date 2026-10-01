@@ -9,6 +9,8 @@ import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } f
 import { CollectionContentLoader } from './CollectionContentLoader'
 import { CollectionActions } from './CollectionActions'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
+import type { CollectionOverview } from '../../types/collections'
+import { useCollectionView } from './useCollectionView'
 
 export function CollectionPage() {
   const { collectionId = '' } = useParams()
@@ -83,6 +85,14 @@ export function CollectionPage() {
           </button>
         </div>)}
     </div>
-    {collection && user && <CollectionContentLoader key={resource} collection={collection} viewerId={user.id} />}
+    {collection && user && <CollectionWorkspace key={resource} collection={collection} viewerId={user.id} />}
   </section>
+}
+
+// Page state survives renderer changes, but resets with viewer/collection.
+function CollectionWorkspace({ collection, viewerId }: { collection: CollectionOverview; viewerId: string }) {
+  const { currentView } = useCollectionView(collection.collectionId)
+  const [query, setQuery] = useState('')
+  return <CollectionContentLoader collection={collection} viewerId={viewerId}
+    currentView={currentView} query={query} setQuery={setQuery} />
 }

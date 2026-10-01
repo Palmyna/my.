@@ -1,3 +1,6 @@
+import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
+import { getUserPreferences, saveUserPreferences } from '../../services/view-preferences'
+import { userPreferencesKey } from '../view-preferences/view-preferences-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -10,6 +13,7 @@ import { collectionOverviewKey } from './collection-query'
 
 const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true }))
 vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
+vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES), saveUserPreferences: vi.fn() }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
 vi.mock('../../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../../services/collections')>(), getCollectionOverview: vi.fn(),
@@ -17,7 +21,11 @@ vi.mock('../../services/collections', async importOriginal => ({
 const get = vi.mocked(getCollectionOverview)
 const id = 'c1200000-0000-0000-0000-000000000001'
 const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
-beforeEach(() => { auth.user = { id: 'owner' }; get.mockReset().mockResolvedValue(base) })
+beforeEach(() => {
+  auth.user = { id: 'owner' }; auth.isAuthorized = true; get.mockReset().mockResolvedValue(base)
+  vi.mocked(getUserPreferences).mockReset().mockResolvedValue(DEFAULT_USER_PREFERENCES)
+  vi.mocked(saveUserPreferences).mockReset()
+})
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { gcTime: 0 } } })
   const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={[`/collections/${id}`]}><Routes>
@@ -111,4 +119,26 @@ test('le cache reste isolé par utilisateur', async () => {
   expect(screen.queryByText(base.name)).not.toBeInTheDocument()
   await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
   expect(screen.getByRole('status')).toBeVisible()
+})
+
+test('une collection partagée lit les préférences du viewer sans écriture', async () => {
+  auth.user = { id: 'recipient' }
+  get.mockResolvedValue({ ...base, access: 'shared', ownerId: 'real-owner' })
+  vi.mocked(getUserPreferences).mockResolvedValue({ ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'binder' })
+  const { client } = setup()
+  expect(await screen.findByText('Cette collection ne contient encore aucune carte.')).toBeVisible()
+  expect(getUserPreferences).toHaveBeenCalledExactlyOnceWith('recipient')
+  expect(client.getQueryData(userPreferencesKey('real-owner'))).toBeUndefined()
+  expect(saveUserPreferences).not.toHaveBeenCalled()
+  expect(screen.queryByRole('button', { name: /Liste|Cartes|Classeur/ })).not.toBeInTheDocument()
+})
+
+test.each(['pending', 'error'])('préférences %s : contenu rendu sans bloquer la page ni erreur visible', async mode => {
+  if (mode === 'pending') vi.mocked(getUserPreferences).mockReturnValue(new Promise(() => {}))
+  else vi.mocked(getUserPreferences).mockRejectedValue(new Error('private preferences error'))
+  setup()
+  expect(await screen.findByText('Cette collection ne contient encore aucune carte.')).toBeVisible()
+  expect(screen.getByRole('heading', { name: base.name })).toBeVisible()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(saveUserPreferences).not.toHaveBeenCalled()
 })

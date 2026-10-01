@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
-import { CollectionContentList } from './CollectionContentList'
+import { useState } from 'react'
+import { CollectionContentView } from './CollectionContentView'
 import { AddCollectionItemDialog } from './AddCollectionItemDialog'
 import { getCollectionContent } from '../../services/collection-content'
 import { addManualCollectionItem, removeManualCollectionItem, listCollectionItemOrder, CollectionItemsError, type CollectionItemsErrorCode } from '../../services/collection-items'
@@ -37,6 +38,10 @@ beforeEach(() => {
   remove.mockReset().mockResolvedValue(undefined)
 })
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
+function CollectionContentList({ collection, viewerId }: { collection: CollectionOverview; viewerId: string }) {
+  const [query, setQuery] = useState('')
+  return <CollectionContentView collection={collection} viewerId={viewerId} currentView="list" query={query} setQuery={setQuery} />
+}
 function setup(overrides: Partial<CollectionOverview> = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const view = render(<QueryClientProvider client={client}><CollectionContentList collection={{ ...collection, ...overrides }} viewerId="owner" /></QueryClientProvider>)
