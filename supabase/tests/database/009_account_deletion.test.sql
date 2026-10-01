@@ -13,8 +13,8 @@ select ok(not has_table_privilege('authenticated', 'auth.users', 'DELETE'), 'Ord
 select ok(not has_table_privilege('authenticated', 'public.profiles', 'DELETE'), 'Ordinary client cannot delete profiles');
 select ok(has_function_privilege('authenticated', 'private.has_my_profile()', 'EXECUTE'), 'RLS may evaluate the current caller predicate');
 select ok(not has_function_privilege('anon', 'private.has_my_profile()', 'EXECUTE'), 'Anon cannot execute profile predicate');
-select is((select count(*) from pg_policies where schemaname = 'public' and policyname = 'require_my_profile' and permissive = 'RESTRICTIVE' and cmd = 'ALL' and roles = array['authenticated']::name[] and qual is not null and with_check is not null), 13::bigint, 'All application tables deny deleted identities on read and write');
-select is((select count(*) from pg_policies where schemaname = 'public' and policyname = 'require_mfa'), 13::bigint, 'Existing MFA policies preserved');
+select is((select count(*) from pg_policies where schemaname = 'public' and policyname = 'require_my_profile' and permissive = 'RESTRICTIVE' and cmd = 'ALL' and roles = array['authenticated']::name[] and qual is not null and with_check is not null), 14::bigint, 'All application tables deny deleted identities on read and write');
+select is((select count(*) from pg_policies where schemaname = 'public' and policyname = 'require_mfa'), 14::bigint, 'Existing MFA policies preserved');
 select is((select confdeltype::text from pg_constraint where conrelid = 'public.profiles'::regclass and confrelid = 'auth.users'::regclass), 'r', 'Profile/Auth FK stays RESTRICT');
 
 insert into auth.users(id) values

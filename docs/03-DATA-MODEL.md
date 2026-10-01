@@ -408,15 +408,15 @@ L'existence d'un partage représente directement un accès actif dès confirmati
 
 ## Paramètres de vue et classeur
 
-Une entité **Préférences utilisateur**, liée à exactement un profil, conserve deux préférences : la vue catalogue par défaut (Liste, Cartes, Dernier choix utilisé) et la vue collection par défaut (Liste, Cartes, Classeur, Dernier choix utilisé). Un profil possède au maximum une ligne de préférences ; une ligne absente équivaut aux valeurs initiales documentées dans [06-DATABASE.md](06-DATABASE.md).
+Une entité **Préférences utilisateur**, liée à exactement un profil, conserve la vue catalogue par défaut (Liste, Cartes, Dernier choix utilisé), la vue collection par défaut (Liste, Cartes, Classeur, Dernier choix utilisé) et `binder_default_format`. Formats V1 exactement `2x2`, `3x3`, `4x3` ; défaut `3x3`. Un profil possède au maximum une ligne de préférences ; une ligne absente équivaut aux valeurs initiales documentées dans [06-DATABASE.md](06-DATABASE.md), sans création au signup.
 
 Chaque préférence distingue le choix d'ouverture du dernier mode réellement sélectionné. Ces deux derniers modes sont persistants et indépendants, globaux respectivement au catalogue et aux collections, sans relation avec une page ou une cible particulière. Une vue fixe s'applique à l'ouverture ; `Dernier choix utilisé` reprend le mode mémorisé. Le stockage initial choisit ce dernier comportement, avec Liste comme mode initial.
 
-Seul le propriétaire lit et modifie ses préférences. Un partage de collection n'y donne aucun accès. Aucun réglage de thème ou Premium n'est ajouté. Le format du classeur et son organisation continue/par blocs restent des choix d'affichage dont la persistance est ouverte. Modifier l'affichage ne change aucun élément de collection.
+Seul l'utilisateur concerné lit et modifie ses préférences. Un partage de collection n'y donne aucun accès. L'entité dédiée `collection_view_preferences` conserve seulement les overrides explicites de format, uniques par **utilisateur + collection**. Le viewer doit être propriétaire ou destinataire actuellement autorisé ; les préférences du lecteur et du propriétaire restent indépendantes. Ces données référencent le profil et la collection et disparaissent par cascade avec eux. Aucun réglage de thème ou Premium n'est ajouté. Modifier l'affichage ne change aucun élément de collection.
 
-La pagination du classeur est dérivée de l'ordre des éléments, du format de page et du mode d'organisation. Il n'est pas nécessaire de persister une entité pour chaque page tant qu'aucun besoin ne le justifie.
+Le format effectif suit **override utilisateur + collection → `binder_default_format` global → `3x3`**. Absence d'override = héritage dynamique ; aucune copie du défaut dans chaque collection. Retour au défaut = suppression de l'override.
 
-En mode par blocs, le calcul doit forcer chaque série ou bloc à commencer sur une nouvelle page.
+Le Classeur V1 est **continu uniquement**, selon l'ordre autoritatif des éléments, sans regroupement par série, bloc, ère, Extension, Pokémon ou catégorie. Nombre d'emplacements dérivé du format, pagination calculée frontend : aucune entité/table `binder_pages`, aucun champ d'organisation.
 
 ## Recherche
 
@@ -579,7 +579,6 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
-- la persistance du format et du mode d'organisation du classeur ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;

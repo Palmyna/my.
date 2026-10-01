@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Les **23 migrations**, dont **12 Phase 6**, sont appliquées Local/Cloud et alignées jusqu'à `20260928083830`, selon le checkpoint Cloud exécuté manuellement par le propriétaire après l'audit technique. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. Le checkpoint Phase 6 fourni par le propriétaire confirme **23 migrations Local/Cloud**, dont **12 Phase 6**, alignées jusqu'à `20260928083830`. La migration [Phase 7A.3](../supabase/migrations/20261001132144_phase7a3_view_preferences.sql) est appliquée **localement uniquement** : historique local **24/24** jusqu'à `20261001132144`, sans accès ni déploiement Cloud pendant cette étape. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -52,7 +52,7 @@ Les trois migrations suivantes sont présentes dans le dépôt, validées locale
 
 **Phase 6 terminée et validée.** Les 12 migrations Phase 6 listées dans le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md#migrations) complètent les onze précédentes : **23 Local et 23 Remote**, alignées jusqu'à `20260928083830`. Le propriétaire a exécuté manuellement le checkpoint Supabase Cloud après l'audit technique de Codex : état initial 23 Local / 11 Remote, dry-run annonçant exactement les 12 migrations Phase 6, push des 12 sans erreur, état final 23/23 et dry-run final sans migration restante. Ces résultats manuels sont consignés sans nouvel accès Cloud pendant la clôture documentaire.
 
-Audit technique final exécuté précédemment par Codex, validé et fourni pour cette clôture : **DB/pgTAP PASS, 18 fichiers / 977 assertions** ; **Frontend/Vitest PASS, 40 fichiers / 1 202 tests** ; `db:lint`, `typecheck`, `lint`, `build`, `diff-check` PASS ; `db:types` PASS sans diff. Aucune suite ni génération de types n'est relancée ici. Les contrats finaux sont détaillés ci-dessous ; Phase 7 reste seulement planifiée.
+Audit technique final exécuté précédemment par Codex, validé et fourni pour cette clôture : **DB/pgTAP PASS, 18 fichiers / 977 assertions** ; **Frontend/Vitest PASS, 40 fichiers / 1 202 tests** ; `db:lint`, `typecheck`, `lint`, `build`, `diff-check` PASS ; `db:types` PASS sans diff. Aucune suite ni génération de types n'est relancée ici. Les contrats finaux sont détaillés ci-dessous ; Ce constat historique précède la Phase 7A.3 ; son socle local est décrit ci-dessous.
 
 ## Principes structurants
 
@@ -98,6 +98,7 @@ Les principales entités utilisateur utilisent des UUID :
 
 - `profiles` ;
 - `user_preferences`, dont la clé est l'UUID du profil ;
+- `collection_view_preferences`, dont la clé composite réutilise les UUID du viewer et de la collection ;
 - `collections` ;
 - `collection_items` ;
 - `physical_copies` ;
@@ -122,7 +123,7 @@ Les identifiants TCGdex restent des références externes séparées. Ils ne son
 
 Les timestamps techniques utilisent `TIMESTAMPTZ`, avec `now()` à la création. Le trigger commun `private.set_updated_at()` impose `statement_timestamp()` à chaque mise à jour ; il fonctionne en `SECURITY INVOKER`, avec `search_path = ''`, sans droit d'appel direct pour les rôles API. `card_pokemon` ne possède pas de timestamps ; `collection_shares` conserve seulement `created_at` ; `automatic_target_states` conserve seulement `updated_at`. Les autres tables possèdent les deux timestamps.
 
-Les UUID des entités utilisateur indépendantes utilisent `gen_random_uuid()`. L'UUID du profil provient exclusivement d'Auth ; `user_preferences.user_id` réutilise cet UUID, sans nouvelle identité. Les IDs numériques utilisent `BIGINT GENERATED ALWAYS AS IDENTITY`.
+Les UUID des entités utilisateur indépendantes utilisent `gen_random_uuid()`. L'UUID du profil provient exclusivement d'Auth ; `user_preferences.user_id` et `collection_view_preferences.user_id` le réutilisent, sans nouvelle identité. La clé composite d'override référence aussi l'UUID existant de la collection. Les IDs numériques utilisent `BIGINT GENERATED ALWAYS AS IDENTITY`.
 
 ## Vue relationnelle simplifiée
 
@@ -130,6 +131,8 @@ Les UUID des entités utilisateur indépendantes utilisent `gen_random_uuid()`. 
 auth.users
     └── 1:1 profiles
           ├── 1:0..1 user_preferences
+          ├── 1:N collection_view_preferences
+          │     └── N:1 collections (collection consultée par le viewer)
           ├── 1:N collections
           │     ├── 1:N collection_items
           │     │     └── N:1 catalog_variants
@@ -163,6 +166,7 @@ tcg_sets ─ cible possible d'une collection automatique
 
 - `profiles`
 - `user_preferences`
+- `collection_view_preferences`
 - `collections`
 - `collection_items`
 - `physical_copies`
@@ -448,21 +452,37 @@ Une petite table dédiée conserve les seules préférences de vues validées. E
 | `collection_default_view TEXT NOT NULL` | `list`, `cards`, `binder`, `last_used` | `last_used` |
 | `last_catalog_view TEXT NOT NULL` | `list`, `cards` | `list` |
 | `last_collection_view TEXT NOT NULL` | `list`, `cards`, `binder` | `list` |
+| `binder_default_format TEXT NOT NULL` | `2x2`, `3x3`, `4x3` | `3x3` |
 | `created_at`, `updated_at TIMESTAMPTZ` | Timestamps techniques ; trigger commun `private.set_updated_at()` | `now()` à l'insertion |
 
 Les valeurs fonctionnelles sont Liste / Cartes / Classeur / Dernier choix utilisé. Les deux champs `last_*` sont nécessaires pour donner un sens persistant à `last_used` ; ils conservent le dernier mode **explicitement choisi**, même si la préférence d'ouverture est fixe. Le dernier mode catalogue est commun aux pages Pokémon, Extension et Carte ; le dernier mode collection est commun aux collections. Aucun état par page ou cible n'est ajouté.
 
-À une nouvelle ouverture, la future interface utilise la vue fixe choisie ou le champ `last_*` correspondant. Une ligne absente équivaut aux mêmes valeurs initiales : `last_used`, avec Liste initialement. La première sauvegarde peut créer la ligne ; aucune création anticipée au signup ni backfill des profils n'est effectué. Un upsert ciblant `user_id` est possible sous RLS en limitant sa mise à jour aux quatre champs de vues. Le retour dans une consultation restaure son contexte, sans écraser son état avec ces défauts.
+À une nouvelle ouverture, la future interface utilise la vue fixe choisie ou le champ `last_*` correspondant. Une ligne absente équivaut aux mêmes valeurs initiales : `last_used`, Liste initialement et format `3x3`. La première sauvegarde crée la ligne ; aucune création anticipée au signup ni backfill des profils. Le service 7A.3 utilise `UPDATE` ciblé puis `INSERT` si absent, avec une reprise de l'update en cas de création concurrente ; aucune mise à jour des champs omis ou des identités. Le retour dans une consultation restaure son contexte, sans écraser son état avec ces défauts.
 
-La PK indexe également la FK et le filtre de propriété. Supprimer un profil supprime sa seule ligne de préférences dépendante ; cela ne définit aucun workflow de suppression de compte et ne change pas la FK restrictive Auth/profil. Aucun thème, préférence Premium, format de classeur ou mode continu/par blocs n'est stocké par cette migration.
+La PK indexe également la FK et le filtre de propriété. Supprimer un profil supprime sa ligne de préférences dépendante ; le workflow de suppression Auth existant reste inchangé. La migration additive [7A.3](../supabase/migrations/20261001132144_phase7a3_view_preferences.sql) ajoute le seul format global, avec `TEXT NOT NULL DEFAULT '3x3'` et `CHECK` limité à `2x2`, `3x3`, `4x3`. Aucun thème, préférence Premium ou champ d'organisation.
+
+### `collection_view_preferences` — Phase 7A.3
+
+| Champ | Contrainte / rôle |
+|---|---|
+| `user_id UUID NOT NULL` | Défaut `auth.uid()`, FK `profiles.id ON DELETE CASCADE` |
+| `collection_id UUID NOT NULL` | FK `collections.id ON DELETE CASCADE` |
+| `binder_format TEXT NOT NULL` | `CHECK IN ('2x2', '3x3', '4x3')`, aucun défaut implicite |
+| `created_at`, `updated_at TIMESTAMPTZ NOT NULL` | `now()` ; trigger commun `private.set_updated_at()` à l'update |
+
+PK composite `(user_id, collection_id)` ; index additionnel `collection_id` pour les cascades. La table contient **uniquement les overrides explicites**. Résolution pure : **override du viewer + collection → `user_preferences.binder_default_format` → `3x3`**. Absence = héritage dynamique ; retour au défaut = `DELETE` de l'override, jamais copie de la valeur globale.
+
+RLS explicitement activée : policy propre au viewer et restrictions `require_collection_access`, `require_mfa`, `require_my_profile`, avec `USING` et `WITH CHECK`. L'accès collection réutilise `EXISTS` sur `collections` sous sa RLS de lecture owner/destinataire ; aucune modification des policies Collection, aucun helper privilégié nouveau. Après révocation du partage, la préférence stockée reste inaccessible et ne donne jamais accès à la collection.
+
+Grants `authenticated` : `SELECT`, `DELETE`, `INSERT(user_id, collection_id, binder_format)`, `UPDATE(binder_format)` seulement. Identités/timestamps immuables. `service_role` conserve le pattern privilégié `SELECT / INSERT / UPDATE / DELETE` ; aucun grant `anon` ou `PUBLIC`. Le lecteur partagé gère sa propre préférence indépendamment du propriétaire, sans modifier la collection.
 
 ### Permissions et RLS
 
 La RLS est explicitement activée. Les policies `SELECT`, `INSERT` et `UPDATE` sont limitées à `authenticated` et à `user_id = (select auth.uid())`. `UPDATE` possède `USING` et `WITH CHECK`. Un partage de collection n'accorde aucun accès aux préférences du propriétaire.
 
-Les grants autorisent la lecture de sa ligne, l'insertion de `user_id` et des quatre champs de vues, puis la modification des seuls champs de vues. Le choix explicite de `user_id` à l'insertion est contrôlé par RLS ; son transfert et la falsification des timestamps sont interdits par les grants de colonnes. Aucune suppression directe n'est accordée au client. `anon` et `PUBLIC` n'ont aucun accès ; `service_role` conserve uniquement les droits CRUD de maintenance, comme les autres tables utilisateur. Aucun nouveau helper `SECURITY DEFINER` ni RPC n'est créé.
+Les grants globaux autorisent la lecture de sa ligne, l'insertion de `user_id`, des quatre champs de vues et de `binder_default_format`, puis la modification des seuls champs fonctionnels. Le choix explicite de `user_id` à l'insertion est contrôlé par RLS ; son transfert et la falsification des timestamps sont interdits par les grants de colonnes. Aucune suppression directe n'est accordée au client. `anon` et `PUBLIC` n'ont aucun accès ; `service_role` conserve uniquement les droits CRUD de maintenance, comme les autres tables utilisateur. Aucun nouveau helper `SECURITY DEFINER` ni RPC n'est créé.
 
-Ce contrôle associe [grants et RLS Supabase](https://supabase.com/docs/guides/database/postgres/row-level-security). La nouvelle table porte le total à 13 tables applicatives `public` et 3 tables privées en local, toutes avec RLS.
+Ce contrôle associe [grants et RLS Supabase](https://supabase.com/docs/guides/database/postgres/row-level-security). Avec l'override Phase 7A.3 : 14 tables applicatives `public` et 3 tables privées en local, toutes avec RLS.
 
 ## Collections
 
@@ -655,7 +675,7 @@ Le bouton Exemplaires ouvre `PhysicalCopiesDialog` avec le propriétaire réel e
 
 Après création/suppression d'un exemplaire, même si la réponse d'écriture est incertaine, le composant commun relit les exemplaires et invalide les contenus du viewer contenant la variante (ou sans donnée), les overviews et le Dashboard. Les lectures de possession déjà en cours sont annulées avant invalidation, y compris les lectures initiales sans cache, pour empêcher une réponse antérieure à l'écriture de restaurer un état périmé. L'édition nom/note rafraîchit uniquement les exemplaires. La fermeture et la double soumission restent bloquées jusqu'à la fin des relectures ; aucune écriture n'est retentée automatiquement. Aucun recalcul frontend de possession. Le retrait de cette intégration frontend ne nécessite aucune restauration de données ; conserver l'adaptation BIGINT tant que des consommateurs transmettent des chaînes.
 
-Aucune migration créée ni appliquée pendant l'étape 6B.3 ; ses preuves initiales étaient frontend et transport simulé. Les contrats Phase 6 finaux et les validations DB/HTTP ultérieures sont désormais acquis ; leurs migrations sont appliquées Local/Cloud. Les vues et préférences Phase 7 restent futures.
+Aucune migration créée ni appliquée pendant l'étape 6B.3 ; ses preuves initiales étaient frontend et transport simulé. Les contrats Phase 6 finaux et les validations DB/HTTP ultérieures sont désormais acquis ; leurs migrations sont appliquées Local/Cloud. Les interfaces des vues et préférences Phase 7 restent futures ; le socle 7A.3 est livré localement.
 
 ## Exemplaires physiques
 
@@ -741,6 +761,8 @@ Les dépendances suivantes existent dans la [migration de schéma Phase 1](../su
 | `physical_copies.user_id → profiles.id` | `RESTRICT` | Tous les exemplaires du compte doivent être supprimés, même hors collection |
 | `collection_shares.recipient_user_id → profiles.id` | `RESTRICT` | Les relations donnant les accès reçus doivent être supprimées avant le profil |
 | `user_preferences.user_id → profiles.id` | `CASCADE` | La suppression du profil supprime ses préférences |
+| `collection_view_preferences.user_id → profiles.id` | `CASCADE` | La suppression du viewer supprime ses overrides |
+| `collection_view_preferences.collection_id → collections.id` | `CASCADE` | La suppression de la collection supprime les overrides de tous les viewers |
 | `collection_items.collection_id → collections.id` | `CASCADE` | La suppression d'une collection possédée supprime tous ses éléments |
 | `collection_shares.collection_id → collections.id` | `CASCADE` | La suppression d'une collection possédée supprime tous ses partages |
 
@@ -992,6 +1014,7 @@ La RLS est obligatoire sur toutes les tables utilisateur exposées par Supabase.
 |---|---|---|---|
 | `profiles` | Lecture de son profil uniquement ; aucune édition utilisateur | Pas de parcours général | Aucun parcours général |
 | `user_preferences` | Lecture et sauvegarde de ses seules préférences | Aucun accès aux préférences du propriétaire | Aucun accès |
+| `collection_view_preferences` | CRUD de son override sur une collection accessible | CRUD de son propre override uniquement | Aucun accès sur collection inaccessible |
 | `collections` | Lecture, modification et suppression | Lecture seule de la collection partagée | Aucun accès |
 | `collection_items` | Gestion dans les limites fonctionnelles | Lecture seule des éléments partagés | Aucun accès |
 | `physical_copies` | Gestion de ses exemplaires | Lecture limitée aux exemplaires du propriétaire et aux variantes présentes dans la collection partagée | Aucun accès |
@@ -1011,7 +1034,8 @@ La matrice précédente décrit la cible fonctionnelle V1. Le socle SQL accorde 
 |---|---|
 | Catalogue et états de cible | `SELECT` uniquement, policies de lecture authentifiée |
 | Profil | Lecture de sa propre ligne uniquement ; aucune insertion, modification ou suppression |
-| Préférences (complément avant Phase 3) | Lecture/insertion de sa ligne et modification des quatre champs de vues, sans transfert ni suppression directe |
+| Préférences globales | Lecture/insertion de sa ligne et modification des quatre champs de vues + `binder_default_format`, sans transfert ni suppression directe |
+| Override de format Collection | CRUD de sa ligne seulement si collection actuellement lisible ; édition du seul `binder_format` |
 | Collections | Lecture si propriétaire ou destinataire ; insertion des seuls champs `name` et `collection_type`, limitée à `free` ; modification du seul `name` ; suppression par propriétaire |
 | Éléments | Lecture des collections accessibles ; aucune écriture directe, même pour le propriétaire |
 | Exemplaires | Lecture de ses lignes ou des seules variantes du propriétaire présentes dans une collection effectivement partagée ; insertion et édition des champs autorisés ; suppression de ses propres lignes |
@@ -1032,6 +1056,8 @@ Cette restriction s'ajoute par **ET** aux policies métier permissives existante
 Le claim `aal2` exprime le niveau de session ; les policies MFA/propriété existantes restent inchangées. Les mutations natives Auth suivent les [protections du compte](05-ARCHITECTURE.md#sécurité-des-actions-de-gestion-du-compte) : mot de passe actuel exigé côté Auth pour le changement volontaire, double confirmation Secure Email Change pour l'email. Leur contrôle ne relève pas d'une RPC ou d'une policy applicative. Le TOTP frais est imposé par l'Edge Function de suppression ; aucune table de preuve ou permission temporaire n'est ajoutée.
 
 La suppression ajoute `require_my_profile AS RESTRICTIVE FOR ALL TO authenticated` aux mêmes 13 tables. `USING` et `WITH CHECK` appellent `(select private.has_my_profile())` : un test stable, sans argument, de la présence du profil de `auth.uid()`. Son `SECURITY DEFINER` évite une récursion RLS et son `search_path` est vide. Seul authenticated reçoit `EXECUTE`, sans `USAGE` général du schéma privé, suivant le modèle du prédicat de propriété existant. Après suppression du profil, un JWT `aal2` résiduel ne peut plus lire les données ni écrire, y compris dans le catalogue. Ce prédicat ne constitue pas une vérification générale de révocation par `session_id` pour les comptes qui existent encore.
+
+La table `collection_view_preferences` reprend explicitement les restrictions MFA et profil en Phase 7A.3. Les policies existantes des autres tables ne sont pas modifiées.
 
 `service_role` conserve ses grants et `BYPASSRLS`. Le pipeline PostgreSQL privilégié et les trois tables privées restent inchangés. Les RPC publiques `SECURITY DEFINER` livrées en Phases 5 et 6 disposent d'un `search_path` vide, d'un contrôle explicite identité/MFA/profil et, pour les écritures de collection, de propriété. Leur exécution est réservée à `authenticated` ; aucun accès général au schéma privé n'est ouvert. Toute future table ou RPC devra préserver cette frontière, notamment une RPC `SECURITY DEFINER` qui contournerait normalement la RLS. Les JWT déjà émis restent soumis à leur expiration après une révocation administrative ; voir la procédure opérateur.
 
@@ -1200,9 +1226,9 @@ Gain d'environ 2 à 5 fois sans changement de matching/ranking. Mesures locales,
 
 ### Classeur et préférences
 
-Les pages du classeur ne sont pas persistées dans une table `binder_pages`. Elles sont calculées côté frontend à partir des `collection_items`, de leur ordre, du format de page et du mode continu ou par blocs. La hiérarchie variante → carte → set → série permet d'identifier les changements de bloc.
+Les pages du classeur ne sont pas persistées dans une table `binder_pages`. Elles sont calculées frontend à partir des `collection_items`, de l'ordre autoritatif et du format effectif. Formats V1 exactement `2x2`, `3x3`, `4x3` ; défaut `3x3`, emplacements dérivés et jamais stockés. Organisation V1 **continue uniquement**, sans regroupement série/bloc/ère/Extension/Pokémon/catégorie ni champ d'organisation.
 
-Les deux préférences de vues et leurs derniers modes sont persistés dans `user_preferences`. Le format de classeur et son mode d'organisation restent ouverts quant à leur persistance. Aucun stockage générique de réglages n'est ajouté.
+Les préférences de vues, leurs derniers modes et `binder_default_format` sont persistés dans `user_preferences`. L'override explicite par utilisateur + collection est dans `collection_view_preferences` ; absence = héritage dynamique, retour au défaut = suppression. Le [contrat de recherche Classeur](04-UX-UI.md#recherche-classeur--contrat-futur-sans-implémentation-7a3) est seulement documenté, sans compactage des emplacements ni recentrage permanent. Aucun stockage générique de réglages.
 
 ## Synchronisation TCGdex
 
@@ -1354,7 +1380,6 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code et les signatures finaux des RPC ;
-- la persistance du format du classeur et du mode continu/par blocs ;
 - les éventuelles exigences légales/rétentions particulières liées à la suppression ;
 - la politique opérationnelle de sauvegarde ;
 - les besoins futurs éventuels d'historique ;

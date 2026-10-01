@@ -133,17 +133,17 @@ Phase 6 terminée et validée après l'audit technique exécuté par Codex et le
 
 **Statut : EN COURS**
 
-Première étape : préparation du socle Phase 7, avec version applicative, footer et alignement de l'outillage local. Les fonctionnalités ci-dessous restent à développer.
+Le socle Phase 7 comprend version applicative, footer et alignement de l'outillage local. La Phase 7A.3 ajoute la persistance locale des préférences de vues et du format Classeur, les types, services et helpers purs validés. Les interfaces des fonctionnalités ci-dessous restent à développer ; Paramètres demeure minimal.
 
 Compléter les modes de consultation et la navigation dans les collections et le catalogue authentifié.
 
 #### Collections
 
 - vues Liste, Cartes et Classeur ;
-- formats de pages et organisation du classeur selon le cadrage à compléter ;
+- formats de pages `2x2`, `3x3`, `4x3` et organisation continue uniquement ;
 - représentation des variantes possédées et manquantes, sans supprimer les emplacements manquants du classeur.
 
-Classeur reste réservé aux collections. La liste définitive des formats et la persistance du format et de l'organisation restent ouvertes.
+Classeur reste réservé aux collections, **continu uniquement** selon l'ordre autoritatif. Formats V1 : `2x2`, `3x3`, `4x3`, défaut `3x3`. Format global au compte et override explicite par viewer + collection ; absence = héritage dynamique, retour au défaut = suppression. Aucun regroupement série/bloc/ère/Extension/Pokémon/catégorie. Pagination calculée frontend, aucune table `binder_pages`. La recherche future conserve les emplacements, avec un seul saut à la première occurrence puis navigation libre ; aucun résultat ou effacement conserve la page courante. Ce contrat reste documentaire en 7A.3.
 
 #### Catalogue
 

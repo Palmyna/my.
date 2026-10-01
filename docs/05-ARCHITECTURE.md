@@ -190,7 +190,11 @@ L'état local reste local lorsqu'il n'a pas besoin d'être partagé. Les donnée
 
 TanStack Query est retenu pour les requêtes et le cache des données serveur. Son provider est préparé dès la Phase 0, sans requête métier ni gestionnaire d'état global supplémentaire. Zod est retenu pour valider les données et la configuration.
 
-Les préférences de vues sont des données serveur privées dans `public.user_preferences`, liées au profil et accessibles via Supabase sous RLS. Elles distinguent les modes d'ouverture des derniers modes explicitement sélectionnés, indépendamment pour catalogue et collections. Une ligne absente utilise les défauts SQL (`last_used`, avec `list` initial) jusqu'au premier enregistrement par le propriétaire. Aucun trigger de signup ni écran Paramètres n'est ajouté à la préparation SQL. Le futur client peut insérer puis modifier sa ligne ou effectuer un upsert ciblant `user_id`, en mettant à jour uniquement les colonnes autorisées.
+Le socle Phase 7A.3 conserve les préférences serveur privées dans `public.user_preferences`, liées au profil et accessibles via Supabase sous RLS. Modes catalogue : `list | cards` ; modes Collection : `list | cards | binder`. Chaque préférence d'ouverture accepte aussi `last_used`, résolu par son dernier mode explicitement choisi ; aucun mode de vue par collection. Une ligne absente utilise `last_used`, `list` initial et `binder_default_format = 3x3`, sans écriture ni trigger de signup.
+
+Formats Classeur V1 exactement `2x2`, `3x3`, `4x3`. `binder_default_format` est global au compte ; `public.collection_view_preferences` conserve seulement l'override explicite du viewer pour une collection. Absence = héritage dynamique ; retour au défaut = suppression de l'override. Propriétaire et lecteur autorisé ont des choix indépendants. La RLS vérifie identité du viewer, collection actuellement lisible, MFA et profil via les patterns existants, sans nouvelle RPC ni `SECURITY DEFINER`.
+
+[`src/services/view-preferences.ts`](../src/services/view-preferences.ts) utilise le client Supabase commun et les types générés. UUID, payloads et identités retournées sont validés strictement ; erreurs exposées uniquement par codes applicatifs. La sauvegarde tente un `UPDATE` ciblé, puis un `INSERT` si absent ; un conflit de création concurrente retente une fois le même `UPDATE`. Cette stratégie préserve les champs omis et les grants interdisant de modifier les clés : un merge-upsert PostgREST réécrirait aussi les PK. Les helpers purs de [`src/lib/view-preferences.ts`](../src/lib/view-preferences.ts) résolvent les vues et **override → global → `3x3`**, et dérivent les emplacements du format. Aucun hook React Query final ni consommateur UI n'est ajouté en 7A.3 ; Paramètres reste minimal.
 
 L'illustration spéciale Pokémon/Extension est choisie à l'ouverture et conservée dans l'état de consultation, sans tirage à chaque rerender ni nouvelle donnée métier couleur. Le choix précis de l'illustration reste ouvert.
 
@@ -599,7 +603,7 @@ Les futures lectures Pokémon/Extension de Phase 7 regrouperont les Cartes uniqu
 
 ## Vue classeur et temps réel
 
-La pagination visuelle du classeur est principalement calculée par le frontend à partir de l'ordre des éléments, du format de page et du mode continu ou par blocs. Il n'est pas nécessaire de persister chaque page virtuelle en base.
+Le Classeur V1 est **continu uniquement**, sans regroupement par série, bloc, ère, Extension, Pokémon ou catégorie. Sa pagination est calculée frontend depuis l'ordre autoritatif des éléments et le format effectif ; aucun nombre d'emplacements stocké, aucune table `binder_pages`, aucun champ de mode d'organisation. Le [contrat de recherche futur](04-UX-UI.md#recherche-classeur--contrat-futur-sans-implémentation-7a3) conserve les emplacements et la navigation libre après un seul saut à la première occurrence ; il n'est pas implémenté en 7A.3.
 
 La V1 ne nécessite pas Supabase Realtime. Le partage en lecture seule ne justifie pas une architecture collaborative en temps réel. Realtime ne doit pas être activé sans besoin réel.
 

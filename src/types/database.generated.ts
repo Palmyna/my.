@@ -136,6 +136,37 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"collection_view_preferences": {
+                  Row: {
+                    "binder_format": string,"collection_id": string,"created_at": string,"updated_at": string,"user_id": string
+                  }
+                  Insert: {
+                    "binder_format": string,"collection_id": string,"created_at"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Update: {
+                    "binder_format"?: string,"collection_id"?: string,"created_at"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "collection_view_preferences_collection_id_fkey"
+      columns: ["collection_id"]
+isOneToOne: false
+      referencedRelation: "collections"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collection_view_preferences_collection_id_fkey"
+      columns: ["collection_id"]
+isOneToOne: false
+      referencedRelation: "dashboard_collections"
+      referencedColumns: ["collection_id"]
+    },{
+      foreignKeyName: "collection_view_preferences_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"collections": {
                   Row: {
                     "applied_target_version": number | null,"automatic_target_type": string | null,"collection_type": string,"created_at": string,"id": string,"name": string,"owner_id": string,"target_pokemon_id": number | null,"target_set_id": number | null,"updated_at": string
@@ -271,13 +302,13 @@ isOneToOne: false
                   ]
                 },"user_preferences": {
                   Row: {
-                    "catalog_default_view": string,"collection_default_view": string,"created_at": string,"last_catalog_view": string,"last_collection_view": string,"updated_at": string,"user_id": string
+                    "binder_default_format": string,"catalog_default_view": string,"collection_default_view": string,"created_at": string,"last_catalog_view": string,"last_collection_view": string,"updated_at": string,"user_id": string
                   }
                   Insert: {
-                    "catalog_default_view"?: string,"collection_default_view"?: string,"created_at"?: string,"last_catalog_view"?: string,"last_collection_view"?: string,"updated_at"?: string,"user_id"?: string
+                    "binder_default_format"?: string,"catalog_default_view"?: string,"collection_default_view"?: string,"created_at"?: string,"last_catalog_view"?: string,"last_collection_view"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Update: {
-                    "catalog_default_view"?: string,"collection_default_view"?: string,"created_at"?: string,"last_catalog_view"?: string,"last_collection_view"?: string,"updated_at"?: string,"user_id"?: string
+                    "binder_default_format"?: string,"catalog_default_view"?: string,"collection_default_view"?: string,"created_at"?: string,"last_catalog_view"?: string,"last_collection_view"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {

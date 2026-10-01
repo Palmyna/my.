@@ -266,7 +266,7 @@ La croix dans le champ efface la recherche, conserve le focus et restaure imméd
 
 Cette recherche est strictement un filtre interne à la collection consultée. Elle ne constitue pas une recherche globale dans l'ensemble du catalogue Pokémon.
 
-La recherche est livrée dans la liste Collection. Son intégration aux futures vues Cartes et Classeur relève de Phase 7 : Liste et Cartes n'afficheront que les résultats correspondants ; dans Classeur, le traitement visuel des emplacements non correspondants reste à définir.
+La recherche est livrée dans la liste Collection. Son intégration aux futures vues Cartes et Classeur relève de Phase 7 : Liste et Cartes n'afficheront que les résultats correspondants. Le futur Classeur ne compacte jamais les emplacements : résultats visibles, non-correspondances atténuées. Une nouvelle recherche avec résultat mène une seule fois à la page de la première occurrence, puis la navigation reste libre, sans recentrage automatique permanent. Aucun résultat ou effacement de la recherche : conserver la page courante. Ce contrat est documenté uniquement en 7A.3.
 
 ## Vues d'une collection
 
@@ -300,27 +300,18 @@ Une carte manquante conserve son emplacement et doit rester identifiable. La vue
 
 #### Formats de pages
 
-L'utilisateur choisit un format qui détermine le nombre d'emplacements disponibles sur chaque page. Les formats `2 × 2`, `3 × 3` et `4 × 3` sont envisagés à titre d'exemples ; la liste définitive reste ouverte.
+Les formats V1 sont exactement `2x2`, `3x3`, `4x3`, avec `3x3` comme défaut initial. Le nombre d'emplacements (4, 9, 12) est dérivé du format, jamais stocké.
 
 #### Organisation continue
 
-En mode continu, les cartes sont présentées successivement selon l'ordre de la collection. Les pages se remplissent sans rupture volontaire entre les groupes, dans la limite du nombre d'emplacements du format choisi.
-
-#### Organisation par blocs ou ères
-
-La collection peut également être organisée par blocs ou ères du Pokémon TCG, par exemple *Soleil et Lune*, *Épée et Bouclier* ou *Écarlate et Violet*.
-
-Dans ce mode, chaque bloc commence obligatoirement sur une nouvelle page. Si la dernière page du bloc précédent n'est pas pleine, ses emplacements restants demeurent libres et le bloc suivant commence tout de même sur la page suivante.
-
-La classification exacte des blocs et des ères dépendra des données disponibles et sera cadrée avec l'intégration de TCGdex.
+Le Classeur V1 est **continu uniquement** : les variantes suivent l'ordre autoritatif de la collection et remplissent successivement les pages. Aucun regroupement par série, bloc, ère, Extension, Pokémon ou catégorie. La pagination est calculée frontend ; aucune table `binder_pages`, aucun mode d'organisation persisté.
 
 #### Navigation
 
 La navigation entre les pages doit être simple. L'utilisateur doit pouvoir comprendre rapidement :
 
 - la page actuellement affichée ;
-- le nombre total de pages de la collection ;
-- le bloc ou le groupe affiché lorsque l'organisation par blocs est active.
+- le nombre total de pages de la collection.
 
 Le comportement détaillé de navigation relève du cadrage UX.
 
@@ -420,20 +411,23 @@ L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuel
 
 ## Paramètres et préférences d'affichage
 
-`/settings` reste volontairement minimal à la clôture de Phase 6. Les préférences décrites ci-dessous sont planifiées en Phase 7.
+`/settings` reste volontairement minimal. Le socle de persistance, types, services et résolution est livré localement en Phase 7A.3 ; les contrôles et les vues Cartes/Classeur restent futurs.
 
-La page Paramètres, accessible depuis le menu utilisateur, possède une section Affichage avec deux préférences persistantes et indépendantes :
+La future page Paramètres, accessible depuis le menu utilisateur, proposera une section Affichage avec ces préférences persistantes et indépendantes :
 
 | Préférence | Valeurs fonctionnelles |
 |---|---|
 | Vue catalogue par défaut | Liste, Cartes, Dernier choix utilisé |
 | Vue collection par défaut | Liste, Cartes, Classeur, Dernier choix utilisé |
+| Format Classeur par défaut | `2x2`, `3x3`, `4x3` ; initialement `3x3` |
 
 Une vue fixe s'applique à chaque ouverture du contexte concerné. `Dernier choix utilisé` reprend le dernier mode explicitement sélectionné par l'utilisateur : un choix global pour toutes les pages catalogue, et un autre pour toutes les collections, sans mémorisation par Pokémon, Extension, Carte ou collection. La navigation Retour conserve toutefois la vue de la consultation en cours.
 
-Le stockage initial utilise `Dernier choix utilisé`, avec Liste en l'absence de choix antérieur, conformément à [06-DATABASE.md](06-DATABASE.md). Les préférences sont privées au compte et ne se partagent pas avec une collection. La persistance du format et du mode d'organisation du classeur reste ouverte.
+Le stockage initial utilise `Dernier choix utilisé`, avec Liste en l'absence de choix antérieur, conformément à [06-DATABASE.md](06-DATABASE.md). `last_collection_view` mémorise uniquement le dernier mode explicitement choisi, global aux collections ; aucun mode de vue par collection.
 
-Seules ces préférences de vues sont validées. Thème clair/sombre/système, réglages Premium, pages globales de possession, doublons et statistiques personnelles globales restent hors de cette évolution.
+`binder_default_format` appartient au compte. Seul un override explicite du viewer pour une collection est enregistré dans `collection_view_preferences` (utilisateur + collection). Absence d'override = héritage dynamique du défaut global, sans le copier dans chaque collection. Revenir à « utiliser le format par défaut » supprime l'override. Résolution : **override → défaut global → `3x3`**. Propriétaire et lecteur autorisé ont des préférences indépendantes ; un partage métier en lecture seule permet de gérer sa propre préférence d'affichage sans modifier la collection ni accéder à celles du propriétaire.
+
+Seules ces préférences de vues et de format sont validées. Thème clair/sombre/système, réglages Premium, pages globales de possession, doublons et statistiques personnelles globales restent hors de cette évolution.
 
 ## Principes UX fonctionnels
 
@@ -493,7 +487,6 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - la fréquence de vérification des mises à jour ;
 - le contenu précis du résumé et le fonctionnement des notifications de mise à jour ;
 - la liste définitive des champs utilisés par la recherche ;
-- le comportement exact de la recherche dans la vue classeur ;
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
 - le moyen de contact final pour modifier/remplacer l'Authenticator ;
 - les éventuelles exigences légales ou rétentions particulières liées à la suppression, à cadrer spécifiquement ;

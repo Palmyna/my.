@@ -449,7 +449,7 @@ La vue Classeur est un élément fort de l'identité de MY. Elle doit évoquer u
 
 #### Pages et formats
 
-Chaque emplacement correspond à une variante de la collection et doit évoquer une pochette de classeur. Le format de page est sélectionnable ; `2 × 2`, `3 × 3` et `4 × 3` sont des exemples envisagés.
+Chaque emplacement correspond à une variante de la collection et doit évoquer une pochette de classeur. Les formats V1 sont exactement `2x2`, `3x3`, `4x3` ; défaut initial `3x3`. Les 4, 9 ou 12 emplacements sont dérivés du format. Le contrôle de choix reste futur.
 
 Changer de format modifie uniquement la pagination et l'affichage. La structure de la collection reste inchangée.
 
@@ -464,17 +464,15 @@ La vue affiche clairement :
 - un contrôle précédent ;
 - un contrôle suivant.
 
-Les grandes collections doivent pouvoir bénéficier d'une navigation plus rapide — numéro de page, sélecteur, accès par bloc ou mécanisme équivalent — afin d'éviter de nombreuses actions successives. Le choix exact reste ouvert.
+Les grandes collections doivent pouvoir bénéficier d'une navigation plus rapide — numéro de page, sélecteur ou mécanisme équivalent — afin d'éviter de nombreuses actions successives. Le choix exact reste ouvert.
 
 #### Organisation continue
 
-En mode continu, les variantes suivent l'ordre de la collection et les pages se remplissent successivement, sans rupture volontaire entre les blocs.
+Le Classeur V1 est **continu uniquement** : les variantes suivent l'ordre autoritatif de la collection et les pages se remplissent successivement. Aucun regroupement par série, bloc, ère, Extension, Pokémon ou catégorie. Pagination calculée frontend, sans table `binder_pages`.
 
-#### Organisation par blocs ou séries
+#### Recherche Classeur — contrat futur, sans implémentation 7A.3
 
-En mode par blocs ou séries, chaque nouveau bloc commence obligatoirement sur une nouvelle page. Les emplacements inutilisés à la fin du bloc précédent restent libres.
-
-Le bloc actuellement consulté doit être identifiable et cette information peut contribuer à la navigation rapide.
+La recherche ne compacte jamais les emplacements : résultats visibles, non-correspondances atténuées. Une nouvelle recherche avec résultat mène une seule fois à la page de la première occurrence. La navigation devient ensuite libre, sans recentrage automatique permanent. Aucun résultat : conserver la page courante. Effacer la recherche : conserver la page courante.
 
 ## Détail d'une variante
 
@@ -660,12 +658,13 @@ La page Paramètres est accessible depuis le menu utilisateur et distincte de la
 |---|---|
 | Vue catalogue par défaut | Liste, Cartes, Dernier choix utilisé |
 | Vue collection par défaut | Liste, Cartes, Classeur, Dernier choix utilisé |
+| Format Classeur par défaut | `2x2`, `3x3`, `4x3` ; initialement `3x3` |
 
-Une vue fixe s'applique à chaque nouvelle ouverture. `Dernier choix utilisé` mémorise le dernier mode explicitement sélectionné pour les prochaines consultations. Le choix catalogue est global à Pokémon, Extension et Carte ; le choix collection est global aux collections. Il n'y a pas de préférence par page, entité ou collection.
+Une vue fixe s'applique à chaque nouvelle ouverture. `Dernier choix utilisé` mémorise le dernier mode explicitement sélectionné pour les prochaines consultations. Le choix catalogue est global à Pokémon, Extension et Carte ; le choix de mode collection est global aux collections, sans mémorisation par collection.
 
 Les deux préférences et leurs derniers modes sont persistés pour le compte. Initialement, `Dernier choix utilisé` reprend Liste, jusqu'au premier choix explicite. Les préférences d'un propriétaire ne s'imposent pas au destinataire d'un partage : ce dernier utilise ses propres choix de consultation.
 
-Le format du classeur et le mode continu/par blocs restent ouverts quant à leur persistance. Le thème clair/sombre/système et les réglages Premium sont seulement des possibilités futures ; ils ne sont pas ajoutés. Le design final des Paramètres reste à définir.
+`binder_default_format` est global au compte. Un format différent explicitement choisi pour une collection devient un override du viewer (utilisateur + collection). Absence d'override = héritage dynamique ; revenir à « utiliser le format par défaut » supprime l'override, sans copier la valeur globale actuelle. Résolution : **override → global → `3x3`**. Le lecteur autorisé gère ses propres préférences, indépendamment du propriétaire, même sur une collection métier en lecture seule. La Phase 7A.3 livre uniquement la persistance et les primitives ; Paramètres reste minimal, sans contrôle fonctionnel. Le thème clair/sombre/système et les réglages Premium restent futurs ; le design final des Paramètres reste à définir.
 
 ## États de l'interface
 
@@ -751,12 +750,10 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - la largeur et le design exacts du panneau latéral ;
 - le contenu exact d'une ligne de la vue Liste ;
 - le contenu exact d'une tuile de la vue Cartes ;
-- la persistance du format de classeur et du mode continu ou par blocs ;
 - les dimensions du header et du champ, l'icône du menu utilisateur et le design final des Paramètres ;
 - la palette des suggestions, le mécanisme de couleur Pokémon et les animations du dropdown ;
 - les colonnes Liste et tuiles Cartes du catalogue, le choix précis des Cartes spéciales illustratives ;
 - le seuil du swipe et les animations précédente/suivante ;
-- le traitement exact d'une recherche dans la vue Classeur ;
 - le mécanisme de navigation rapide dans les grandes collections ;
 - le design du résumé de mise à jour ;
 - le design des états de chargement et des notifications ;
