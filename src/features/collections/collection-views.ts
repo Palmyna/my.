@@ -1,8 +1,8 @@
 import type { CollectionView } from '../../types/view-preferences'
 
 // Add a mode here only when its renderer is functional.
-export const availableCollectionViews: readonly CollectionView[] = ['list']
+export const availableCollectionViews = ['list', 'cards'] as const satisfies readonly CollectionView[]
 
 export function availableCollectionView(view: CollectionView): CollectionView {
-  return availableCollectionViews.includes(view) ? view : 'list'
+  return availableCollectionViews.some(available => available === view) ? view : 'list'
 }

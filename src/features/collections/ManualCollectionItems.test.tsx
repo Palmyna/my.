@@ -40,7 +40,7 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 function CollectionContentList({ collection, viewerId }: { collection: CollectionOverview; viewerId: string }) {
   const [query, setQuery] = useState('')
-  return <CollectionContentView collection={collection} viewerId={viewerId} currentView="list" query={query} setQuery={setQuery} />
+  return <CollectionContentView collection={collection} viewerId={viewerId} currentView="list" setCurrentView={() => Promise.resolve(true)} query={query} setQuery={setQuery} />
 }
 function setup(overrides: Partial<CollectionOverview> = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

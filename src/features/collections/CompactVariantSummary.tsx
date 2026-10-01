@@ -6,8 +6,9 @@ function formatSetAbbreviation(fr: string | null, source: string | null): string
   return fr && source && fr !== source ? `${fr} (${source})` : fr || source
 }
 
-export function CompactVariantSummary({ variant, origin }: {
+export function CompactVariantSummary({ variant, origin, showVariantFallback = false }: {
   variant: CatalogVariantForAdd; origin?: CollectionContentItem['origin'] | undefined
+  showVariantFallback?: boolean
 }) {
   const name = variant.cardNameFr || 'Nom indisponible'
   const label = [name, formatSetAbbreviation(variant.setAbbreviationFr, variant.setAbbreviation), variant.localId].filter(Boolean).join(' · ')
@@ -18,7 +19,7 @@ export function CompactVariantSummary({ variant, origin }: {
         <span className="collection-content-name" title={label}>{label}</span>
         {origin && <span className="collection-content-origin"><span className="visually-hidden">Origine : </span>{origin === 'automatic' ? 'Auto' : 'Perso'}</span>}
       </span>
-      {variant.variantLabel && <span className="collection-content-variant" title={variant.variantLabel}>{variant.variantLabel}</span>}
+      {(variant.variantLabel || showVariantFallback) && <span className="collection-content-variant" title={variant.variantLabel || 'Variante indisponible'}>{variant.variantLabel || 'Variante indisponible'}</span>}
     </span>
   </>
 }

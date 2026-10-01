@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 6 terminées et validées.** Le cœur fonctionnel des collections est livré : contenu, exemplaires, réorganisation, ajout/retrait manuel, recherches d'ajout et interne, détail Variante et modernisation UI. Les collections réellement partagées restent consultables en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne les acquis, l'audit technique de Codex et le checkpoint Cloud manuel du propriétaire. La **Phase 7 — Vues, catalogue, recherche globale et préférences** est en cours ; sa première étape prépare le socle Phase 7, sans livrer les fonctionnalités de consultation, catalogue, recherche globale ou préférences.
+**Phases 0 à 6 terminées et validées.** Le cœur fonctionnel des collections est livré : contenu, exemplaires, réorganisation, ajout/retrait manuel, recherches d'ajout et interne, détail Variante et modernisation UI. Les collections réellement partagées restent consultables en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne les acquis, l'audit technique de Codex et le checkpoint Cloud manuel du propriétaire. La **Phase 7 — Vues, catalogue, recherche globale et préférences** est en cours : socle de préférences et vues Collection Liste/Cartes livrés, avec sélecteur et ordre backend commun. Classeur, catalogue, recherche globale et contrôles Paramètres restent à développer.
 
 | Grandes phases | Statut |
 |---|---|
@@ -133,7 +133,7 @@ Phase 6 terminée et validée après l'audit technique exécuté par Codex et le
 
 **Statut : EN COURS**
 
-Le socle Phase 7 comprend version applicative, footer et alignement de l'outillage local. La Phase 7A.3 ajoute la persistance locale des préférences de vues et du format Classeur, les types, services et helpers purs validés. Le socle frontend Collection est branché : état de vue depuis les préférences du viewer, fallback temporaire vers Liste pour les vues indisponibles sans réécriture des préférences, primitive de sauvegarde du dernier choix explicite et recherche indépendante du renderer sur un contenu commun. Seule Liste est disponible ; aucun sélecteur ni vue Cartes/Classeur n'est livré. Les interfaces restantes ci-dessous restent à développer ; Paramètres demeure minimal.
+Le socle Phase 7 comprend version applicative, footer et alignement de l'outillage local. La Phase 7A.3 ajoute la persistance locale des préférences de vues et du format Classeur, les types, services et helpers purs validés. Liste et Cartes Collection sont fonctionnelles avec un sélecteur compact : préférences du viewer, dernier choix explicite sauvegardé, recherche conservée, contenu/possession/détail et ordre backend communs. Cartes apporte une grille responsive à deux colonnes sur mobile et réutilise le reorder autoritatif Phase 6. Classeur reste indisponible, avec fallback Liste sans réécriture de sa préférence. Les interfaces restantes ci-dessous restent à développer ; Paramètres demeure minimal.
 
 Compléter les modes de consultation et la navigation dans les collections et le catalogue authentifié.
 

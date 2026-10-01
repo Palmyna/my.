@@ -65,7 +65,7 @@ export function useCollectionView(collectionId: string) {
 
   async function setCurrentView(view: CollectionView): Promise<boolean> {
     const lifetime = live.current
-    if (!viewerId || lifetime?.resource !== resource || !availableCollectionViews.includes(view)) return false
+    if (!viewerId || lifetime?.resource !== resource || !availableCollectionViews.some(available => available === view)) return false
     const choice = { view, token: {} }
     setState(previous => ({
       resource, confirmed: previous.resource === resource ? previous.confirmed : null, pending: choice,

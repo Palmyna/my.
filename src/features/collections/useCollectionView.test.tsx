@@ -6,7 +6,6 @@ import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
 import { getUserPreferences, saveUserPreferences } from '../../services/view-preferences'
 import type { UserPreferences } from '../../types/view-preferences'
 import { userPreferencesKey } from '../view-preferences/view-preferences-query'
-import { availableCollectionViews } from './collection-views'
 import { useCollectionView } from './useCollectionView'
 
 const auth = vi.hoisted<{ user: { id: string } | null; isAuthorized: boolean }>(() => ({ user: { id: 'viewer' }, isAuthorized: true }))
@@ -33,19 +32,19 @@ function setup(collectionId = 'collection') {
 }
 
 test.each([
-  ['absent row defaults from 7A.3', DEFAULT_USER_PREFERENCES],
-  ['fixed list overrides last choice', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'list', lastCollectionView: 'binder' }],
-  ['last_used + list', { ...DEFAULT_USER_PREFERENCES }],
-  ['fixed cards unavailable', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'cards' }],
-  ['fixed binder unavailable', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'binder' }],
-  ['last_used + cards unavailable', { ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'cards' }],
-  ['last_used + binder unavailable', { ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'binder' }],
-] as const)('%s initializes List without rewriting preferences', async (_label, preferences) => {
+  ['absent row defaults from 7A.3', DEFAULT_USER_PREFERENCES, 'list'],
+  ['fixed list overrides last choice', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'list', lastCollectionView: 'binder' }, 'list'],
+  ['last_used + list', { ...DEFAULT_USER_PREFERENCES }, 'list'],
+  ['fixed cards available', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'cards' }, 'cards'],
+  ['fixed binder unavailable', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'binder' }, 'list'],
+  ['last_used + cards available', { ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'cards' }, 'cards'],
+  ['last_used + binder unavailable', { ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'binder' }, 'list'],
+] as const)('%s initializes without rewriting preferences', async (_label, preferences, expected) => {
   read.mockResolvedValue({ ...preferences })
   const { result, client } = setup()
   expect(result.current.currentView).toBe('list')
   await waitFor(() => expect(result.current.isPreferencesLoading).toBe(false))
-  expect(result.current.currentView).toBe('list')
+  expect(result.current.currentView).toBe(expected)
   expect(read).toHaveBeenCalledExactlyOnceWith('viewer')
   expect(client.getQueryData(userPreferencesKey('viewer'))).toEqual(preferences)
   expect(save).not.toHaveBeenCalled()
@@ -66,16 +65,14 @@ test('slow read and read error retain List; exact invalidation recovers', async 
 })
 
 test('new viewer, logout and authorization loss isolate state and pending reads', async () => {
-  // Simulate the registry gaining a functional renderer, without shipping one.
-  vi.spyOn(availableCollectionViews, 'includes').mockReturnValue(true)
   const old = deferred<UserPreferences>()
-  read.mockReturnValueOnce(old.promise).mockResolvedValue({ ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'binder' })
+  read.mockReturnValueOnce(old.promise).mockResolvedValue({ ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'cards' })
   const { result, rerender } = setup()
   auth.user = { id: 'recipient' }; rerender({ id: 'collection' })
   expect(result.current.currentView).toBe('list')
-  await waitFor(() => expect(result.current.currentView).toBe('binder'))
-  await act(async () => { old.resolve({ ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'cards' }); await old.promise })
-  expect(result.current.currentView).toBe('binder')
+  await waitFor(() => expect(result.current.currentView).toBe('cards'))
+  await act(async () => { old.resolve({ ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'list' }); await old.promise })
+  expect(result.current.currentView).toBe('cards')
   expect(read.mock.calls.map(call => call[0])).toEqual(['viewer', 'recipient'])
   auth.isAuthorized = false; rerender({ id: 'collection' })
   expect(result.current.currentView).toBe('list')
@@ -90,7 +87,6 @@ test('unavailable explicit choices do not save, including current fallback', asy
   const { result } = setup()
   await waitFor(() => expect(result.current.isPreferencesLoading).toBe(false))
   await act(async () => {
-    expect(await result.current.setCurrentView('cards')).toBe(false)
     expect(await result.current.setCurrentView('binder')).toBe(false)
   })
   expect(result.current.currentView).toBe('list')
@@ -108,8 +104,7 @@ test('explicit List persists only lastCollectionView and preserves fixed default
   expect(client.getQueryData(userPreferencesKey('viewer'))).toEqual({ ...preferences, lastCollectionView: 'list' })
 })
 
-test('future available choice is immediate, fixed default unchanged, reopening resolves default', async () => {
-  vi.spyOn(availableCollectionViews, 'includes').mockReturnValue(true)
+test('Cards is immediate, fixed default unchanged, reopening resolves default', async () => {
   const pending = deferred<UserPreferences>()
   save.mockReturnValue(pending.promise)
   read.mockResolvedValue({ ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'list' })
@@ -130,7 +125,6 @@ test('future available choice is immediate, fixed default unchanged, reopening r
 })
 
 test('last_used reopening uses the saved available choice', async () => {
-  vi.spyOn(availableCollectionViews, 'includes').mockReturnValue(true)
   const { result, rerender } = setup()
   await waitFor(() => expect(result.current.isPreferencesLoading).toBe(false))
   await act(async () => { await result.current.setCurrentView('cards') })
@@ -139,7 +133,6 @@ test('last_used reopening uses the saved available choice', async () => {
 })
 
 test('save failure rolls back temporary view, reconciles and returns false', async () => {
-  vi.spyOn(availableCollectionViews, 'includes').mockReturnValue(true)
   const pending = deferred<UserPreferences>()
   save.mockReturnValue(pending.promise)
   const { result } = setup()
@@ -169,17 +162,16 @@ test('late mutation from a departed session cannot repopulate cache or change vi
 })
 
 test('serial choices preserve latest presentation and last successful view on failure', async () => {
-  vi.spyOn(availableCollectionViews, 'includes').mockReturnValue(true)
   const first = deferred<UserPreferences>(), second = deferred<UserPreferences>()
   save.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
   const { result } = setup()
   await waitFor(() => expect(result.current.isPreferencesLoading).toBe(false))
   let a!: Promise<boolean>, b!: Promise<boolean>
-  act(() => { a = result.current.setCurrentView('cards'); b = result.current.setCurrentView('binder') })
-  expect(result.current.currentView).toBe('binder')
+  act(() => { a = result.current.setCurrentView('cards'); b = result.current.setCurrentView('list') })
+  expect(result.current.currentView).toBe('list')
   await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
   await act(async () => { first.resolve({ ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'cards' }); await a })
-  expect(result.current.currentView).toBe('binder')
+  expect(result.current.currentView).toBe('list')
   await waitFor(() => expect(save).toHaveBeenCalledTimes(2))
   read.mockResolvedValue({ ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'cards' })
   await act(async () => { second.reject(new Error('failed')); expect(await b).toBe(false) })

@@ -9,6 +9,7 @@ const ContentView = lazy(() => import('./CollectionContentView').then(module => 
 export class CollectionContentLoader extends Component<{
   collection: CollectionOverview; viewerId: string; currentView: CollectionView
   query: string; setQuery: (query: string) => void
+  setCurrentView: (view: CollectionView) => Promise<boolean>
 }, { failed: boolean }> {
   override state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }

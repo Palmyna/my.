@@ -323,7 +323,7 @@ L'identité est intégrée directement au fond principal MY., sans grande carte 
 
 Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones.
 
-La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image manquante : placeholder graphique neutre ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques et le menu de retrait uniquement sur les éléments personnels du propriétaire. Les vues Liste/Cartes/Classeur complètes et leurs préférences restent prévues en Phase 7 ; seule la préparation du socle a commencé. Les 23 migrations Local/Cloud sont alignées après le checkpoint manuel exécuté par le propriétaire. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
+La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image manquante : placeholder graphique neutre ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques en Liste et le menu de retrait uniquement sur les éléments personnels du propriétaire. Liste et Cartes ainsi que leur sélecteur sont fonctionnelles depuis 7B.2, avec préférences du viewer, contenu et ordre autoritatifs communs. Classeur et les contrôles Paramètres restent futurs. Les 23 migrations Local/Cloud sont alignées après le checkpoint manuel exécuté par le propriétaire. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
 
 Une collection dispose d'une page principale commune à ses trois vues. Elle donne facilement accès à :
 
@@ -359,7 +359,7 @@ Lorsqu'un filtre est actif, l'utilisateur doit comprendre :
 - quelle recherche est active ;
 - comment revenir à la collection complète.
 
-Livrée en 6D.1 au-dessus de la liste, la barre `Rechercher dans la collection…` occupe seule la toolbar depuis 6F.3 ; l'ajout est accessible par le FAB propriétaire. La recherche reste présente en partage lecture seule, sans action d'ajout ni mutation propriétaire.
+Livrée en 6D.1 au-dessus du contenu, la barre `Rechercher dans la collection…` partage la toolbar avec le sélecteur Liste/Cartes depuis 7B.2 ; l'ajout est accessible par le FAB propriétaire. La recherche reste présente en partage lecture seule, sans action d'ajout ni mutation propriétaire.
 
 Le filtre est local, immédiat, sans requête réseau : nom français de carte, nom complet d'Extension, abréviations FR/source, noms FR/source de série, numéro et version. Casse, accents, ligatures françaises, espaces et ponctuation courante sont normalisés ; `28/73`, `ASC`, `SL3.5` restent utilisables. Chaque terme doit correspondre à un champ (**AND** multi-champs), sans score ni tri ; l'ordre backend est conservé, y compris après actualisation.
 
@@ -395,6 +395,8 @@ Les trois vues de la V1 sont :
 
 Le changement de vue doit être direct et rapide. Il ne modifie jamais la structure de la collection.
 
+Depuis 7B.2, seules Liste et Cartes sont disponibles. Le contrôle iconographique près de la recherche possède des labels explicites, cibles de 44 px et état actif `aria-pressed`, fond et soulignement rouge MY. Il conserve la query de recherche et le contenu déjà chargé, sans navigation. Chaque choix explicite persiste le dernier mode du viewer connecté sans modifier son défaut d'ouverture. `binder` retombe sur Liste sans écriture ; aucun bouton Classeur n'est visible.
+
 La vue à l'ouverture suit la préférence personnelle définie dans Paramètres. Un changement explicite de vue actualise le dernier choix collection, indépendamment du dernier choix catalogue.
 
 Une variante manquante reste présente dans la collection et demeure visible dans les vues pertinentes ; son absence d'exemplaire ne la retire jamais de la structure.
@@ -427,7 +429,11 @@ La vue Cartes privilégie les illustrations et affiche les variantes sous forme 
 - l'état possédée ou manquante ;
 - les informations essentielles.
 
-Le nombre de colonnes s'adapte à l'écran.
+Le nombre de colonnes s'adapte à l'écran : pistes d'au moins 168 px sur desktop, proches de 180 px aux largeurs usuelles, et deux colonnes sur mobile jusqu'à 600 px. Image dominante au ratio Liste, aucun cadre ou footer excessif. Sous l'image : `Nom · Abréviation Extension · N°`, puis variante toujours visible (fallback `Variante indisponible` si absente). Textes longs tronqués sur une ligne, contenu complet accessible et en infobulle. Les résultats de recherche compactent la grille selon le même filtre AND et l'ordre relatif backend.
+
+La zone principale ouvre le détail Variante Phase 6 ; Exemplaires et menu `…` restent indépendants, avec menu seulement pour retrait manuel autorisé. En partage, détail et consultation des exemplaires du propriétaire réel restent accessibles sans mutation, menu ni espace de drag.
+
+Le propriétaire déplace depuis une zone superposée aux 44 px hauts de l'image, sans fond, bordure, en-tête ou espace ajouté au repos. L'indicateur apparaît seulement au survol de cette zone, au focus ou pendant déplacement. Les capteurs Phase 6 gèrent souris, appui tactile prolongé (scroll avant appui annulant le drag), Espace/flèches/Échap et annonces accessibles. Après sauvegarde et relectures autoritatives, une coche verte temporaire confirme le déplacement sans toast ni changement de dimensions. Erreurs et récupération restent celles de Liste. Aucun handle si le filtre masque des cartes ; un filtre correspondant à tout le contenu conserve le reorder. Animations réduites selon `prefers-reduced-motion`.
 
 #### Variantes partageant une image
 
@@ -437,11 +443,11 @@ Cette différenciation ne doit jamais dépendre uniquement de l'image.
 
 #### Cartes possédées et manquantes
 
-Une carte manquante reste visible et identifiable sans perdre la lisibilité de ses informations. Elle peut être atténuée, assombrie, désaturée, marquée par un badge ou recevoir un autre traitement cohérent.
+Une carte manquante reste visible et identifiable sans perdre la lisibilité de ses informations, avec image désaturée et atténuée.
 
-Une carte possédée doit être immédiatement reconnaissable, éventuellement grâce à son état, au nombre d'exemplaires ou à un indicateur discret. Les indicateurs ne doivent pas masquer excessivement l'illustration.
+Une carte possédée conserve son rendu normal. Les contrôles secondaires restent séparés et ne masquent pas l'illustration.
 
-Le traitement visuel exact reste ouvert.
+Le traitement livré réutilise Liste : image désaturée et atténuée, texte atténué, état annoncé par texte masqué sans badge visible. Contrôles utilisables selon les droits ; le rendu normal revient dès que les données de possession autoritatives changent.
 
 ### Vue Classeur
 
@@ -486,7 +492,7 @@ Le catalogue provient uniquement de `getVariantDetail(variantId)` (6E.1), avec c
 
 Depuis 6F.3, cette section se distingue du catalogue par l'espace et une surface légère. L'état de possession est compact et conserve toujours son texte explicite. `PhysicalCopiesContent` reste la source commune de consultation et de gestion ; aucun état de possession optimiste supplémentaire n'est introduit.
 
-En Phase 7, les futures vues Cartes/Classeur et fiches Carte catalogue réutiliseront ce **même détail contextuel**, sans perdre inutilement le contexte ni la position d'origine. À la clôture de Phase 6, son ouverture est livrée depuis la liste Collection.
+Liste et Cartes Collection réutilisent ce **même détail contextuel**, sans navigation ni fetch concurrent dédié à la vue. Les futures vues Classeur et fiches Carte catalogue le réutiliseront également, sans perdre inutilement le contexte ni la position d'origine.
 
 Le détail peut notamment afficher :
 

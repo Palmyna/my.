@@ -126,18 +126,22 @@ test('une collection partagée lit les préférences du viewer sans écriture', 
   get.mockResolvedValue({ ...base, access: 'shared', ownerId: 'real-owner' })
   vi.mocked(getUserPreferences).mockResolvedValue({ ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'binder' })
   const { client } = setup()
-  expect(await screen.findByText('Cette collection ne contient encore aucune carte.')).toBeVisible()
+  // The real deferred content chunk can take more than 1s to transform in the
+  // parallel full suite; keep the wait scoped to this loading boundary.
+  expect(await screen.findByText('Cette collection ne contient encore aucune carte.', {}, { timeout: 5000 })).toBeVisible()
   expect(getUserPreferences).toHaveBeenCalledExactlyOnceWith('recipient')
   expect(client.getQueryData(userPreferencesKey('real-owner'))).toBeUndefined()
   expect(saveUserPreferences).not.toHaveBeenCalled()
-  expect(screen.queryByRole('button', { name: /Liste|Cartes|Classeur/ })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Liste' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'Cartes' })).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.queryByRole('button', { name: 'Classeur' })).not.toBeInTheDocument()
 })
 
 test.each(['pending', 'error'])('préférences %s : contenu rendu sans bloquer la page ni erreur visible', async mode => {
   if (mode === 'pending') vi.mocked(getUserPreferences).mockReturnValue(new Promise(() => {}))
   else vi.mocked(getUserPreferences).mockRejectedValue(new Error('private preferences error'))
   setup()
-  expect(await screen.findByText('Cette collection ne contient encore aucune carte.')).toBeVisible()
+  expect(await screen.findByText('Cette collection ne contient encore aucune carte.', {}, { timeout: 5000 })).toBeVisible()
   expect(screen.getByRole('heading', { name: base.name })).toBeVisible()
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   expect(saveUserPreferences).not.toHaveBeenCalled()

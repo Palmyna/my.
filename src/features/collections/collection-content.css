@@ -22,6 +22,27 @@
 .collection-content-search { position: relative; flex: 1 1 260px; min-width: 0; }
 .collection-content-search input { padding-right: 48px; }
 .collection-content-search input::-webkit-search-cancel-button { display: none; }
+.collection-view-selector { display: flex; flex: 0 0 auto; gap: 2px; padding: 2px; border: 1px solid var(--border-strong); border-radius: 9px; }
+.collection-view-selector button { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 6px; color: var(--text-muted); background: transparent; cursor: pointer; }
+.collection-view-selector button:hover { background: var(--surface-hover); }
+.collection-view-selector button[aria-pressed="true"] { color: var(--text); background: var(--surface-raised); }
+.collection-view-selector button[aria-pressed="true"]::after { content: ''; position: absolute; bottom: 3px; width: 16px; height: 2px; border-radius: 2px; background: var(--brand); }
+.collection-view-selector button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.collection-card-grid { --collection-card-gap: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px var(--collection-card-gap); list-style: none; padding: 0; margin: 16px 0; }
+.collection-card-grid > li { min-width: 0; }
+.collection-content-card { display: block; }
+.collection-content-card .collection-detail-trigger { display: flex; flex-direction: column; align-items: stretch; width: 100%; gap: 8px; padding: 0; }
+.collection-content-card .collection-detail-trigger:hover { background: transparent; }
+.collection-content-card .collection-content-image { flex: none; width: 100%; }
+.collection-content-card .collection-content-info { flex: none; width: 100%; }
+.collection-content-card .collection-content-name { font-size: .78rem; }
+.collection-content-card .collection-content-variant { font-size: .72rem; }
+.collection-content-card .collection-content-actions { justify-content: flex-end; margin-top: 2px; }
+.collection-content-card .collection-copies-trigger, .collection-content-card .collection-actions-trigger { width: 44px; min-height: 44px; }
+@media (max-width: 600px) {
+  .collection-card-grid { --collection-card-gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
+  .collection-content-search { flex-basis: 160px; }
+}
 .collection-search-clear { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 6px; color: var(--text); background: transparent; cursor: pointer; }
 .collection-search-clear:hover { background: var(--surface-hover); }
 .collection-search-clear:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

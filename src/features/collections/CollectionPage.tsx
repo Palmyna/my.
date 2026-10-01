@@ -91,8 +91,8 @@ export function CollectionPage() {
 
 // Page state survives renderer changes, but resets with viewer/collection.
 function CollectionWorkspace({ collection, viewerId }: { collection: CollectionOverview; viewerId: string }) {
-  const { currentView } = useCollectionView(collection.collectionId)
+  const { currentView, setCurrentView } = useCollectionView(collection.collectionId)
   const [query, setQuery] = useState('')
   return <CollectionContentLoader collection={collection} viewerId={viewerId}
-    currentView={currentView} query={query} setQuery={setQuery} />
+    currentView={currentView} setCurrentView={setCurrentView} query={query} setQuery={setQuery} />
 }

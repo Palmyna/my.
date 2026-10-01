@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { getCollectionContent } from '../../services/collection-content'
 import type { CollectionOverview } from '../../types/collections'
 import type { CollectionView } from '../../types/view-preferences'
-import { CollectionContentList } from './CollectionContentList'
+import { CollectionContentRenderer } from './CollectionContentRenderer'
+import { CollectionViewSelector } from './CollectionViewSelector'
 import type { CollectionContentItem } from '../../types/collection-content'
 import { PhysicalCopiesDialog } from '../physical-copies/PhysicalCopiesDialog'
 import { VariantDetailPanel } from '../variant-detail/VariantDetailPanel'
@@ -18,9 +19,10 @@ import { useFooterAwareFab } from '../../lib/useFooterAwareFab'
 
 // Mounted only after an authorized, available overview. Page keys this boundary
 // by viewer + collection, so selection and dialogs cannot survive navigation.
-export function CollectionContentView({ collection, viewerId, currentView, query, setQuery }: {
+export function CollectionContentView({ collection, viewerId, currentView, setCurrentView, query, setQuery }: {
   collection: CollectionOverview; viewerId: string; currentView: CollectionView
   query: string; setQuery: (query: string) => void
+  setCurrentView: (view: CollectionView) => Promise<boolean>
 }) {
   const content = useQuery({ queryKey: collectionContentKey(viewerId, collection.collectionId),
     queryFn: () => getCollectionContent(collection.collectionId), retry: false })
@@ -53,7 +55,9 @@ export function CollectionContentView({ collection, viewerId, currentView, query
   const partialView = visibleItems.length < items.length
   const selected = items.find(item => item.collectionItemId === selectedId)
   const readOnly = collection.access !== 'owned'
+  const view = currentView === 'cards' ? 'cards' : 'list'
   const row = (item: CollectionContentItem) => <CollectionContentRow item={item} readOnly={readOnly}
+    view={view}
     automatic={collection.collectionType === 'automatic'} busy={manual.busy}
     onDetail={opener => setDetail({ variantId: item.variantId, opener })}
     onCopies={() => setSelectedId(item.collectionItemId)} onRemove={opener => {
@@ -73,6 +77,7 @@ export function CollectionContentView({ collection, viewerId, currentView, query
           </svg>
         </button>}
       </div>
+      <CollectionViewSelector currentView={view} onChange={setCurrentView} />
     </div>
     {!readOnly && <button ref={addTrigger} type="button" className="button context-fab collection-fab" aria-disabled={manual.busy}
       aria-label="Ajouter une carte" aria-haspopup="dialog" data-state={addSuccess ? 'success' : 'idle'}
@@ -88,8 +93,8 @@ export function CollectionContentView({ collection, viewerId, currentView, query
     {content.isSuccess && (items.length === 0 ? <p>Cette collection ne contient encore aucune carte.</p>
       : <>
         {visibleItems.length === 0 && <p role="status">Aucune carte ne correspond à cette recherche.</p>}
-        {currentView === 'list' && <CollectionContentList collectionId={collection.collectionId} items={visibleItems}
-          readOnly={readOnly} partialView={partialView} fetching={content.isFetching} renderRow={row} />}
+        <CollectionContentRenderer collectionId={collection.collectionId} items={visibleItems} view={view}
+          readOnly={readOnly} partialView={partialView} fetching={content.isFetching} renderRow={row} />
       </>)}
     {detail && <VariantDetailPanel variantId={detail.variantId} ownerId={collection.ownerId} readOnly={readOnly}
       opener={detail.opener} onClose={() => setDetail(null)} />}

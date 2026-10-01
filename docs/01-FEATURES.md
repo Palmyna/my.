@@ -112,7 +112,7 @@ Elle ne dépend d'aucune logique automatique liée à un Pokémon. Elle peut not
 
 La wishlist est seulement un exemple d'usage d'une collection personnalisée et ne constitue pas une fonctionnalité supplémentaire de la V1.
 
-L'ajout manuel, dans une collection personnalisée ou automatique, sélectionne une variante exacte active et confirmée française, dont la carte source et le set sont actifs. Une variante locale MY. reste admissible sans présence dans la source. Le backend 6C.1 permet l'ajout en début ou fin (fin par défaut), puis le déplacement précis par la réorganisation existante. Un doublon est refusé sans conversion ni déplacement. Le retrait manuel conserve les exemplaires physiques et refuse les éléments automatiques. Une perte ultérieure d'éligibilité ne retire ni ne masque les éléments existants. Les interfaces d'ajout et de retrait sont livrées en 6C.3 : action propriétaire disponible même à vide, recherche → sélection → position → confirmation dans une modal unique, puis retrait confirmé des seuls éléments manuels. Les collections automatiques affichent les repères secondaires `Auto` / `Perso` ; les collections personnalisées n'affichent aucun repère d'origine. Le partage reste en lecture seule, sans ces actions de mutation.
+L'ajout manuel, dans une collection personnalisée ou automatique, sélectionne une variante exacte active et confirmée française, dont la carte source et le set sont actifs. Une variante locale MY. reste admissible sans présence dans la source. Le backend 6C.1 permet l'ajout en début ou fin (fin par défaut), puis le déplacement précis par la réorganisation existante. Un doublon est refusé sans conversion ni déplacement. Le retrait manuel conserve les exemplaires physiques et refuse les éléments automatiques. Une perte ultérieure d'éligibilité ne retire ni ne masque les éléments existants. Les interfaces d'ajout et de retrait sont livrées en 6C.3 : action propriétaire disponible même à vide, recherche → sélection → position → confirmation dans une modal unique, puis retrait confirmé des seuls éléments manuels. En Liste, les collections automatiques affichent les repères secondaires `Auto` / `Perso` ; les collections personnalisées n'affichent aucun repère d'origine. Le partage reste en lecture seule, sans ces actions de mutation.
 
 La Phase 6C.2 livre la recherche catalogue serveur et son service applicatif pour sélectionner cette Variante exacte : plusieurs variantes d'une carte donnent plusieurs résultats. La recherche reste indépendante de la collection, y compris pour les variantes déjà présentes ; `already_present` reste autoritatif à l'écriture 6C.1. Elle couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants pertinents et variante, avec normalisation de casse, accents, ligatures et ponctuation et AND multi-termes. **Le nom de série n'est pas recherché.** Elle est distincte de la recherche globale et du filtre interne. L'interface 6C.3 temporise la saisie de 300 ms, sans seuil de trois caractères, et propose `Afficher plus` par pages de 20 variantes. Voir le [contrat 6C.2](06-DATABASE.md#recherche-catalogue-pour-ajout--contrat-6c2).
 
@@ -270,7 +270,7 @@ La recherche est livrée dans la liste Collection. Son intégration aux futures 
 
 ## Vues d'une collection
 
-Les vues supplémentaires et préférences ci-dessous restent planifiées en Phase 7 ; seule la liste fonctionnelle Phase 6 est livrée.
+Liste et Cartes sont fonctionnelles depuis la Phase 7B.2. Le sélecteur compact de la toolbar propose ces deux vues seulement ; Classeur reste une étape distincte, sans contrôle visible.
 
 Les trois vues de la V1 présentent la même collection et les mêmes données :
 
@@ -278,7 +278,7 @@ Les trois vues de la V1 présentent la même collection et les mêmes données :
 - vue cartes ;
 - vue classeur.
 
-Changer de vue ne modifie jamais la structure de la collection. La préférence personnelle persistante définit la vue à l'ouverture, selon les règles de la page Paramètres ci-dessous.
+Changer de vue est immédiat, sans navigation ni rechargement du contenu, et conserve la recherche. Les deux vues partagent contenu, ordre backend, possession, droits et détail Variante Phase 6. Le dernier choix explicite est enregistré dans `last_collection_view` du viewer connecté, y compris en partage ; `collection_default_view` reste inchangée. Une préférence `binder` retombe sur Liste sans écriture. La préférence personnelle persistante définit la vue à l'ouverture, selon les règles de la page Paramètres ci-dessous.
 
 ### Vue liste
 
@@ -290,7 +290,9 @@ La composition exacte des colonnes et des informations affichées relève du cad
 
 La vue cartes présente les cartes sous forme de grille ou de tuiles mettant leur image en avant. Elle permet d'identifier facilement la carte, son état de possession et les informations essentielles liées à la collection.
 
-Le niveau de détail visible directement sur chaque carte relève du cadrage UX.
+Chaque tuile conserve image, nom, abréviation d'Extension, numéro et variante visible. URL et placeholder sont ceux de Liste. La grille adapte le nombre de colonnes, avec deux colonnes sur mobile ; les résultats de recherche se compactent selon l'ordre relatif backend. Les cartes manquantes restent désaturées et atténuées, avec état accessible masqué et contrôles utilisables.
+
+Le propriétaire réorganise depuis une zone haute invisible au repos, révélée uniquement au survol de cette zone ou au focus. Capteurs souris/tactile/clavier, primitives backend et relectures Phase 6 sont réutilisés ; une coche verte temporaire confirme les lectures autoritatives réussies. Filtre masquant des éléments et partage lecture seule : aucune poignée ni réorganisation. Détail, Exemplaires et retrait manuel gardent leurs droits existants.
 
 ### Vue classeur
 
@@ -411,7 +413,7 @@ L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuel
 
 ## Paramètres et préférences d'affichage
 
-`/settings` reste volontairement minimal. Le socle de persistance, types, services et résolution est livré localement en Phase 7A.3 ; les contrôles et les vues Cartes/Classeur restent futurs.
+`/settings` reste volontairement minimal. Le socle de persistance, types, services et résolution est livré localement en Phase 7A.3. Liste/Cartes et leur sélecteur Collection sont livrés en 7B.2 ; les contrôles Paramètres, les vues catalogue et Classeur restent futurs.
 
 La future page Paramètres, accessible depuis le menu utilisateur, proposera une section Affichage avec ces préférences persistantes et indépendantes :
 
