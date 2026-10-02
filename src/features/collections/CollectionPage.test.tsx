@@ -13,7 +13,7 @@ import { collectionOverviewKey } from './collection-query'
 
 const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true }))
 vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
-vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES), saveUserPreferences: vi.fn() }))
+vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES), saveUserPreferences: vi.fn(), getCollectionViewOverride: vi.fn().mockResolvedValue(null) }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
 vi.mock('../../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../../services/collections')>(), getCollectionOverview: vi.fn(),
@@ -132,9 +132,9 @@ test('une collection partagée lit les préférences du viewer sans écriture', 
   expect(getUserPreferences).toHaveBeenCalledExactlyOnceWith('recipient')
   expect(client.getQueryData(userPreferencesKey('real-owner'))).toBeUndefined()
   expect(saveUserPreferences).not.toHaveBeenCalled()
-  expect(screen.getByRole('button', { name: 'Liste' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'Liste' })).toHaveAttribute('aria-pressed', 'false')
   expect(screen.getByRole('button', { name: 'Cartes' })).toHaveAttribute('aria-pressed', 'false')
-  expect(screen.queryByRole('button', { name: 'Classeur' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Classeur' })).toHaveAttribute('aria-pressed', 'true')
 })
 
 test.each(['pending', 'error'])('préférences %s : contenu rendu sans bloquer la page ni erreur visible', async mode => {

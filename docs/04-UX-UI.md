@@ -323,7 +323,7 @@ L'identité est intégrée directement au fond principal MY., sans grande carte 
 
 Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones.
 
-La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image manquante : placeholder graphique neutre ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques en Liste et le menu de retrait uniquement sur les éléments personnels du propriétaire. Liste et Cartes ainsi que leur sélecteur sont fonctionnelles depuis 7B.2, avec préférences du viewer, contenu et ordre autoritatifs communs. Classeur et les contrôles Paramètres restent futurs. Les 23 migrations Local/Cloud sont alignées après le checkpoint manuel exécuté par le propriétaire. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
+La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image indisponible/erreur : `card-placeholder.webp` commun ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques en Liste et le menu de retrait uniquement sur les éléments personnels du propriétaire. Liste, Cartes et Classeur ainsi que leur sélecteur sont fonctionnels depuis 7B.3, avec préférences du viewer, contenu et ordre autoritatifs communs. Classeur continu livré : pages sombres et pochettes, sans reorder ni actions métier directement sur les pochettes ; les contrôles Paramètres restent futurs. Les 23 migrations Local/Cloud sont alignées après le checkpoint manuel exécuté par le propriétaire. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
 
 Une collection dispose d'une page principale commune à ses trois vues. Elle donne facilement accès à :
 
@@ -395,7 +395,7 @@ Les trois vues de la V1 sont :
 
 Le changement de vue doit être direct et rapide. Il ne modifie jamais la structure de la collection.
 
-Depuis 7B.2, seules Liste et Cartes sont disponibles. Le contrôle iconographique près de la recherche possède des labels explicites, cibles de 44 px et état actif `aria-pressed`, fond et soulignement rouge MY. Il conserve la query de recherche et le contenu déjà chargé, sans navigation. Chaque choix explicite persiste le dernier mode du viewer connecté sans modifier son défaut d'ouverture. `binder` retombe sur Liste sans écriture ; aucun bouton Classeur n'est visible.
+Depuis 7B.3, Liste, Cartes et Classeur sont disponibles. Le sélecteur iconographique possède labels explicites, cibles de 44 px et état `aria-pressed`. Changer de vue conserve route, recherche et contenu chargé. Chaque choix explicite persiste seulement le dernier mode du viewer. Classeur ajoute directement format et Page [N] / total à sa barre contextuelle.
 
 La vue à l'ouverture suit la préférence personnelle définie dans Paramètres. Un changement explicite de vue actualise le dernier choix collection, indépendamment du dernier choix catalogue.
 
@@ -455,11 +455,11 @@ La vue Classeur est un élément fort de l'identité de MY. Elle doit évoquer u
 
 #### Pages et formats
 
-Chaque emplacement correspond à une variante de la collection et doit évoquer une pochette de classeur. Les formats V1 sont exactement `2x2`, `3x3`, `4x3` ; défaut initial `3x3`. Les 4, 9 ou 12 emplacements sont dérivés du format. Le contrôle de choix reste futur.
+Chaque emplacement évoque une pochette sur une page sombre, légèrement contrastée, avec profondeur et transparence discrètes. Formats V1 fonctionnels exactement `2x2`, `3x3`, `4x3` ; défaut `3x3` ; 4, 9, 12 emplacements dérivés. Le popover compact montre grille et libellé de chaque format. Résolution : override viewer + collection → défaut du compte → `3x3` ; retour au défaut supprime l'override. La lecture spécifique n'est activée qu'en Classeur.
 
-Changer de format modifie uniquement la pagination et l'affichage. La structure de la collection reste inchangée.
+Un changement effectif confirmé de format reconstruit toute la pagination depuis le contenu chargé, revient page 1 et efface recherche, occurrence et halo. Aucune modification de structure ou relecture du contenu. Supprimer un override dont le format effectif reste identique conserve le contexte.
 
-Une carte manquante conserve toujours son emplacement. L'utilisateur doit comprendre qu'une carte est attendue et laquelle, par exemple au moyen d'une représentation atténuée ou fantôme. Le design exact reste ouvert.
+Carte possédée : rendu normal. Variante manquante : vraie carte identifiable, désaturée et atténuée, état annoncé dans son nom accessible. Image absente/erreur : WebP commun des cartes. Dernière page partielle : véritables pochettes vides, sans carte ni placeholder. Pour chaque ligne, colonne impaire : pointillés haut/bas/gauche, ouverture à droite ; colonne paire : haut/bas/droite, ouverture à gauche. Aucune bordure fermée systématique.
 
 #### Navigation
 
@@ -470,15 +470,17 @@ La vue affiche clairement :
 - un contrôle précédent ;
 - un contrôle suivant.
 
-Les grandes collections doivent pouvoir bénéficier d'une navigation plus rapide — numéro de page, sélecteur ou mécanisme équivalent — afin d'éviter de nombreuses actions successives. Le choix exact reste ouvert.
+Desktop/tablette large (960 px et plus) : page 1 seule à droite, ouvertures 2–3, 4–5 ; dernière page paire seule à gauche. Reliure centrale discrète ; deux pages distinctes. Mobile/largeur insuffisante : une seule page, format strictement conservé. La page dimensionne les cartes (2×2 plus grandes, 4×3 plus petites), avec ratio conservé et largeur maximale raisonnable.
+
+Côtés extérieurs : précédent/suivant sans boucle, focus visible et labels annoncés. Flèches clavier seulement quand le Classeur lui-même est focalisé ; jamais depuis recherche, page, popover, carte ou dialogue. Mobile : swipe horizontal, scroll vertical et tap détail préservés. Numéro direct validé (entier de 1 au total réel), valeur invalide restaurée ; desktop N rejoint l'ouverture contenant N. Numéro de page en coin inférieur extérieur selon sa parité. Transitions horizontales/fondu courts, jamais 3D ni bloquants ; `prefers-reduced-motion` conserve le repère sans animation. Collection vide : état vide existant, aucune page artificielle.
 
 #### Organisation continue
 
 Le Classeur V1 est **continu uniquement** : les variantes suivent l'ordre autoritatif de la collection et les pages se remplissent successivement. Aucun regroupement par série, bloc, ère, Extension, Pokémon ou catégorie. Pagination calculée frontend, sans table `binder_pages`.
 
-#### Recherche Classeur — contrat futur, sans implémentation 7A.3
+#### Recherche Classeur
 
-La recherche ne compacte jamais les emplacements : résultats visibles, non-correspondances atténuées. Une nouvelle recherche avec résultat mène une seule fois à la page de la première occurrence. La navigation devient ensuite libre, sans recentrage automatique permanent. Aucun résultat : conserver la page courante. Effacer la recherche : conserver la page courante.
+La recherche livrée en 7B.3 réutilise exactement le moteur Collection (normalisation, champs, AND, ordre réel), sans fetch. Les pochettes/pages restent en place : correspondances visibles, autres variantes fortement atténuées, vides inchangées. Nouvelle recherche effective avec résultats : première occurrence et saut unique vers sa page/ouverture, halo doux à l'accent Collection pendant 1,4 s. Navigation libre ensuite. Compteur et flèches d'occurrences sans boucle ; même page : seul le halo change. Aucun résultat : page conservée, toutes les variantes atténuées, état discret, aucune occurrence. Effacement : page conservée, compteur et halo retirés.
 
 ## Détail d'une variante
 
@@ -492,7 +494,7 @@ Le catalogue provient uniquement de `getVariantDetail(variantId)` (6E.1), avec c
 
 Depuis 6F.3, cette section se distingue du catalogue par l'espace et une surface légère. L'état de possession est compact et conserve toujours son texte explicite. `PhysicalCopiesContent` reste la source commune de consultation et de gestion ; aucun état de possession optimiste supplémentaire n'est introduit.
 
-Liste et Cartes Collection réutilisent ce **même détail contextuel**, sans navigation ni fetch concurrent dédié à la vue. Les futures vues Classeur et fiches Carte catalogue le réutiliseront également, sans perdre inutilement le contexte ni la position d'origine.
+Liste, Cartes et Classeur Collection réutilisent ce **même détail contextuel**, sans navigation ni fetch dédié au renderer. Les futures fiches Carte catalogue le réutiliseront également. Classeur ne propose aucun reorder, raccourci Exemplaires, menu ou mutation directement sur les pochettes.
 
 Le détail peut notamment afficher :
 
@@ -670,7 +672,7 @@ Une vue fixe s'applique à chaque nouvelle ouverture. `Dernier choix utilisé` m
 
 Les deux préférences et leurs derniers modes sont persistés pour le compte. Initialement, `Dernier choix utilisé` reprend Liste, jusqu'au premier choix explicite. Les préférences d'un propriétaire ne s'imposent pas au destinataire d'un partage : ce dernier utilise ses propres choix de consultation.
 
-`binder_default_format` est global au compte. Un format différent explicitement choisi pour une collection devient un override du viewer (utilisateur + collection). Absence d'override = héritage dynamique ; revenir à « utiliser le format par défaut » supprime l'override, sans copier la valeur globale actuelle. Résolution : **override → global → `3x3`**. Le lecteur autorisé gère ses propres préférences, indépendamment du propriétaire, même sur une collection métier en lecture seule. La Phase 7A.3 livre uniquement la persistance et les primitives ; Paramètres reste minimal, sans contrôle fonctionnel. Le thème clair/sombre/système et les réglages Premium restent futurs ; le design final des Paramètres reste à définir.
+`binder_default_format` est global au compte. Un format explicitement choisi pour une collection devient un override du viewer (utilisateur + collection). Absence = héritage dynamique ; « utiliser le format par défaut » supprime l'override. Résolution : **override → global → `3x3`**. Propriétaire et lecteur autorisé ont leurs préférences indépendantes. Persistance livrée en 7A.3, contrôles Classeur livrés en 7B.3. Paramètres demeure minimal ; thème et réglages Premium restent futurs.
 
 ## États de l'interface
 
@@ -750,7 +752,7 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - les dimensions, espacements, tailles typographiques et rayons exacts ;
 - l'apparence exacte des cartes possédées et manquantes ;
 - les badges exacts de variantes ;
-- le design, la texture éventuelle et les animations du classeur ;
+- les évolutions visuelles ultérieures du classeur, au-delà des pages/pochettes et transitions légères livrées en 7B.3 ;
 - les éventuelles animations de cartes ;
 - le comportement précis du drag and drop et son alternative mobile ;
 - la largeur et le design exacts du panneau latéral ;

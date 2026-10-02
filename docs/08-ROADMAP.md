@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 6 terminées et validées.** Le cœur fonctionnel des collections est livré : contenu, exemplaires, réorganisation, ajout/retrait manuel, recherches d'ajout et interne, détail Variante et modernisation UI. Les collections réellement partagées restent consultables en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne les acquis, l'audit technique de Codex et le checkpoint Cloud manuel du propriétaire. La **Phase 7 — Vues, catalogue, recherche globale et préférences** est en cours : socle de préférences et vues Collection Liste/Cartes livrés, avec sélecteur et ordre backend commun. Classeur, catalogue, recherche globale et contrôles Paramètres restent à développer.
+**Phases 0 à 6 terminées et validées.** Le cœur Collection est livré : contenu, exemplaires, réorganisation, ajout/retrait, recherches internes, détail Variante et UI. Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. Le [rapport Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) conserve audit Codex et checkpoint Cloud manuel du propriétaire. La **Phase 7** est en cours : préférences et trois vues Collection livrées, dont Classeur continu depuis 7B.3. Catalogue, recherche globale et contrôles Paramètres restent futurs.
 
 | Grandes phases | Statut |
 |---|---|
@@ -133,7 +133,7 @@ Phase 6 terminée et validée après l'audit technique exécuté par Codex et le
 
 **Statut : EN COURS**
 
-Le socle Phase 7 comprend version applicative, footer et alignement de l'outillage local. La Phase 7A.3 ajoute la persistance locale des préférences de vues et du format Classeur, les types, services et helpers purs validés. Liste et Cartes Collection sont fonctionnelles avec un sélecteur compact : préférences du viewer, dernier choix explicite sauvegardé, recherche conservée, contenu/possession/détail et ordre backend communs. Cartes apporte une grille responsive à deux colonnes sur mobile et réutilise le reorder autoritatif Phase 6. Classeur reste indisponible, avec fallback Liste sans réécriture de sa préférence. Les interfaces restantes ci-dessous restent à développer ; Paramètres demeure minimal.
+Le socle Phase 7 comprend version applicative/footer et préférences 7A.3. Depuis 7B.3, Liste, Cartes et Classeur Collection sont fonctionnels avec sélecteur, préférences du viewer, dernier choix explicite sauvegardé, recherche conservée et contenu/ordre autoritatifs communs. Liste/Cartes conservent le reorder propriétaire ; Classeur est continu et consultatif. Version **0.7.5**. Catalogue, recherche globale et contrôles Paramètres restent à développer ; Paramètres demeure minimal.
 
 Compléter les modes de consultation et la navigation dans les collections et le catalogue authentifié.
 
@@ -143,7 +143,7 @@ Compléter les modes de consultation et la navigation dans les collections et le
 - formats de pages `2x2`, `3x3`, `4x3` et organisation continue uniquement ;
 - représentation des variantes possédées et manquantes, sans supprimer les emplacements manquants du classeur.
 
-Classeur reste réservé aux collections, **continu uniquement** selon l'ordre autoritatif. Formats V1 : `2x2`, `3x3`, `4x3`, défaut `3x3`. Format global au compte et override explicite par viewer + collection ; absence = héritage dynamique, retour au défaut = suppression. Aucun regroupement série/bloc/ère/Extension/Pokémon/catégorie. Pagination calculée frontend, aucune table `binder_pages`. La recherche future conserve les emplacements, avec un seul saut à la première occurrence puis navigation libre ; aucun résultat ou effacement conserve la page courante. Ce contrat reste documentaire en 7A.3.
+Classeur livré, réservé aux collections, **continu uniquement**. Formats `2x2`, `3x3`, `4x3`, défaut `3x3` ; global du compte et override viewer + collection, retour au défaut par suppression. Livre desktop/tablette large, page unique mobile, pagination frontend sans table `binder_pages`. Recherche non destructive avec occurrences et halo ; absence de résultat/effacement conserve la page. Placeholder commun des cartes `card-placeholder.webp`. Aucun regroupement série/bloc/ère, reorder ou action métier sur les pochettes. Aucun changement DB ni accès Cloud en 7B.3.
 
 #### Catalogue
 
@@ -173,7 +173,7 @@ La recherche globale reste distincte du filtre interne à une collection et de l
 
 #### Paramètres
 
-Transformer `/settings` en page fonctionnelle pour les **deux préférences de vues persistantes déjà définies** : vue catalogue par défaut et vue collection par défaut, avec leur dernier mode utilisé indépendant. Aucun autre réglage n'est validé par cette phase ; la persistance des choix propres au classeur reste à cadrer.
+Transformer `/settings` en page fonctionnelle pour les préférences de vues persistantes déjà définies : vue catalogue/collection par défaut, derniers modes indépendants et format Classeur global. L'override viewer + collection est utilisé directement dans le Classeur depuis 7B.3. Aucun autre réglage validé par cette phase.
 
 ### Phase 8 — Mise à jour des collections automatiques
 

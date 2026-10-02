@@ -30,6 +30,8 @@ function setup(enabled = true) {
 
 test('dedicated grid handle, native keyboard crosses rows and saves one logical backend anchor', async () => {
   const { move, detail, update } = setup()
+  let confirm!: (success: boolean) => void
+  move.mockReturnValue(new Promise<boolean>(resolve => { confirm = resolve }))
   const handle = screen.getByRole('button', { name: 'Déplacer Alpha' })
   expect(handle).toHaveAccessibleDescription(/gauche et droite, haut et bas entre les rangées/)
   fireEvent.click(screen.getByRole('button', { name: 'Détail Alpha' }))
@@ -44,6 +46,8 @@ test('dedicated grid handle, native keyboard crosses rows and saves one logical 
   fireEvent.transitionEnd(handle.closest('li')!, { propertyName: 'transform' })
   await waitFor(() => expect(move).toHaveBeenCalledExactlyOnceWith({ itemId: 'Alpha', destination: { placement: 'after', anchorId: 'Charlie' } }))
   update([items[1]!, items[2]!, items[0]!, items[3]!])
+  // Match onMove: authoritative rows reach React before saving completes.
+  await act(async () => { confirm(true); await Promise.resolve() })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Déplacer Alpha' })).toHaveAttribute('data-state', 'success'))
   expect(screen.getByRole('button', { name: 'Déplacer Alpha' })).toHaveFocus()
   // Native placeholder collapse has no layout/transition in jsdom.
@@ -62,6 +66,8 @@ test('filtered grid exposes no drag handle or DnD attributes on detail actions',
 
 test('keyboard moving to an earlier row uses before anchor in the same global order', async () => {
   const { move, update } = setup()
+  let confirm!: (success: boolean) => void
+  move.mockReturnValue(new Promise<boolean>(resolve => { confirm = resolve }))
   const handle = screen.getByRole('button', { name: 'Déplacer Delta' })
   handle.focus(); key(handle, ' ', 32)
   await screen.findByText(/Delta : carte sélectionnée/)
@@ -71,6 +77,7 @@ test('keyboard moving to an earlier row uses before anchor in the same global or
   fireEvent.transitionEnd(handle.closest('li')!, { propertyName: 'transform' })
   await waitFor(() => expect(move).toHaveBeenCalledExactlyOnceWith({ itemId: 'Delta', destination: { placement: 'before', anchorId: 'Bravo' } }))
   update([items[0]!, items[3]!, items[1]!, items[2]!])
+  await act(async () => { confirm(true); await Promise.resolve() })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Déplacer Delta' })).toHaveAttribute('data-state', 'success'))
   expect(screen.getByRole('button', { name: 'Déplacer Delta' })).toHaveFocus()
 })

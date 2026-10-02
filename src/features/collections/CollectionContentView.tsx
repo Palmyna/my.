@@ -16,6 +16,10 @@ import { manualItemErrorMessage, useManualCollectionItems } from './useManualCol
 import { filterCollectionContent } from './filter-collection-content'
 import './collection-content.css'
 import { useFooterAwareFab } from '../../lib/useFooterAwareFab'
+import { useBinderFormat } from './useBinderFormat'
+import { useBinderNavigation } from './useBinderNavigation'
+import { BinderOccurrences, BinderToolbar } from './BinderToolbar'
+import { CollectionContentBinder } from './CollectionContentBinder'
 
 // Mounted only after an authorized, available overview. Page keys this boundary
 // by viewer + collection, so selection and dialogs cannot survive navigation.
@@ -55,9 +59,12 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
   const partialView = visibleItems.length < items.length
   const selected = items.find(item => item.collectionItemId === selectedId)
   const readOnly = collection.access !== 'owned'
-  const view = currentView === 'cards' ? 'cards' : 'list'
+  const view = currentView
+  const binder = view === 'binder'
+  const binderPreferences = useBinderFormat(viewerId, collection.collectionId, binder, () => setQuery(''))
+  const binderNavigation = useBinderNavigation(items, visibleItems, binderPreferences.format, query, binder && binderPreferences.ready && content.isSuccess)
   const row = (item: CollectionContentItem) => <CollectionContentRow item={item} readOnly={readOnly}
-    view={view}
+    view={view === 'cards' ? 'cards' : 'list'}
     automatic={collection.collectionType === 'automatic'} busy={manual.busy}
     onDetail={opener => setDetail({ variantId: item.variantId, opener })}
     onCopies={() => setSelectedId(item.collectionItemId)} onRemove={opener => {
@@ -77,7 +84,11 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
           </svg>
         </button>}
       </div>
-      <CollectionViewSelector currentView={view} onChange={setCurrentView} />
+      {binder && binderPreferences.ready && items.length > 0 && <BinderOccurrences navigation={binderNavigation} />}
+      <div className="collection-view-controls">
+        <CollectionViewSelector currentView={view} onChange={setCurrentView} />
+        {binder && <BinderToolbar preferences={binderPreferences} navigation={binderNavigation} />}
+      </div>
     </div>
     {!readOnly && <button ref={addTrigger} type="button" className="button context-fab collection-fab" aria-disabled={manual.busy}
       aria-label="Ajouter une carte" aria-haspopup="dialog" data-state={addSuccess ? 'success' : 'idle'}
@@ -92,9 +103,15 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
     </div>}
     {content.isSuccess && (items.length === 0 ? <p>Cette collection ne contient encore aucune carte.</p>
       : <>
-        {visibleItems.length === 0 && <p role="status">Aucune carte ne correspond à cette recherche.</p>}
-        <CollectionContentRenderer collectionId={collection.collectionId} items={visibleItems} view={view}
-          readOnly={readOnly} partialView={partialView} fetching={content.isFetching} renderRow={row} />
+        {binder ? binderPreferences.ready
+          ? <CollectionContentBinder navigation={binderNavigation} format={binderPreferences.format}
+            onDetail={(item, opener) => setDetail({ variantId: item.variantId, opener })} />
+          : !binderPreferences.error && <p role="status">Chargement du format…</p>
+          : <>
+            {visibleItems.length === 0 && <p role="status">Aucune carte ne correspond à cette recherche.</p>}
+            <CollectionContentRenderer collectionId={collection.collectionId} items={visibleItems} view={view}
+              readOnly={readOnly} partialView={partialView} fetching={content.isFetching} renderRow={row} />
+          </>}
       </>)}
     {detail && <VariantDetailPanel variantId={detail.variantId} ownerId={collection.ownerId} readOnly={readOnly}
       opener={detail.opener} onClose={() => setDetail(null)} />}

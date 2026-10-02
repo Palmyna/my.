@@ -266,11 +266,11 @@ La croix dans le champ efface la recherche, conserve le focus et restaure imméd
 
 Cette recherche est strictement un filtre interne à la collection consultée. Elle ne constitue pas une recherche globale dans l'ensemble du catalogue Pokémon.
 
-La recherche est livrée dans la liste Collection. Son intégration aux futures vues Cartes et Classeur relève de Phase 7 : Liste et Cartes n'afficheront que les résultats correspondants. Le futur Classeur ne compacte jamais les emplacements : résultats visibles, non-correspondances atténuées. Une nouvelle recherche avec résultat mène une seule fois à la page de la première occurrence, puis la navigation reste libre, sans recentrage automatique permanent. Aucun résultat ou effacement de la recherche : conserver la page courante. Ce contrat est documenté uniquement en 7A.3.
+La recherche fonctionne dans les trois vues Collection depuis 7B.3. Liste/Cartes affichent seulement les correspondances. Classeur garde toutes les positions/pages : correspondances visibles, autres variantes fortement atténuées, pochettes vides inchangées. Nouvelle recherche effective avec résultat : saut unique à la première occurrence dans l'ordre réel, puis navigation libre. Compteur et flèches parcourent les occurrences sans boucle, avec halo bref sur la pochette courante. Aucun résultat ou effacement : page conservée ; effacement retire compteur et halo.
 
 ## Vues d'une collection
 
-Liste et Cartes sont fonctionnelles depuis la Phase 7B.2. Le sélecteur compact de la toolbar propose ces deux vues seulement ; Classeur reste une étape distincte, sans contrôle visible.
+Liste, Cartes et Classeur sont fonctionnelles depuis 7B.3. Le sélecteur compact propose les trois vues dans la toolbar.
 
 Les trois vues de la V1 présentent la même collection et les mêmes données :
 
@@ -278,7 +278,7 @@ Les trois vues de la V1 présentent la même collection et les mêmes données :
 - vue cartes ;
 - vue classeur.
 
-Changer de vue est immédiat, sans navigation ni rechargement du contenu, et conserve la recherche. Les deux vues partagent contenu, ordre backend, possession, droits et détail Variante Phase 6. Le dernier choix explicite est enregistré dans `last_collection_view` du viewer connecté, y compris en partage ; `collection_default_view` reste inchangée. Une préférence `binder` retombe sur Liste sans écriture. La préférence personnelle persistante définit la vue à l'ouverture, selon les règles de la page Paramètres ci-dessous.
+Changer de vue conserve route, recherche et contenu chargé, sans refetch lié au renderer. Les trois vues partagent ordre backend, possession, droits et détail Variante Phase 6. Le dernier choix explicite est enregistré dans `last_collection_view` du viewer connecté, y compris en partage ; `collection_default_view` reste inchangée. `binder` ouvre le Classeur.
 
 ### Vue liste
 
@@ -298,11 +298,11 @@ Le propriétaire réorganise depuis une zone haute invisible au repos, révélé
 
 La vue classeur représente la collection comme un classeur physique. Elle affiche toujours l'intégralité de sa structure, que les cartes soient possédées ou manquantes.
 
-Une carte manquante conserve son emplacement et doit rester identifiable. La vue ne compacte jamais automatiquement la collection pour ne montrer que les cartes possédées. La représentation visuelle exacte d'un emplacement manquant reste à définir.
+Carte possédée : rendu normal. Carte manquante : image identifiable, désaturée et atténuée, état accessible. Pochette réellement vide : aucune carte ni placeholder. Les cartes sans image ou après erreur de chargement utilisent `card-placeholder.webp`, comme Liste, Cartes, détail Variante et ajout.
 
 #### Formats de pages
 
-Les formats V1 sont exactement `2x2`, `3x3`, `4x3`, avec `3x3` comme défaut initial. Le nombre d'emplacements (4, 9, 12) est dérivé du format, jamais stocké.
+Les formats V1 fonctionnels sont exactement `2x2`, `3x3`, `4x3` (4, 9, 12 emplacements), défaut initial `3x3`. Le popover de la barre Classeur résout override viewer + collection → défaut global → `3x3`. « Utiliser le format par défaut » supprime l'override. Un changement effectif confirmé reconstruit les pages depuis le contenu chargé, revient page 1 et efface recherche, occurrence et halo, sans refetch du contenu.
 
 #### Organisation continue
 
@@ -315,7 +315,7 @@ La navigation entre les pages doit être simple. L'utilisateur doit pouvoir comp
 - la page actuellement affichée ;
 - le nombre total de pages de la collection.
 
-Le comportement détaillé de navigation relève du cadrage UX.
+Desktop/tablette large : page 1 seule à droite, puis 2–3, 4–5 ; dernière page paire seule à gauche. Mobile/largeur insuffisante : une page exacte, sans modifier le format. Côtés, clavier contextualisé, swipe mobile et numéro de page naviguent sans boucle. Clic/tap sur carte : détail Variante existant, également en partage lecture seule. Aucun reorder, Exemplaires, menu ou mutation directement sur les pochettes.
 
 ## Partage d'une collection
 
@@ -413,7 +413,7 @@ L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuel
 
 ## Paramètres et préférences d'affichage
 
-`/settings` reste volontairement minimal. Le socle de persistance, types, services et résolution est livré localement en Phase 7A.3. Liste/Cartes et leur sélecteur Collection sont livrés en 7B.2 ; les contrôles Paramètres, les vues catalogue et Classeur restent futurs.
+`/settings` reste volontairement minimal. Persistance livrée en 7A.3, trois vues Collection et contrôles Classeur livrés en 7B.3. Contrôles Paramètres et vues catalogue restent futurs.
 
 La future page Paramètres, accessible depuis le menu utilisateur, proposera une section Affichage avec ces préférences persistantes et indépendantes :
 

@@ -198,7 +198,7 @@ Formats Classeur V1 exactement `2x2`, `3x3`, `4x3`. `binder_default_format` est 
 
 La Phase 7B.1 branche ce socle dans Collection via [`useCollectionView`](../src/features/collections/useCollectionView.ts) : `currentView`, `setCurrentView` et `isPreferencesLoading`. La query `['user-preferences', viewerId]` appelle seulement `getUserPreferences`, sans retry automatique ; le viewer connecté fournit l'identité, même en partage. Ligne absente : defaults 7A.3. Une erreur ou une lecture en cours permet de rendre Liste sans bloquer le contenu. La clé commune permet les invalidations futures ; les transitions Auth purgent toujours le cache.
 
-Résolution d'ouverture : `collection_default_view` fixe, ou `last_collection_view` si `last_used`, puis disponibilité centralisée dans [`availableCollectionViews`](../src/features/collections/collection-views.ts), `['list', 'cards']` depuis 7B.2. `binder` reste valide et retombe sur Liste sans aucune écriture. Le sélecteur accessible [`CollectionViewSelector`](../src/features/collections/CollectionViewSelector.tsx) expose uniquement Liste/Cartes près de la recherche ; aucun contrôle ou override Classeur n'est chargé.
+Résolution d'ouverture : `collection_default_view` fixe, ou `last_collection_view` si `last_used`. Le registre [`availableCollectionViews`](../src/features/collections/collection-views.ts) expose `['list', 'cards', 'binder']` depuis 7B.3 ; le sélecteur affiche les trois vues. Le choix de vue conserve l'unique query de contenu et la recherche, sans modifier le défaut global.
 
 Un choix explicite disponible change immédiatement la présentation et appelle `saveUserPreferences(viewerId, { lastCollectionView })`, jamais `collectionDefaultView`. Les sauvegardes sont sérialisées par viewer ; seul le résultat autoritatif entre au cache. Un échec retire le choix transitoire, retrouve le dernier choix confirmé de la consultation (ou la préférence résolue) et relit les préférences, sans message visible ajouté. Les réponses d'une consultation quittée ne repeuplent pas son cache. À l'ouverture d'une autre collection, la préférence globale est résolue à nouveau : un défaut fixe reste indépendant du dernier choix, tandis que `last_used` reprend ce dernier.
 
@@ -613,7 +613,7 @@ Les futures lectures Pokémon/Extension de Phase 7 regrouperont les Cartes uniqu
 
 ## Vue classeur et temps réel
 
-Le Classeur V1 est **continu uniquement**, sans regroupement par série, bloc, ère, Extension, Pokémon ou catégorie. Sa pagination est calculée frontend depuis l'ordre autoritatif des éléments et le format effectif ; aucun nombre d'emplacements stocké, aucune table `binder_pages`, aucun champ de mode d'organisation. Le [contrat de recherche futur](04-UX-UI.md#recherche-classeur--contrat-futur-sans-implémentation-7a3) conserve les emplacements et la navigation libre après un seul saut à la première occurrence ; il n'est pas implémenté en 7A.3.
+Le Classeur V1 livré en 7B.3 est **continu uniquement**, dans l'ordre autoritatif. [`binder-pagination`](../src/features/collections/binder-pagination.ts) calcule les pages/slots, ouvertures et limites ; aucun nombre de slots stocké, table `binder_pages`, RPC ou champ d'organisation. [`CollectionContentBinder`](../src/features/collections/CollectionContentBinder.tsx) reçoit le même tableau via la pagination frontend, sans reorder ni actions sur les pochettes. Desktop/tablette large : 1 à droite, 2–3, 4–5, dernière paire à gauche ; mobile : une page exacte. [`useBinderNavigation`](../src/features/collections/useBinderNavigation.ts) garde page, occurrences et halo ; moteur de recherche existant, positions conservées, saut unique par recherche effective. Navigation côtés/clavier contextualisé/swipe/page directe sans boucle. Voir [recherche Classeur](04-UX-UI.md#recherche-classeur).
 
 La V1 ne nécessite pas Supabase Realtime. Le partage en lecture seule ne justifie pas une architecture collaborative en temps réel. Realtime ne doit pas être activé sans besoin réel.
 
@@ -667,7 +667,7 @@ Les URL, clés publiques et autres paramètres sont injectés par environnement.
 
 ### Version applicative
 
-La phase majeure 7 correspond à la série `0.7.x`. Une sous-sous-phase applicative réellement livrée peut incrémenter le PATCH ; une étape de cadrage/documentation uniquement n'impose pas de version. Convention : 7A.1 → `0.7.1`, 7A.2 → cadrage sans version, 7A.3 → `0.7.2`, 7B.1 → `0.7.3`, 7B.2 → `0.7.4`. La Phase 8 démarre à `0.8.0` ; la cible V1 est `1.0.0`.
+La phase majeure 7 correspond à la série `0.7.x`. Une sous-sous-phase applicative livrée incrémente le PATCH ; cadrage/documentation seuls n'imposent pas de version. Convention : 7A.1 → `0.7.1`, 7A.2 → cadrage sans version, 7A.3 → `0.7.2`, 7B.1 → `0.7.3`, 7B.2 → `0.7.4`, 7B.3 → **`0.7.5`**. Phase 8 : `0.8.0` ; cible V1 : `1.0.0`.
 
 `package.json` reste la source unique de version, synchronisée avec `package-lock.json` via `npm version <version> --no-git-tag-version`, sans commit ni tag Git. Vite injecte cette valeur dans le footer commun ; l'année reste calculée à l'exécution.
 

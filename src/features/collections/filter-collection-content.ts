@@ -7,8 +7,12 @@ function normalize(value: string): string {
     .replace(/[^\p{L}\p{N}./]+/gu, ' ').trim().replace(/\s+/g, ' ')
 }
 
+export function collectionSearchKey(query: string): string {
+  return normalize(query).split(' ').map(term => term.replace(/^[./]+|[./]+$/g, '')).filter(Boolean).join(' ')
+}
+
 export function filterCollectionContent(items: CollectionContentItem[], query: string): CollectionContentItem[] {
-  const terms = normalize(query).split(' ').map(term => term.replace(/^[./]+|[./]+$/g, '')).filter(Boolean)
+  const terms = collectionSearchKey(query).split(' ').filter(Boolean)
   if (terms.length === 0) return items
   return items.filter(item => {
     const fields = [item.cardNameFr, item.setNameFr, item.setAbbreviationFr, item.setAbbreviation,

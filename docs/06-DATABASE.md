@@ -1228,7 +1228,7 @@ Gain d'environ 2 à 5 fois sans changement de matching/ranking. Mesures locales,
 
 Les pages du classeur ne sont pas persistées dans une table `binder_pages`. Elles sont calculées frontend à partir des `collection_items`, de l'ordre autoritatif et du format effectif. Formats V1 exactement `2x2`, `3x3`, `4x3` ; défaut `3x3`, emplacements dérivés et jamais stockés. Organisation V1 **continue uniquement**, sans regroupement série/bloc/ère/Extension/Pokémon/catégorie ni champ d'organisation.
 
-Les préférences de vues, leurs derniers modes et `binder_default_format` sont persistés dans `user_preferences`. L'override explicite par utilisateur + collection est dans `collection_view_preferences` ; absence = héritage dynamique, retour au défaut = suppression. Le [contrat de recherche Classeur](04-UX-UI.md#recherche-classeur--contrat-futur-sans-implémentation-7a3) est seulement documenté, sans compactage des emplacements ni recentrage permanent. Aucun stockage générique de réglages.
+Les préférences de vues, leurs derniers modes et `binder_default_format` sont persistés dans `user_preferences`. L'override explicite viewer + collection est dans `collection_view_preferences` ; absence = héritage dynamique, retour au défaut = suppression. 7B.3 utilise ce socle sans nouvelle migration, RPC ni table de pages. Pagination et [recherche Classeur](04-UX-UI.md#recherche-classeur) sont frontend, sans compactage ni recentrage permanent. Aucun stockage générique de réglages.
 
 ## Synchronisation TCGdex
 

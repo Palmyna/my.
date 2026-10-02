@@ -36,9 +36,9 @@ test.each([
   ['fixed list overrides last choice', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'list', lastCollectionView: 'binder' }, 'list'],
   ['last_used + list', { ...DEFAULT_USER_PREFERENCES }, 'list'],
   ['fixed cards available', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'cards' }, 'cards'],
-  ['fixed binder unavailable', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'binder' }, 'list'],
+  ['fixed binder available', { ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'binder' }, 'binder'],
   ['last_used + cards available', { ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'cards' }, 'cards'],
-  ['last_used + binder unavailable', { ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'binder' }, 'list'],
+  ['last_used + binder available', { ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'binder' }, 'binder'],
 ] as const)('%s initializes without rewriting preferences', async (_label, preferences, expected) => {
   read.mockResolvedValue({ ...preferences })
   const { result, client } = setup()
@@ -83,14 +83,14 @@ test('new viewer, logout and authorization loss isolate state and pending reads'
   expect(save).not.toHaveBeenCalled()
 })
 
-test('unavailable explicit choices do not save, including current fallback', async () => {
+test('explicit binder choice persists only last view', async () => {
   const { result } = setup()
   await waitFor(() => expect(result.current.isPreferencesLoading).toBe(false))
   await act(async () => {
-    expect(await result.current.setCurrentView('binder')).toBe(false)
+    expect(await result.current.setCurrentView('binder')).toBe(true)
   })
-  expect(result.current.currentView).toBe('list')
-  expect(save).not.toHaveBeenCalled()
+  expect(result.current.currentView).toBe('binder')
+  expect(save).toHaveBeenCalledExactlyOnceWith('viewer', { lastCollectionView: 'binder' })
 })
 
 test('explicit List persists only lastCollectionView and preserves fixed default', async () => {

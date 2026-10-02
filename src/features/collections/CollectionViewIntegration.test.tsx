@@ -20,6 +20,7 @@ vi.mock('../../services/view-preferences', () => ({
   getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES),
   saveUserPreferences: vi.fn().mockImplementation((_viewer, patch: { lastCollectionView: CollectionView }) =>
     Promise.resolve({ ...DEFAULT_USER_PREFERENCES, ...patch })),
+  getCollectionViewOverride: vi.fn().mockResolvedValue(null),
 }))
 afterEach(() => { vi.restoreAllMocks() })
 
@@ -38,7 +39,7 @@ test('selector changes both renderers immediately, preserves search and content 
   const cards = screen.getByRole('button', { name: 'Cartes' })
   expect(list).toHaveAttribute('aria-pressed', 'true')
   expect(cards).toHaveAttribute('aria-pressed', 'false')
-  expect(screen.queryByRole('button', { name: /Classeur|binder/i })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Classeur' })).toHaveAttribute('aria-pressed', 'false')
   const search = screen.getByRole('searchbox')
   fireEvent.change(search, { target: { value: 'pikachu EXT' } })
   expect(screen.getAllByRole('listitem')).toHaveLength(1)
@@ -55,12 +56,20 @@ test('selector changes both renderers immediately, preserves search and content 
   await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1))
   expect(search).toHaveValue('pikachu EXT')
   expect(screen.getByRole('listitem')).toHaveTextContent('Pikachu')
+  fireEvent.click(screen.getByRole('button', { name: 'Classeur' }))
+  await screen.findByRole('region', { name: 'Classeur' })
+  expect(search).toHaveValue('pikachu EXT')
+  expect(screen.getAllByRole('listitem')).toHaveLength(9)
+  expect(screen.getByRole('region', { name: 'Classeur' }).querySelectorAll('.is-search-muted')).toHaveLength(1)
+  fireEvent.click(list)
   fireEvent.click(screen.getByRole('button', { name: 'Effacer la recherche' }))
   expect(screen.getAllByRole('listitem').map(row => row.querySelector('.collection-content-name')?.textContent))
     .toEqual(['Pikachu · EXT · 025', 'Évoli · EXT · 025'])
   expect(getCollectionContent).toHaveBeenCalledExactlyOnceWith('collection')
-  await waitFor(() => expect(saveUserPreferences).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(saveUserPreferences).toHaveBeenCalledTimes(4))
   expect(saveUserPreferences).toHaveBeenNthCalledWith(1, 'recipient', { lastCollectionView: 'cards' })
   expect(saveUserPreferences).toHaveBeenNthCalledWith(2, 'recipient', { lastCollectionView: 'list' })
+  expect(saveUserPreferences).toHaveBeenNthCalledWith(3, 'recipient', { lastCollectionView: 'binder' })
+  expect(saveUserPreferences).toHaveBeenNthCalledWith(4, 'recipient', { lastCollectionView: 'list' })
   expect(client.getQueryData(['user-preferences', 'recipient'])).toEqual(DEFAULT_USER_PREFERENCES)
 })
