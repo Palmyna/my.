@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 6 terminées et validées.** Le cœur Collection est livré : contenu, exemplaires, réorganisation, ajout/retrait, recherches internes, détail Variante et UI. Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. Le [rapport Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) conserve audit Codex et checkpoint Cloud manuel du propriétaire. La **Phase 7** est en cours : préférences et trois vues Collection livrées, dont Classeur continu depuis 7B.3. Catalogue, recherche globale et contrôles Paramètres restent futurs.
+**Phases 0 à 6 terminées et validées.** Le cœur Collection est livré : contenu, exemplaires, réorganisation, ajout/retrait, recherches internes, détail Variante et UI. Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. Le [rapport Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) conserve audit Codex et checkpoint Cloud manuel du propriétaire. La **Phase 7** est en cours : préférences et trois vues Collection livrées, dont Classeur continu depuis 7B.3. Catalogue et recherche globale restent futurs ; les trois réglages Affichage de Paramètres sont fonctionnels.
 
 | Grandes phases | Statut |
 |---|---|
@@ -133,7 +133,7 @@ Phase 6 terminée et validée après l'audit technique exécuté par Codex et le
 
 **Statut : EN COURS**
 
-Le socle Phase 7 comprend version applicative/footer et préférences 7A.3. Depuis 7B.3, Liste, Cartes et Classeur Collection sont fonctionnels avec sélecteur, préférences du viewer, dernier choix explicite sauvegardé, recherche conservée et contenu/ordre autoritatifs communs. Liste/Cartes conservent le reorder propriétaire ; Classeur est continu et consultatif. Version **0.7.5**. Catalogue, recherche globale et contrôles Paramètres restent à développer ; Paramètres demeure minimal.
+Le socle Phase 7 comprend version applicative/footer et préférences 7A.3. Depuis 7B.3, Liste, Cartes et Classeur Collection sont fonctionnels avec sélecteur, préférences du viewer, dernier choix explicite sauvegardé, recherche conservée et contenu/ordre autoritatifs communs. Liste/Cartes conservent le reorder propriétaire ; Classeur est continu et consultatif. Paramètres livre désormais les trois réglages Affichage : défaut catalogue, défaut collection et format Classeur global, avec sauvegardes indépendantes et overrides conservés. Version **0.7.6**. Catalogue et recherche globale restent à développer.
 
 Compléter les modes de consultation et la navigation dans les collections et le catalogue authentifié.
 
@@ -173,7 +173,7 @@ La recherche globale reste distincte du filtre interne à une collection et de l
 
 #### Paramètres
 
-Transformer `/settings` en page fonctionnelle pour les préférences de vues persistantes déjà définies : vue catalogue/collection par défaut, derniers modes indépendants et format Classeur global. L'override viewer + collection est utilisé directement dans le Classeur depuis 7B.3. Aucun autre réglage validé par cette phase.
+`/settings` est fonctionnelle : section Affichage cohérente avec Profil, vue catalogue/collection par défaut et format Classeur global. Sauvegarde immédiate par réglage, chargement/erreur/retry et contrôles accessibles responsive. Les derniers modes restent indépendants, la vue d'une collection ouverte reste conservée et le format global s'applique aux héritiers sans toucher aux overrides viewer + collection. Aucun autre réglage validé par cette phase.
 
 ### Phase 8 — Mise à jour des collections automatiques
 

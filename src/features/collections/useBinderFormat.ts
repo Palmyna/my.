@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { resolveBinderFormat } from '../../lib/view-preferences'
-import { deleteCollectionViewOverride, getCollectionViewOverride, getUserPreferences, saveCollectionViewOverride } from '../../services/view-preferences'
+import { deleteCollectionViewOverride, getCollectionViewOverride, saveCollectionViewOverride } from '../../services/view-preferences'
 import type { BinderFormat } from '../../types/view-preferences'
-import { userPreferencesKey } from '../view-preferences/view-preferences-query'
+import { userPreferencesOptions } from '../view-preferences/view-preferences-query'
 
 export const binderFormatKey = (viewerId: string, collectionId: string) => ['collection-view-preferences', viewerId, collectionId] as const
 
@@ -15,8 +15,7 @@ export function useBinderFormat(viewerId: string, collectionId: string, enabled:
   const running = useRef(false)
   const confirmedFormat = useRef<BinderFormat | null>(null)
   useEffect(() => { live.current = true; return () => { live.current = false } }, [])
-  const global = useQuery({ queryKey: userPreferencesKey(viewerId), queryFn: () => getUserPreferences(viewerId),
-    enabled, retry: false, staleTime: Infinity })
+  const global = useQuery({ ...userPreferencesOptions(viewerId), enabled })
   const queryKey = binderFormatKey(viewerId, collectionId)
   const override = useQuery({ queryKey, queryFn: () => getCollectionViewOverride(viewerId, collectionId),
     enabled, retry: false, staleTime: Infinity })

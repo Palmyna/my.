@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DEFAULT_USER_PREFERENCES, resolveCollectionView } from '../../lib/view-preferences'
-import { getUserPreferences, saveUserPreferences } from '../../services/view-preferences'
+import { saveUserPreferences } from '../../services/view-preferences'
 import type { CollectionView } from '../../types/view-preferences'
 import { useAuth } from '../auth/auth-context'
-import { userPreferencesKey } from '../view-preferences/view-preferences-query'
+import { confirmUserPreferences, userPreferencesKey, userPreferencesOptions } from '../view-preferences/view-preferences-query'
 import { availableCollectionView, availableCollectionViews } from './collection-views'
 
 type Choice = { view: CollectionView; token: object }
@@ -21,12 +21,7 @@ export function useCollectionView(collectionId: string) {
     live.current = { resource }
     return () => { live.current = null }
   }, [resource])
-  const preferences = useQuery({
-    queryKey: userPreferencesKey(viewerId),
-    queryFn: () => getUserPreferences(viewerId!),
-    enabled: !!viewerId,
-    retry: false,
-  })
+  const preferences = useQuery(userPreferencesOptions(viewerId))
   const [state, setState] = useState<ViewState>({ resource, pending: null, confirmed: null })
   // Reset before rendering another viewer/collection, without an effect flash.
   if (state.resource !== resource) setState({ resource, pending: null, confirmed: null })
@@ -34,6 +29,11 @@ export function useCollectionView(collectionId: string) {
   const resolved = availableCollectionView(resolveCollectionView(
     viewerId && preferences.isSuccess ? preferences.data : DEFAULT_USER_PREFERENCES,
   ))
+  // Opening defaults initialize this consultation once. Global changes apply
+  // to the next opening, without replacing an already open collection's view.
+  if (state.resource === resource && state.confirmed === null && viewerId && preferences.isSuccess) {
+    setState({ ...state, confirmed: resolved })
+  }
   const mutation = useMutation({
     mutationKey: [...userPreferencesKey(viewerId), 'last-collection-view'],
     scope: { id: `last-collection-view:${viewerId}` },
@@ -46,7 +46,7 @@ export function useCollectionView(collectionId: string) {
       await client.cancelQueries({ queryKey, exact: true })
       if (live.current !== request.lifetime) return
       // Only the authoritative service response enters the preferences cache.
-      client.setQueryData(queryKey, data)
+      confirmUserPreferences(client, request.viewerId, data, ['lastCollectionView'])
       setState(previous => previous.resource === request.resource ? {
         ...previous, confirmed: request.view,
         pending: previous.pending?.token === request.token ? null : previous.pending,

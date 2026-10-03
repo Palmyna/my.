@@ -88,6 +88,21 @@ test('all global fields can be saved explicitly', async () => {
     last_catalog_view: 'list', last_collection_view: 'list', binder_default_format: '3x3' })
 })
 
+test.each([
+  [{ catalogDefaultView: 'cards' }, { catalog_default_view: 'cards' }],
+  [{ collectionDefaultView: 'binder' }, { collection_default_view: 'binder' }],
+  [{ binderDefaultFormat: '4x3' }, { binder_default_format: '4x3' }],
+] as const)('display default %j only writes its column and never touches last views or overrides', async (patch, columns) => {
+  const mock = setup({ data: { ...globalRow, last_catalog_view: 'cards', last_collection_view: 'binder', ...columns } })
+  const result = await mock.service.saveGlobal(userId, patch)
+  expect(mock.fetcher).toHaveBeenCalledOnce()
+  expect(mock.call(0).method).toBe('PATCH')
+  expect(mock.call(0).url.pathname).toBe('/rest/v1/user_preferences')
+  expect(mock.call(0).body).toEqual(columns)
+  expect(result.lastCatalogView).toBe('cards')
+  expect(result.lastCollectionView).toBe('binder')
+})
+
 test('concurrent first global save retries targeted update without resetting concurrent fields', async () => {
   const mock = setup({ data: null }, { code: '23505', status: 409 }, { data: { ...globalRow, last_catalog_view: 'cards', binder_default_format: '4x3' } })
   await expect(mock.service.saveGlobal(userId, { binderDefaultFormat: '4x3' }))

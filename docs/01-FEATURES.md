@@ -24,7 +24,7 @@ La V1 permet principalement de :
 
 Ces fonctionnalités doivent rester simples à comprendre et rapides à utiliser.
 
-**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres reste minimal. Le backend de création automatique est livré ; son parcours catalogue, les vues et préférences et la recherche globale restent en Phase 7, désormais en cours avec la préparation de son socle uniquement. Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
+**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres était minimal à la clôture de Phase 6 ; ses trois réglages Affichage sont désormais fonctionnels. Le backend de création automatique est livré ; son parcours catalogue et la recherche globale restent en Phase 7, en cours avec les préférences, les trois vues Collection et les réglages Affichage livrés. Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
 
 ## Comptes utilisateurs
 
@@ -413,9 +413,9 @@ L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuel
 
 ## Paramètres et préférences d'affichage
 
-`/settings` reste volontairement minimal. Persistance livrée en 7A.3, trois vues Collection et contrôles Classeur livrés en 7B.3. Contrôles Paramètres et vues catalogue restent futurs.
+`/settings` livre la section **Affichage** depuis 7C.1 (version `0.7.6`), sur la persistance 7A.3 et les vues Collection/contrôles Classeur 7B.3. Les écrans catalogue restent futurs ; leur préférence d'ouverture est déjà réglable.
 
-La future page Paramètres, accessible depuis le menu utilisateur, proposera une section Affichage avec ces préférences persistantes et indépendantes :
+La page Paramètres, accessible depuis le menu utilisateur, propose ces trois préférences persistantes et indépendantes :
 
 | Préférence | Valeurs fonctionnelles |
 |---|---|
@@ -430,6 +430,8 @@ Le stockage initial utilise `Dernier choix utilisé`, avec Liste en l'absence de
 `binder_default_format` appartient au compte. Seul un override explicite du viewer pour une collection est enregistré dans `collection_view_preferences` (utilisateur + collection). Absence d'override = héritage dynamique du défaut global, sans le copier dans chaque collection. Revenir à « utiliser le format par défaut » supprime l'override. Résolution : **override → défaut global → `3x3`**. Propriétaire et lecteur autorisé ont des préférences indépendantes ; un partage métier en lecture seule permet de gérer sa propre préférence d'affichage sans modifier la collection ni accéder à celles du propriétaire.
 
 Seules ces préférences de vues et de format sont validées. Thème clair/sombre/système, réglages Premium, pages globales de possession, doublons et statistiques personnelles globales restent hors de cette évolution.
+
+Chaque changement est enregistré immédiatement, sans bouton global ni toast de succès. Modifier un défaut de vue ne modifie aucun dernier mode choisi, ni la vue d'une collection déjà ouverte. Le défaut Classeur s'applique immédiatement aux collections qui en héritent, sans toucher aux overrides. Pendant le chargement, les trois contrôles restent visibles, désactivés et sans sélection fictive ; une erreur propose Réessayer. Une sauvegarde désactive seulement son réglage, conserve la valeur confirmée jusqu'à la réponse serveur et présente une erreur locale si la modification n'est pas confirmée.
 
 ## Principes UX fonctionnels
 

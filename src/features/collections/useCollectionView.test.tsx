@@ -132,6 +132,20 @@ test('last_used reopening uses the saved available choice', async () => {
   expect(result.current.currentView).toBe('cards')
 })
 
+test('a late last-view response preserves defaults confirmed concurrently by settings', async () => {
+  const pending = deferred<UserPreferences>()
+  save.mockReturnValueOnce(pending.promise)
+  const { result, client } = setup()
+  await waitFor(() => expect(result.current.isPreferencesLoading).toBe(false))
+  let saved!: Promise<boolean>
+  act(() => { saved = result.current.setCurrentView('cards') })
+  act(() => { client.setQueryData(userPreferencesKey('viewer'), { ...DEFAULT_USER_PREFERENCES,
+    catalogDefaultView: 'cards', collectionDefaultView: 'binder', binderDefaultFormat: '4x3' }) })
+  await act(async () => { pending.resolve({ ...DEFAULT_USER_PREFERENCES, lastCollectionView: 'cards' }); await saved })
+  expect(client.getQueryData(userPreferencesKey('viewer'))).toEqual({ ...DEFAULT_USER_PREFERENCES,
+    catalogDefaultView: 'cards', collectionDefaultView: 'binder', binderDefaultFormat: '4x3', lastCollectionView: 'cards' })
+})
+
 test('save failure rolls back temporary view, reconciles and returns false', async () => {
   const pending = deferred<UserPreferences>()
   save.mockReturnValue(pending.promise)

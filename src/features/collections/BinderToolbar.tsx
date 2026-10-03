@@ -1,16 +1,9 @@
 import { useId, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
-import { BINDER_FORMATS, type BinderFormat } from '../../types/view-preferences'
+import { BINDER_FORMATS } from '../../types/view-preferences'
+import { BinderFormatGrid } from '../view-preferences/BinderFormatGrid'
 import { parseBinderPage } from './binder-pagination'
 import type { BinderNavigation } from './useBinderNavigation'
 import type { useBinderFormat } from './useBinderFormat'
-
-function FormatGrid({ format }: { format: BinderFormat }) {
-  const [columns, rows] = format.split('x').map(Number)
-  return <span className="binder-format-grid" style={{ '--binder-columns': columns } as CSSProperties} aria-hidden="true">
-    {Array.from({ length: columns! * rows! }, (_, index) => <i key={index} />)}
-  </span>
-}
 
 export function BinderToolbar({ preferences, navigation }: {
   preferences: ReturnType<typeof useBinderFormat>; navigation: BinderNavigation
@@ -36,12 +29,12 @@ export function BinderToolbar({ preferences, navigation }: {
     }}>
       <button ref={trigger} type="button" className="binder-format-trigger" aria-label={`Format du classeur : ${format.replace('x', '×')}`}
         aria-expanded={open} aria-controls={id} disabled={!ready || busy} onClick={() => setOpen(!open)}>
-        <FormatGrid format={format} /><span>{format.replace('x', '×')}</span><span aria-hidden="true">⌄</span>
+        <BinderFormatGrid format={format} /><span>{format.replace('x', '×')}</span><span aria-hidden="true">⌄</span>
       </button>
       {open && <div id={id} className="binder-format-popover" role="group" aria-label="Choisir le format du classeur">
         {BINDER_FORMATS.map(choice => <button type="button" key={choice} aria-pressed={format === choice}
           disabled={busy} onClick={() => { choose(choice); close() }}>
-          <FormatGrid format={choice} />{choice.replace('x', '×')}
+          <BinderFormatGrid format={choice} />{choice.replace('x', '×')}
         </button>)}
         {override != null && <button type="button" className="binder-format-default" disabled={busy}
           onClick={() => { choose(null); close() }}>Utiliser le format par défaut</button>}

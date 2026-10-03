@@ -17,6 +17,10 @@ vi.mock('../services/collections', async importOriginal => ({
   listDashboardCollections: vi.fn(), getCollectionOverview: vi.fn(),
 }))
 vi.mock('../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
+vi.mock('../services/view-preferences', async () => ({
+  getUserPreferences: vi.fn().mockResolvedValue((await import('../lib/view-preferences')).DEFAULT_USER_PREFERENCES),
+  saveUserPreferences: vi.fn(),
+}))
 const collection: CollectionOverview = { ownerId: 'owner',
   collectionId: 'c1200000-0000-0000-0000-000000000001', name: 'Collection de test', collectionType: 'free', access: 'owned',
   targetType: null, targetName: null, ownedCount: 0, totalCount: 0,
@@ -170,7 +174,7 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
   expect(screen.queryByRole('link', { name: 'MY. — Accueil' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Mon compte' })).toHaveAttribute('aria-haspopup', 'menu')
   expect(within(screen.getByRole('main')).queryByRole('navigation')).not.toBeInTheDocument()
-  if (path === '/settings') expect(within(screen.getByRole('main')).queryByRole('button')).not.toBeInTheDocument()
+  if (path === '/settings') expect(screen.getByRole('region', { name: 'Affichage' })).toBeVisible()
   if (path === '/dashboard') expect(within(screen.getByRole('main')).getByRole('button', { name: 'Créer une collection personnalisée' })).toBeVisible()
   const page = screen.getByRole('region', { name: title })
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)

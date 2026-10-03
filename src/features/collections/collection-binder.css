@@ -4,8 +4,6 @@
 .binder-format-trigger, .binder-format-popover button, .binder-occurrences button { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--text); background: var(--surface); cursor: pointer; padding: 0 10px; }
 .binder-format-trigger:hover, .binder-format-popover button:hover, .binder-occurrences button:hover { background: var(--surface-hover); }
 .binder-format-trigger, .binder-occurrences button { height: var(--collection-toolbar-height); min-height: var(--collection-toolbar-height); }
-.binder-format-grid { display: grid; grid-template-columns: repeat(var(--binder-columns), 1fr); gap: 2px; width: 22px; flex-shrink: 0; }
-.binder-format-grid i { aspect-ratio: 1; border: 1px solid currentColor; border-radius: 1px; opacity: .75; }
 .binder-format-popover { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; display: grid; gap: 4px; width: 230px; padding: 8px; background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: 0 6px 20px #0004; }
 .binder-format-popover button { justify-content: flex-start; border-color: transparent; background: transparent; }
 .binder-format-popover button[aria-pressed="true"] { color: var(--collection-accent); background: var(--collection-surface); }
