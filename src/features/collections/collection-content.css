@@ -18,12 +18,12 @@
 .collection-copies-trigger { display: grid; place-items: center; width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--text); background: transparent; cursor: pointer; }
 .collection-copies-trigger:hover { background: var(--surface-hover); }
 .collection-copies-trigger:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
-.collection-content-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.collection-content-toolbar { --collection-toolbar-height: 50px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
 .collection-content-search { position: relative; flex: 1 1 260px; min-width: 0; }
-.collection-content-search input { padding-right: 48px; }
+.collection-content-search input { height: var(--collection-toolbar-height); min-height: var(--collection-toolbar-height); padding-block: 0; padding-right: 48px; }
 .collection-content-search input::-webkit-search-cancel-button { display: none; }
 .collection-view-selector { display: flex; flex: 0 0 auto; gap: 2px; padding: 2px; border: 1px solid var(--border-strong); border-radius: 9px; }
-.collection-view-selector button { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 6px; color: var(--text-muted); background: transparent; cursor: pointer; }
+.collection-view-selector button { position: relative; display: grid; place-items: center; width: calc(var(--collection-toolbar-height) - 6px); height: calc(var(--collection-toolbar-height) - 6px); padding: 0; border: 0; border-radius: 6px; color: var(--text-muted); background: transparent; cursor: pointer; }
 .collection-view-selector button:hover { background: var(--surface-hover); }
 .collection-view-selector button[aria-pressed="true"] { color: var(--text); background: var(--surface-raised); }
 .collection-view-selector button[aria-pressed="true"]::after { content: ''; position: absolute; bottom: 3px; width: 16px; height: 2px; border-radius: 2px; background: var(--brand); }

@@ -90,6 +90,60 @@ test.each([['2x2', 4, 13], ['3x3', 9, 6], ['4x3', 12, 5]] as const)('global %s s
   expect(getUserPreferences).not.toHaveBeenCalled()
 })
 
+test.each([
+  ['2x2', ['opens-right', 'opens-left']],
+  ['3x3', ['opens-right', 'opens-right', 'opens-left']],
+  ['4x3', ['opens-right', 'opens-right', 'opens-left', 'opens-left']],
+] as const)('%s pocket openings converge on every row of both leaves', async (format, row) => {
+  setup({ globalFormat: format }); await screen.findByRole('region', { name: 'Classeur' })
+  direct('2')
+  expect(pages()).toEqual(['Page 2', 'Page 3'])
+  for (const page of book().querySelectorAll('.binder-page')) {
+    const pockets = Array.from(page.querySelectorAll('.binder-pocket'))
+    pockets.forEach((pocket, slot) => {
+      const side = row[slot % row.length]!
+      expect(pocket).toHaveClass(side)
+      expect(pocket).not.toHaveClass(side === 'opens-right' ? 'opens-left' : 'opens-right')
+    })
+  }
+})
+
+test('desktop height anchor follows layout, resize and scroll; reserves toolbar space and cleans up', async () => {
+  let stageTop = 300, toolbarTop = 226
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    return { top: this.classList.contains('binder-stage') ? stageTop : toolbarTop } as DOMRect
+  })
+  let frame: FrameRequestCallback | undefined
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { frame = callback; return 1 })
+  const cancel = vi.spyOn(window, 'cancelAnimationFrame')
+  let reflow!: () => void
+  const disconnect = vi.fn()
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(callback: () => void) { reflow = callback }
+    observe = vi.fn()
+    disconnect = disconnect
+  })
+  const { unmount } = setup()
+  await screen.findByRole('region', { name: 'Classeur' })
+  const anchor = () => book().style.getPropertyValue('--binder-top')
+  expect(anchor()).toBe('300px')
+  stageTop = 250
+  act(() => { fireEvent(window, new Event('resize')); frame!(0) })
+  expect(anchor()).toBe('250px')
+  stageTop = 320
+  act(() => { reflow(); frame!(0) })
+  expect(anchor()).toBe('320px')
+  stageTop = -26; toolbarTop = -100
+  act(() => { fireEvent.scroll(window); frame!(0) })
+  expect(anchor()).toBe('74px')
+  unmount()
+  expect(disconnect).toHaveBeenCalledOnce()
+  expect(cancel).toHaveBeenLastCalledWith(1)
+  frame = undefined
+  fireEvent.scroll(window)
+  expect(frame).toBeUndefined()
+})
+
 test('book sides, direct mapping and partial even last page; invalid input restores value', async () => {
   setup(); await screen.findByRole('region', { name: 'Classeur' })
   expect(screen.getByRole('button', { name: 'Ouverture précédente' })).toBeDisabled()
@@ -111,7 +165,7 @@ test.each([false, true])('owned=%s has distinct possession states, real detail a
   setup({ owned }); await screen.findByRole('region', { name: 'Classeur' })
   const pockets = book().querySelectorAll('.binder-pocket')
   expect(pockets[0]).not.toHaveClass('is-missing'); expect(pockets[1]).toHaveClass('is-missing')
-  expect(pockets[0]).toHaveClass('opens-right'); expect(pockets[1]).toHaveClass('opens-left'); expect(pockets[3]).toHaveClass('opens-right')
+  expect(pockets[0]).toHaveClass('opens-right'); expect(pockets[1]).toHaveClass('opens-right'); expect(pockets[2]).toHaveClass('opens-left'); expect(pockets[3]).toHaveClass('opens-right')
   expect(within(book()).queryByRole('button', { name: /Exemplaires|Actions de|Déplacer/i })).not.toBeInTheDocument()
   expect(listCollectionItemOrder).not.toHaveBeenCalled(); expect(moveCollectionItem).not.toHaveBeenCalled()
   const opener = within(book()).getByRole('button', { name: /Voir le détail de Évoli 0.*Carte possédée/ })

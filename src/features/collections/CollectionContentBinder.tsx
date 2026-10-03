@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import type { CollectionContentItem } from '../../types/collection-content'
 import type { BinderFormat } from '../../types/view-preferences'
 import { CardImage } from './CardImage'
@@ -11,9 +11,38 @@ export function CollectionContentBinder({ navigation, format, onDetail }: {
   const [drag, setDrag] = useState(0)
   const touch = useRef<{ x: number; y: number; dx: number; dy: number; horizontal: boolean } | null>(null)
   const suppressClick = useRef(false)
+  const stage = useRef<HTMLDivElement>(null)
   const { pages, opening, spread, move } = navigation
   const columns = Number(format.split('x')[0])
-  return <div className="binder-stage" role="region" aria-label="Classeur" tabIndex={0}
+  const rows = Number(format.split('x')[1])
+  useLayoutEffect(() => {
+    const element = stage.current!
+    const content = element.closest('.collection-content')
+    const toolbar = content?.querySelector('.collection-content-toolbar')
+    if (!spread || !toolbar) return
+    const toolbarElement = toolbar
+    function measure() {
+      // Once scrolling passes the toolbar, keep its space reserved rather than
+      // growing the book indefinitely. No assumed header height.
+      const top = element.getBoundingClientRect().top - Math.min(0, toolbarElement.getBoundingClientRect().top)
+      element.style.setProperty('--binder-top', `${Math.max(0, top)}px`)
+    }
+    let frame = 0
+    function schedule() { cancelAnimationFrame(frame); frame = requestAnimationFrame(measure) }
+    measure()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule)
+    // Ancestor sizes catch reflow above the stage, including wrapped headings.
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) observer?.observe(ancestor)
+    window.addEventListener('resize', schedule)
+    window.addEventListener('scroll', schedule, { passive: true })
+    return () => {
+      observer?.disconnect(); cancelAnimationFrame(frame)
+      window.removeEventListener('resize', schedule)
+      window.removeEventListener('scroll', schedule)
+    }
+  }, [spread])
+  return <div ref={stage} className="binder-stage" role="region" aria-label="Classeur" tabIndex={0}
+    style={{ '--binder-columns': columns, '--binder-rows': rows } as CSSProperties}
     onKeyDown={event => {
       if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) return
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
@@ -50,12 +79,12 @@ export function CollectionContentBinder({ navigation, format, onDetail }: {
     <button type="button" className="binder-navigation binder-previous" aria-label={spread ? 'Ouverture précédente' : 'Page précédente'}
       disabled={!navigation.canPrevious} onClick={() => move(-1)}><span aria-hidden="true">‹</span></button>
     <div key={opening.join('-')} className={`binder-book${spread ? ' is-spread' : ''}${drag ? ' is-swiping' : ''}`}
-      style={{ '--binder-columns': columns, '--binder-direction': navigation.direction, '--binder-drag': `${drag}px` } as CSSProperties}>
+      style={{ '--binder-direction': navigation.direction, '--binder-drag': `${drag}px` } as CSSProperties}>
       {opening.map(page => <section key={page} className={`binder-page ${page % 2 === 0 ? 'is-left' : 'is-right'}`}
         aria-label={`Page ${page}`}>
         <ol className="binder-pockets">
           {pages[page - 1]!.map((item, slot) => <li key={slot}
-            className={`binder-pocket ${(slot % columns) % 2 === 0 ? 'opens-right' : 'opens-left'}${!item ? ' is-empty' : ''}${item && !item.owned ? ' is-missing' : ''}${item && navigation.searching && !navigation.matchingIds.has(item.collectionItemId) ? ' is-search-muted' : ''}${item?.collectionItemId === navigation.haloId ? ' has-search-halo' : ''}`}
+            className={`binder-pocket ${slot % columns < Math.ceil(columns / 2) ? 'opens-right' : 'opens-left'}${!item ? ' is-empty' : ''}${item && !item.owned ? ' is-missing' : ''}${item && navigation.searching && !navigation.matchingIds.has(item.collectionItemId) ? ' is-search-muted' : ''}${item?.collectionItemId === navigation.haloId ? ' has-search-halo' : ''}`}
             data-item-id={item?.collectionItemId} aria-label={!item ? 'Pochette vide' : undefined}>
             {item && <button type="button" className="binder-card" aria-label={`Voir le détail de ${[item.cardNameFr || 'Nom indisponible', item.setAbbreviationFr || item.setAbbreviation, item.localId, item.variantLabel, item.owned ? 'Carte possédée' : 'Carte manquante'].filter(Boolean).join(' · ')}`}
               onClick={event => onDetail(item, event.currentTarget)}>
