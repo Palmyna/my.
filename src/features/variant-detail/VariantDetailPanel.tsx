@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getVariantDetail, VariantDetailError } from '../../services/variant-detail'
 import type { VariantDetail } from '../../types/variant-detail'
 import { variantIdString, type VariantIdInput } from '../../lib/variant-id'
+import { formatFrSource } from '../../lib/format-fr-source'
 import { useAuth } from '../auth/auth-context'
 import { CardImage } from '../collections/CardImage'
 import { PhysicalCopiesContent, type PhysicalCopiesContentHandle } from '../physical-copies/PhysicalCopiesContent'
@@ -66,10 +67,6 @@ function DetailPanel({ variantId, ownerId, readOnly, opener, onClose, viewerId }
   </dialog>
 }
 
-function paired(fr: string | null, source: string | null) {
-  return fr && source && fr !== source ? `${fr} (${source})` : fr || source
-}
-
 function releaseDate(value: string | null) {
   if (!value) return null
   const date = new Date(`${value}T00:00:00Z`)
@@ -79,9 +76,9 @@ function releaseDate(value: string | null) {
 
 function CatalogDetail({ detail }: { detail: VariantDetail }) {
   const name = detail.cardNameFr || 'Nom indisponible'
-  const extension = paired(detail.setNameFr, detail.setNameSource)
+  const extension = formatFrSource(detail.setNameFr, detail.setNameSource)
   const fields = [
-    ['Extension', extension], ['Abréviation', paired(detail.setAbbreviationFr, detail.setAbbreviation)],
+    ['Extension', extension], ['Abréviation', formatFrSource(detail.setAbbreviationFr, detail.setAbbreviation)],
     ['Série', detail.seriesNameFr || detail.seriesNameSource], ['Numéro', detail.localId],
     ['Rareté', detail.rarity], ['Catégorie', detail.category], ['Date de sortie', releaseDate(detail.effectiveReleaseDate)],
   ].filter(([, value]) => value?.trim())

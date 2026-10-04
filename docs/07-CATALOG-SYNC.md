@@ -8,7 +8,7 @@ Le **pipeline de synchronisation** reste volontairement local et protégé, tand
 
 ```text
 Snapshot Git exact → lecture TypeScript → normalisation FR → overrides JSON Git
-→ validation + référentiel local des noms FR → plan PostgreSQL → dry-run → application transactionnelle
+→ validation + référentiel local des noms FR et types → plan PostgreSQL → dry-run → application transactionnelle
 → catalogue et structures automatiques hashées/versionnées → rapport
 ```
 
@@ -23,7 +23,7 @@ Le pipeline réside dans [`scripts/catalog/`](../scripts/catalog/), hors React. 
 | `snapshot.ts`, `reader.ts` | Cache Git, SHA, checkout détaché, lecture des littéraux et relations |
 | `normalize.ts`, `variants.ts`, `order.ts` | Champs utiles, FR, variantes, dates, images et rangs |
 | `overrides.ts` | Schéma strict, fusion prioritaire et provenance |
-| `pokemon-reference.ts` | Validation du JSON local des noms d'espèces, lookup et empreinte canonique |
+| `pokemon-reference.ts` | Validation du JSON local des noms et types d'espèces, lookup et empreinte canonique |
 | `pokemon-update.ts` | Commande manuelle PokéAPI indépendante, jamais importée par la synchronisation |
 | `database.ts`, `plan.ts` | Connexion, état existant, identités, diff et structures |
 | `apply.ts` | Réservation des IDs, écritures batchées et traces |
@@ -52,9 +52,9 @@ Seul PostgreSQL local est accepté : loopback `127.0.0.1`, `localhost` ou `::1`,
 
 La recherche de maintenance décrite plus bas lit le catalogue PostgreSQL existant ; elle ne passe pas par cette étape de snapshot.
 
-La source des cartes, variantes et rattachements est [`tcgdex/cards-database`](https://github.com/tcgdex/cards-database). REST TCGdex reste réservé aux diagnostics. Le seul complément autorisé est le référentiel versionné des noms français d'espèces, généré manuellement depuis PokéAPI ; la synchronisation ne contacte jamais PokéAPI et ne fusionne aucune API de prix ou d'assets.
+La source des cartes, variantes et rattachements est [`tcgdex/cards-database`](https://github.com/tcgdex/cards-database). REST TCGdex reste réservé aux diagnostics. Le seul complément autorisé est le référentiel versionné des noms français et types d'espèces, généré manuellement depuis PokéAPI ; la synchronisation ne contacte jamais PokéAPI et ne fusionne aucune API de prix ou d'assets.
 
-Le clone/fetch peu profond est conservé dans `.cache/tcgdex/cards-database/`, ignoré par Git. L'origine et la propreté sont vérifiées avant checkout détaché. `.cache/tcgdex/pipeline.lock` empêche deux processus de changer simultanément le snapshot. Après un arrêt brutal, vérifier l'absence de run actif avant de retirer un verrou périmé. Le dataset TCGdex complet n'est pas versionné dans MY. Le petit mapping complet des noms d'espèces l'est dans `data/pokemon/pokemon-fr.json`.
+Le clone/fetch peu profond est conservé dans `.cache/tcgdex/cards-database/`, ignoré par Git. L'origine et la propreté sont vérifiées avant checkout détaché. `.cache/tcgdex/pipeline.lock` empêche deux processus de changer simultanément le snapshot. Après un arrêt brutal, vérifier l'absence de run actif avant de retirer un verrou périmé. Le dataset TCGdex complet n'est pas versionné dans MY. Le petit référentiel complet des noms et types d'espèces l'est dans `data/pokemon/pokemon-reference.json`.
 
 La référence inspectée est `1c30c50253756bafecf0f065fc377f77016ad12f`, datée `2026-09-06T11:03:48+01:00` : `interfaces.d.ts`, `cardUtil.ts`, `variantUtil.ts`, `setUtil.ts`, `translationUtil.ts` et les données réelles. La licence MIT du code dérivé accompagne le pipeline dans `TCGDEX-LICENSE.txt`.
 
@@ -115,17 +115,17 @@ Les URL suivent le compilateur source : carte `https://assets.tcgdex.net/fr/<ser
 
 Les Pokémon proviennent des `dexId` effectifs après overrides : entiers positifs, sans doublons. Plusieurs dex créent plusieurs relations. `cameoDexIds` est ignoré pour les cibles et compté séparément. Aucun nom de carte, suffixe ou forme ne sert à deviner un nom Pokémon.
 
-### Référentiel des noms français
+### Référentiel des espèces Pokémon
 
-`npm run pokemon:update` génère manuellement le mapping complet `dex_number → nom FR` depuis la liste paginée PokéAPI `pokemon-species` et ses ressources par ID. Seule l'entrée `names[].language.name === "fr"` est retenue, avec sa typographie exacte. Le [guide de maintenance](../data/pokemon/README.md) décrit les endpoints, six requêtes simultanées maximum, les timeouts/retries limités et la publication atomique après validation complète. Un échec ou une espèce sans nom FR laisse l'ancien fichier intact.
+`npm run pokemon:update` génère manuellement `dex_number → {name_fr, types}` depuis PokéAPI : noms FR via `pokemon-species`, types actuels via l'unique variété `is_default`, ordonnés par `slot`. Seuls les 18 types autorisés, un ou deux distincts par espèce, sont acceptés. La [procédure de maintenance](../data/pokemon/README.md) détaille validation, URLs contrôlées, six requêtes maximum, timeout/retries bornés et publication atomique ; une erreur conserve l'ancien fichier.
 
-Avant tout accès DB, la CLI charge une seule fois `data/pokemon/pokemon-fr.json` via `loadPokemonReference`. Le schéma Zod refuse les formes/champs inattendus, clés non canoniques, numéros invalides et noms nuls/vides ; le contrôle des clés JSON détecte aussi les doublons échappés. Le générateur réseau n'est jamais importé ni appelé par la synchronisation. Aucun appel PokéAPI ou fallback implicite ne se produit si le fichier manque ou est invalide : l'exécution échoue sans écriture DB.
+Avant tout accès DB, la CLI charge une seule fois `data/pokemon/pokemon-reference.json`. Aucun appel PokéAPI depuis la synchronisation ou le frontend, aucun fallback de forme, nom de carte ou type TCG. Le schéma refuse champs inattendus, noms invalides, types inconnus/absents/dupliqués et clés JSON répétées, y compris échappées et imbriquées.
 
-Le plan utilise ce mapping comme autorité pour `pokemon.name_fr`, en conservant `pokemon.id` par `dex_number`, y compris sur les lignes historiques inactives. Un numéro absent donne `NULL` et le diagnostic `pokemon-name-missing` ; le Pokémon reste présent et le total apparaît dans `catalogue.pokemon_without_name` et en console. Les noms de cartes et formes ne sont jamais consultés pour ce lookup.
+Le plan alimente `pokemon.name_fr`, `primary_type`, `secondary_type` en conservant les IDs, y compris historiques inactifs. Un dex absent donne trois NULL et le diagnostic `pokemon-reference-missing`. Le rapport expose les compteurs sans nom/type, mono-types et doubles types. L'empreinte SHA-256 canonique couvre nom et types ordonnés, indépendamment de la mise en page ; elle reste enregistrée dans `pokemon_reference.hash` du rapport et du journal privé existant.
 
-Le hash SHA-256 du mapping canonique validé (clés triées lexicalement sans locale, JSON sans espaces, noms inchangés) est exposé dans `pokemon_reference.hash`, avec le nombre d'entrées, et enregistré dans le JSON existant `private.catalog_sync_runs.report` lors de l'apply. Un rapport d'échec local inclut l'empreinte si le fichier a pu être validé. Aucune migration n'est nécessaire.
+Une modification de nom ou de type ne change aucun rattachement, univers éligible, ordre, hash structurel ou `generation_version`. Le test `npm run catalog:test:pokemon:db` applique un changement de type seul sur le vrai catalogue local puis annule sa transaction, vérifie toutes les structures et l'idempotence sans reset. Le test d'import initial `catalog:test:db` conserve son prérequis de base locale vide.
 
-Le déterminisme dépend désormais du snapshot TCGdex, du référentiel local, des overrides et du code ; l'état initial de PostgreSQL fixe les IDs déjà attribués. Un changement de nom seul modifie uniquement les métadonnées du Pokémon. Les listes de variantes, hashes et `generation_version` des cibles restent inchangés.
+Pour un enrichissement descriptif, retrouver le dernier `source_sha` réussi dans `private.catalog_sync_runs`, puis réutiliser `--snapshot <SHA>` pour validate, dry-run et apply. Si ce SHA ne peut pas être établi, arrêter avant synchronisation et signaler l'incertitude. En 7D.1 : `1c30c50253756bafecf0f065fc377f77016ad12f`, retrouvé dans le journal réel et conservé ; seules les métadonnées des 1 025 Pokémon changent. Aucune application Cloud.
 
 ## Overrides Git
 

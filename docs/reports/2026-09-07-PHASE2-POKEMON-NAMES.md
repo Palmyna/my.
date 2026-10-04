@@ -1,5 +1,7 @@
 # Phase 2 — Complément noms français Pokémon
 
+Archive : le format ci-dessous décrit le référentiel de noms de septembre. Depuis 7D.1, `pokemon-fr.json` est remplacé par [`pokemon-reference.json`](../../data/pokemon/pokemon-reference.json), avec nom et types ; voir le [guide actuel](../../data/pokemon/README.md). Les mesures historiques restent inchangées.
+
 Vérification locale du 7 septembre 2026, depuis le commit MY. `d1356931f24ca0c687db7da5bcb6c284ca0c8fc3`. Ce rapport complète le [rapport initial du 6 septembre](2026-09-06-PHASE2.md), dont les mesures historiques restent inchangées.
 
 **Résultat : 1 025 noms français renseignés, zéro nom manquant, aucune modification structurelle et seconde application sans changement fonctionnel.** Aucun reset, commit, déploiement ou accès en écriture au cloud.
@@ -16,7 +18,7 @@ Le générateur manuel utilise exclusivement les endpoints officiels PokéAPI `p
 
 La pagination réelle a fourni **1 025 espèces**, **1 025 avec nom français**, **0 sans nom français**, du numéro **1** au numéro **1 025**. Aucun total de 1 025 n'est présupposé par le générateur. Aucune anomalie PokéAPI n'a été rencontrée.
 
-Le fichier [`pokemon-fr.json`](../../data/pokemon/pokemon-fr.json) contient le mapping complet sous forme d'objet JSON plat : `{"1":"Bulbizarre", ...}`. Les clés sont les numéros nationaux sous forme de chaînes décimales canoniques, triées numériquement ; les valeurs sont les noms exacts. UTF-8, indentation de deux espaces, LF final, sans timestamp ni payload brut. Unicode, ponctuation, accents et espaces internes sont conservés sans normalisation.
+Le fichier historique `pokemon-fr.json` contenait le mapping complet sous forme d'objet JSON plat : `{"1":"Bulbizarre", ...}`. Les clés sont les numéros nationaux sous forme de chaînes décimales canoniques, triées numériquement ; les valeurs sont les noms exacts. UTF-8, indentation de deux espaces, LF final, sans timestamp ni payload brut. Unicode, ponctuation, accents et espaces internes sont conservés sans normalisation.
 
 Validation Zod des numéros positifs compatibles SQL, noms non vides et forme stricte ; contrôle supplémentaire des clés dupliquées, y compris échappées. Les réponses API sont contrôlées pour la cohérence du total, les doublons, la correspondance des IDs et l'unicité du nom français. Un échec HTTP, JSON, de validation ou un nom FR absent empêche la publication et préserve l'ancien fichier. La publication utilise un fichier temporaire voisin, une synchronisation disque et un renommage atomique après validation complète.
 
@@ -136,7 +138,7 @@ Les diagnostics TCGdex historiques restent identiques : 9 divergences de dossier
 
 Fichiers créés pour le dépôt :
 
-- [`data/pokemon/pokemon-fr.json`](../../data/pokemon/pokemon-fr.json) ;
+- `data/pokemon/pokemon-fr.json` (remplacé depuis par le référentiel indiqué en début de rapport) ;
 - [`data/pokemon/README.md`](../../data/pokemon/README.md) ;
 - [`scripts/catalog/pokemon-reference.ts`](../../scripts/catalog/pokemon-reference.ts) ;
 - [`scripts/catalog/pokemon-update.ts`](../../scripts/catalog/pokemon-update.ts) ;

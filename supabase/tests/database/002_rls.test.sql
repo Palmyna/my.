@@ -65,7 +65,11 @@ select ok(not has_table_privilege('anon', 'public.physical_copies', 'SELECT'), '
 select ok(not has_table_privilege('authenticated', 'public.physical_copies', 'TRUNCATE'), 'authenticated cannot TRUNCATE physical_copies');
 select ok(not has_table_privilege('anon', 'public.collection_shares', 'SELECT'), 'anon has no SELECT grant on collection_shares');
 select ok(not has_table_privilege('authenticated', 'public.collection_shares', 'TRUNCATE'), 'authenticated cannot TRUNCATE collection_shares');
-select ok(not has_schema_privilege('authenticated', 'private', 'USAGE'), 'No general authenticated private schema access');
+select ok(has_schema_privilege('authenticated', 'private', 'USAGE')
+  and not has_table_privilege('authenticated', 'private.catalog_sync_runs', 'SELECT')
+  and not has_table_privilege('authenticated', 'private.catalog_overrides', 'SELECT')
+  and not has_table_privilege('authenticated', 'private.catalog_entity_keys', 'SELECT'),
+  'Private usage permits canonical RPC dependency only; no general private table access');
 select ok(not has_schema_privilege('anon', 'private', 'USAGE'), 'No anonymous private schema access');
 select ok(not has_schema_privilege('authenticated', 'public', 'CREATE'), 'No API schema creation');
 select ok(not has_function_privilege('anon', 'private.owns_collection(uuid)', 'EXECUTE'), 'Owner predicate not executable by anon');
@@ -128,7 +132,9 @@ select ok((select count(*) > 0 from automatic_target_states), 'Authenticated cat
 select throws_ok($$delete from automatic_target_states$$, '42501', null, 'Authenticated catalogue DELETE denied: automatic_target_states');
 select throws_ok($$insert into pokemon(dex_number) values (900002)$$, '42501', null, 'Catalogue INSERT denied');
 select throws_ok($$update catalog_variants set is_active = false$$, '42501', null, 'Catalogue UPDATE denied');
-select throws_ok($$select private.owns_collection('20000000-0000-0000-0000-000000000001')$$, '42501', null, 'Private helper inaccessible through direct schema lookup');
+select is(private.owns_collection('20000000-0000-0000-0000-000000000001'),true,
+  'Existing explicitly granted ownership predicate remains caller-scoped with canonical schema usage');
+select throws_ok($$select private.set_updated_at()$$, '42501', null, 'Schema usage does not grant technical helper execution');
 
 -- Recipient gets only the shared collection, its items and relevant owner copies.
 set local role authenticated;

@@ -1,6 +1,6 @@
 import { canonical, compare, dateOrigin, hash, unique } from './model.ts'
 import type { Catalogue, Card, Diagnostic, Variant } from './model.ts'
-import { pokemonNameFor } from './pokemon-reference.ts'
+import { pokemonFor } from './pokemon-reference.ts'
 import type { PokemonReference } from './pokemon-reference.ts'
 import { tables } from './database.ts'
 import type { Row, State, Table } from './database.ts'
@@ -90,11 +90,11 @@ export function makePlan(catalogue: Catalogue, state: State, reference: PokemonR
     return row
   }
   const oldBy = (table: Table, key: string): Map<string, Row> => new Map(state.rows[table].map((row) => [String(row[key]), row]))
-  const nameFor = (number: number): string | null => {
-    const name = pokemonNameFor(reference, number)
-    if (name === null) plan.diagnostics.push({ code: 'pokemon-name-missing', target: String(number),
-      detail: 'National dex absent from the versioned French species reference; name_fr remains NULL.' })
-    return name
+  const metadataFor = (number: number): Row => {
+    const entry = pokemonFor(reference, number)
+    if (entry === null) plan.diagnostics.push({ code: 'pokemon-reference-missing', target: String(number),
+      detail: 'National dex absent from the versioned species reference; name and types remain NULL.' })
+    return { name_fr: entry?.name_fr ?? null, primary_type: entry?.types[0] ?? null, secondary_type: entry?.types[1] ?? null }
   }
   const oldSeries = oldBy('tcg_series', 'tcgdex_id'), oldSets = oldBy('tcg_sets', 'tcgdex_id'), oldCards = oldBy('source_cards', 'tcgdex_id')
   const oldPokemon = oldBy('pokemon', 'dex_number'), oldVariants = new Map(state.rows.catalog_variants.map((row) => [`${String(row.source_card_id)}#${String(row.variant_key)}`, row]))
@@ -114,7 +114,7 @@ export function makePlan(catalogue: Catalogue, state: State, reference: PokemonR
   }
   for (const number of [...new Set(catalogue.cards.flatMap((card) => card.dex))].sort((a, b) => a - b)) {
     const previous = oldPokemon.get(String(number))
-    const row = add('pokemon', { dex_number: number, name_fr: nameFor(number),
+    const row = add('pokemon', { dex_number: number, ...metadataFor(number),
       is_active: catalogue.cards.some((card) => card.active && card.dex.includes(number)) }, previous)
     pokemonIds.set(number, id(row))
   }
@@ -148,7 +148,7 @@ export function makePlan(catalogue: Catalogue, state: State, reference: PokemonR
       // A table may be empty in the desired snapshot (e.g. all Pokemon mappings removed).
       if (!columns.length) for (const [key, value] of Object.entries(previous)) if (!['id', 'created_at', 'updated_at'].includes(key)) values[key] = value
       values.is_active = false
-      if (table === 'pokemon') values.name_fr = nameFor(Number(previous.dex_number))
+      if (table === 'pokemon') Object.assign(values, metadataFor(Number(previous.dex_number)))
       if ('source_present' in previous) values.source_present = false
       add(table, values, previous)
     }

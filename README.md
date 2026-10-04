@@ -12,7 +12,7 @@ Ce dépôt contient la documentation et le socle applicatif. La documentation re
 
 Le backend des collections automatiques est livré : calcul canonique PostgreSQL, état/version de cible, création atomique et concurrente via `create_automatic_collection(...)`, et service TypeScript. La **Phase 7 — Vues, catalogue, recherche globale et préférences** est en cours. Les trois vues Collection **Liste / Cartes / Classeur** sont livrées depuis 7B.3 : préférences du viewer, contenu et ordre autoritatifs communs. Classeur continu, livre desktop/tablette large, page unique mobile, formats `2x2`, `3x3`, `4x3`, recherche sans compactage avec occurrences et halo. Aucun reorder en Classeur ; Liste/Cartes conservent celui du propriétaire. Les trois réglages Affichage de Paramètres sont fonctionnels depuis 7C.1 : défaut catalogue, défaut collection et format Classeur global, sauvegardés indépendamment sans toucher aux derniers modes ni aux overrides. Catalogue, création/ouverture depuis Pokémon/Extension et recherche globale restent futurs. Gestion utilisateur des partages prévue en Phase 9. Voir la [roadmap](docs/08-ROADMAP.md) et le [rapport de clôture Phase 6](docs/reports/2026-09-30-PHASE6-CLOSURE.md).
 
-La version applicative est **0.7.6**. `package.json` est son unique source de vérité ; le lockfile est synchronisé. Vite injecte `version` dans `__APP_VERSION__`. Le footer public/Auth et authentifié conserve Conditions d’utilisation et récupère dynamiquement la version, sans constante dans le composant ni dépendance supplémentaire.
+La version applicative est **0.7.7**. `package.json` est son unique source de vérité ; le lockfile est synchronisé. Vite injecte `version` dans `__APP_VERSION__`. Le footer public/Auth et authentifié conserve Conditions d’utilisation et récupère dynamiquement la version, sans constante dans le composant ni dépendance supplémentaire.
 
 **Checkpoint historique Phase 6 : 23 migrations Local/Cloud, dont 12 Phase 6, alignées jusqu'à `20260928083830`.** Après l'audit technique exécuté précédemment par Codex, le propriétaire a exécuté manuellement le checkpoint Cloud : dry-run initial de 12 migrations, push des 12 sans erreur, état final 23/23 et dry-run final sans migration restante. Ces résultats fournis par le propriétaire sont consignés sans nouvel accès Cloud pendant cette clôture documentaire. Les IDs BIGINT restent des chaînes décimales ; le backend reste autoritatif, y compris après réorganisation. Voir le [contrat et l'intégration](docs/06-DATABASE.md#première-liste-fonctionnelle--phase-6b3).
 
@@ -63,6 +63,8 @@ La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue
 Chaque variante porte désormais sa date effective nullable et sa provenance persistée. Elle hérite de la date résolue de sa carte lorsqu'aucune date spécifique fiable n'est connue. Le classement Pokémon utilise cette date de variante ; le classement Set reste numéro puis variante. La [correction des dates de variantes](docs/reports/2026-09-08-PHASE2-VARIANT-DATES.md) conserve les preuves de migration du volume local, de stabilité des IDs et d'idempotence.
 
 **Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place. Le déploiement Vercel et ses URLs de production sont réservés à la phase finale de mise en production.
+
+Le socle Phase 7D.1 est livré localement : types Pokémon, RPC Catalogue authentifiées, services/décodeurs stricts, helper FR/source et palette frontend. Aucune page Catalogue livrée. Voir les [contrats](docs/09-CATALOG-CONTRACTS.md) et le [rapport local](docs/reports/2026-10-04-PHASE7D1-CATALOG-FOUNDATION.md).
 
 ## Workflow Git
 
@@ -179,7 +181,7 @@ Le catalogue local vérifié contient 19 907 cartes, 31 904 variantes, 1 025 Pok
 | `npm run catalog:validate` | Valide snapshot, corrections et rapprochement en lecture sur Supabase local |
 | `npm run catalog:find -- "Pikachu Légendes Brillantes"` | Recherche locale en lecture seule ; affiche la cible d'override directement copiable |
 | `npm run catalog:find -- "Pikachu" --export` | CSV local de toutes les cartes trouvées, une ligne par variante standard, avec dates et sélecteurs |
-| `npm run pokemon:update` | Régénère manuellement le référentiel complet des noms d'espèces français depuis PokéAPI, sans accès DB |
+| `npm run pokemon:update` | Régénère manuellement le référentiel complet noms FR + types des espèces depuis PokéAPI, sans accès DB |
 | `npm run catalog:sync` | Dry-run complet par défaut, zéro écriture DB, aucun ID consommé |
 | `npm run catalog:sync -- --snapshot <SHA> --dry-run` | Rejoue un SHA exact et produit le plan |
 | `npm run catalog:sync -- --snapshot <SHA> --apply` | Applique le plan transactionnellement sur la base locale |
@@ -187,7 +189,7 @@ Le catalogue local vérifié contient 19 907 cartes, 31 904 variantes, 1 025 Pok
 
 Sans SHA, le HEAD TCGdex est résolu une fois. Le premier clone/fetch nécessite GitHub ; un SHA déjà en cache peut être rejoué hors ligne. La connexion locale provient du statut Supabase sans afficher les secrets. `CATALOG_DATABASE_URL`, privée et facultative, accepte seulement le loopback sur `55322/postgres`. Aucun mode distant n'est disponible. `--apply` est obligatoire pour écrire.
 
-Le [référentiel Pokémon](data/pokemon/README.md) précise la provenance, la validation, les erreurs et la mise à jour de `data/pokemon/pokemon-fr.json`. Une synchronisation reproductible fixe également ce fichier, les overrides et le code. Les résultats du complément noms sont consignés dans le [rapport du 7 septembre](docs/reports/2026-09-07-PHASE2-POKEMON-NAMES.md).
+Le [référentiel Pokémon](data/pokemon/README.md) précise la provenance, la validation, les erreurs et la mise à jour de `data/pokemon/pokemon-reference.json`. Une synchronisation reproductible fixe également ce fichier, les overrides et le code. Les résultats du complément noms sont consignés dans le [rapport du 7 septembre](docs/reports/2026-09-07-PHASE2-POKEMON-NAMES.md).
 
 Pour retrouver une cible, démarrer Supabase local puis utiliser une seule chaîne entre guillemets :
 

@@ -133,7 +133,7 @@ Phase 6 terminée et validée après l'audit technique exécuté par Codex et le
 
 **Statut : EN COURS**
 
-Le socle Phase 7 comprend version applicative/footer et préférences 7A.3. Depuis 7B.3, Liste, Cartes et Classeur Collection sont fonctionnels avec sélecteur, préférences du viewer, dernier choix explicite sauvegardé, recherche conservée et contenu/ordre autoritatifs communs. Liste/Cartes conservent le reorder propriétaire ; Classeur est continu et consultatif. Paramètres livre désormais les trois réglages Affichage : défaut catalogue, défaut collection et format Classeur global, avec sauvegardes indépendantes et overrides conservés. Version **0.7.6**. Catalogue et recherche globale restent à développer.
+Le socle Phase 7 comprend version applicative/footer et préférences 7A.3. Depuis 7B.3, Liste, Cartes et Classeur Collection sont fonctionnels avec sélecteur, préférences du viewer, dernier choix explicite sauvegardé, recherche conservée et contenu/ordre autoritatifs communs. Liste/Cartes conservent le reorder propriétaire ; Classeur est continu et consultatif. Paramètres livre désormais les trois réglages Affichage : défaut catalogue, défaut collection et format Classeur global, avec sauvegardes indépendantes et overrides conservés. Version **0.7.7**. Le socle Catalogue dispose désormais des types Pokémon, de trois contrats de lecture authentifiée, de services/décodeurs stricts et de son identité couleur frontend. Pages Catalogue et recherche globale restent à développer ; aucun écran Catalogue n'est livré par ce socle.
 
 Compléter les modes de consultation et la navigation dans les collections et le catalogue authentifié.
 

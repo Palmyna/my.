@@ -225,13 +225,13 @@ isOneToOne: false
                   ]
                 },"pokemon": {
                   Row: {
-                    "created_at": string,"dex_number": number,"id": number,"is_active": boolean,"name_fr": string | null,"updated_at": string
+                    "created_at": string,"dex_number": number,"id": number,"is_active": boolean,"name_fr": string | null,"primary_type": string | null,"secondary_type": string | null,"updated_at": string
                   }
                   Insert: {
-                    "created_at"?: string,"dex_number": number,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"dex_number": number,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"primary_type"?: string | null,"secondary_type"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"dex_number"?: number,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"dex_number"?: number,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"primary_type"?: string | null,"secondary_type"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
 
@@ -339,6 +339,15 @@ isOneToOne: true
 { Args: { "p_name": string,"p_target_id": number,"p_target_type": string }; Returns: {
               "collection_id": string,"created": boolean
             }[]
+                           },
+"get_catalog_card":
+{ Args: { "p_card_id": number }; Returns: Json
+                           },
+"get_catalog_pokemon":
+{ Args: { "p_pokemon_id": number }; Returns: Json
+                           },
+"get_catalog_set":
+{ Args: { "p_set_id": number }; Returns: Json
                            },
 "get_collection_content":
 { Args: { "p_collection_id": string }; Returns: Json

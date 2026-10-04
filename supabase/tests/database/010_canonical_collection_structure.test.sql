@@ -14,7 +14,10 @@ select ok(not has_function_privilege(role_name, 'private.canonical_collection_va
   and not has_function_privilege(role_name, 'private.catalog_utf16_sort_key(text)', 'EXECUTE')
   and not has_schema_privilege(role_name, 'private', 'USAGE'),
   role_name || ' cannot access the internal helpers')
-from unnest(array['anon', 'authenticated', 'service_role']) as role_name;
+from unnest(array['anon', 'service_role']) as role_name;
+select ok(has_function_privilege('authenticated', 'private.canonical_collection_variants(text,bigint)', 'EXECUTE')
+  and has_function_privilege('authenticated', 'private.catalog_utf16_sort_key(text)', 'EXECUTE'),
+  'Authenticated Catalogue readers may reuse exact canonical helper under RLS');
 select ok(not exists (
   select 1 from pg_proc as proc cross join lateral aclexplode(coalesce(proc.proacl, acldefault('f', proc.proowner))) as acl
   where proc.oid in ('private.canonical_collection_variants(text,bigint)'::regprocedure,
@@ -173,7 +176,7 @@ select throws_ok($$select * from private.canonical_collection_variants('set', -8
 reset role;
 set local role authenticated;
 select throws_ok($$select * from private.canonical_collection_variants('set', -81001)$$,
-  '42501', null, 'Authenticated API role cannot invoke the helper');
+  'P0002', null, 'Internal helper sees no target without authorized identity/MFA/profile');
 reset role;
 
 select * from finish();

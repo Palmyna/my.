@@ -8,7 +8,9 @@ select has_trigger('auth', 'users', 'auth_user_deleting_account', 'Auth hard del
 select ok((select prosecdef and proconfig @> array['search_path=""'] from pg_proc where oid = 'private.delete_account_data_for_auth_user()'::regprocedure), 'Cleanup uses narrow definer with empty search_path');
 select ok(not has_function_privilege(role_name, 'private.delete_account_data_for_auth_user()', 'EXECUTE'), role_name || ' cannot invoke deletion helper')
   from unnest(array['anon', 'authenticated', 'service_role', 'supabase_auth_admin']) role_name;
-select ok(not has_schema_privilege('authenticated', 'private', 'USAGE'), 'Private schema remains inaccessible');
+select ok(not has_schema_privilege('authenticated','private','CREATE')
+  and not has_function_privilege('authenticated','private.delete_account_data_for_auth_user()','EXECUTE'),
+  'Canonical schema usage permits neither private object creation nor deletion helper execution');
 select ok(not has_table_privilege('authenticated', 'auth.users', 'DELETE'), 'Ordinary client cannot delete Auth users');
 select ok(not has_table_privilege('authenticated', 'public.profiles', 'DELETE'), 'Ordinary client cannot delete profiles');
 select ok(has_function_privilege('authenticated', 'private.has_my_profile()', 'EXECUTE'), 'RLS may evaluate the current caller predicate');

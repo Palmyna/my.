@@ -54,6 +54,10 @@ Les trois migrations suivantes sont présentes dans le dépôt, validées locale
 
 Audit technique final exécuté précédemment par Codex, validé et fourni pour cette clôture : **DB/pgTAP PASS, 18 fichiers / 977 assertions** ; **Frontend/Vitest PASS, 40 fichiers / 1 202 tests** ; `db:lint`, `typecheck`, `lint`, `build`, `diff-check` PASS ; `db:types` PASS sans diff. Aucune suite ni génération de types n'est relancée ici. Les contrats finaux sont détaillés ci-dessous ; Ce constat historique précède la Phase 7A.3 ; son socle local est décrit ci-dessous.
 
+## Phase 7D.1 — Socle Catalogue
+
+La migration [20261004161759_phase7d1_catalog_foundation.sql](../supabase/migrations/20261004161759_phase7d1_catalog_foundation.sql) est appliquée **localement uniquement**, historique **25/25**. Elle ajoute les types Pokémon nullables contraints et trois RPC JSONB de lecture authentifiée : `get_catalog_pokemon(bigint)`, `get_catalog_set(bigint)`, `get_catalog_card(bigint)`. Toutes sont STABLE, SECURITY INVOKER, `search_path` vide, sans données personnelles ni nouvelles écritures API. Les [contrats détaillés](09-CATALOG-CONTRACTS.md) décrivent payloads, disponibilité, grants minimaux et retour arrière. Le lecteur canonique existant est réutilisé, avec accès limité sous RLS aux deux colonnes des alias de cartes indispensables au départage ; journaux, corrections et alias de variantes restent fermés. Aucun changement Cloud en 7D.1.
+
 ## Principes structurants
 
 PostgreSQL via Supabase est la source de vérité persistante de MY. Le modèle sépare strictement :
@@ -192,13 +196,15 @@ La table `pokemon` représente les Pokémon utilisables notamment comme cibles d
 |---|---|
 | `id` | Identifiant interne `BIGINT` |
 | `dex_number` | Numéro du Pokédex national, obligatoire et unique |
-| `name_fr` | Nom français |
+| `name_fr` | Nom français nullable |
+| `primary_type` | Type principal TEXT nullable, parmi les 18 identifiants PokéAPI |
+| `secondary_type` | Type secondaire TEXT nullable, exige un primaire différent |
 | `is_active` | État d'activité dans MY. |
 | timestamps | Création et mise à jour lorsque pertinentes |
 
 Le numéro du Pokédex national est la référence fonctionnelle principale ; l'ID interne est utilisé par les relations de la base.
 
-`name_fr` reste nullable et reçoit le nom du référentiel d'espèces français versionné, généré manuellement depuis PokéAPI. Le rapprochement par `dex_number` préserve `id` ; un numéro absent du fichier donne `NULL` et un diagnostic. Cet enrichissement descriptif ne modifie aucune structure de cible. Son empreinte est conservée dans le JSON du journal privé existant, sans migration ni colonne supplémentaire ; voir le [pipeline](07-CATALOG-SYNC.md).
+`name_fr` reste nullable et reçoit le nom du référentiel d'espèces français versionné, généré manuellement depuis PokéAPI. Le rapprochement par `dex_number` préserve `id` ; un numéro absent du fichier donne `NULL` et un diagnostic. Depuis 7D.1, le référentiel fournit également les types de la variété par défaut de l'espèce. Nom et types absents restent NULL ; couleurs exclusivement frontend. Cet enrichissement descriptif ne modifie aucune structure de cible. Son empreinte couvrant nom + types est conservée dans le JSON du journal privé existant ; voir le [pipeline](07-CATALOG-SYNC.md).
 
 ### `tcg_series`
 

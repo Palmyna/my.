@@ -52,9 +52,9 @@ Cette représentation relie un Pokémon :
 - aux cartes qui le représentent ;
 - aux collections automatiques dont il est la cible.
 
-La Phase 2 crée les Pokémon à partir des `dexId` effectifs après corrections. Leur nom français provient du référentiel local versionné des noms d'espèces, généré manuellement depuis PokéAPI `pokemon-species` (ID et nom de langue `fr`). Le pipeline n'appelle jamais cette API et n'extrait aucun nom de carte, suffixe ou forme. Un dex absent du référentiel conserve le Pokémon avec `name_fr=NULL` et un diagnostic.
+La Phase 2 crée les Pokémon à partir des `dexId` effectifs après corrections. Leur nom français et leurs types proviennent du référentiel local versionné `pokemon-reference.json`, généré manuellement depuis PokéAPI : `pokemon-species` pour l'ID et le nom de langue `fr`, puis la ressource Pokémon de l'unique variété `is_default` pour les types ordonnés par `slot`. MY. représente l'espèce Pokédex, sans appliquer les types d'une forme alternative visible sur une carte. Le pipeline n'appelle jamais cette API et n'extrait aucun nom de carte, suffixe ou forme. Un dex absent du référentiel conserve le Pokémon avec `name_fr`, `primary_type` et `secondary_type` à `NULL` et un diagnostic. Les deux types TEXT nullables sont limités aux 18 identifiants PokéAPI ; le secondaire requiert un primaire différent. Aucune couleur n'est persistée.
 
-Le rapprochement par `dex_number` conserve l'ID interne. Le nom versionné fait autorité sur le nom précédent, y compris pour une ligne inactive ; une correction de nom ne change ni les rattachements ni les IDs ordonnés, hashes ou versions des cibles automatiques. La [procédure de maintenance](../data/pokemon/README.md) distingue génération manuelle du fichier et synchronisation du catalogue.
+Le rapprochement par `dex_number` conserve l'ID interne. Le nom versionné fait autorité sur le nom précédent, y compris pour une ligne inactive ; une correction de nom ou de type ne change ni les rattachements ni les IDs ordonnés, hashes ou versions des cibles automatiques. La [procédure de maintenance](../data/pokemon/README.md) distingue génération manuelle du fichier et synchronisation du catalogue.
 
 ### Séries ou blocs
 

@@ -4,12 +4,19 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { z } from 'zod'
 import { dex } from './model.ts'
-import { parsePokemonReference, pokemonName, pokemonReferencePath, serializePokemonReference } from './pokemon-reference.ts'
+import { parsePokemonReference, pokemonName, pokemonTypes, pokemonReferencePath, serializePokemonReference } from './pokemon-reference.ts'
+import type { PokemonReferenceEntry } from './pokemon-reference.ts'
 
 const endpoint = 'https://pokeapi.co/api/v2/pokemon-species/'
+const pokemonEndpoint = 'https://pokeapi.co/api/v2/pokemon/'
+const typeNames = ['normal', 'fighting', 'flying', 'poison', 'ground', 'rock', 'bug', 'ghost', 'steel', 'fire', 'water', 'grass', 'electric', 'psychic', 'ice', 'dragon', 'dark', 'fairy']
 const concurrency = 6, attempts = 3, timeoutMs = 15_000
 const pageSchema = z.object({ count: dex, next: z.string().nullable(), results: z.array(z.object({ url: z.string() })) })
-const speciesSchema = z.object({ id: dex, names: z.array(z.object({ name: z.string(), language: z.object({ name: z.string() }) })) })
+const resource = z.object({ name: z.string().min(1), url: z.string() })
+const speciesSchema = z.object({ id: dex, name: z.string().min(1), names: z.array(z.object({ name: z.string(), language: z.object({ name: z.string() }) })),
+  varieties: z.array(z.object({ is_default: z.boolean(), pokemon: resource })) })
+const pokemonSchema = z.object({ id: dex, name: z.string().min(1), is_default: z.literal(true), species: resource,
+  types: z.array(z.object({ slot: z.number().int().min(1).max(2), type: resource })).min(1).max(2) })
 interface Options { fetch?: typeof fetch; sleep?: (ms: number) => Promise<unknown>; progress?: (message: string) => void }
 class TransientHttpError extends Error { retryAfterMs = 0 }
 
@@ -20,10 +27,10 @@ function checkPageUrl(value: string): string {
     throw new Error('Unexpected Pokemon species pagination URL')
   return url.href
 }
-function resourceId(value: string): number {
-  if (!value.startsWith(endpoint) || !/^[1-9][0-9]*\/$/.test(value.slice(endpoint.length)))
-    throw new Error('Unexpected Pokemon species resource URL')
-  return dex.parse(Number(value.slice(endpoint.length, -1)))
+function resourceId(value: string, base = endpoint): number {
+  if (!value.startsWith(base) || !/^[1-9][0-9]*\/$/.test(value.slice(base.length)))
+    throw new Error('Unexpected PokéAPI resource URL')
+  return dex.parse(Number(value.slice(base.length, -1)))
 }
 
 async function getJson(url: string, options: Options): Promise<unknown> {
@@ -74,8 +81,8 @@ export async function updatePokemonReference(file = pokemonReferencePath, option
     next = page.next
   }
   if (ids.size !== count) throw new Error(`Incomplete species list: ${ids.size}/${count}`)
-  const ordered = [...ids].sort((a, b) => a - b), names: Record<string, string> = {}, missing: number[] = []
-  progress(`${count} espèces découvertes ; lecture des noms français (${concurrency} requêtes maximum).`)
+  const ordered = [...ids].sort((a, b) => a - b), entries: Record<string, PokemonReferenceEntry> = {}, missing: number[] = []
+  progress(`${count} espèces découvertes ; lecture des noms français et types (${concurrency} requêtes maximum).`)
   let cursor = 0, completed = 0, failed = false
   const workers = Array.from({ length: Math.min(concurrency, ordered.length) }, async () => {
     while (!failed) {
@@ -87,7 +94,20 @@ export async function updatePokemonReference(file = pokemonReferencePath, option
         const french = species.names.filter((entry) => entry.language.name === 'fr')
         if (french.length > 1) throw new Error(`Duplicate French name for species ${id}`)
         if (!french.length || !pokemonName.safeParse(french[0]?.name).success) missing.push(id)
-        else names[String(species.id)] = french[0]!.name
+        else {
+          const defaults = species.varieties.filter(variety => variety.is_default)
+          if (defaults.length !== 1) throw new Error(`Expected exactly one default variety for species ${id}`)
+          const variety = defaults[0]!.pokemon, pokemonId = resourceId(variety.url, pokemonEndpoint)
+          const pokemon = pokemonSchema.parse(await getJson(variety.url, options))
+          if (pokemon.id !== pokemonId || pokemon.name !== variety.name || pokemon.species.name !== species.name
+            || resourceId(pokemon.species.url) !== id) throw new Error(`PokéAPI default variety resource mismatch for species ${id}`)
+          const orderedTypes = [...pokemon.types].sort((a, b) => a.slot - b.slot)
+          for (const [index, item] of orderedTypes.entries()) {
+            if (item.slot !== index + 1 || typeNames[resourceId(item.type.url, 'https://pokeapi.co/api/v2/type/') - 1] !== item.type.name)
+              throw new Error(`PokéAPI type slot/resource mismatch for species ${id}`)
+          }
+          entries[String(id)] = { name_fr: french[0]!.name, types: pokemonTypes.parse(orderedTypes.map(item => item.type.name)) }
+        }
         completed++
         if (completed % 100 === 0 || completed === count) progress(`${completed}/${count} espèces lues.`)
       } catch (error) { failed = true; throw error }
@@ -97,11 +117,13 @@ export async function updatePokemonReference(file = pokemonReferencePath, option
   const results = await Promise.allSettled(workers)
   const failure = results.find((result) => result.status === 'rejected')
   if (failure?.status === 'rejected') throw failure.reason
-  const summary = { discovered: count, with_fr: Object.keys(names).length, without_fr: missing.length,
+  const summary = { discovered: count, with_fr: Object.keys(entries).length, without_fr: missing.length,
+    mono_type: Object.values(entries).filter(entry => entry.types.length === 1).length,
+    dual_type: Object.values(entries).filter(entry => entry.types.length === 2).length,
     min_dex: ordered[0]!, max_dex: ordered.at(-1)! }
   progress(JSON.stringify(summary))
   if (missing.length) throw new Error(`Missing French species names (${missing.length}): ${missing.sort((a, b) => a - b).join(', ')}`)
-  const contents = serializePokemonReference(names), reference = parsePokemonReference(contents)
+  const contents = serializePokemonReference(entries), reference = parsePokemonReference(contents)
   // Same-directory rename is the publication point. An unsuccessful generation leaves the old file intact.
   await mkdir(path.dirname(file), { recursive: true })
   const temporary = `${file}.${randomUUID()}.tmp`

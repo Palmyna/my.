@@ -1,17 +1,14 @@
 import type { CatalogVariantForAdd } from '../../types/catalog-search'
 import type { CollectionContentItem } from '../../types/collection-content'
 import { CardImage } from './CardImage'
-
-function formatSetAbbreviation(fr: string | null, source: string | null): string | null {
-  return fr && source && fr !== source ? `${fr} (${source})` : fr || source
-}
+import { formatFrSource } from '../../lib/format-fr-source'
 
 export function CompactVariantSummary({ variant, origin, showVariantFallback = false }: {
   variant: CatalogVariantForAdd; origin?: CollectionContentItem['origin'] | undefined
   showVariantFallback?: boolean
 }) {
   const name = variant.cardNameFr || 'Nom indisponible'
-  const label = [name, formatSetAbbreviation(variant.setAbbreviationFr, variant.setAbbreviation), variant.localId].filter(Boolean).join(' · ')
+  const label = [name, formatFrSource(variant.setAbbreviationFr, variant.setAbbreviation), variant.localId].filter(Boolean).join(' · ')
   return <>
     <CardImage key={variant.imageUrl} url={variant.imageUrl} name={name} />
     <span className="collection-content-info">

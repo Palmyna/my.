@@ -91,7 +91,8 @@ select results_eq($$update collection_view_preferences set binder_format='2x2' r
 select results_eq($$delete from collection_view_preferences returning user_id$$,$$select null::uuid where false$$,'Revoked override cannot be deleted through stale access');
 select throws_ok($$insert into collection_view_preferences(collection_id,binder_format) values('c2000000-0000-0000-0000-000000000001','2x2')$$,'42501',null,'Revoked recipient cannot recreate override');
 reset role;
-select is((select count(*) from collection_view_preferences),2::bigint,'Revocation hides stored preferences without transferring them');
+select is((select count(*) from collection_view_preferences where collection_id='c2000000-0000-0000-0000-000000000001'),
+  2::bigint,'Revocation hides fixture preferences without transferring them, regardless of existing local collections');
 insert into collection_shares(collection_id,recipient_user_id) values('c2000000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000002');
 
 set local role authenticated;

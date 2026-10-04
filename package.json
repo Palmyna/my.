@@ -1,7 +1,7 @@
 {
   "name": "my-app",
   "private": true,
-  "version": "0.7.6",
+  "version": "0.7.7",
   "type": "module",
   "engines": {
     "node": "^24.20.0",
@@ -28,7 +28,8 @@
     "catalog:validate": "node scripts/catalog/cli.ts --validate",
     "catalog:find": "node scripts/catalog/catalog-find.ts",
     "catalog:sync": "node scripts/catalog/cli.ts",
-    "catalog:test:db": "node scripts/catalog/integration.ts"
+    "catalog:test:db": "node scripts/catalog/integration.ts",
+    "catalog:test:pokemon:db": "node scripts/catalog/pokemon-metadata-integration.ts"
   },
   "dependencies": {
     "@hello-pangea/dnd": "18.0.1",

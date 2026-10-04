@@ -5,7 +5,7 @@ import type { State } from './database.ts'
 import { tables } from './database.ts'
 import { parsePokemonReference } from './pokemon-reference.ts'
 
-export const fixturePokemonReference = parsePokemonReference('{"1":"Bulbizarre","25":"Pikachu","644":"Zekrom"}')
+export const fixturePokemonReference = parsePokemonReference('{"1":{"name_fr":"Bulbizarre","types":["grass","poison"]},"25":{"name_fr":"Pikachu","types":["electric"]},"644":{"name_fr":"Zekrom","types":["dragon","electric"]}}')
 
 export function fixtureSource(): Source {
   const serie = { id: 'fixture-series', name: { fr: 'Série synthétique', en: 'Synthetic series' } }
