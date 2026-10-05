@@ -9,6 +9,7 @@ import { useAuth } from '../auth/auth-context'
 import { CatalogCollectionAction } from './CatalogCollectionAction'
 import { CatalogContent } from './CatalogContent'
 import { catalogSetKey } from './catalog-query'
+import { formatCatalogDate } from './format-catalog-date'
 import { useCatalogView } from './useCatalogView'
 import './catalog.css'
 
@@ -39,9 +40,7 @@ function SetContent({ set, viewerId, view }: { set: CatalogSet; viewerId: string
   const name = set.nameFr || set.nameSource || 'Nom indisponible'
   const abbreviation = formatFrSource(set.abbreviationFr, set.abbreviation)
   const series = set.series.nameFr || set.series.nameSource
-  const releaseDate = set.releaseDate && new Intl.DateTimeFormat('fr-FR', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  }).format(new Date(`${set.releaseDate}T00:00:00Z`))
+  const releaseDate = formatCatalogDate(set.releaseDate)
   return <CatalogContent name={name} viewerId={viewerId} identity={resolveCatalogIdentity()} variants={set.variants} set={set} view={view}>
     <header className="catalog-set-header">
       <div className="catalog-set-identity">

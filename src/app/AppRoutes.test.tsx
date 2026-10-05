@@ -11,10 +11,10 @@ import type { EmailCallback } from '../features/auth/auth-callback'
 import { AppRoutes } from './AppRoutes'
 import { CollectionsError, getCollectionOverview, listDashboardCollections } from '../services/collections'
 import type { CollectionOverview } from '../types/collections'
-import { getCatalogPokemon, getCatalogSet } from '../services/catalog'
-import { catalogPokemon, catalogSet } from '../test/catalog-fixtures'
+import { getCatalogCard, getCatalogPokemon, getCatalogSet } from '../services/catalog'
+import { catalogCard, catalogPokemon, catalogSet } from '../test/catalog-fixtures'
 
-vi.mock('../services/catalog', async original => ({ ...await original<typeof import('../services/catalog')>(), getCatalogPokemon: vi.fn(), getCatalogSet: vi.fn() }))
+vi.mock('../services/catalog', async original => ({ ...await original<typeof import('../services/catalog')>(), getCatalogCard: vi.fn(), getCatalogPokemon: vi.fn(), getCatalogSet: vi.fn() }))
 
 vi.mock('../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../services/collections')>(),
@@ -35,6 +35,21 @@ beforeEach(() => {
   vi.mocked(getCollectionOverview).mockReset().mockResolvedValue(collection)
   vi.mocked(getCatalogPokemon).mockReset().mockResolvedValue(catalogPokemon)
   vi.mocked(getCatalogSet).mockReset().mockResolvedValue(catalogSet)
+  vi.mocked(getCatalogCard).mockReset().mockResolvedValue(catalogCard)
+})
+
+test.each(['out', 'aal1', 'aal2', 'enroll', 'email'] as const)('Card route authentication boundary %s', async mode => {
+  setup(`/catalog/cards/${catalogCard.sourceCardId}`, mode)
+  if (mode === 'aal2') {
+    await screen.findByRole('heading', { name: catalogCard.nameFr! })
+    expect(getCatalogCard).toHaveBeenCalledExactlyOnceWith(catalogCard.sourceCardId)
+    await waitFor(() => expect(document.title).toBe(`${catalogCard.nameFr} — MY.`))
+  } else {
+    const title = mode === 'out' ? 'Heureux de vous retrouver.' : mode === 'enroll' ? 'Sécurisez votre compte.'
+      : mode === 'email' ? 'Consultez votre boîte email.' : 'Confirmez que c’est vous.'
+    await heading(title)
+    expect(getCatalogCard).not.toHaveBeenCalled()
+  }
 })
 
 test.each(['out', 'aal1', 'aal2'] as const)('Pokemon route authentication boundary %s', async mode => {

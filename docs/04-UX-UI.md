@@ -189,7 +189,7 @@ Depuis le champ, `Tab` entre dans les suggestions ; les tabulations suivantes le
 
 ### Structure commune et neutralité
 
-Les pages Pokémon, Extension et Carte partagent un langage visuel : une partie haute présentant identité, informations et actions pertinentes, puis une partie basse avec recherche locale, sélecteur **Liste / Cartes** et contenu associé. La vue **Classeur est réservée aux collections**. Pokémon est livré en 7D.2 et Extension en 7D.3 ; Carte reste future.
+Les pages Pokémon, Extension et Carte partagent un langage visuel : une partie haute présentant identité, informations et actions pertinentes, puis une partie basse avec sélecteur **Liste / Cartes** et contenu associé. Recherche locale uniquement sur Pokémon et Extension ; Carte présente toutes ses Versions sans recherche. La vue **Classeur est réservée aux collections**. Pokémon est livré en 7D.2, Extension en 7D.3 et Carte en 7D.4 (`0.7.10`).
 
 Ces pages sont informatives. Elles n'affichent pas de progression personnelle, pourcentage de complétion, total possédé ou statistiques personnelles. Les collections restent le cœur de la gestion personnelle ; de futures pages « Mes cartes », doublons ou statistiques globales ne sont pas ajoutées par ce cadrage. Le détail contextuel Variante permet les actions de possession autorisées sans transformer les en-têtes catalogue en tableaux de progression.
 
@@ -199,7 +199,7 @@ Depuis 7D.2 (`0.7.8`), `/catalog/pokemon/:pokemonId` utilise l'ID interne MY. La
 
 La toolbar filtre uniquement les données chargées, sans requête pendant la frappe : casse/accents tolérés, AND entre termes sur Carte, Extension FR/source, abréviations, numéro et Variante. Effacement avec focus sur le champ ; la recherche survit au changement de vue. Liste/Cartes suit la préférence Catalogue globale à l'ouverture, puis le choix explicite met à jour uniquement le dernier mode Catalogue. Un changement ultérieur du défaut ne remplace pas la consultation courante.
 
-La partie basse affiche une entrée par **Variante**, dans l'ordre canonique de `get_catalog_pokemon`, sans retri frontend. Liste : image, nom, abréviation FR/source, numéro et Variante. Cartes : image dominante, même contexte et label Variante permanent, grille automatique autour de 180 px desktop et deux colonnes mobile. Toutes les cartes restent en couleur et neutres, sans possession, progression, origine, exemplaires, poignée, reorder ou menu. Le clic principal ouvre uniquement le Détail Variante existant, avec les exemplaires du viewer connecté et restauration du focus exact. Carte et Extension restent du texte en 7D.2 ; leurs futurs liens indépendants n'ont aucune route morte.
+La partie basse affiche une entrée par **Variante**, dans l'ordre canonique de `get_catalog_pokemon`, sans retri frontend. Liste : image, nom, abréviation FR/source, numéro et Variante. Cartes : image dominante, même contexte et label Variante permanent, grille automatique autour de 180 px desktop et deux colonnes mobile. Toutes les cartes restent en couleur et neutres, sans possession, progression, origine, exemplaires, poignée, reorder ou menu. Le clic principal ouvre uniquement le Détail Variante existant, avec les exemplaires du viewer connecté et restauration du focus exact. Depuis 7D.4, le nom de Carte et le contexte Extension sont des liens indépendants vers leurs IDs MY., frères du bouton Détail ; cliquer ces liens n'ouvre pas le panneau.
 
 ### Page Extension
 
@@ -211,23 +211,23 @@ La partie basse réutilise la toolbar, la préférence Catalogue, le rendu Liste
 
 Recherche uniquement sur les variantes chargées : nom de carte, numéro/local ID, label Variante et noms de tous les Pokémon rattachés, casse/accents/espaces tolérés, AND multi-termes. Ni nom ni abréviation Extension, ni série. Aucune requête pendant la frappe ; recherche conservée Liste/Cartes, état vide et effacement communs.
 
-Noms Pokémon en liens texte neutres indépendants, vers leur ID MY. `/catalog/pokemon/:pokemonId`, avec retour à la ligne naturel ; aucun placeholder pour une carte sans Pokémon. Le bouton principal ouvre le Détail, les liens ne l'ouvrent pas et ne sont jamais imbriqués dans ce bouton. Détail natif et exemplaires du viewer, trap/Esc/restauration du focus inchangés ; aucune navigation précédente/suivante ou swipe.
+Depuis 7D.4, le nom de Carte est également un lien indépendant vers `/catalog/cards/:cardId`. Noms Pokémon en liens texte neutres indépendants, vers leur ID MY. `/catalog/pokemon/:pokemonId`, avec retour à la ligne naturel ; aucun placeholder pour une carte sans Pokémon. Le bouton principal ouvre le Détail, les liens ne l'ouvrent pas et ne sont jamais imbriqués dans ce bouton. Détail natif et exemplaires du viewer, trap/Esc/restauration du focus inchangés ; aucune navigation précédente/suivante ou swipe.
 
 ### Compteurs et action de collection automatique
 
-Le compteur livré sur Pokémon est `variant_count`, présenté en `version(s)` selon le payload 7D.1 ; aucun compteur de Cartes distinctes n'est reconstruit. Ces nombres ne mesurent aucune possession. Les compteurs des futurs écrans doivent suivre leurs contrats, sans remplacer arbitrairement le nombre réellement affiché par le nombre officiel du set.
+Pokémon et Extension présentent `variant_count` en `version(s)` selon le payload 7D.1. Carte utilise directement `card.variants.length`. Aucun compteur de Cartes distinctes ni possession reconstruite ; le nombre officiel du set reste distinct.
 
 Si l'utilisateur ne possède pas de collection automatique pour la cible, l'action propose `Créer ma collection…`. Si elle existe, l'action devient `Ouvrir ma collection…`. Une seule collection automatique est autorisée par propriétaire et cible. Une collection reçue en partage ne compte pas comme une collection personnelle de cette cible.
 
 ### Page Carte
 
-La partie haute présente l'image, le nom français, le numéro, l'Extension cliquable, la série/bloc, la rareté, la catégorie, la date de Carte et **tous les Pokémon associés**, chacun cliquable vers sa page. Une Carte multi-Pokémon permet donc de naviguer vers chacun d'eux. La provenance brute des dates et les identifiants internes restent hors de l'affichage courant sans intérêt utilisateur.
+Depuis 7D.4, `/catalog/cards/:cardId` représente une **carte source**. Fiche neutre ardoise/bleu-gris, image représentative `card.imageUrl` sans sélection frontend de Variante, bornée à 240 px desktop et 200 px mobile, `object-fit: contain`. Absence/échec : `CardImage` et `card-placeholder.webp` communs, alternative nommée. Deux zones desktop, colonne mobile image puis nom/contexte, métadonnées, Pokémon et compteur. Nom français principal, résumé `formatFrSource` + local ID, puis `<dl>` Extension liée, rareté, catégorie, série et date française UTC disponibles. Métadonnées absentes omises ; aucun placeholder métier. Chaque Pokémon nommé constitue un lien indépendant par ID ; aucun bloc vide. Liens/focus du header éclaircis depuis l'accent neutre pour le contraste, aucune couleur extraite de l'image. Aucun CTA Collection sur Carte.
 
-La partie basse présente les **Variantes de cette Carte**, en Liste ou Cartes, avec les caractéristiques nécessaires pour les distinguer : type, subtype, foil, stamps et date effective si pertinente. Une date spécifique de Variante ne remplace jamais artificiellement la date de Carte en partie haute. Cliquer une Variante ouvre le détail contextuel commun décrit plus bas, sans nouvelle fiche complète distincte.
+La section **Versions** conserve un `h2` et le sélecteur Liste/Cartes, y compris pour une seule Version. Aucune recherche locale. Ordre exact du backend, contrat minimal sans données communes recopiées. Liste : miniature et label permanent (`Variante indisponible` si absent). Cartes : image dominante propre à la Version, label et grille à deux colonnes mobile. Date effective secondaire seulement si différente de celle de Carte. Ni nom, Extension ou numéro répétés, ni possession, grayscale ou action Collection. Le clic principal ouvre exclusivement le Détail Variante existant ; `ownerId = viewerId`, exemplaires personnels dans ce panneau, dialog natif, trap/Esc et restauration du focus exact. Aucune route Variante ni seconde fiche.
 
-### Actions rapides et navigation contextuelle
+### Actions rapides et navigation contextuelle — prévues en 7F
 
-Le clic principal sur une Carte ouvre sa fiche. Un menu secondaire à trois carrés peut proposer les actions rapides pertinentes, comme ajouter à une collection ou ajouter un exemplaire, sans devenir un menu général. L'action doit identifier la Variante exacte lorsque nécessaire ; elle ne choisit pas arbitrairement une Variante derrière une Carte.
+En 7D.4, les liens de Carte ouvrent sa fiche et la surface principale d'une Version ouvre le Détail Variante. Seul le retour navigateur standard est livré. Les menus secondaires et la navigation contextuelle décrits ci-dessous restent futurs ; leurs actions devront identifier la Variante exacte sans choix arbitraire derrière une Carte.
 
 La fiche Carte préserve son contexte d'arrivée. **Retour** restaure autant que possible la même page, la vue, les filtres, le scroll et le contexte de navigation. Ce retour dans une consultation en cours ne réapplique pas une préférence d'ouverture au détriment de l'état précédent.
 
@@ -498,7 +498,7 @@ Le catalogue provient uniquement de `getVariantDetail(variantId)` (6E.1), avec c
 
 Depuis 6F.3, cette section se distingue du catalogue par l'espace et une surface légère. L'état de possession est compact et conserve toujours son texte explicite. `PhysicalCopiesContent` reste la source commune de consultation et de gestion ; aucun état de possession optimiste supplémentaire n'est introduit.
 
-Liste, Cartes et Classeur Collection réutilisent ce **même détail contextuel**, sans navigation ni fetch dédié au renderer. Les futures fiches Carte catalogue le réutiliseront également. Classeur ne propose aucun reorder, raccourci Exemplaires, menu ou mutation directement sur les pochettes.
+Liste, Cartes et Classeur Collection réutilisent ce **même détail contextuel**, sans navigation ni fetch dédié au renderer. La fiche Carte catalogue le réutilise depuis 7D.4. Classeur ne propose aucun reorder, raccourci Exemplaires, menu ou mutation directement sur les pochettes.
 
 Le détail peut notamment afficher :
 
@@ -768,7 +768,7 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - le contenu exact d'une tuile de la vue Cartes ;
 - les dimensions du header et du champ, l'icône du menu utilisateur et le design final des Paramètres ;
 - la palette des suggestions, le mécanisme de couleur Pokémon et les animations du dropdown ;
-- les adaptations de la future page Carte ; Pokémon sans artwork et Extension à logo/symbole sont livrés en 7D.2/7D.3 ;
+- la recherche globale et la navigation contextuelle future ; Pokémon sans artwork, Extension à logo/symbole et Carte de référence sont livrés ;
 - le seuil du swipe et les animations précédente/suivante ;
 - le mécanisme de navigation rapide dans les grandes collections ;
 - le design du résumé de mise à jour ;

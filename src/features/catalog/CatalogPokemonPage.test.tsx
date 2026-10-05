@@ -108,7 +108,7 @@ test('neutral list/cards, local search keeps order and query, clear restores foc
   await waitFor(() => expect(saveUserPreferences).toHaveBeenCalledExactlyOnceWith(viewer, { lastCatalogView: 'cards' }))
   expect(cards).toHaveFocus(); expect(read).toHaveBeenCalledOnce(); expect(find).toHaveBeenCalledOnce()
   expect(container.querySelector('[class*="is-missing"], [class*="owned"], [class*="reorder"], [class*="collection-content-actions"]')).toBeNull()
-  expect(results.querySelectorAll('a')).toHaveLength(0)
+  expect(results.querySelectorAll('a')).toHaveLength(4)
   for (const text of ['Possédée', 'Manquante', 'Auto', 'Perso', 'Exemplaires']) expect(within(results).queryByText(text)).not.toBeInTheDocument()
   fireEvent.change(input, { target: { value: 'absent' } }); expect(screen.getByText('Aucune carte ne correspond à cette recherche.')).toBeVisible()
   press('Effacer la recherche'); expect(input).toHaveValue(''); expect(input).toHaveFocus()

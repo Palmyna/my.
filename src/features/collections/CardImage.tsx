@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import cardPlaceholder from '../../assets/placeholders/card-placeholder.webp'
 
-export function CardImage({ url, name, size = 'compact' }: { url: string | null; name: string; size?: 'compact' | 'detail' }) {
+export function CardImage({ url, name, size = 'compact', placeholderAlt = 'Image indisponible' }: {
+  url: string | null; name: string; size?: 'compact' | 'detail'; placeholderAlt?: string
+}) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const placeholder = !url || failedUrl === url
   return <div className={`collection-content-image${size === 'detail' ? ' variant-detail-image' : ''}`}>
-    <img src={placeholder ? cardPlaceholder : url} alt={placeholder ? 'Image indisponible' : name}
+    <img src={placeholder ? cardPlaceholder : url} alt={placeholder ? placeholderAlt : name}
       loading="lazy" onError={placeholder ? undefined : () => setFailedUrl(url)} />
   </div>
 }

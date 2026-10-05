@@ -229,7 +229,7 @@ La note est limitée à 750 caractères Unicode. Un texte vide ou uniquement com
 
 ## Recherche globale et consultation du catalogue
 
-**Phase 7 en cours :** Pokémon (7D.2) et Extension (7D.3, `0.7.9`) livrés sur le socle UI Catalogue commun et les contrats 7D.1. Carte et recherche globale restent futures. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
+**Phase 7 en cours :** Pokémon (7D.2), Extension (7D.3) et Carte (7D.4, `0.7.10`) livrés sur le socle UI Catalogue commun et les contrats 7D.1. Recherche globale encore future. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
 
 La recherche globale est une navigation par suggestions dynamiques, disponible partout après connexion à partir de **3 caractères**. Il n'existe ni bouton de lancement requis, ni page générale de résultats. Valider le champ ne sélectionne aucun résultat et ne navigue pas ; l'utilisateur choisit explicitement une suggestion. Sur mobile, cette validation ferme seulement le clavier et conserve les suggestions.
 
@@ -246,11 +246,11 @@ Les pages catalogue Pokémon, Extension et Carte sont des pages de consultation.
 
 - **Pokémon (livré)** : identité française et Pokédex, types et gradient contextuel, nombre de versions, aucune illustration d'espèce ; Variantes en ordre canonique RPC, filtre local AND, Liste/Cartes, Détail Variante existant et création/ouverture automatique personnelle.
 - **Extension (livrée)** : identité neutre, nom FR/source distinct, abréviation commune, série/date disponibles, nombre de versions et logo/symbole optionnels ; Variantes en ordre canonique, recherche locale incluant les Pokémon rattachés, Liste/Cartes et Détail communs, liens indépendants vers chaque Pokémon et création/ouverture automatique personnelle.
-- **Carte** : informations de Carte, liens vers l'Extension et chacun des Pokémon associés, puis liste de ses Variantes. Une date spécifique de Variante ne remplace pas la date de Carte.
+- **Carte (livrée)** : fiche neutre de carte source, image représentative fournie par le contrat et placeholder commun, nom/contexte FR/source/numéro, métadonnées disponibles et liens Extension/Pokémon par IDs internes. Section Versions, ordre backend, Liste/Cartes avec préférence globale, sans recherche locale ni CTA Collection. Chaque Version montre image et label, date seulement si distincte de la Carte ; les caractéristiques détaillées restent dans le Détail Variante.
 
 Les pages catalogue n'affichent pas de progression ou statistiques personnelles. Les compteurs reflètent le catalogue réellement affiché et son périmètre français ; le nombre officiel du set demeure une information distincte. Pokémon et Extension proposent **Créer ma collection** en l'absence de collection automatique personnelle correspondante, sinon **Ouvrir ma collection**. Une collection partagée ne remplace pas celle du propriétaire courant.
 
-Dans la page Pokémon livrée, cliquer un résultat ouvre uniquement le détail contextuel Variante commun aux collections. Aucun menu d'actions, lien Extension/Carte ou navigation contextuelle n'est anticipé. Les futurs écrans Carte et les navigations Retour / Précédente / Suivante restent aux étapes suivantes. Les interactions précises relèvent de [04-UX-UI.md](04-UX-UI.md).
+Le clic principal sur une Version ouvre le Détail Variante commun, avec exemplaires personnels uniquement dans ce panneau. Les liens indépendants du nom de Carte depuis Pokémon/Extension ouvrent `/catalog/cards/:cardId` ; le contexte Extension depuis Pokémon ouvre `/catalog/extensions/:setId`. Aucun contrôle interactif imbriqué ni double ouverture. Retour navigateur standard à ce stade ; navigation contextuelle avancée réservée à 7F. Les interactions précises relèvent de [04-UX-UI.md](04-UX-UI.md).
 
 Cette recherche complète deux outils distincts : la recherche interne filtre la collection actuelle ; la recherche d'ajout permet de sélectionner la **Variante exacte** à ajouter à une collection.
 
@@ -413,7 +413,7 @@ L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuel
 
 ## Paramètres et préférences d'affichage
 
-`/settings` livre la section **Affichage** depuis 7C.1 (version `0.7.6`), sur la persistance 7A.3 et les vues Collection/contrôles Classeur 7B.3. Les écrans catalogue restent futurs ; leur préférence d'ouverture est déjà réglable.
+`/settings` livre la section **Affichage** depuis 7C.1 (version `0.7.6`), sur la persistance 7A.3 et les vues Collection/contrôles Classeur 7B.3. Les trois pages Catalogue utilisent cette préférence globale d'ouverture.
 
 La page Paramètres, accessible depuis le menu utilisateur, propose ces trois préférences persistantes et indépendantes :
 

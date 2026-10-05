@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 6 terminées et validées.** Le cœur Collection est livré : contenu, exemplaires, réorganisation, ajout/retrait, recherches internes, détail Variante et UI. Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. Le [rapport Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) conserve audit Codex et checkpoint Cloud manuel du propriétaire. La **Phase 7** est en cours : préférences et trois vues Collection livrées, dont Classeur continu depuis 7B.3. Catalogue et recherche globale restent futurs ; les trois réglages Affichage de Paramètres sont fonctionnels.
+**Phases 0 à 6 terminées et validées.** Le cœur Collection est livré : contenu, exemplaires, réorganisation, ajout/retrait, recherches internes, détail Variante et UI. Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. Le [rapport Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) conserve audit Codex et checkpoint Cloud manuel du propriétaire. La **Phase 7** est en cours : préférences et trois vues Collection livrées, dont Classeur continu depuis 7B.3. Les trois pages Catalogue sont livrées ; recherche globale encore future ; les trois réglages Affichage de Paramètres sont fonctionnels.
 
 | Grandes phases | Statut |
 |---|---|
@@ -133,7 +133,7 @@ Phase 6 terminée et validée après l'audit technique exécuté par Codex et le
 
 **Statut : EN COURS**
 
-Le socle Phase 7 comprend version applicative/footer et préférences 7A.3. Depuis 7B.3, Liste, Cartes et Classeur Collection sont fonctionnels avec sélecteur, préférences du viewer, dernier choix explicite sauvegardé, recherche conservée et contenu/ordre autoritatifs communs. Liste/Cartes conservent le reorder propriétaire ; Classeur est continu et consultatif. Paramètres livre désormais les trois réglages Affichage : défaut catalogue, défaut collection et format Classeur global, avec sauvegardes indépendantes et overrides conservés. Version **0.7.9**. Le socle Catalogue dispose désormais des types Pokémon, de trois contrats de lecture authentifiée, de services/décodeurs stricts et de son identité couleur frontend. La page Pokémon authentifiée est livrée avec identité par types, recherche locale, vues neutres Liste/Cartes, Détail Variante et création/ouverture automatique personnelle. La page Extension est livrée avec identité neutre, logo/symbole, socle Catalogue partagé, liens Pokémon et CTA automatique factorisé. Carte et recherche globale restent à développer.
+Le socle Phase 7 comprend version applicative/footer et préférences 7A.3. Depuis 7B.3, Liste, Cartes et Classeur Collection sont fonctionnels avec sélecteur, préférences du viewer, dernier choix explicite sauvegardé, recherche conservée et contenu/ordre autoritatifs communs. Liste/Cartes conservent le reorder propriétaire ; Classeur est continu et consultatif. Paramètres livre désormais les trois réglages Affichage : défaut catalogue, défaut collection et format Classeur global, avec sauvegardes indépendantes et overrides conservés. Version **0.7.10**. Le socle Catalogue dispose désormais des types Pokémon, de trois contrats de lecture authentifiée, de services/décodeurs stricts et de son identité couleur frontend. La page Pokémon authentifiée est livrée avec identité par types, recherche locale, vues neutres Liste/Cartes, Détail Variante et création/ouverture automatique personnelle. La page Extension est livrée avec identité neutre, logo/symbole, socle Catalogue partagé, liens Pokémon et CTA automatique factorisé. Carte est livrée avec fiche neutre, image représentative, liens Extension/Pokémon et Versions Liste/Cartes sans recherche ni CTA Collection. Les liens internes des trois niveaux sont actifs. Recherche globale et navigation contextuelle restent à développer.
 
 Compléter les modes de consultation et la navigation dans les collections et le catalogue authentifié.
 
@@ -148,7 +148,7 @@ Classeur livré, réservé aux collections, **continu uniquement**. Formats `2x2
 #### Catalogue
 
 - pages Pokémon, Extension et Carte, en vues Liste / Cartes ;
-- pages Pokémon et Extension livrées : Variantes dans leur ordre canonique, socle partagé et liens Extension → Pokémon ; future page Carte selon son contrat ;
+- trois pages livrées : Variantes dans leur ordre canonique, socle partagé et liens internes Pokémon / Extension / Carte ; Carte présente une fiche de référence et toutes ses Versions sans recherche locale ;
 - depuis les pages Pokémon ou Extension, actions `Créer ma collection…` / `Ouvrir ma collection…` pour la collection automatique personnelle correspondante.
 
 Ces pages présentent le catalogue sans progression ni statistiques personnelles. Une collection partagée ne remplace pas la collection personnelle correspondant à une cible.

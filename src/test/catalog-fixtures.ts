@@ -1,4 +1,4 @@
-import type { CatalogPokemon, CatalogPokemonVariant, CatalogSet, CatalogSetVariant } from '../types/catalog'
+import type { CatalogCard, CatalogPokemon, CatalogPokemonVariant, CatalogSet, CatalogSetVariant } from '../types/catalog'
 
 export const catalogVariant: CatalogPokemonVariant = {
   variantId: '9007199254740995', sourceCardId: '300', setId: '50', cardNameFr: 'Pikachu',
@@ -26,4 +26,20 @@ export const catalogSet: CatalogSet = {
       pokemon: [{ pokemonId: '802', dexNumber: 133, nameFr: 'Évoli' }] },
     { ...catalogSetVariant, variantId: '1', cardNameFr: 'Recherche Professorale', localId: '100', variantLabel: 'Normale', category: 'Trainer', pokemon: [] },
     { ...catalogSetVariant, variantId: '3', cardNameFr: 'Énergie', localId: '101', variantLabel: 'Normale', category: 'Energy', pokemon: [] }],
+}
+
+export const catalogCard: CatalogCard = {
+  sourceCardId: '300', nameFr: 'Duo électrique', localId: '025/165', rarity: 'Rare', category: 'Pokémon',
+  effectiveReleaseDate: '2024-03-22', imageUrl: 'https://assets.example/card.webp',
+  set: { setId: '50', nameFr: 'Forces Temporelles', nameSource: 'Temporal Forces', abbreviationFr: 'EV05', abbreviation: 'TEF' },
+  series: catalogSet.series,
+  pokemon: [
+    { pokemonId: '800', dexNumber: 25, nameFr: 'Pikachu', primaryType: 'electric', secondaryType: null },
+    { pokemonId: '801', dexNumber: 26, nameFr: 'Raichu', primaryType: 'electric', secondaryType: null },
+  ],
+  variants: [
+    { variantId: '9007199254740995', imageUrl: 'https://assets.example/reverse.webp', variantLabel: 'Reverse', effectiveReleaseDate: '2024-03-22' },
+    { variantId: '2', imageUrl: 'https://assets.example/holo.webp', variantLabel: 'Holo', effectiveReleaseDate: '2024-04-01' },
+    { variantId: '1', imageUrl: null, variantLabel: null, effectiveReleaseDate: null },
+  ],
 }
