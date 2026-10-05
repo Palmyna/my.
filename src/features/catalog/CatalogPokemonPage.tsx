@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 import { resolveCatalogIdentity } from '../../lib/catalog-identity'
@@ -6,12 +6,9 @@ import { CatalogError, getCatalogPokemon } from '../../services/catalog'
 import type { CatalogPokemon } from '../../types/catalog'
 import { POKEMON_TYPE_LABELS } from '../../types/pokemon'
 import { useAuth } from '../auth/auth-context'
-import { VariantDetailPanel } from '../variant-detail/VariantDetailPanel'
 import { catalogPokemonKey } from './catalog-query'
-import { CatalogToolbar } from './CatalogToolbar'
-import { CatalogVariants } from './CatalogVariants'
-import { filterCatalogVariants } from './filter-catalog-variants'
-import { PokemonCollectionAction } from './PokemonCollectionAction'
+import { CatalogContent } from './CatalogContent'
+import { CatalogCollectionAction } from './CatalogCollectionAction'
 import { useCatalogView } from './useCatalogView'
 import './catalog.css'
 
@@ -44,14 +41,9 @@ function PokemonPage({ viewerId, pokemonId }: { viewerId: string; pokemonId: str
 function PokemonContent({ pokemon, viewerId, view }: {
   pokemon: CatalogPokemon; viewerId: string; view: ReturnType<typeof useCatalogView>
 }) {
-  const [query, setQuery] = useState('')
-  const [detail, setDetail] = useState<{ variantId: string; opener: HTMLElement } | null>(null)
   const name = pokemon.nameFr || 'Nom indisponible'
   const identity = resolveCatalogIdentity(pokemon.primaryType, pokemon.secondaryType)
-  const theme = { '--catalog-accent': identity.primaryAccent, '--catalog-secondary': identity.secondaryAccent ?? identity.primaryAccent,
-    '--catalog-gradient': identity.gradient, '--focus': identity.primaryAccent } as CSSProperties
-  const variants = filterCatalogVariants(pokemon.variants, query)
-  return <div className="catalog-themed" style={theme}>
+  return <CatalogContent name={name} viewerId={viewerId} identity={identity} variants={pokemon.variants} view={view}>
     <header className="catalog-pokemon-header">
       <div className="catalog-pokemon-identity">
         <p className="catalog-eyebrow">Pokémon <span>#{String(pokemon.dexNumber).padStart(4, '0')}</span></p>
@@ -62,11 +54,7 @@ function PokemonContent({ pokemon, viewerId, view }: {
         </div>
         <p className="catalog-count">{pokemon.variantCount} {pokemon.variantCount === 1 ? 'version' : 'versions'}</p>
       </div>
-      <PokemonCollectionAction viewerId={viewerId} pokemonId={pokemon.pokemonId} name={name} />
+      <CatalogCollectionAction viewerId={viewerId} targetType="pokemon" targetId={pokemon.pokemonId} targetName={name} />
     </header>
-    <CatalogToolbar name={name} query={query} onSearch={setQuery} view={view.currentView} onView={view.setCurrentView} />
-    {variants.length === 0 && <p role="status">Aucune carte ne correspond à cette recherche.</p>}
-    <CatalogVariants variants={variants} view={view.currentView} onDetail={(variantId, opener) => setDetail({ variantId, opener })} />
-    {detail && <VariantDetailPanel variantId={detail.variantId} ownerId={viewerId} opener={detail.opener} onClose={() => setDetail(null)} />}
-  </div>
+  </CatalogContent>
 }

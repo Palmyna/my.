@@ -3,8 +3,8 @@ import { isValidCollectionName } from '../../lib/collection-name'
 import { CollectionsError } from '../../services/collections'
 import { CollectionItemDialog } from '../collections/CollectionItemDialog'
 
-export function CreatePokemonCollectionDialog({ name: pokemonName, busy, error, opener, onClose, onCreate, onReset }: {
-  name: string; busy: boolean; error: Error | null; opener: HTMLElement
+export function CreateCatalogCollectionDialog({ targetType, targetName, busy, error, opener, onClose, onCreate, onReset }: {
+  targetType: 'pokemon' | 'set'; targetName: string; busy: boolean; error: Error | null; opener: HTMLElement
   onClose: () => void; onCreate: (name: string) => void; onReset: () => void
 }) {
   const id = useId()
@@ -17,11 +17,11 @@ export function CreatePokemonCollectionDialog({ name: pokemonName, busy, error, 
   const message = !error || nameError ? null : code === 'not_authorized'
     ? 'Votre session ne permet pas cette action. Reconnectez-vous pour créer une collection.'
     : code === 'target_not_found' || code === 'empty_automatic_target' || code === 'invalid_target'
-      ? 'Ce Pokémon n’est plus disponible dans le catalogue.'
+      ? targetType === 'set' ? 'Cette Extension n’est plus disponible dans le catalogue.' : 'Ce Pokémon n’est plus disponible dans le catalogue.'
       : 'La création n’a pas pu être confirmée. Veuillez réessayer.'
-  return <CollectionItemDialog title="Nouvelle collection" description={`Crée automatiquement une collection à partir de ${pokemonName}.`}
+  return <CollectionItemDialog title="Nouvelle collection" description={`Crée automatiquement une collection à partir de ${targetName}.`}
     busy={busy} error={message} opener={opener} onClose={onClose} pendingMessage="Création en cours…">
-    <p className="catalog-creation-context">{pokemonName}</p>
+    <p className="catalog-creation-context">{targetName}</p>
     <form noValidate onSubmit={event => {
       event.preventDefault()
       if (busy) return

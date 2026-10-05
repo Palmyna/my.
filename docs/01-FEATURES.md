@@ -88,7 +88,7 @@ Le Dashboard livré présente une grille unifiée, avec statut explicite `Person
 Deux types de collections existent, avec des points d'entrée distincts :
 
 - une collection personnalisée se crée depuis le Dashboard : `Créer une collection personnalisée` → Nom → Création ;
-- une collection automatique se crée depuis la page catalogue d'un Pokémon ou d'une Extension précise : `Créer ma collection…` → Nom → création automatique. Parcours Pokémon livré en 7D.2 ; Extension à venir.
+- une collection automatique se crée depuis la page catalogue d'un Pokémon ou d'une Extension précise : `Créer ma collection…` → Nom → création automatique. Parcours Pokémon livré en 7D.2 et Extension en 7D.3, via les mêmes composants.
 
 Le Dashboard crée uniquement des collections personnalisées, sans wizard ni sélecteur de cible automatique. Pour une cible automatique déjà possédée, la page catalogue propose `Ouvrir ma collection…`. Une collection reçue en partage ne remplace jamais la collection automatique personnelle de cette cible.
 
@@ -229,7 +229,7 @@ La note est limitée à 750 caractères Unicode. Un texte vide ou uniquement com
 
 ## Recherche globale et consultation du catalogue
 
-**Phase 7 en cours :** page Pokémon et socle UI Catalogue livrés en 7D.2 (`0.7.8`), après les contrats 7D.1. Extension, Carte et recherche globale restent futures. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
+**Phase 7 en cours :** Pokémon (7D.2) et Extension (7D.3, `0.7.9`) livrés sur le socle UI Catalogue commun et les contrats 7D.1. Carte et recherche globale restent futures. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
 
 La recherche globale est une navigation par suggestions dynamiques, disponible partout après connexion à partir de **3 caractères**. Il n'existe ni bouton de lancement requis, ni page générale de résultats. Valider le champ ne sélectionne aucun résultat et ne navigue pas ; l'utilisateur choisit explicitement une suggestion. Sur mobile, cette validation ferme seulement le clavier et conserve les suggestions.
 
@@ -245,7 +245,7 @@ Le total ne dépasse jamais **10 suggestions**. Chaque catégorie est triée par
 Les pages catalogue Pokémon, Extension et Carte sont des pages de consultation. Elles utilisent **Liste / Cartes** ; Classeur reste réservé aux collections.
 
 - **Pokémon (livré)** : identité française et Pokédex, types et gradient contextuel, nombre de versions, aucune illustration d'espèce ; Variantes en ordre canonique RPC, filtre local AND, Liste/Cartes, Détail Variante existant et création/ouverture automatique personnelle.
-- **Extension** : identité, série/bloc, date et informations génériques utiles, nombres de Cartes et Variantes, illustration tirée d'une Carte Pokémon spéciale, puis Cartes uniques par numéro naturel croissant.
+- **Extension (livrée)** : identité neutre, nom FR/source distinct, abréviation commune, série/date disponibles, nombre de versions et logo/symbole optionnels ; Variantes en ordre canonique, recherche locale incluant les Pokémon rattachés, Liste/Cartes et Détail communs, liens indépendants vers chaque Pokémon et création/ouverture automatique personnelle.
 - **Carte** : informations de Carte, liens vers l'Extension et chacun des Pokémon associés, puis liste de ses Variantes. Une date spécifique de Variante ne remplace pas la date de Carte.
 
 Les pages catalogue n'affichent pas de progression ou statistiques personnelles. Les compteurs reflètent le catalogue réellement affiché et son périmètre français ; le nombre officiel du set demeure une information distincte. Pokémon et Extension proposent **Créer ma collection** en l'absence de collection automatique personnelle correspondante, sinon **Ouvrir ma collection**. Une collection partagée ne remplace pas celle du propriétaire courant.

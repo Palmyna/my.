@@ -1,6 +1,6 @@
 # Socle Catalogue authentifié — Phase 7D.1
 
-Contrats de lecture livrés en `0.7.7` (7D.1). Depuis `0.7.8` (7D.2), la page Pokémon authentifiée et son socle UI Liste/Cartes consomment ces contrats sans changement SQL. Extension et Carte restent futures. Le panneau Détail Variante garde son contrat détaillé historique.
+Contrats de lecture livrés en `0.7.7` (7D.1). Pokémon (`0.7.8`, 7D.2) et Extension (`0.7.9`, 7D.3) consomment ces contrats avec un socle UI Liste/Cartes commun, sans changement SQL. Carte reste future. Le panneau Détail Variante garde son contrat détaillé historique.
 
 ## Règles communes
 
@@ -28,7 +28,7 @@ Header : `set_id`, `name_fr`, `name_source`, `abbreviation_fr`, `abbreviation`, 
 
 Variante : `source_card_id`, `variant_id`, `image_url`, `card_name_fr`, `local_id`, `rarity`, `category`, `variant_label`, `effective_release_date`, `pokemon`. Header Extension non répété.
 
-Pokémon léger : `pokemon_id`, `dex_number`, `name_fr`, tri dex puis ID ; tableau vide sans rattachement. Noms fournis pour la future recherche locale. Carte multi-Pokémon : chaque variante apparaît une seule fois.
+Pokémon léger : `pokemon_id`, `dex_number`, `name_fr`, tri dex puis ID ; tableau vide sans rattachement. Depuis 7D.3, noms utilisés pour la recherche locale et IDs pour les liens Pokémon indépendants. Carte multi-Pokémon : chaque variante apparaît une seule fois.
 
 ## Carte source
 
@@ -48,7 +48,7 @@ Zod strict : objets/champs/nullabilité, IDs canoniques bornés BIGINT, dates ca
 
 [`formatFrSource`](../src/lib/format-fr-source.ts) : valeurs différentes → `FR (source)`, identiques → une seule, une disponible → celle-ci, aucune → null. Résumés compacts et Détail Variante réutilisent le helper sans changement de présentation.
 
-[`src/types/pokemon.ts`](../src/types/pokemon.ts) : 18 identifiants et libellés FR. [`src/lib/catalog-identity.ts`](../src/lib/catalog-identity.ts) : tonalités MY. claires/sombres, resolver mono-type `principal.light → principal.dark`, double-type `principal.light → secondaire.dark`, accent principal prioritaire. Sans type, Carte ou Extension : ardoise/bleu-gris neutre. Couleurs exclusivement frontend, encore non appliquées aux écrans Catalogue/Collections.
+[`src/types/pokemon.ts`](../src/types/pokemon.ts) : 18 identifiants et libellés FR. [`src/lib/catalog-identity.ts`](../src/lib/catalog-identity.ts) : tonalités MY. claires/sombres, resolver mono-type `principal.light → principal.dark`, double-type `principal.light → secondaire.dark`, accent principal prioritaire. Sans type, Carte ou Extension : ardoise/bleu-gris neutre. Couleurs exclusivement frontend, appliquées au Catalogue Pokémon/Extension, sans extraction depuis les images.
 
 ## Page Pokémon et socle UI — 7D.2
 
@@ -67,6 +67,22 @@ Le `VariantDetailPanel` existant reçoit le viewer comme `ownerId`. Ses exemplai
 Lecture CTA `findOwnedAutomaticCollection(viewerId, targetType, targetId)` : SELECT `id` sur `collections`, propriétaire courant + type automatic + type/ID de cible, sous RLS existante. Une collection reçue en partage ne compte jamais. Query `['collections', 'owned-automatic', viewerId, targetType, targetId]` ; aucun CTA supposé pendant chargement ou erreur. Création contextuelle à nom libre initialement vide, validation Unicode existante, dialogue natif partagé. `createAutomatic` reste l'unique écriture métier ; son adaptation BIGINT accepte désormais les chaînes exactes en plus des anciens nombres. `created=true` et `created=false` naviguent vers l'ID autoritatif, sans renommage. Annulation des lectures obsolètes, cache CTA confirmé puis invalidé et invalidation Dashboard exacte du viewer, sans attendre sa relecture pour naviguer. Erreurs traduites en messages naturels.
 
 Déploiement : frontend sur le schéma 7D.1 existant. Retour arrière : retirer route/consommateur Catalogue, conserver les données et contrats SQL ; les anciens appels numériques de création restent compatibles. Aucune migration, contraction ou action Cloud nécessaire. [Rapport 7D.2](reports/2026-10-05-PHASE7D2-POKEMON-CATALOG-UI.md).
+
+## Page Extension et factorisation — 7D.3
+
+Route authentifiée `/catalog/extensions/:setId`, ID interne MY. ; query `['catalog', 'set', viewerId, setId]`, exclusivement `getCatalogSet`. États discrets, indisponibilité uniforme avec retour Dashboard, erreur technique sûre et retry. Titre du document sans refocus.
+
+Header neutre `resolveCatalogIdentity()` : nom FR, nom source distinct seulement, abréviation exclusivement `formatFrSource`, série FR/source disponible, date française UTC si présente et compteur `version(s)`. Logo borné responsive et symbole compact depuis leurs seules URLs, `object-fit: contain`, images décoratives puisque l'identité est textuelle. Médias absents/échoués retirés sans placeholder ni couleur extraite. Aucune carte illustrative ou comptage de cartes distinctes.
+
+`CatalogContent` possède thème, recherche, toolbar, rendu et ouverture du `VariantDetailPanel` communs. `CatalogVariants` accepte les variantes Pokémon et Extension ; contexte Extension transmis depuis le header sans dupliquer les payloads. `CardImage`/placeholder, `formatFrSource`, préférence globale `useCatalogView` et ordre reçu conservés. Deux colonnes Cartes mobile ; aucune possession ou action Collection dans les entrées.
+
+Filtre Extension : nom de carte, numéro/local ID, label de Variante et noms de tous les Pokémon rattachés, AND avec normalisation existante. Aucun nom/abréviation Extension ou série, requête pendant la frappe, score ou retri. Pokémon garde tous ses champs 7D.2. La recherche survit au passage Liste/Cartes.
+
+Chaque Pokémon rattaché est un `Link` indépendant vers `/catalog/pokemon/:pokemonId`, exclusivement l'ID du payload. Liens texte neutres, retour à la ligne mobile ; aucun groupe vide sur Dresseur/Énergie sans rattachement. Bouton Détail et liens sont frères, sans HTML interactif imbriqué ni double ouverture. Détail natif, exemplaires personnels (`ownerId = viewerId`), focus/trap/Esc et restauration exacts inchangés ; aucune navigation 7F.
+
+`CatalogCollectionAction` et `CreateCatalogCollectionDialog` remplacent les deux composants spécifiques Pokémon. Paramètres `targetType: 'pokemon' | 'set'`, `targetId`, `targetName` ; UX Pokémon conservée. Extension utilise `findOwnedAutomaticCollection(viewerId, 'set', setId)` puis `createAutomatic` avec cible `set`, nom libre et validation existante. Partages exclus ; aucun CTA supposé pendant lecture/erreur. `created=true/false` ouvrent l'ID retourné sans renommage ni modification des items ; même réconciliation exacte CTA/Dashboard. Erreurs de cible adaptées à Extension, erreurs de nom sur le champ, aucun message SQL.
+
+Livraison frontend sur contrats 7D.1/7D.2 inchangés ; anciens consommateurs compatibles. Retour arrière : rétablir les consommateurs frontend précédents, conserver contrats SQL et données. Aucun changement DB, migration, synchronisation ou accès Cloud. [Rapport 7D.3](reports/2026-10-05-PHASE7D3-SET-CATALOG-UI.md).
 
 ## Migration et validation du socle 7D.1
 

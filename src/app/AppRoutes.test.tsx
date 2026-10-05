@@ -11,10 +11,10 @@ import type { EmailCallback } from '../features/auth/auth-callback'
 import { AppRoutes } from './AppRoutes'
 import { CollectionsError, getCollectionOverview, listDashboardCollections } from '../services/collections'
 import type { CollectionOverview } from '../types/collections'
-import { getCatalogPokemon } from '../services/catalog'
-import { catalogPokemon } from '../test/catalog-fixtures'
+import { getCatalogPokemon, getCatalogSet } from '../services/catalog'
+import { catalogPokemon, catalogSet } from '../test/catalog-fixtures'
 
-vi.mock('../services/catalog', async original => ({ ...await original<typeof import('../services/catalog')>(), getCatalogPokemon: vi.fn() }))
+vi.mock('../services/catalog', async original => ({ ...await original<typeof import('../services/catalog')>(), getCatalogPokemon: vi.fn(), getCatalogSet: vi.fn() }))
 
 vi.mock('../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../services/collections')>(),
@@ -34,6 +34,7 @@ beforeEach(() => {
   vi.mocked(listDashboardCollections).mockReset().mockResolvedValue([])
   vi.mocked(getCollectionOverview).mockReset().mockResolvedValue(collection)
   vi.mocked(getCatalogPokemon).mockReset().mockResolvedValue(catalogPokemon)
+  vi.mocked(getCatalogSet).mockReset().mockResolvedValue(catalogSet)
 })
 
 test.each(['out', 'aal1', 'aal2'] as const)('Pokemon route authentication boundary %s', async mode => {
@@ -45,6 +46,18 @@ test.each(['out', 'aal1', 'aal2'] as const)('Pokemon route authentication bounda
   } else {
     await heading(mode === 'out' ? 'Heureux de vous retrouver.' : 'Confirmez que c’est vous.')
     expect(getCatalogPokemon).not.toHaveBeenCalled()
+  }
+})
+
+test.each(['out', 'aal1', 'aal2'] as const)('Extension route authentication boundary %s', async mode => {
+  setup(`/catalog/extensions/${catalogSet.setId}`, mode)
+  if (mode === 'aal2') {
+    await screen.findByRole('heading', { name: catalogSet.nameFr! })
+    expect(getCatalogSet).toHaveBeenCalledExactlyOnceWith(catalogSet.setId)
+    await waitFor(() => expect(document.title).toBe(`${catalogSet.nameFr} — MY.`))
+  } else {
+    await heading(mode === 'out' ? 'Heureux de vous retrouver.' : 'Confirmez que c’est vous.')
+    expect(getCatalogSet).not.toHaveBeenCalled()
   }
 })
 

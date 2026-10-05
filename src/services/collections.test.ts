@@ -21,7 +21,7 @@ test('automatic entry point keeps BIGINT string and existing numeric callers', a
   await expect(findOwnedAutomaticCollection(id, 'pokemon', '25')).rejects.toHaveProperty('code', 'not_authorized')
 })
 
-function automaticReadMock(rows: { id: string; owner_id: string; collection_type: string; automatic_target_type: string; target_pokemon_id: string; target_set_id: string | null }[]) {
+function automaticReadMock(rows: { id: string; owner_id: string; collection_type: string; automatic_target_type: string; target_pokemon_id: string | null; target_set_id: string | null }[]) {
   const filters = new Map<string, unknown>()
   const maybeSingle = vi.fn(() => Promise.resolve({ data: rows.find(row => [...filters].every(([key, value]) => row[key as keyof typeof row] === value)) ?? null, error: null }))
   const builder = { eq: vi.fn((key: string, value: unknown) => { filters.set(key, value); return builder }),
@@ -40,6 +40,19 @@ test('owned automatic detection excludes received shares and other target/types'
   expect(mock.from).toHaveBeenCalledExactlyOnceWith('collections'); expect(mock.select).toHaveBeenCalledExactlyOnceWith('id')
   expect(mock.eq.mock.calls).toEqual([['owner_id', id], ['collection_type', 'automatic'], ['automatic_target_type', 'pokemon']])
   expect(mock.filter).toHaveBeenCalledExactlyOnceWith('target_pokemon_id', 'eq', '9007199254740995')
+})
+
+test('owned Extension detection excludes shares and targets set by exact internal ID', async () => {
+  const row = { id, owner_id: id, collection_type: 'automatic', automatic_target_type: 'set', target_pokemon_id: null, target_set_id: '9007199254740995' }
+  const wrongRows = [{ ...row, owner_id: 'other-owner' }, { ...row, collection_type: 'free' },
+    { ...row, target_set_id: '51' }, { ...row, automatic_target_type: 'pokemon' }]
+  const missing = automaticReadMock(wrongRows)
+  await expect(missing.service.findOwnedAutomaticCollection(id, 'set', row.target_set_id)).resolves.toBeNull()
+  const mock = automaticReadMock([...wrongRows, row])
+  await expect(mock.service.findOwnedAutomaticCollection(id, 'set', row.target_set_id)).resolves.toEqual({ collectionId: id })
+  expect(mock.select).toHaveBeenCalledExactlyOnceWith('id')
+  expect(mock.eq.mock.calls).toEqual([['owner_id', id], ['collection_type', 'automatic'], ['automatic_target_type', 'set']])
+  expect(mock.filter).toHaveBeenCalledExactlyOnceWith('target_set_id', 'eq', row.target_set_id)
 })
 
 test('owned detection technical error and malformed payload never mean missing', async () => {

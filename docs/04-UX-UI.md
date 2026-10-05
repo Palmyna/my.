@@ -189,7 +189,7 @@ Depuis le champ, `Tab` entre dans les suggestions ; les tabulations suivantes le
 
 ### Structure commune et neutralité
 
-Les pages Pokémon, Extension et Carte partagent un langage visuel : une partie haute présentant identité, informations et actions pertinentes, puis une partie basse avec recherche locale, sélecteur **Liste / Cartes** et contenu associé. La vue **Classeur est réservée aux collections**. La page Pokémon est livrée en 7D.2 ; les autres pages restent futures.
+Les pages Pokémon, Extension et Carte partagent un langage visuel : une partie haute présentant identité, informations et actions pertinentes, puis une partie basse avec recherche locale, sélecteur **Liste / Cartes** et contenu associé. La vue **Classeur est réservée aux collections**. Pokémon est livré en 7D.2 et Extension en 7D.3 ; Carte reste future.
 
 Ces pages sont informatives. Elles n'affichent pas de progression personnelle, pourcentage de complétion, total possédé ou statistiques personnelles. Les collections restent le cœur de la gestion personnelle ; de futures pages « Mes cartes », doublons ou statistiques globales ne sont pas ajoutées par ce cadrage. Le détail contextuel Variante permet les actions de possession autorisées sans transformer les en-têtes catalogue en tableaux de progression.
 
@@ -203,11 +203,15 @@ La partie basse affiche une entrée par **Variante**, dans l'ordre canonique de 
 
 ### Page Extension
 
-La partie haute présente le nom, la série/bloc, la date de sortie, les abréviations ou informations génériques pertinentes, les nombres de Cartes distinctes et de Variantes, une illustration et l'action Créer/Ouvrir sa collection automatique.
+Depuis 7D.3 (`0.7.9`), `/catalog/extensions/:setId` utilise l'ID interne MY. Le header présente le nom FR principal, le nom source distinct si utile, l'abréviation `FR (source)` selon le helper commun, la série/bloc, la date française et le nombre de **versions** réellement disponibles. Les métadonnées absentes sont omises, sans date inventée. Créer/Ouvrir sa collection automatique personnelle reprend exactement le parcours Pokémon.
 
-L'illustration privilégie une **Carte Pokémon spéciale de l'Extension**, plutôt qu'une Énergie, un Objet ou une carte générique lorsqu'une Carte Pokémon spéciale pertinente existe. Elle est choisie à l'ouverture, stable pendant la consultation et peut changer lors d'une autre visite.
+L'identité reste neutre ardoise/bleu-gris ; aucune couleur extraite du logo. Logo borné et symbole compact uniquement depuis les ressources du contrat ; médias absents ou échoués retirés sans case vide ni illustration inventée. Sur mobile, nom et métadonnées dominent, logo réduit avant le CTA ; aucun débordement horizontal.
 
-La partie basse affiche chaque Carte une seule fois, en Liste ou Cartes, par **numéro naturel croissant**, selon l'ordre normalisé du catalogue MY. Cliquer une Carte ouvre sa fiche.
+La partie basse réutilise la toolbar, la préférence Catalogue, le rendu Liste/Cartes, `CardImage`/placeholder et le Détail Variante Pokémon. Une entrée par **Variante**, ordre canonique de `get_catalog_set` conservé sans regroupement/retri. Nom, abréviation FR/source, numéro et Variante ; grille à deux colonnes mobile, sans répétition du nom complet de l'Extension. Aucun état de possession, grayscale, reorder, exemplaire ou menu sur les entrées.
+
+Recherche uniquement sur les variantes chargées : nom de carte, numéro/local ID, label Variante et noms de tous les Pokémon rattachés, casse/accents/espaces tolérés, AND multi-termes. Ni nom ni abréviation Extension, ni série. Aucune requête pendant la frappe ; recherche conservée Liste/Cartes, état vide et effacement communs.
+
+Noms Pokémon en liens texte neutres indépendants, vers leur ID MY. `/catalog/pokemon/:pokemonId`, avec retour à la ligne naturel ; aucun placeholder pour une carte sans Pokémon. Le bouton principal ouvre le Détail, les liens ne l'ouvrent pas et ne sont jamais imbriqués dans ce bouton. Détail natif et exemplaires du viewer, trap/Esc/restauration du focus inchangés ; aucune navigation précédente/suivante ou swipe.
 
 ### Compteurs et action de collection automatique
 
@@ -303,7 +307,7 @@ Recherche / navigation catalogue
   → Création automatique
 ```
 
-Ce parcours est livré pour Pokémon en 7D.2 ; Extension reste à venir. La cible est celle de la page consultée ; aucun wizard automatique n'est proposé depuis le Dashboard. Si la collection personnelle existe déjà, l'action devient `Ouvrir ma collection`, sans nouvelle création ni saisie de nom. Une collection partagée ne remplace jamais cette collection personnelle. Chargement/erreur de détection n'affichent jamais un CTA supposé ; la création ouvre une modal à nom libre initialement vide, avec validation existante et erreurs utilisateur sûres.
+Ce parcours est livré pour Pokémon en 7D.2 et Extension en 7D.3, via les mêmes composants Catalogue. La cible est celle de la page consultée ; aucun wizard automatique n'est proposé depuis le Dashboard. Si la collection personnelle existe déjà, l'action devient `Ouvrir ma collection`, sans nouvelle création ni saisie de nom. Une collection partagée ne remplace jamais cette collection personnelle. Chargement/erreur de détection n'affichent jamais un CTA supposé ; la création ouvre une modal à nom libre initialement vide, avec validation existante et erreurs utilisateur sûres.
 
 La recherche globale ne fait que naviguer vers la page catalogue : elle ne crée aucune collection depuis ses suggestions. Les informations de la page identifient le Pokémon ou l'Extension précise avant l'action de création.
 
@@ -764,7 +768,7 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - le contenu exact d'une tuile de la vue Cartes ;
 - les dimensions du header et du champ, l'icône du menu utilisateur et le design final des Paramètres ;
 - la palette des suggestions, le mécanisme de couleur Pokémon et les animations du dropdown ;
-- les adaptations Liste/Cartes et illustrations des futurs écrans Extension/Carte ; le rendu Pokémon neutre sans artwork est livré en 7D.2 ;
+- les adaptations de la future page Carte ; Pokémon sans artwork et Extension à logo/symbole sont livrés en 7D.2/7D.3 ;
 - le seuil du swipe et les animations précédente/suivante ;
 - le mécanisme de navigation rapide dans les grandes collections ;
 - le design du résumé de mise à jour ;

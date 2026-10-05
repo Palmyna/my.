@@ -1,10 +1,18 @@
 .catalog-page { min-width: 0; }
 .catalog-themed { min-width: 0; }
-.catalog-pokemon-header { display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: clamp(24px, 4vw, 48px); border: 1px solid var(--border-strong); border-radius: 16px; background: linear-gradient(90deg, #0e1014c9, #0e10147a), var(--catalog-gradient); box-shadow: 0 12px 36px #0003; }
+:is(.catalog-pokemon-header, .catalog-set-header) { display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: clamp(24px, 4vw, 48px); border: 1px solid var(--border-strong); border-radius: 16px; background: linear-gradient(90deg, #0e1014c9, #0e10147a), var(--catalog-gradient); box-shadow: 0 12px 36px #0003; }
 .catalog-pokemon-identity { min-width: 0; }
 .catalog-eyebrow { margin: 0 0 8px; font-size: .8rem; font-weight: 600; }
 .catalog-eyebrow span { margin-left: 12px; font-variant-numeric: tabular-nums; }
-.catalog-pokemon-header h1 { margin: 0 0 16px; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.2; overflow-wrap: anywhere; }
+:is(.catalog-pokemon-header, .catalog-set-header) h1 { margin: 0 0 16px; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.2; overflow-wrap: anywhere; }
+.catalog-set-identity { display: flex; flex: 1 1 auto; align-items: center; gap: 24px; min-width: 0; }
+.catalog-set-text { min-width: 0; }
+.catalog-set-source { margin: 0 0 12px; font-size: .85rem; color: var(--text); overflow-wrap: anywhere; }
+.catalog-set-abbreviation { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: .9rem; overflow-wrap: anywhere; }
+.catalog-set-abbreviation:empty { display: none; }
+.catalog-set-metadata { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0 0; color: var(--text); font-size: .85rem; overflow-wrap: anywhere; }
+.catalog-set-logo { flex: 0 1 auto; width: clamp(96px, 12vw, 160px); max-width: 100%; max-height: 100px; object-fit: contain; }
+.catalog-set-symbol { width: 24px; height: 24px; object-fit: contain; }
 .catalog-types { display: flex; flex-wrap: wrap; gap: 8px; }
 .catalog-types span { display: inline-flex; align-items: center; min-height: 32px; padding: 3px 12px; border: 1px solid currentColor; border-radius: 20px; font-size: .8rem; font-weight: 600; background: #0e1014e6; }
 .catalog-type-primary { color: var(--catalog-accent); }
@@ -39,6 +47,11 @@
 .catalog-card-context { font-size: .8rem; color: var(--text-muted); overflow-wrap: anywhere; }
 .catalog-variants-list .catalog-card-context::before { content: '· '; }
 .catalog-variant-label { display: block; margin-top: 4px; color: var(--text-muted); font-size: .8rem; overflow-wrap: anywhere; }
+.catalog-pokemon-links { display: flex; flex-wrap: wrap; gap: 0 4px; margin-top: 2px; font-size: .8rem; }
+.catalog-pokemon-links > span { display: inline-flex; align-items: center; min-width: 0; }
+.catalog-pokemon-links a { position: relative; z-index: 2; display: inline-flex; align-items: center; min-height: 36px; padding: 4px 2px; color: var(--catalog-accent); text-underline-offset: 3px; overflow-wrap: anywhere; }
+.catalog-pokemon-links a:hover { text-decoration-thickness: 2px; text-decoration-color: currentColor; }
+.catalog-link-separator { color: var(--text-muted); margin-right: 4px; }
 .catalog-variants-list > li + li { border-top: 1px solid var(--border); }
 .catalog-variants-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 20px 14px; }
 .catalog-variants-cards .catalog-variant { flex-direction: column; align-items: stretch; gap: 10px; padding: 6px; }
@@ -48,7 +61,10 @@
 .catalog-variants-cards .catalog-card-name { font-size: .85rem; }
 .catalog-variants-cards .catalog-card-context { margin-top: 3px; font-size: .75rem; }
 @media (max-width: 600px) {
-  .catalog-pokemon-header { flex-direction: column; align-items: stretch; gap: 24px; padding: 24px; }
+  :is(.catalog-pokemon-header, .catalog-set-header) { flex-direction: column; align-items: stretch; gap: 24px; padding: 24px; }
+  .catalog-set-identity { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .catalog-set-logo { width: 112px; max-height: 64px; }
+  .catalog-pokemon-links a { min-height: 44px; }
   .catalog-collection-action { flex: none; min-width: 0; width: 100%; }
   .catalog-search { flex-basis: 100%; }
   .catalog-view-selector { margin-left: auto; }

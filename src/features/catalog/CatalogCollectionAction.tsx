@@ -4,19 +4,21 @@ import { useNavigate } from 'react-router'
 import { createAutomatic, findOwnedAutomaticCollection } from '../../services/collections'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { ownedAutomaticCollectionKey } from './catalog-query'
-import { CreatePokemonCollectionDialog } from './CreatePokemonCollectionDialog'
+import { CreateCatalogCollectionDialog } from './CreateCatalogCollectionDialog'
 
-export function PokemonCollectionAction({ viewerId, pokemonId, name }: { viewerId: string; pokemonId: string; name: string }) {
+export function CatalogCollectionAction({ viewerId, targetType, targetId, targetName }: {
+  viewerId: string; targetType: 'pokemon' | 'set'; targetId: string; targetName: string
+}) {
   const client = useQueryClient()
   const navigate = useNavigate()
   const [opener, setOpener] = useState<HTMLElement | null>(null)
   const running = useRef(false)
   const live = useRef(false)
   useEffect(() => { live.current = true; return () => { live.current = false } }, [])
-  const queryKey = ownedAutomaticCollectionKey(viewerId, 'pokemon', pokemonId)
-  const collection = useQuery({ queryKey, queryFn: () => findOwnedAutomaticCollection(viewerId, 'pokemon', pokemonId), retry: false })
+  const queryKey = ownedAutomaticCollectionKey(viewerId, targetType, targetId)
+  const collection = useQuery({ queryKey, queryFn: () => findOwnedAutomaticCollection(viewerId, targetType, targetId), retry: false })
   const mutation = useMutation({
-    mutationFn: (name: string) => createAutomatic({ name, targetType: 'pokemon', targetId: pokemonId }), retry: false,
+    mutationFn: (name: string) => createAutomatic({ name, targetType, targetId }), retry: false,
     onSuccess: async result => {
       if (!live.current) return
       await client.cancelQueries({ queryKey, exact: true })
@@ -42,7 +44,7 @@ export function PokemonCollectionAction({ viewerId, pokemonId, name }: { viewerI
         if (collection.data) void navigate(`/collections/${collection.data.collectionId}`)
         else { mutation.reset(); setOpener(event.currentTarget) }
       }}>{collection.data ? 'Ouvrir ma collection' : 'Créer ma collection'}</button>}
-    {opener && <CreatePokemonCollectionDialog name={name} busy={mutation.isPending} error={mutation.error} opener={opener}
+    {opener && <CreateCatalogCollectionDialog targetType={targetType} targetName={targetName} busy={mutation.isPending} error={mutation.error} opener={opener}
       onClose={() => { if (!running.current) setOpener(null) }} onReset={mutation.reset} onCreate={name => {
         if (running.current) return
         running.current = true; mutation.mutate(name)
