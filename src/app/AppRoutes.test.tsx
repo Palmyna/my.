@@ -11,10 +11,14 @@ import type { EmailCallback } from '../features/auth/auth-callback'
 import { AppRoutes } from './AppRoutes'
 import { CollectionsError, getCollectionOverview, listDashboardCollections } from '../services/collections'
 import type { CollectionOverview } from '../types/collections'
+import { getCatalogPokemon } from '../services/catalog'
+import { catalogPokemon } from '../test/catalog-fixtures'
+
+vi.mock('../services/catalog', async original => ({ ...await original<typeof import('../services/catalog')>(), getCatalogPokemon: vi.fn() }))
 
 vi.mock('../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../services/collections')>(),
-  listDashboardCollections: vi.fn(), getCollectionOverview: vi.fn(),
+  listDashboardCollections: vi.fn(), getCollectionOverview: vi.fn(), findOwnedAutomaticCollection: vi.fn().mockResolvedValue(null),
 }))
 vi.mock('../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
 vi.mock('../services/view-preferences', async () => ({
@@ -29,6 +33,19 @@ const collectionPath = `/collections/${collection.collectionId}`
 beforeEach(() => {
   vi.mocked(listDashboardCollections).mockReset().mockResolvedValue([])
   vi.mocked(getCollectionOverview).mockReset().mockResolvedValue(collection)
+  vi.mocked(getCatalogPokemon).mockReset().mockResolvedValue(catalogPokemon)
+})
+
+test.each(['out', 'aal1', 'aal2'] as const)('Pokemon route authentication boundary %s', async mode => {
+  setup(`/catalog/pokemon/${catalogPokemon.pokemonId}`, mode)
+  if (mode === 'aal2') {
+    await screen.findByRole('heading', { name: 'Pikachu' })
+    expect(getCatalogPokemon).toHaveBeenCalledExactlyOnceWith(catalogPokemon.pokemonId)
+    await waitFor(() => expect(document.title).toBe('Pikachu — MY.'))
+  } else {
+    await heading(mode === 'out' ? 'Heureux de vous retrouver.' : 'Confirmez que c’est vous.')
+    expect(getCatalogPokemon).not.toHaveBeenCalled()
+  }
 })
 
 function Harness({ store, path }: { store: AuthStore; path: string }) {

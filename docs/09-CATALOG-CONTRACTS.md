@@ -1,6 +1,6 @@
 # Socle Catalogue authentifié — Phase 7D.1
 
-Version `0.7.7`. Contrats de lecture livrés localement ; aucune page Pokémon/Extension/Carte, route, renderer Liste/Cartes ni hook React Query dédié. Le panneau Détail Variante garde son contrat détaillé historique.
+Contrats de lecture livrés en `0.7.7` (7D.1). Depuis `0.7.8` (7D.2), la page Pokémon authentifiée et son socle UI Liste/Cartes consomment ces contrats sans changement SQL. Extension et Carte restent futures. Le panneau Détail Variante garde son contrat détaillé historique.
 
 ## Règles communes
 
@@ -50,7 +50,25 @@ Zod strict : objets/champs/nullabilité, IDs canoniques bornés BIGINT, dates ca
 
 [`src/types/pokemon.ts`](../src/types/pokemon.ts) : 18 identifiants et libellés FR. [`src/lib/catalog-identity.ts`](../src/lib/catalog-identity.ts) : tonalités MY. claires/sombres, resolver mono-type `principal.light → principal.dark`, double-type `principal.light → secondaire.dark`, accent principal prioritaire. Sans type, Carte ou Extension : ardoise/bleu-gris neutre. Couleurs exclusivement frontend, encore non appliquées aux écrans Catalogue/Collections.
 
-## Migration et validation
+## Page Pokémon et socle UI — 7D.2
+
+Route authentifiée `/catalog/pokemon/:pokemonId`, ID interne MY. en chaîne. Query `['catalog', 'pokemon', viewerId, pokemonId]`, exclusivement `getCatalogPokemon` : chargement discret, indisponibilité uniforme et erreur technique avec retry. Le titre de document suit le nom sans refocus. Aucun artwork d'espèce, appel PokéAPI ou pseudo-portrait tiré d'une carte.
+
+Header : Pokédex sur au moins quatre chiffres, nom FR, badges des types FR et compteur `version(s)`. Le resolver 7D.1 fournit tous les accents et le gradient ; voile graphite commun pour le contraste. Mono-type : principal clair vers principal sombre ; double-type : principal clair vers secondaire sombre, badge secondaire distinct. CTA, sélection de vue et focus conservent l'accent principal.
+
+`src/features/catalog/` contient page, toolbar, rendu neutre commun Liste/Cartes, filtre local, hook et action de collection. Les deux vues représentent chaque **Variante** dans l'ordre reçu, sans jointure ni tri frontend. Nom et contexte Extension/numéro restent du texte ; le bouton d'ouverture est un frère des zones textuelles, compatible avec de futurs liens indépendants. Aucun lien ou écran Extension/Carte anticipé. `CardImage` et `formatFrSource` réutilisés ; aucune possession, origine, progression, poignée ou action Collection. Cartes : grille automatique desktop, deux colonnes mobile ; label de Variante permanent.
+
+Filtre local : normaliseur partagé avec Collection, casse/accents/ligatures/espaces tolérés, AND multi-champs (nom Carte, noms FR/source Extension, abréviations FR/source, local ID, label Variante). Aucun appel Supabase pendant la saisie ni changement d'ordre. Recherche conservée entre les vues ; effacement avec focus restauré.
+
+`useCatalogView` et `useCollectionView` partagent `usePreferredView` : query privée 7A.3, résolution à l'ouverture uniquement, Liste de secours, choix immédiat, mutations sérialisées par viewer/domaine, rollback et réconciliation après erreur, réponses tardives abandonnées après changement de ressource/session. Catalogue écrit seulement `lastCatalogView`, global au Catalogue. Fusion par champ confirmé préservée ; modifier le défaut global ne remplace pas une consultation ouverte, y compris après un échec de lecture initial.
+
+Le `VariantDetailPanel` existant reçoit le viewer comme `ownerId`. Ses exemplaires personnels restent confinés au Détail ; une indisponibilité locale du Détail ne démonte pas la page. Dialog natif, focus initial/trap/Esc/bouton et restauration vers l'ouvreur exact conservés.
+
+Lecture CTA `findOwnedAutomaticCollection(viewerId, targetType, targetId)` : SELECT `id` sur `collections`, propriétaire courant + type automatic + type/ID de cible, sous RLS existante. Une collection reçue en partage ne compte jamais. Query `['collections', 'owned-automatic', viewerId, targetType, targetId]` ; aucun CTA supposé pendant chargement ou erreur. Création contextuelle à nom libre initialement vide, validation Unicode existante, dialogue natif partagé. `createAutomatic` reste l'unique écriture métier ; son adaptation BIGINT accepte désormais les chaînes exactes en plus des anciens nombres. `created=true` et `created=false` naviguent vers l'ID autoritatif, sans renommage. Annulation des lectures obsolètes, cache CTA confirmé puis invalidé et invalidation Dashboard exacte du viewer, sans attendre sa relecture pour naviguer. Erreurs traduites en messages naturels.
+
+Déploiement : frontend sur le schéma 7D.1 existant. Retour arrière : retirer route/consommateur Catalogue, conserver les données et contrats SQL ; les anciens appels numériques de création restent compatibles. Aucune migration, contraction ou action Cloud nécessaire. [Rapport 7D.2](reports/2026-10-05-PHASE7D2-POKEMON-CATALOG-UI.md).
+
+## Migration et validation du socle 7D.1
 
 [Migration CLI 7D.1](../supabase/migrations/20261004161759_phase7d1_catalog_foundation.sql), local uniquement. Colonnes additives/nullables : anciens lecteurs/écrivains compatibles ; nouveau pipeline exige nouveau référentiel. Déployer schéma avant pipeline/consommateurs. Synchronisation transactionnelle/idempotente ; publication atomique du fichier Pokémon séparée.
 

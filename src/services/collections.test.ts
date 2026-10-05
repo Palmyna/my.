@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { describe, expect, test, vi } from 'vitest'
 import type { Database } from '../types/database.generated'
 import type { CreateAutomaticCollectionInput, CreateFreeCollectionInput } from '../types/collections'
-import { CollectionsError, createCollectionsService, createFree, deleteCollection, getCollectionOverview, listDashboardCollections, renameCollection } from './collections'
+import { CollectionsError, createAutomatic, createCollectionsService, createFree, deleteCollection, findOwnedAutomaticCollection, getCollectionOverview, listDashboardCollections, renameCollection } from './collections'
 import { getSupabaseClient } from './supabase'
 
 vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
@@ -10,6 +10,47 @@ vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
 const id = 'c1200000-0000-0000-0000-000000000001'
 const nameCheck = { code: '23514', message: 'new row for relation "collections" violates check constraint "collections_name_check"' }
 const automatic: CreateAutomaticCollectionInput = { name: 'Collection Pokémon', targetType: 'pokemon', targetId: 25 }
+
+test('automatic entry point keeps BIGINT string and existing numeric callers', async () => {
+  const mock = mockCollectionsClient()
+  vi.mocked(getSupabaseClient).mockReturnValue(mock.client)
+  await expect(createAutomatic({ ...automatic, targetId: '9007199254740995' })).resolves.toEqual({ collectionId: id, created: true })
+  expect(mock.rpc).toHaveBeenCalledWith('create_automatic_collection', { p_name: automatic.name, p_target_type: 'pokemon', p_target_id: '9007199254740995' })
+  vi.mocked(getSupabaseClient).mockReturnValue(null)
+  await expect(createAutomatic(automatic)).rejects.toHaveProperty('code', 'not_authorized')
+  await expect(findOwnedAutomaticCollection(id, 'pokemon', '25')).rejects.toHaveProperty('code', 'not_authorized')
+})
+
+function automaticReadMock(rows: { id: string; owner_id: string; collection_type: string; automatic_target_type: string; target_pokemon_id: string; target_set_id: string | null }[]) {
+  const filters = new Map<string, unknown>()
+  const maybeSingle = vi.fn(() => Promise.resolve({ data: rows.find(row => [...filters].every(([key, value]) => row[key as keyof typeof row] === value)) ?? null, error: null }))
+  const builder = { eq: vi.fn((key: string, value: unknown) => { filters.set(key, value); return builder }),
+    filter: vi.fn((key: string, _operator: string, value: unknown) => { filters.set(key, value); return builder }), maybeSingle }
+  const select = vi.fn(() => builder), from = vi.fn(() => ({ select }))
+  return { service: createCollectionsService({ from } as unknown as SupabaseClient<Database>), client: { from } as unknown as SupabaseClient<Database>, from, select, ...builder }
+}
+
+test('owned automatic detection excludes received shares and other target/types', async () => {
+  const row = { id, owner_id: id, collection_type: 'automatic', automatic_target_type: 'pokemon', target_pokemon_id: '9007199254740995', target_set_id: null }
+  const wrongRows = [{ ...row, owner_id: 'other-owner' }, { ...row, collection_type: 'free' }, { ...row, target_pokemon_id: '26' }, { ...row, automatic_target_type: 'set' }]
+  const missing = automaticReadMock(wrongRows)
+  await expect(missing.service.findOwnedAutomaticCollection(id, 'pokemon', '9007199254740995')).resolves.toBeNull()
+  const mock = automaticReadMock([...wrongRows, row]); vi.mocked(getSupabaseClient).mockReturnValue(mock.client)
+  await expect(findOwnedAutomaticCollection(id, 'pokemon', '9007199254740995')).resolves.toEqual({ collectionId: id })
+  expect(mock.from).toHaveBeenCalledExactlyOnceWith('collections'); expect(mock.select).toHaveBeenCalledExactlyOnceWith('id')
+  expect(mock.eq.mock.calls).toEqual([['owner_id', id], ['collection_type', 'automatic'], ['automatic_target_type', 'pokemon']])
+  expect(mock.filter).toHaveBeenCalledExactlyOnceWith('target_pokemon_id', 'eq', '9007199254740995')
+})
+
+test('owned detection technical error and malformed payload never mean missing', async () => {
+  const mock = automaticReadMock([])
+  mock.maybeSingle.mockResolvedValueOnce({ data: null, error: { code: '42501' } } as never)
+  await expect(mock.service.findOwnedAutomaticCollection(id, 'pokemon', '25')).rejects.toHaveProperty('code', 'not_authorized')
+  mock.maybeSingle.mockResolvedValueOnce({ data: { id: null }, error: null } as never)
+  await expect(mock.service.findOwnedAutomaticCollection(id, 'pokemon', '25')).rejects.toHaveProperty('code', 'unexpected')
+  await expect(mock.service.findOwnedAutomaticCollection('invalid', 'pokemon', '25')).rejects.toHaveProperty('code', 'not_authorized')
+  await expect(mock.service.findOwnedAutomaticCollection(id, 'pokemon', 'invalid')).rejects.toHaveProperty('code', 'invalid_target')
+})
 
 test('le point d’entrée Dashboard utilise le service avec le client configuré', async () => {
   const mock = mockCollectionsClient()

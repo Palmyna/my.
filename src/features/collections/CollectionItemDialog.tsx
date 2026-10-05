@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 
 // Same native modal, scroll lock and focus restoration as collection/copy actions.
-export function CollectionItemDialog({ title, description, busy, error, opener, onClose, children }: {
+export function CollectionItemDialog({ title, description, busy, error, opener, onClose, children, pendingMessage = 'Modification en cours…' }: {
   title: string; description: string; busy: boolean; error: string | null; opener: HTMLElement | null
-  onClose: () => void; children: ReactNode
+  onClose: () => void; children: ReactNode; pendingMessage?: string
 }) {
   const id = useId()
   const dialog = useRef<HTMLDialogElement>(null)
@@ -41,6 +41,6 @@ export function CollectionItemDialog({ title, description, busy, error, opener, 
     <p id={`${id}-description`}>{description}</p>
     {children}
     {error && <p ref={errorNode} tabIndex={-1} role="alert" className="feedback error">{error}</p>}
-    {busy && <p role="status">Modification en cours…</p>}
+    {busy && <p role="status">{pendingMessage}</p>}
   </dialog>
 }

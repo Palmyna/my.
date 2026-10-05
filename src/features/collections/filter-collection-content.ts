@@ -1,14 +1,8 @@
 import type { CollectionContentItem } from '../../types/collection-content'
-
-function normalize(value: string): string {
-  return value.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('fr')
-    .replace(/œ/g, 'oe').replace(/æ/g, 'ae')
-    // Keep meaningful separators in card numbers and set codes: 28/73, SL3.5.
-    .replace(/[^\p{L}\p{N}./]+/gu, ' ').trim().replace(/\s+/g, ' ')
-}
+import { localSearchTerms, normalizeLocalSearchText } from '../../lib/local-search'
 
 export function collectionSearchKey(query: string): string {
-  return normalize(query).split(' ').map(term => term.replace(/^[./]+|[./]+$/g, '')).filter(Boolean).join(' ')
+  return localSearchTerms(query).join(' ')
 }
 
 export function filterCollectionContent(items: CollectionContentItem[], query: string): CollectionContentItem[] {
@@ -17,7 +11,7 @@ export function filterCollectionContent(items: CollectionContentItem[], query: s
   return items.filter(item => {
     const fields = [item.cardNameFr, item.setNameFr, item.setAbbreviationFr, item.setAbbreviation,
       item.seriesNameFr, item.seriesNameSource, item.localId, item.variantLabel]
-      .filter((field): field is string => field !== null).map(normalize)
+      .filter((field): field is string => field !== null).map(normalizeLocalSearchText)
     return terms.every(term => fields.some(field => field.includes(term)))
   })
 }

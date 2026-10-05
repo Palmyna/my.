@@ -7,6 +7,7 @@ import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { CollectionPage } from '../features/collections/CollectionPage'
 import { ProfilePage } from '../features/profile/ProfilePage'
 import { SettingsPage } from '../features/settings/SettingsPage'
+import { CatalogPokemonPage } from '../features/catalog/CatalogPokemonPage'
 import { AuthenticatedLayout } from './AuthenticatedLayout'
 
 export function AppRoutes() {
@@ -42,6 +43,7 @@ export function AppRoutes() {
       <Route element={auth.isAuthorized ? <AuthenticatedLayout /> : <Navigate to={auth.accountDeleted ? '/' : '/login'} replace />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/collections/:collectionId" element={<CollectionPage />} />
+        <Route path="/catalog/pokemon/:pokemonId" element={<CatalogPokemonPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

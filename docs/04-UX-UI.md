@@ -189,17 +189,17 @@ Depuis le champ, `Tab` entre dans les suggestions ; les tabulations suivantes le
 
 ### Structure commune et neutralité
 
-Les pages Pokémon, Extension et Carte partagent un langage visuel : une partie haute présentant illustration, informations et actions pertinentes, puis une partie basse avec sélecteur **Liste / Cartes** et contenu associé. La vue **Classeur est réservée aux collections**.
+Les pages Pokémon, Extension et Carte partagent un langage visuel : une partie haute présentant identité, informations et actions pertinentes, puis une partie basse avec recherche locale, sélecteur **Liste / Cartes** et contenu associé. La vue **Classeur est réservée aux collections**. La page Pokémon est livrée en 7D.2 ; les autres pages restent futures.
 
 Ces pages sont informatives. Elles n'affichent pas de progression personnelle, pourcentage de complétion, total possédé ou statistiques personnelles. Les collections restent le cœur de la gestion personnelle ; de futures pages « Mes cartes », doublons ou statistiques globales ne sont pas ajoutées par ce cadrage. Le détail contextuel Variante permet les actions de possession autorisées sans transformer les en-têtes catalogue en tableaux de progression.
 
 ### Page Pokémon
 
-La partie haute présente le nom français, le numéro Pokédex, le nombre de **Cartes distinctes**, le nombre de **Variantes correspondantes**, une Carte spéciale illustrative du Pokémon et l'action Créer/Ouvrir sa collection automatique.
+Depuis 7D.2 (`0.7.8`), `/catalog/pokemon/:pokemonId` utilise l'ID interne MY. La partie haute présente nom français, numéro Pokédex sur au moins quatre chiffres, types FR et nombre de **versions** correspondant aux Variantes reçues, puis Créer/Ouvrir sa collection automatique personnelle. Aucun artwork d'espèce ni carte utilisée comme portrait. L'identité 7D.1 fournit gradient et accents ; le type principal domine, le secondaire reste visible en gradient et badge. Le fond général reste graphite, avec voiles communs pour le contraste.
 
-L'illustration provient d'une Carte réelle de ce Pokémon, choisie pour son intérêt visuel plutôt qu'une carte commune basique. Elle est choisie à l'ouverture et reste stable pendant toute la consultation, y compris lors des rerenders ; une visite ultérieure peut en présenter une autre.
+La toolbar filtre uniquement les données chargées, sans requête pendant la frappe : casse/accents tolérés, AND entre termes sur Carte, Extension FR/source, abréviations, numéro et Variante. Effacement avec focus sur le champ ; la recherche survit au changement de vue. Liste/Cartes suit la préférence Catalogue globale à l'ouverture, puis le choix explicite met à jour uniquement le dernier mode Catalogue. Un changement ultérieur du défaut ne remplace pas la consultation courante.
 
-La partie basse affiche les Cartes liées au Pokémon, chacune une seule fois, en Liste ou Cartes, par ordre chronologique au niveau **Carte** selon sa date pertinente. Les variantes restent regroupées dans la fiche Carte : cette liste ne reproduit pas le tri par date de chaque Variante d'une collection automatique Pokémon.
+La partie basse affiche une entrée par **Variante**, dans l'ordre canonique de `get_catalog_pokemon`, sans retri frontend. Liste : image, nom, abréviation FR/source, numéro et Variante. Cartes : image dominante, même contexte et label Variante permanent, grille automatique autour de 180 px desktop et deux colonnes mobile. Toutes les cartes restent en couleur et neutres, sans possession, progression, origine, exemplaires, poignée, reorder ou menu. Le clic principal ouvre uniquement le Détail Variante existant, avec les exemplaires du viewer connecté et restauration du focus exact. Carte et Extension restent du texte en 7D.2 ; leurs futurs liens indépendants n'ont aucune route morte.
 
 ### Page Extension
 
@@ -211,7 +211,7 @@ La partie basse affiche chaque Carte une seule fois, en Liste ou Cartes, par **n
 
 ### Compteurs et action de collection automatique
 
-Pour Pokémon comme Extension, `card_count` correspond aux Cartes distinctes réellement concernées par la liste et `variant_count` aux Variantes correspondantes selon le même périmètre catalogue. Ces nombres dérivés ne mesurent aucune possession. Le nombre officiel du set peut être présenté séparément si utile ; il ne remplace pas automatiquement le nombre réel de Cartes MY.
+Le compteur livré sur Pokémon est `variant_count`, présenté en `version(s)` selon le payload 7D.1 ; aucun compteur de Cartes distinctes n'est reconstruit. Ces nombres ne mesurent aucune possession. Les compteurs des futurs écrans doivent suivre leurs contrats, sans remplacer arbitrairement le nombre réellement affiché par le nombre officiel du set.
 
 Si l'utilisateur ne possède pas de collection automatique pour la cible, l'action propose `Créer ma collection…`. Si elle existe, l'action devient `Ouvrir ma collection…`. Une seule collection automatique est autorisée par propriétaire et cible. Une collection reçue en partage ne compte pas comme une collection personnelle de cette cible.
 
@@ -303,7 +303,7 @@ Recherche / navigation catalogue
   → Création automatique
 ```
 
-Ce parcours sera livré avec les pages catalogue Pokémon et Extension. La cible est celle de la page consultée ; aucun wizard automatique n'est proposé depuis le Dashboard. Si la collection personnelle existe déjà, l'action devient `Ouvrir ma collection…`, sans nouvelle création ni saisie de nom. Une collection partagée ne remplace jamais cette collection personnelle.
+Ce parcours est livré pour Pokémon en 7D.2 ; Extension reste à venir. La cible est celle de la page consultée ; aucun wizard automatique n'est proposé depuis le Dashboard. Si la collection personnelle existe déjà, l'action devient `Ouvrir ma collection`, sans nouvelle création ni saisie de nom. Une collection partagée ne remplace jamais cette collection personnelle. Chargement/erreur de détection n'affichent jamais un CTA supposé ; la création ouvre une modal à nom libre initialement vide, avec validation existante et erreurs utilisateur sûres.
 
 La recherche globale ne fait que naviguer vers la page catalogue : elle ne crée aucune collection depuis ses suggestions. Les informations de la page identifient le Pokémon ou l'Extension précise avant l'action de création.
 
@@ -764,7 +764,7 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - le contenu exact d'une tuile de la vue Cartes ;
 - les dimensions du header et du champ, l'icône du menu utilisateur et le design final des Paramètres ;
 - la palette des suggestions, le mécanisme de couleur Pokémon et les animations du dropdown ;
-- les colonnes Liste et tuiles Cartes du catalogue, le choix précis des Cartes spéciales illustratives ;
+- les adaptations Liste/Cartes et illustrations des futurs écrans Extension/Carte ; le rendu Pokémon neutre sans artwork est livré en 7D.2 ;
 - le seuil du swipe et les animations précédente/suivante ;
 - le mécanisme de navigation rapide dans les grandes collections ;
 - le design du résumé de mise à jour ;

@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
 import { getSupabaseClient } from './supabase'
+import { variantIdString } from '../lib/variant-id'
 import type {
-  AutomaticCollectionResult, CollectionMutationResult, CollectionOverview, CollectionsErrorCode,
+  AutomaticCollectionDatabase, AutomaticCollectionResult, CollectionMutationResult, CollectionOverview, CollectionsErrorCode,
   CreateAutomaticCollectionInput, CreateFreeCollectionInput, DashboardCollection,
 } from '../types/collections'
 
@@ -25,6 +26,18 @@ export async function createFree(input: CreateFreeCollectionInput): Promise<Coll
   const client = getSupabaseClient()
   if (!client) throw new CollectionsError('not_authorized')
   return createCollectionsService(client).createFree(input)
+}
+
+export async function createAutomatic(input: CreateAutomaticCollectionInput): Promise<AutomaticCollectionResult> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionsError('not_authorized')
+  return createCollectionsService(client).createAutomatic(input)
+}
+
+export async function findOwnedAutomaticCollection(viewerId: string, targetType: 'pokemon' | 'set', targetId: string): Promise<CollectionMutationResult | null> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionsError('not_authorized')
+  return createCollectionsService(client).findOwnedAutomaticCollection(viewerId, targetType, targetId)
 }
 
 export async function renameCollection(collectionId: string, name: string): Promise<CollectionMutationResult> {
@@ -82,6 +95,19 @@ function collectionResult(data: unknown, missing: 'unexpected' | 'collection_una
 
 export function createCollectionsService(client: SupabaseClient<Database>) {
   return {
+    findOwnedAutomaticCollection(viewerId: string, targetType: 'pokemon' | 'set', targetId: string): Promise<CollectionMutationResult | null> {
+      return request(async () => {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(viewerId)) throw new CollectionsError('not_authorized')
+        try { variantIdString(targetId) } catch { throw new CollectionsError('invalid_target') }
+        if (targetType !== 'pokemon' && targetType !== 'set') throw new CollectionsError('invalid_target')
+        // RLS remains authoritative; explicit owner filter excludes received shares.
+        const { data, error } = await client.from('collections').select('id')
+          .eq('owner_id', viewerId).eq('collection_type', 'automatic').eq('automatic_target_type', targetType)
+          .filter(targetType === 'pokemon' ? 'target_pokemon_id' : 'target_set_id', 'eq', targetId).maybeSingle()
+        if (error) throw error
+        return data === null ? null : collectionResult(data, 'unexpected')
+      })
+    },
     getCollectionOverview(collectionId: string): Promise<CollectionOverview> {
       return request(async () => {
         // Invalid route IDs have the same public outcome as any invisible collection.
@@ -128,7 +154,8 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
       return request(async () => {
         // Do not prevalidate the name: an existing collection bypasses that validation in SQL.
         // The generated Database type infers the RPC arguments and its table return type.
-        const { data, error } = await client.rpc('create_automatic_collection', {
+        const writer = client as unknown as SupabaseClient<AutomaticCollectionDatabase>
+        const { data, error } = await writer.rpc('create_automatic_collection', {
           p_name: input.name, p_target_type: input.targetType, p_target_id: input.targetId,
         })
         if (error) throw error
