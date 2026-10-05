@@ -18,7 +18,7 @@ vi.mock('../../services/collections', async original => ({ ...await original<typ
 }))
 const rename = vi.mocked(renameCollection), remove = vi.mocked(deleteCollection), get = vi.mocked(getCollectionOverview)
 const id = 'c1200000-0000-0000-0000-000000000001'
-const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
+const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
 let row: CollectionOverview | null
 const detail = collectionOverviewKey('owner', id), dashboard = dashboardCollectionsKey('owner')
 beforeAll(() => {

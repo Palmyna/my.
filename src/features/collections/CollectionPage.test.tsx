@@ -7,7 +7,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { CollectionsError, getCollectionOverview } from '../../services/collections'
 import type { CollectionOverview } from '../../types/collections'
-import { collectionColor } from '../dashboard/collection-color'
+import { resolveCollectionIdentity } from '../dashboard/collection-color'
 import { CollectionPage } from './CollectionPage'
 import { collectionOverviewKey } from './collection-query'
 
@@ -20,7 +20,7 @@ vi.mock('../../services/collections', async importOriginal => ({
 }))
 const get = vi.mocked(getCollectionOverview)
 const id = 'c1200000-0000-0000-0000-000000000001'
-const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
+const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
 beforeEach(() => {
   auth.user = { id: 'owner' }; auth.isAuthorized = true; get.mockReset().mockResolvedValue(base)
   vi.mocked(getUserPreferences).mockReset().mockResolvedValue(DEFAULT_USER_PREFERENCES)
@@ -54,9 +54,12 @@ test('charge indépendamment du Dashboard et conserve un h1 stable sans voler le
 
 test.each([
   { ...base },
-  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: 'Pikachu', ownedCount: 82, totalCount: 120 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: 'Pikachu', targetPrimaryType: 'electric' as const, ownedCount: 82, totalCount: 120 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: 'Dracaufeu', targetPrimaryType: 'fire' as const, targetSecondaryType: 'flying' as const, ownedCount: 3, totalCount: 4 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'set' as const, targetName: '151', ownedCount: 1, totalCount: 2 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: 'Dracaufeu', targetPrimaryType: 'fire' as const, targetSecondaryType: 'flying' as const, access: 'shared' as const, ownedCount: 3, totalCount: 4 },
   { ...base, collectionType: 'automatic' as const, targetType: 'set' as const, targetName: 'Légendes Brillantes', access: 'shared' as const, ownedCount: 3, totalCount: 4 },
-  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: null },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: null, targetPrimaryType: null, targetSecondaryType: null },
 ])('identité, progression et accès depuis le contrat $collectionType/$targetType/$access', async collection => {
   get.mockResolvedValue(collection)
   setup()
@@ -71,7 +74,9 @@ test.each([
   expect(screen.getByText(collection.totalCount ? `${Math.round(collection.ownedCount / collection.totalCount * 100)} %` : 'Collection vide')).toBeVisible()
   expect(screen.queryByText(/NaN|Infinity/)).not.toBeInTheDocument()
   if (!collection.totalCount) expect(screen.queryByText('0 %')).not.toBeInTheDocument()
-  expect(title.closest('.collection-page')).toHaveStyle({ '--collection-accent': collectionColor(collection).accent })
+  expect(title.closest('.collection-page')).toHaveStyle({ '--collection-accent': resolveCollectionIdentity(collection).primaryAccent })
+  expect(title.closest('.collection-page')).toHaveStyle({ '--collection-secondary': resolveCollectionIdentity(collection).secondaryAccent,
+    '--collection-gradient': resolveCollectionIdentity(collection).gradient })
   if (collection.access === 'shared') expect(screen.queryByRole('button')).not.toBeInTheDocument()
   else expect(screen.getByRole('button', { name: 'Actions de la collection' })).toBeVisible()
   for (const raw of ['free', 'pokemon', 'set', id]) expect(screen.queryByText(raw, { exact: true })).not.toBeInTheDocument()
@@ -88,6 +93,20 @@ test.each(['collection_unavailable', 'not_authorized'] as const)('indisponibilit
   expect(screen.queryByRole('button')).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: '← Collections' })).toHaveAttribute('href', '/dashboard')
   expect(get).toHaveBeenCalledOnce()
+})
+
+test.each([
+  { ...base,accent:'#E22B35' },
+  { ...base,collectionType:'automatic' as const,targetType:'pokemon' as const,targetPrimaryType:'electric' as const,accent:'#E2C84A' },
+  { ...base,collectionType:'automatic' as const,targetType:'pokemon' as const,targetPrimaryType:'fire' as const,targetSecondaryType:'flying' as const,accent:'#E58A4A' },
+  { ...base,collectionType:'automatic' as const,targetType:'set' as const,accent:'#44C7B7' },
+])('owner FAB belongs to Collection context $accent and progress remains primary', async ({accent,...collection}) => {
+  get.mockResolvedValue(collection);setup()
+  const fab=await screen.findByRole('button',{name:'Ajouter une carte'},{timeout:5000})
+  expect(fab).toHaveClass('collection-fab')
+  const page=fab.closest('.collection-page')!
+  expect(page).toHaveStyle({'--collection-accent':accent})
+  expect(page.querySelector('.collection-progress-track span')).toHaveStyle({width:'0%'})
 })
 
 test('erreur temporaire assainie avec retry explicite', async () => {

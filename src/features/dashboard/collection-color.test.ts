@@ -1,16 +1,36 @@
 import { expect, test } from 'vitest'
-import { collectionColor, collectionColors } from './collection-color'
+import type { DashboardCollection } from '../../types/collections'
+import { POKEMON_TYPES } from '../../types/pokemon'
+import { resolveFunctionalIdentity, resolvePokemonIdentity } from '../../lib/catalog-identity'
+import { collectionPresentation } from '../collections/collection-presentation'
+import { resolveCollectionIdentity } from './collection-color'
 
-test('une cible conserve son accent entre collections, propriétaires et rendus', () => {
-  const target = { collectionId: 'a', collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: 'Évoli' }
-  const color = collectionColor(target)
-  expect(collectionColor({ ...target, collectionId: 'b', targetName: ' E\u0301VOLI ' })).toEqual(color)
-  expect(collectionColor(target)).toEqual(color)
-  expect(collectionColors).toContain(color)
+const base: DashboardCollection = { collectionId: 'a', name: 'Arbitrary name', collectionType: 'automatic', access: 'owned',
+  targetType: 'pokemon', targetName: 'Arbitrary target', targetPrimaryType: 'electric', targetSecondaryType: null, ownedCount: 1, totalCount: 3 }
+test.each(POKEMON_TYPES)('Catalogue and Collection share the exact identity for %s', type => {
+  expect(resolveCollectionIdentity({ ...base, targetPrimaryType: type })).toEqual(resolvePokemonIdentity(type))
 })
-
-test.each(['free', 'automatic'] as const)('utilise une identité stable sans cible : %s', collectionType => {
-  const collection = { collectionId: 'stable-id', collectionType, targetType: null, targetName: null }
-  expect(collectionColor({ ...collection })).toEqual(collectionColor(collection))
-  expect(collectionColors).toContain(collectionColor(collection))
+test('double type, absent metadata and inconsistent target have explicit identities', () => {
+  expect(resolveCollectionIdentity({ ...base,targetPrimaryType:'fire',targetSecondaryType:'flying' })).toEqual(resolvePokemonIdentity('fire','flying'))
+  expect(resolveCollectionIdentity({ ...base,targetPrimaryType:null })).toEqual(resolvePokemonIdentity(null))
+  expect(resolveCollectionIdentity({ ...base,targetType:null })).toEqual(resolvePokemonIdentity(null))
+})
+test.each(['pokemon','set',null] as const)('shared overrides target %s, including a free collection', targetType => {
+  for (const collectionType of ['automatic','free'] as const) {
+    const resolved = resolveCollectionIdentity({ ...base, access:'shared', collectionType, targetType, targetPrimaryType:'fire',targetSecondaryType:'flying' })
+    expect(resolved).toEqual(resolveFunctionalIdentity('shared'))
+    expect(resolved.gradient).not.toContain(resolvePokemonIdentity('fire').primaryAccent)
+  }
+})
+test('free and automatic set resolve functional identities', () => {
+  expect(resolveCollectionIdentity({ ...base, collectionType:'free',targetType:null })).toEqual(resolveFunctionalIdentity('free'))
+  expect(resolveCollectionIdentity({ ...base,targetType:'set',targetPrimaryType:null })).toEqual(resolveFunctionalIdentity('set'))
+})
+test('collection IDs and names have no influence; CSS chrome uses both types, progress/FAB primary', () => {
+  const collection = { ...base,targetPrimaryType:'fire' as const,targetSecondaryType:'flying' as const }
+  const renamed = { ...collection,collectionId:'other',name:'Renamed',targetName:null }
+  expect(resolveCollectionIdentity(renamed)).toEqual(resolveCollectionIdentity(collection))
+  const identity=resolvePokemonIdentity('fire','flying')
+  expect(collectionPresentation(collection).style).toMatchObject({ '--collection-accent':identity.primaryAccent,
+    '--collection-secondary':identity.secondaryAccent,'--collection-gradient':identity.gradient,'--collection-border':identity.border })
 })

@@ -8,7 +8,7 @@ import { getUserPreferences, saveUserPreferences } from '../../services/view-pre
 import { getVariantDetail, VariantDetailError } from '../../services/variant-detail'
 import { listPhysicalCopies } from '../../services/physical-copies'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
-import { resolveCatalogIdentity } from '../../lib/catalog-identity'
+import { resolveFunctionalIdentity } from '../../lib/catalog-identity'
 import { catalogCard, catalogPokemon, catalogSet } from '../../test/catalog-fixtures'
 import type { CatalogCard } from '../../types/catalog'
 import { catalogCardKey } from './catalog-query'
@@ -91,7 +91,7 @@ test('technical error and retry hide backend messages', async () => {
   expect(screen.queryByText(/42501|Supabase|private payload/)).not.toBeInTheDocument()
   press('Réessayer'); await loaded(); expect(read).toHaveBeenCalledTimes(2)
 })
-test('reference: one h1, semantic metadata, backend image, neutral identity, no search or collection CTA', async () => {
+test('reference: one h1, semantic metadata, backend image, teal Extension identity, no search or collection CTA', async () => {
   const { container } = setup(); await loaded()
   const header = container.querySelector('header')!
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
@@ -106,7 +106,7 @@ test('reference: one h1, semantic metadata, backend image, neutral identity, no 
   const links = within(header).getByRole('group', { name: 'Pokémon associés' })
   expect(within(links).getByRole('link', { name: 'Pikachu' })).toHaveAttribute('href', '/catalog/pokemon/800')
   expect(within(links).getByRole('link', { name: 'Raichu' })).toHaveAttribute('href', '/catalog/pokemon/801')
-  const theme = container.querySelector<HTMLElement>('.catalog-themed')!, identity = resolveCatalogIdentity()
+  const theme = container.querySelector<HTMLElement>('.catalog-themed')!, identity = resolveFunctionalIdentity('set')
   expect(theme.style.getPropertyValue('--catalog-accent')).toBe(identity.primaryAccent)
   expect(theme.style.getPropertyValue('--catalog-gradient')).toBe(identity.gradient)
   expect(header.querySelector('.catalog-types')).toBeNull()

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
-import { resolveCatalogIdentity } from '../../lib/catalog-identity'
+import { resolveFunctionalIdentity } from '../../lib/catalog-identity'
 import { formatFrSource } from '../../lib/format-fr-source'
 import { CatalogError, getCatalogCard } from '../../services/catalog'
 import type { CatalogCard } from '../../types/catalog'
@@ -43,7 +43,7 @@ function CardContent({ card, viewerId, view }: { card: CatalogCard; viewerId: st
   const series = card.series.nameFr || card.series.nameSource
   const releaseDate = formatCatalogDate(card.effectiveReleaseDate)
   const pokemon = card.pokemon.filter(entry => entry.nameFr)
-  return <CatalogContent name={name} viewerId={viewerId} identity={resolveCatalogIdentity()} card={card} view={view}>
+  return <CatalogContent name={name} viewerId={viewerId} identity={resolveFunctionalIdentity('set')} card={card} view={view}>
     <header className="catalog-card-header">
       <CardImage url={card.imageUrl} name={name} placeholderAlt={`${name} — image indisponible`} />
       <div className="catalog-card-reference">

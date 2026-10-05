@@ -26,7 +26,7 @@
 .collection-view-selector button { position: relative; display: grid; place-items: center; width: calc(var(--collection-toolbar-height) - 6px); height: calc(var(--collection-toolbar-height) - 6px); padding: 0; border: 0; border-radius: 6px; color: var(--text-muted); background: transparent; cursor: pointer; }
 .collection-view-selector button:hover { background: var(--surface-hover); }
 .collection-view-selector button[aria-pressed="true"] { color: var(--text); background: var(--surface-raised); }
-.collection-view-selector button[aria-pressed="true"]::after { content: ''; position: absolute; bottom: 3px; width: 16px; height: 2px; border-radius: 2px; background: var(--brand); }
+.collection-view-selector button[aria-pressed="true"]::after { content: ''; position: absolute; bottom: 3px; width: 16px; height: 2px; border-radius: 2px; background: var(--collection-accent); }
 .collection-view-selector button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .collection-card-grid { --collection-card-gap: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px var(--collection-card-gap); list-style: none; padding: 0; margin: 16px 0; }
 .collection-card-grid > li { min-width: 0; }
@@ -59,7 +59,7 @@
 .collection-search-clear { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 6px; color: var(--text); background: transparent; cursor: pointer; }
 .collection-search-clear:hover { background: var(--surface-hover); }
 .collection-search-clear:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.button.collection-fab { background: var(--collection-accent); color: var(--app-bg); }
+.button.collection-fab { background: var(--collection-accent); color: var(--collection-on-accent); }
 .button.collection-fab:hover { background: var(--collection-accent); box-shadow: 0 6px 24px #0006, 0 0 0 4px var(--collection-surface); }
 .button.collection-fab[data-state="success"] { color: var(--success); background: var(--surface-raised); border-color: var(--success); }
 .collection-content-row .collection-copies-trigger, .collection-content-row .collection-actions-trigger { border-color: transparent; color: var(--text-muted); }

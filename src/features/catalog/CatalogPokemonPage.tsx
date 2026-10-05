@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
-import { resolveCatalogIdentity } from '../../lib/catalog-identity'
+import { resolvePokemonIdentity } from '../../lib/catalog-identity'
 import { CatalogError, getCatalogPokemon } from '../../services/catalog'
 import type { CatalogPokemon } from '../../types/catalog'
 import { POKEMON_TYPE_LABELS } from '../../types/pokemon'
@@ -42,7 +42,7 @@ function PokemonContent({ pokemon, viewerId, view }: {
   pokemon: CatalogPokemon; viewerId: string; view: ReturnType<typeof useCatalogView>
 }) {
   const name = pokemon.nameFr || 'Nom indisponible'
-  const identity = resolveCatalogIdentity(pokemon.primaryType, pokemon.secondaryType)
+  const identity = resolvePokemonIdentity(pokemon.primaryType, pokemon.secondaryType)
   return <CatalogContent name={name} viewerId={viewerId} identity={identity} variants={pokemon.variants} view={view}>
     <header className="catalog-pokemon-header">
       <div className="catalog-pokemon-identity">

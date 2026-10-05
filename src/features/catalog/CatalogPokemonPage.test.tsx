@@ -8,7 +8,7 @@ import { getUserPreferences, saveUserPreferences } from '../../services/view-pre
 import { getVariantDetail, VariantDetailError } from '../../services/variant-detail'
 import { listPhysicalCopies } from '../../services/physical-copies'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
-import { resolveCatalogIdentity } from '../../lib/catalog-identity'
+import { resolvePokemonIdentity } from '../../lib/catalog-identity'
 import { catalogPokemon } from '../../test/catalog-fixtures'
 import type { CatalogPokemon } from '../../types/catalog'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
@@ -83,7 +83,7 @@ test.each([['electric', null, 25, 1], ['fire', 'flying', 1025, 143]] as const)('
   read.mockResolvedValue({ ...catalogPokemon, primaryType: primary, secondaryType: secondary, dexNumber, variantCount: count })
   const { container } = setup(); await loaded()
   const theme = container.querySelector<HTMLElement>('.catalog-themed')!
-  const identity = resolveCatalogIdentity(primary, secondary)
+  const identity = resolvePokemonIdentity(primary, secondary)
   expect(theme.style.getPropertyValue('--catalog-gradient')).toBe(identity.gradient)
   expect(theme.style.getPropertyValue('--catalog-accent')).toBe(identity.primaryAccent)
   expect(screen.getByText(`#${String(dexNumber).padStart(4, '0')}`)).toBeVisible()

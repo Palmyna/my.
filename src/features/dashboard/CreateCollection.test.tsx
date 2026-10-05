@@ -16,7 +16,7 @@ vi.mock('../../services/collections', async importOriginal => ({
 }))
 const create = vi.mocked(createFree)
 const load = vi.mocked(listDashboardCollections)
-const collection: DashboardCollection = { collectionId: 'server-id', name: 'Nom relu du serveur', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
+const collection: DashboardCollection = { collectionId: 'server-id', name: 'Nom relu du serveur', collectionType: 'free', access: 'owned', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
 
 beforeAll(() => {
   // jsdom: native modal/inert behavior is checked separately in the browser.

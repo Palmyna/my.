@@ -7,7 +7,8 @@ select has_view('public', 'dashboard_collections', 'Dashboard view exists');
 select ok((select reloptions @> array['security_invoker=true'] from pg_class where oid='public.dashboard_collections'::regclass),
   'Dashboard uses caller privileges and RLS');
 select columns_are('public', 'dashboard_collections', array[
-  'collection_id','name','collection_type','access','target_type','target_name','owned_count','total_count'
+  'collection_id','name','collection_type','access','target_type','target_name','owned_count','total_count',
+  'target_primary_type','target_secondary_type'
 ], 'Only the requested Dashboard contract is exposed');
 select ok(has_table_privilege('authenticated','public.dashboard_collections','SELECT'), 'Authenticated can read');
 select ok(not has_table_privilege(role_name,'public.dashboard_collections','SELECT'), role_name || ' has no read grant')

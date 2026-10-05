@@ -57,7 +57,7 @@ export function CollectionPage() {
     void client.invalidateQueries({ queryKey: dashboardCollectionsKey(user?.id), exact: true })
   }
 
-  return <section className={`authenticated-page collection-page ${presentation?.colorClassName ?? ''}`} style={presentation?.style} aria-labelledby="page-title">
+  return <section className="authenticated-page collection-page" style={presentation?.style} aria-labelledby="page-title">
     <Link className="collection-back" to="/dashboard">← Collections</Link>
     <div className="collection-overview">
       <header className="collection-heading">

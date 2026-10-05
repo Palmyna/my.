@@ -8,7 +8,7 @@ import { getUserPreferences, saveUserPreferences } from '../../services/view-pre
 import { getVariantDetail, VariantDetailError } from '../../services/variant-detail'
 import { listPhysicalCopies } from '../../services/physical-copies'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
-import { resolveCatalogIdentity } from '../../lib/catalog-identity'
+import { resolveFunctionalIdentity } from '../../lib/catalog-identity'
 import { catalogPokemon, catalogSet } from '../../test/catalog-fixtures'
 import type { CatalogSet } from '../../types/catalog'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
@@ -92,7 +92,7 @@ test('technical error hides server messages and retries', async () => {
   expect(read).toHaveBeenCalledTimes(2)
 })
 
-test('header has one h1, distinct source, FR abbreviation, series, French date, count and neutral theme', async () => {
+test('header has one h1, distinct source, FR abbreviation, series, French date, count and teal Extension theme', async () => {
   const { container } = setup(); await loaded()
   const header = container.querySelector('header')!
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
@@ -100,7 +100,7 @@ test('header has one h1, distinct source, FR abbreviation, series, French date, 
     expect(within(header).getByText(text)).toBeVisible()
   }
   expect(header.querySelector('time')).toHaveAttribute('datetime', '2024-03-22')
-  const identity = resolveCatalogIdentity(), theme = container.querySelector<HTMLElement>('.catalog-themed')!
+  const identity = resolveFunctionalIdentity('set'), theme = container.querySelector<HTMLElement>('.catalog-themed')!
   expect(theme.style.getPropertyValue('--catalog-accent')).toBe(identity.primaryAccent)
   expect(theme.style.getPropertyValue('--catalog-gradient')).toBe(identity.gradient)
   expect(header.querySelector('.catalog-types')).toBeNull()

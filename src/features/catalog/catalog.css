@@ -1,6 +1,6 @@
 .catalog-page { min-width: 0; }
 .catalog-themed { min-width: 0; }
-:is(.catalog-pokemon-header, .catalog-set-header) { display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: clamp(24px, 4vw, 48px); border: 1px solid var(--border-strong); border-radius: 16px; background: linear-gradient(90deg, #0e1014c9, #0e10147a), var(--catalog-gradient); box-shadow: 0 12px 36px #0003; }
+:is(.catalog-pokemon-header, .catalog-set-header) { display: flex; align-items: center; justify-content: space-between; gap: 32px; padding: clamp(24px, 4vw, 48px); border: 1px solid var(--catalog-border); border-radius: 16px; background: var(--catalog-gradient); box-shadow: 0 12px 36px #0003; }
 .catalog-pokemon-identity { min-width: 0; }
 .catalog-eyebrow { margin: 0 0 8px; font-size: .8rem; font-weight: 600; }
 .catalog-eyebrow span { margin-left: 12px; font-variant-numeric: tabular-nums; }
@@ -13,7 +13,7 @@
 .catalog-set-metadata { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0 0; color: var(--text); font-size: .85rem; overflow-wrap: anywhere; }
 .catalog-set-logo { flex: 0 1 auto; width: clamp(96px, 12vw, 160px); max-width: 100%; max-height: 100px; object-fit: contain; }
 .catalog-set-symbol { width: 24px; height: 24px; object-fit: contain; }
-.catalog-card-header { --focus: color-mix(in srgb, var(--catalog-accent) 30%, var(--text)); display: grid; grid-template-columns: minmax(160px, 240px) minmax(0, 1fr); align-items: center; gap: clamp(24px, 4vw, 48px); padding: clamp(24px, 4vw, 48px); border: 1px solid var(--border-strong); border-radius: 16px; background: linear-gradient(90deg, #0e1014c9, #0e10147a), var(--catalog-gradient); box-shadow: 0 12px 36px #0003; }
+.catalog-card-header { --focus: color-mix(in srgb, var(--catalog-accent) 30%, var(--text)); display: grid; grid-template-columns: minmax(160px, 240px) minmax(0, 1fr); align-items: center; gap: clamp(24px, 4vw, 48px); padding: clamp(24px, 4vw, 48px); border: 1px solid var(--catalog-border); border-radius: 16px; background: var(--catalog-gradient); box-shadow: 0 12px 36px #0003; }
 .catalog-card-header .collection-content-image { width: 100%; max-width: 240px; aspect-ratio: 48 / 67; overflow: hidden; border-radius: 10px; background: var(--surface); }
 .catalog-card-header img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .catalog-card-reference { min-width: 0; }

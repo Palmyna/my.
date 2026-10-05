@@ -1,4 +1,5 @@
 import type { Database } from './database.generated'
+import type { PokemonType } from './pokemon'
 
 type AutomaticArguments = Database['public']['Functions']['create_automatic_collection']['Args']
 
@@ -38,6 +39,8 @@ export interface DashboardCollection extends CollectionMutationResult {
   access: 'owned' | 'shared'
   targetType: 'pokemon' | 'set' | null
   targetName: string | null
+  targetPrimaryType: PokemonType | null
+  targetSecondaryType: PokemonType | null
   ownedCount: number
   totalCount: number
 }

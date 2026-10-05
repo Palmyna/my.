@@ -4,6 +4,7 @@ import type { Database } from '../types/database.generated'
 import type { CreateAutomaticCollectionInput, CreateFreeCollectionInput } from '../types/collections'
 import { CollectionsError, createAutomatic, createCollectionsService, createFree, deleteCollection, findOwnedAutomaticCollection, getCollectionOverview, listDashboardCollections, renameCollection } from './collections'
 import { getSupabaseClient } from './supabase'
+import { POKEMON_TYPES } from '../types/pokemon'
 
 vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
 
@@ -309,8 +310,33 @@ test.each(['free', 'automatic', 'rename', 'delete'] as const)('%s : rejet résea
 describe('lecture Dashboard', () => {
   const free = {
     collection_id: id, name: 'Libre', collection_type: 'free', access: 'owned',
-    target_type: null, target_name: null, owned_count: 1, total_count: 3,
+    target_type: null, target_name: null, target_primary_type: null, target_secondary_type: null, owned_count: 1, total_count: 3,
   }
+  test.each(POKEMON_TYPES)('validates Pokemon primary/secondary %s without an extra fetch', async type => {
+    const mock = mockCollectionsClient()
+    const row = { ...free, collection_type:'automatic',target_type:'pokemon',target_name:'Snapshot',target_primary_type:type,target_secondary_type:null }
+    mock.dashboardSelect.mockResolvedValue({ data:[row],error:null })
+    await expect(mock.service.listDashboardCollections()).resolves.toMatchObject([{ targetPrimaryType:type,targetSecondaryType:null }])
+    const double = { ...row,target_primary_type:type==='fire' ? 'water' : 'fire',target_secondary_type:type }
+    mock.dashboardSelect.mockResolvedValue({ data:[double],error:null })
+    await expect(mock.service.listDashboardCollections()).resolves.toMatchObject([{ targetPrimaryType:double.target_primary_type,targetSecondaryType:type }])
+    expect(mock.from.mock.calls).toEqual([['dashboard_collections'],['dashboard_collections']])
+    expect(mock.rpc).not.toHaveBeenCalled()
+  })
+  test.each([
+    { target_primary_type:undefined },{ target_secondary_type:undefined },{ target_primary_type:'unknown' },
+    { target_secondary_type:'unknown' },{ target_primary_type:42 },{ target_secondary_type:'fire' },
+    { target_primary_type:'fire',target_secondary_type:'fire' },
+    { target_type:'set',target_primary_type:'water' },{ collection_type:'free',target_type:null,target_primary_type:'water' },
+  ])('invalid or inconsistent type metadata fails closed for both readers: %j', async patch => {
+    const mock = mockCollectionsClient()
+    const row={ ...free,collection_type:'automatic',target_type:'pokemon',...patch }
+    mock.dashboardSelect.mockResolvedValue({ data:[row],error:null })
+    mock.overviewSingle.mockResolvedValue({ data:row,error:null })
+    await expect(mock.service.listDashboardCollections()).rejects.toMatchObject({ code:'unexpected',message:'unexpected' })
+    await expect(mock.service.getCollectionOverview(id)).rejects.toMatchObject({ code:'unexpected',message:'unexpected' })
+    expect(mock.ownerSelect).not.toHaveBeenCalled()
+  })
   test('une seule lecture, types/cibles/accès et progression mappés sans calcul ni tri frontend', async () => {
     const mock = mockCollectionsClient()
     mock.dashboardSelect.mockResolvedValue({ error: null, data: [
@@ -321,23 +347,23 @@ describe('lecture Dashboard', () => {
         target_name: 'Légendes Brillantes', owned_count: 3, total_count: 5 },
       { ...free, collection_id: 'empty-id', name: 'Vide', owned_count: 0, total_count: 0 },
       { ...free, collection_id: 'unnamed-id', name: 'Sans nom cible', collection_type: 'automatic', access: 'shared',
-        target_type: 'pokemon', target_name: null, owned_count: 0, total_count: 0 },
+        target_type: 'pokemon', target_name: null, target_primary_type: null, target_secondary_type: null, owned_count: 0, total_count: 0 },
     ] })
     await expect(mock.service.listDashboardCollections()).resolves.toEqual([
       { collectionId: id, name: 'Libre', collectionType: 'free', access: 'owned',
-        targetType: null, targetName: null, ownedCount: 1, totalCount: 3 },
+        targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 1, totalCount: 3 },
       { collectionId: 'pokemon-id', name: 'Partagée', collectionType: 'automatic', access: 'shared',
-        targetType: 'pokemon', targetName: 'Évoli', ownedCount: 82, totalCount: 120 },
+        targetType: 'pokemon', targetName: 'Évoli', targetPrimaryType: null, targetSecondaryType: null, ownedCount: 82, totalCount: 120 },
       { collectionId: 'set-id', name: 'Extension', collectionType: 'automatic', access: 'owned',
-        targetType: 'set', targetName: 'Légendes Brillantes', ownedCount: 3, totalCount: 5 },
+        targetType: 'set', targetName: 'Légendes Brillantes', targetPrimaryType: null, targetSecondaryType: null, ownedCount: 3, totalCount: 5 },
       { collectionId: 'empty-id', name: 'Vide', collectionType: 'free', access: 'owned',
-        targetType: null, targetName: null, ownedCount: 0, totalCount: 0 },
+        targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 },
       { collectionId: 'unnamed-id', name: 'Sans nom cible', collectionType: 'automatic', access: 'shared',
-        targetType: 'pokemon', targetName: null, ownedCount: 0, totalCount: 0 },
+        targetType: 'pokemon', targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 },
     ])
     expect(mock.from).toHaveBeenCalledExactlyOnceWith('dashboard_collections')
     expect(mock.dashboardSelect).toHaveBeenCalledExactlyOnceWith(
-      'collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count',
+      'collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type',
     )
     expect(mock.rpc).not.toHaveBeenCalled()
     expect(mock.eq).not.toHaveBeenCalled()
@@ -386,7 +412,7 @@ describe('lecture Dashboard', () => {
 })
 
 describe('overview Collection', () => {
-  const row = { collection_id: id, name: 'Ma collection', collection_type: 'free', access: 'owned', target_type: null, target_name: null, owned_count: 0, total_count: 0 }
+  const row = { collection_id: id, name: 'Ma collection', collection_type: 'free', access: 'owned', target_type: null, target_name: null, target_primary_type: null, target_secondary_type: null, owned_count: 0, total_count: 0 }
   test.each([null, {}, { owner_id: '' }, { owner_id: 42 }])('missing/malformed owner %j fails closed', async data => {
     const mock = mockCollectionsClient()
     mock.overviewSingle.mockResolvedValue({ data: { ...row, access: 'shared' }, error: null })
@@ -408,12 +434,12 @@ describe('overview Collection', () => {
     mock.overviewSingle.mockResolvedValue({ data, error: null })
     await expect(mock.service.getCollectionOverview(id)).resolves.toEqual({
       collectionId: id, ownerId: id, name: data.name, collectionType: data.collection_type, access: data.access,
-      targetType: data.target_type, targetName: data.target_name, ownedCount: data.owned_count, totalCount: data.total_count,
+      targetType: data.target_type, targetName: data.target_name, targetPrimaryType: data.target_primary_type, targetSecondaryType: data.target_secondary_type, ownedCount: data.owned_count, totalCount: data.total_count,
     })
     expect(mock.from.mock.calls).toEqual([['dashboard_collections'], ['collections']])
     expect(mock.ownerSelect).toHaveBeenCalledExactlyOnceWith('owner_id')
     expect(mock.ownerEq).toHaveBeenCalledExactlyOnceWith('id', id)
-    expect(mock.dashboardSelect).toHaveBeenCalledExactlyOnceWith('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count')
+    expect(mock.dashboardSelect).toHaveBeenCalledExactlyOnceWith('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type')
     expect(mock.overviewEq).toHaveBeenCalledExactlyOnceWith('collection_id', id)
     expect(mock.overviewSingle).toHaveBeenCalledOnce()
     expect(mock.rpc).not.toHaveBeenCalled()

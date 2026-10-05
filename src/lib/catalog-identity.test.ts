@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
-import { POKEMON_TYPES, POKEMON_TYPE_LABELS } from '../types/pokemon'
-import { NEUTRAL_CATALOG_TONE, POKEMON_TYPE_PALETTE, resolveCatalogIdentity } from './catalog-identity'
+import { isPokemonType, POKEMON_TYPES, POKEMON_TYPE_LABELS } from '../types/pokemon'
+import { FUNCTIONAL_IDENTITY_PALETTE, NEUTRAL_CATALOG_TONE, POKEMON_TYPE_PALETTE, resolveFunctionalIdentity, resolvePokemonIdentity } from './catalog-identity'
 
 it('covers exactly 18 types with distinct deep/light tones and French labels', () => {
   expect(Object.keys(POKEMON_TYPE_PALETTE)).toEqual([...POKEMON_TYPES])
@@ -10,16 +10,49 @@ it('covers exactly 18 types with distinct deep/light tones and French labels', (
     for (const value of Object.values(POKEMON_TYPE_PALETTE[type])) expect(value).toMatch(/^#[0-9A-F]{6}$/)
   }
 })
-it('resolves mono-type light to dark', () => {
-  expect(resolveCatalogIdentity('fire')).toMatchObject({ primaryAccent: '#DB9974', secondaryAccent: null,
-    gradientFrom: '#DB9974', gradientTo: '#783E32' })
+it.each(POKEMON_TYPES)('resolves %s from the only Pokemon palette with a graphite surface', type => {
+  const resolved = resolvePokemonIdentity(type)
+  expect(isPokemonType(type)).toBe(true)
+  expect(resolved.primaryAccent).toBe(POKEMON_TYPE_PALETTE[type].light)
+  expect(resolved.secondaryAccent).toBe(resolved.primaryAccent)
+  expect(resolved.surface).toContain('var(--surface)')
+  expect(resolved.gradient).toContain(resolved.surface)
 })
-it('uses primary light and secondary dark, preserving primary accent', () => {
-  expect(resolveCatalogIdentity('fire', 'flying')).toEqual({ primaryAccent: '#DB9974', secondaryAccent: '#A4B8DE',
-    gradientFrom: '#DB9974', gradientTo: '#566C99', gradient: 'linear-gradient(135deg, #DB9974, #566C99)' })
+it.each([['fire','flying'],['water','flying'],['grass','poison'],['ghost','poison'],['dragon','flying'],['ice','water'],['rock','ground']] as const)(
+  'preserves primary %s and secondary %s in a subtle gradient', (primary, secondary) => {
+    const resolved = resolvePokemonIdentity(primary, secondary)
+    expect(resolved.primaryAccent).toBe(POKEMON_TYPE_PALETTE[primary].light)
+    expect(resolved.secondaryAccent).toBe(POKEMON_TYPE_PALETTE[secondary].light)
+    expect(resolved.gradient).toContain(resolved.primaryAccent)
+    expect(resolved.gradient).toContain(resolved.secondaryAccent)
+  })
+it('has an explicit neutral fallback, separate from functional identities', () => {
+  expect(resolvePokemonIdentity(null).primaryAccent).toBe(NEUTRAL_CATALOG_TONE.light)
+  expect(resolvePokemonIdentity(null, 'fire')).toEqual(resolvePokemonIdentity(null))
+  for (const kind of ['set','free','shared'] as const) {
+    expect(resolveFunctionalIdentity(kind).primaryAccent).toBe(FUNCTIONAL_IDENTITY_PALETTE[kind])
+    expect(resolveFunctionalIdentity(kind)).not.toEqual(resolvePokemonIdentity(null))
+  }
 })
-it('resolves missing Pokémon metadata, Extension and Carte to neutral slate', () => {
-  expect(resolveCatalogIdentity()).toMatchObject({ primaryAccent: NEUTRAL_CATALOG_TONE.light, secondaryAccent: null,
-    gradientFrom: NEUTRAL_CATALOG_TONE.light, gradientTo: NEUTRAL_CATALOG_TONE.dark })
-  expect(resolveCatalogIdentity(null, 'fire')).toEqual(resolveCatalogIdentity())
+it.each(['unknown','Electric','',42,undefined,null])('type guard rejects unknown runtime type %j', value => {
+  expect(isPokemonType(value)).toBe(false)
+})
+
+function rgb(hex: string) { return [1,3,5].map(start => Number.parseInt(hex.slice(start,start+2),16)) }
+function mix(a: number[], b: number[], ratio: number) { return a.map((v,i) => v*ratio+b[i]!*(1-ratio)) }
+function luminance(color: number[]) {
+  const linear = color.map(v => { const c=v/255; return c<=.04045 ? c/12.92 : ((c+.055)/1.055)**2.4 })
+  return linear[0]!*.2126+linear[1]!*.7152+linear[2]!*.0722
+}
+function contrast(a: number[], b: number[]) { const x=luminance(a), y=luminance(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05) }
+it('palette roles meet contrast on graphite: text 4.5, focus/progress 3, owner FAB label 4.5', () => {
+  const graphite=rgb('#15181D'), text=rgb('#F5F7FA'), app=rgb('#0E1014')
+  for (const accent of [...Object.values(POKEMON_TYPE_PALETTE).map(t=>t.light),...Object.values(FUNCTIONAL_IDENTITY_PALETTE),NEUTRAL_CATALOG_TONE.light]) {
+    const color=rgb(accent), surface=mix(color,graphite,.12)
+    expect(contrast(mix(color,text,.75),surface), `${accent} text`).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(color,surface), `${accent} focus`).toBeGreaterThanOrEqual(3)
+    // Shared has no owner FAB. Brand red retains white label, other FABs graphite.
+    if (accent !== FUNCTIONAL_IDENTITY_PALETTE.shared)
+      expect(contrast(accent===FUNCTIONAL_IDENTITY_PALETTE.free ? rgb('#FFFFFF') : app,color), `${accent} FAB`).toBeGreaterThanOrEqual(4.5)
+  }
 })

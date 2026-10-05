@@ -13,7 +13,7 @@ vi.mock('../auth/auth-context', () => ({ useAuth: () => ({ user: { id: 'recipien
 vi.mock('../../services/collections', () => ({
   CollectionsError: class extends Error {},
   getCollectionOverview: vi.fn().mockResolvedValue({ collectionId: 'collection', ownerId: 'real-owner', name: 'Favoris',
-    collectionType: 'free', access: 'shared', targetType: null, targetName: null, ownedCount: 0, totalCount: 2 }),
+    collectionType: 'free', access: 'shared', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 2 }),
 }))
 vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn() }))
 vi.mock('../../services/view-preferences', () => ({

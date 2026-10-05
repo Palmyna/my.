@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
 import { getSupabaseClient } from './supabase'
 import { variantIdString } from '../lib/variant-id'
+import { isPokemonType } from '../types/pokemon'
 import type {
   AutomaticCollectionDatabase, AutomaticCollectionResult, CollectionMutationResult, CollectionOverview, CollectionsErrorCode,
   CreateAutomaticCollectionInput, CreateFreeCollectionInput, DashboardCollection,
@@ -115,7 +116,7 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
           throw new CollectionsError('collection_unavailable')
         }
         const { data, error } = await client.from('dashboard_collections')
-          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count')
+          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type')
           .eq('collection_id', collectionId).maybeSingle()
         if (error) throw error
         if (data === null) throw new CollectionsError('collection_unavailable')
@@ -135,7 +136,7 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
     listDashboardCollections(): Promise<DashboardCollection[]> {
       return request(async () => {
         const { data, error } = await client.from('dashboard_collections')
-          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count')
+          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type')
         if (error) throw error
         if (!Array.isArray(data)) throw new CollectionsError('unexpected')
         return data.map(dashboardCollection)
@@ -196,6 +197,10 @@ function dashboardCollection(row: Database['public']['Views']['dashboard_collect
     || (row.access !== 'owned' && row.access !== 'shared')
     || (row.target_type !== null && row.target_type !== 'pokemon' && row.target_type !== 'set')
     || (row.target_name !== null && typeof row.target_name !== 'string')
+    || (row.target_primary_type !== null && !isPokemonType(row.target_primary_type))
+    || (row.target_secondary_type !== null && !isPokemonType(row.target_secondary_type))
+    || (row.target_type !== 'pokemon' && (row.target_primary_type !== null || row.target_secondary_type !== null))
+    || (row.target_secondary_type !== null && (row.target_primary_type === null || row.target_primary_type === row.target_secondary_type))
     || (row.collection_type === 'free' && (row.target_type !== null || row.target_name !== null))
     || (row.collection_type === 'automatic' && row.target_type === null)
     || typeof row.owned_count !== 'number' || !Number.isSafeInteger(row.owned_count) || row.owned_count < 0
@@ -205,5 +210,6 @@ function dashboardCollection(row: Database['public']['Views']['dashboard_collect
   return {
     collectionId: row.collection_id, name: row.name, collectionType: row.collection_type, access: row.access,
     targetType: row.target_type, targetName: row.target_name, ownedCount: row.owned_count, totalCount: row.total_count,
+    targetPrimaryType: row.target_primary_type, targetSecondaryType: row.target_secondary_type,
   }
 }

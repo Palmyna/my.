@@ -66,7 +66,7 @@ function setup({ initialView = 'binder', globalFormat = '3x3', owned = false, vi
     return <CollectionContentView key={identity} viewerId={identity} query={query} setQuery={setQuery}
       currentView={view} setCurrentView={choice => { setView(choice); return Promise.resolve(true) }}
       collection={{ collectionId: 'collection', ownerId: owned ? identity : 'real-owner', name: 'Favoris', collectionType: 'free',
-        access: owned ? 'owned' : 'shared', targetType: null, targetName: null, ownedCount: 25, totalCount: items.length }} />
+        access: owned ? 'owned' : 'shared', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 25, totalCount: items.length }} />
   }
   const tree = (identity: string) => <QueryClientProvider client={client}><Workspace key={identity} identity={identity} /></QueryClientProvider>
   const result = render(tree(viewer))

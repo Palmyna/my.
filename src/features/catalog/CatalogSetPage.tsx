@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
-import { resolveCatalogIdentity } from '../../lib/catalog-identity'
+import { resolveFunctionalIdentity } from '../../lib/catalog-identity'
 import { formatFrSource } from '../../lib/format-fr-source'
 import { CatalogError, getCatalogSet } from '../../services/catalog'
 import type { CatalogSet } from '../../types/catalog'
@@ -41,7 +41,7 @@ function SetContent({ set, viewerId, view }: { set: CatalogSet; viewerId: string
   const abbreviation = formatFrSource(set.abbreviationFr, set.abbreviation)
   const series = set.series.nameFr || set.series.nameSource
   const releaseDate = formatCatalogDate(set.releaseDate)
-  return <CatalogContent name={name} viewerId={viewerId} identity={resolveCatalogIdentity()} variants={set.variants} set={set} view={view}>
+  return <CatalogContent name={name} viewerId={viewerId} identity={resolveFunctionalIdentity('set')} variants={set.variants} set={set} view={view}>
     <header className="catalog-set-header">
       <div className="catalog-set-identity">
         <div className="catalog-set-text">

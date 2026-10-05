@@ -1,17 +1,20 @@
 import type { CSSProperties } from 'react'
 import type { DashboardCollection } from '../../types/collections'
-import { collectionColor } from '../dashboard/collection-color'
+import { resolveCollectionIdentity } from '../dashboard/collection-color'
 
 export function collectionPresentation(collection: DashboardCollection) {
-  const color = collectionColor(collection)
+  const identity = resolveCollectionIdentity(collection)
   return {
     typeLabel: collection.collectionType === 'free' ? 'Personnalisée'
       : collection.targetType === 'pokemon' ? 'Automatique · Pokémon' : 'Automatique · Extension',
-    colorClassName: `collection-color-${color.name}`,
     style: {
-      '--collection-accent': color.accent,
-      '--collection-surface': color.surface,
-      '--collection-border': color.border,
+      '--collection-accent': identity.primaryAccent,
+      '--collection-secondary': identity.secondaryAccent,
+      '--collection-ink': identity.textAccent,
+      '--collection-on-accent': identity.onAccent,
+      '--collection-surface': identity.surface,
+      '--collection-border': identity.border,
+      '--collection-gradient': identity.gradient,
     } as CSSProperties,
   }
 }

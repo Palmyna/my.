@@ -17,7 +17,7 @@ type Props = {
 export function CatalogContent({ name, viewerId, identity, variants: loadedVariants, set, card, view, children }: Props) {
   const [query, setQuery] = useState('')
   const [detail, setDetail] = useState<{ variantId: string; opener: HTMLElement } | null>(null)
-  const theme = { '--catalog-accent': identity.primaryAccent, '--catalog-secondary': identity.secondaryAccent ?? identity.primaryAccent,
+  const theme = { '--catalog-accent': identity.primaryAccent, '--catalog-secondary': identity.secondaryAccent, '--catalog-border': identity.border,
     '--catalog-gradient': identity.gradient, '--focus': identity.primaryAccent } as CSSProperties
   const variants = card ? card.variants : filterCatalogVariants(loadedVariants, query)
   return <div className="catalog-themed" style={theme}>
