@@ -96,9 +96,10 @@ test('header has one h1, distinct source, FR abbreviation, series, French date, 
   const { container } = setup(); await loaded()
   const header = container.querySelector('header')!
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-  for (const text of ['Temporal Forces', 'EV05 (TEF)', 'Écarlate et Violet', '22 mars 2024', '4 versions']) {
+  for (const text of ['Temporal Forces', 'EV05 (TEF)', 'Écarlate et Violet', '22 mars 2024', '4 cartes']) {
     expect(within(header).getByText(text)).toBeVisible()
   }
+  expect(within(header).queryByText(/\bversions?\b/)).not.toBeInTheDocument()
   expect(header.querySelector('time')).toHaveAttribute('datetime', '2024-03-22')
   const identity = resolveFunctionalIdentity('set'), theme = container.querySelector<HTMLElement>('.catalog-themed')!
   expect(theme.style.getPropertyValue('--catalog-accent')).toBe(identity.primaryAccent)
@@ -117,7 +118,8 @@ test.each([
     releaseDate: null, series: { ...catalogSet.series, nameFr: null, nameSource: null }, logoUrl: null, symbolUrl: null,
     variantCount: 1, variants: catalogSet.variants.slice(0, 1) })
   const { container } = setup(); await loaded(); const header = container.querySelector('header')!
-  expect(within(header).getByText('1 version')).toBeVisible()
+  expect(within(header).getByText('1 carte')).toBeVisible()
+  expect(within(header).queryByText(/\bversions?\b/)).not.toBeInTheDocument()
   expect(header.querySelector('img, time, .catalog-set-source, .catalog-set-metadata')).toBeNull()
   if (expected) expect(within(header).getByText(expected)).toBeVisible()
   else expect(header.querySelector('.catalog-set-abbreviation')).toBeEmptyDOMElement()

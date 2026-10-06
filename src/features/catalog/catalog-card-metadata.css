@@ -1,7 +1,7 @@
 .catalog-card-metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin: 0; }
 .catalog-card-metadata > div { min-width: 0; }
 .catalog-card-metadata dt, .catalog-card-pokemon > p { margin: 0 0 4px; font-size: .8rem; font-weight: 600; }
-.catalog-card-metadata dd { margin: 0; font-size: .9rem; overflow-wrap: anywhere; }
+.catalog-card-metadata dd { margin: 0; font-size: .9rem; font-weight: 400; overflow-wrap: anywhere; }
 .catalog-card-metadata a { text-underline-offset: 3px; }
 .catalog-card-pokemon { margin-top: 20px; }
 .catalog-pokemon-links { display: flex; flex-wrap: wrap; gap: 0 4px; margin-top: 2px; font-size: .8rem; }

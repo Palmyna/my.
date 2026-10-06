@@ -203,6 +203,8 @@ Harmonisation frontend livrée en 7E.3.2 (`0.7.15`) : liens sans soulignement au
 
 Depuis 7E.3.3 (`0.7.16`), les vues Liste Catalogue et Collection partagent une densité visuelle cohérente : miniature de 36 px, contenu rapproché et Variante immédiatement sous la première ligne. Les liens texte des résumés Catalogue et des métadonnées Carte/Détail Variante suivent leur hauteur de texte, sans minimum de 36/44 px ni padding vertical artificiel ; les vrais contrôles conservent leur géométrie tactile. Le hover Catalogue reste la référence : fond teinté à 4 % et bordure subtile. Les lignes Liste Collection reprennent ce principe avec `--collection-accent` et `--collection-border`, sur toute la ligne, actions et poignée comprises, sans déplacer le layout ni modifier leurs interactions. Focus visible et états de possession conservés ; vues Cartes inchangées. [Rapport densité/hover](reports/2026-10-06-PHASE7E3-3-LIST-DENSITY-HOVER.md).
 
+Depuis 7E.3.4 (`0.7.17`), la fiche Carte reste la référence de `CatalogCardMetadata` : labels semibold (`600`), valeurs normales (`400`), même typographie dans le Détail Variante, sans overrides de taille, couleur atténuée ou graisse des labels. Caractéristiques réutilise cette grille et ces règles `<dt>/<dd>` ; titre distinct, valeurs absentes et taille standard omises, Type seul conservé, Variante non répétée. Liste Catalogue sans séparateurs statiques : première ligne entière `Nom · Abrév · N°` en semibold, Variante secondaire normale, liens indépendants et hover 7E.3.3 conservés. Progression Dashboard et header Collection utilisent la même règle commune, fond non rempli `var(--app-bg)`, remplissage `--collection-accent`, géométrie et forced-colors inchangés. [Rapport cohérence](reports/2026-10-06-PHASE7E3-4-UI-CONSISTENCY.md).
+
 Règle MY. : aucun lien texte souligné au repos ; couleur comme repère. Hover souligné pour les liens textuels classiques. Boutons, tuiles, lignes interactives, menu utilisateur (actif compris) et suggestions complètes gardent leurs états explicites sans soulignement imposé. Focus visible conservé ; `<summary>` inchangé. La mention historique « permanent/hover » du rapport 7E.3.1 ne définit pas la règle courante.
 
 À 320 px, le body suit la largeur disponible, y compris avec une scrollbar verticale classique : aucun minimum global de 320 px ne force de scroll horizontal. Dans le Détail Variante, label et liens utilisent le texte contextuel éclairci pour le contraste ; le parcours Tab inclut les liens Extension/Pokémon avant les exemplaires.
@@ -217,7 +219,7 @@ Ces pages sont informatives. Elles n'affichent pas de progression personnelle, p
 
 ### Page Pokémon
 
-Depuis 7D.2 (`0.7.8`), `/catalog/pokemon/:pokemonId` utilise l'ID interne MY. La partie haute présente nom français, numéro Pokédex sur au moins quatre chiffres, types FR et nombre de **versions** correspondant aux Variantes reçues, puis Créer/Ouvrir sa collection automatique personnelle. Aucun artwork d'espèce ni carte utilisée comme portrait. La palette unique finalisée en 7D.5 fournit accents et gradient graphite subtil via `color-mix()` ; le principal domine, le secondaire reste visible en gradient et badge. Le fond général reste graphite.
+Depuis 7D.2 (`0.7.8`), `/catalog/pokemon/:pokemonId` utilise l'ID interne MY. La partie haute présente nom français, numéro Pokédex sur au moins quatre chiffres, types FR et nombre de **cartes** correspondant aux Variantes reçues (`variant_count`, vocabulaire 7E.3.4), puis Créer/Ouvrir sa collection automatique personnelle. Aucun artwork d'espèce ni carte utilisée comme portrait. La palette unique finalisée en 7D.5 fournit accents et gradient graphite subtil via `color-mix()` ; le principal domine, le secondaire reste visible en gradient et badge. Le fond général reste graphite.
 
 La toolbar filtre uniquement les données chargées, sans requête pendant la frappe : casse/accents tolérés, AND entre termes sur Carte, Extension FR/source, abréviations, numéro et Variante. Effacement avec focus sur le champ ; la recherche survit au changement de vue. Liste/Cartes suit la préférence Catalogue globale à l'ouverture, puis le choix explicite met à jour uniquement le dernier mode Catalogue. Un changement ultérieur du défaut ne remplace pas la consultation courante.
 
@@ -225,7 +227,7 @@ La partie basse affiche une entrée par **Variante**, dans l'ordre canonique de 
 
 ### Page Extension
 
-Depuis 7D.3 (`0.7.9`), `/catalog/extensions/:setId` utilise l'ID interne MY. Le header présente le nom FR principal, le nom source distinct si utile, l'abréviation `FR (source)` selon le helper commun, la série/bloc, la date française et le nombre de **versions** réellement disponibles. Les métadonnées absentes sont omises, sans date inventée. Créer/Ouvrir sa collection automatique personnelle reprend exactement le parcours Pokémon.
+Depuis 7D.3 (`0.7.9`), `/catalog/extensions/:setId` utilise l'ID interne MY. Le header présente le nom FR principal, le nom source distinct si utile, l'abréviation `FR (source)` selon le helper commun, la série/bloc, la date française et le nombre de **cartes** réellement disponibles (`variant_count`, vocabulaire 7E.3.4). Les métadonnées absentes sont omises, sans date inventée. Créer/Ouvrir sa collection automatique personnelle reprend exactement le parcours Pokémon.
 
 Depuis 7D.5, l'identité Extension utilise le teal/turquoise MY. sur graphite ; aucune couleur extraite du logo. Logo borné et symbole compact uniquement depuis les ressources du contrat ; médias absents ou échoués retirés sans case vide ni illustration inventée. Sur mobile, nom et métadonnées dominent, logo réduit avant le CTA ; aucun débordement horizontal.
 
@@ -237,7 +239,7 @@ Depuis 7D.4, le nom de Carte est également un lien indépendant vers `/catalog/
 
 ### Compteurs et action de collection automatique
 
-Pokémon et Extension présentent `variant_count` en `version(s)` selon le payload 7D.1. Carte utilise directement `card.variants.length`. Aucun compteur de Cartes distinctes ni possession reconstruite ; le nombre officiel du set reste distinct.
+Depuis 7E.3.4, Pokémon et Extension présentent le total `variant_count` en `carte(s)` : `1 carte`, `N cartes`. Le contrat et le calcul restent inchangés ; aucun comptage de Cartes sources distinctes n'est ajouté. Une fiche Carte utilise directement `card.variants.length` en `version(s)` : `1 version`, `N versions`. Aucune possession reconstruite ; le nombre officiel du set reste distinct.
 
 Si l'utilisateur ne possède pas de collection automatique pour la cible, l'action propose `Créer ma collection…`. Si elle existe, l'action devient `Ouvrir ma collection…`. Une seule collection automatique est autorisée par propriétaire et cible. Une collection reçue en partage ne compte pas comme une collection personnelle de cette cible.
 
@@ -248,6 +250,8 @@ Depuis 7D.4, `/catalog/cards/:cardId` représente une **carte source**. Fiche à
 La section **Versions** suit la préférence globale Liste/Cartes et l’ordre backend. Liste garde image/label et date si distincte de Carte. Cartes répète `Nom · Abrév · N°`, puis Variante, sans date supplémentaire ; même géométrie et deux colonnes mobile que Collection. Aucun filtre local, reorder, possession ou CTA Collection.
 
 ### Actions rapides et navigation contextuelle — prévues en 7F
+
+En vues Liste et Cartes Collection, 7F ajoutera des liens indépendants : nom de Carte → `/catalog/cards/:cardId`, contexte Extension → `/catalog/extensions/:setId`, Numéro non cliquable. La surface principale continuera à ouvrir le Détail Variante ; exemplaires, menu et reorder resteront indépendants, sans contrôle imbriqué. Même comportement en partage lecture seule lorsque la navigation Catalogue est autorisée. `get_collection_content` devra fournir `source_card_id` et `set_id`, absents du contrat actuel ; aucun ID reconstruit côté frontend. Cet enrichissement et ces liens ne sont pas implémentés en 7E.3.4 et devront conserver le contexte d'origine pour le retour, précédente/suivante et swipe décrits ci-dessous.
 
 En 7D.4, les liens de Carte ouvrent sa fiche et la surface principale d'une Version ouvre le Détail Variante. Seul le retour navigateur standard est livré. Les menus secondaires et la navigation contextuelle décrits ci-dessous restent futurs ; leurs actions devront identifier la Variante exacte sans choix arbitraire derrière une Carte.
 

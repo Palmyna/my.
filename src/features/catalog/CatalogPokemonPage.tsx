@@ -52,7 +52,7 @@ function PokemonContent({ pokemon, viewerId, view }: {
           {pokemon.primaryType && <span className="catalog-type-primary">{POKEMON_TYPE_LABELS[pokemon.primaryType]}</span>}
           {pokemon.secondaryType && <span className="catalog-type-secondary">{POKEMON_TYPE_LABELS[pokemon.secondaryType]}</span>}
         </div>
-        <p className="catalog-count">{pokemon.variantCount} {pokemon.variantCount === 1 ? 'version' : 'versions'}</p>
+        <p className="catalog-count">{pokemon.variantCount} {pokemon.variantCount === 1 ? 'carte' : 'cartes'}</p>
       </div>
       <CatalogCollectionAction viewerId={viewerId} targetType="pokemon" targetId={pokemon.pokemonId} targetName={name} />
     </header>

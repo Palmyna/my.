@@ -91,7 +91,7 @@ function CatalogDetail({ detail, onNavigate }: { detail: VariantDetail; onNaviga
       effectiveReleaseDate={detail.effectiveReleaseDate} pokemon={detail.pokemon} onNavigate={onNavigate} />
     {characteristics.length > 0 && <section className="variant-detail-characteristics" aria-label="Caractéristiques">
       <h3>Caractéristiques</h3>
-      <dl className="variant-detail-metadata">
+      <dl className="catalog-card-metadata variant-detail-metadata">
         {characteristics.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
     </section>}

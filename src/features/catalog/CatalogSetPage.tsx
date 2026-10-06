@@ -56,7 +56,7 @@ function SetContent({ set, viewerId, view }: { set: CatalogSet; viewerId: string
             {series && <span>{series}</span>}
             {releaseDate && <time dateTime={set.releaseDate!}>{releaseDate}</time>}
           </p>}
-          <p className="catalog-count">{set.variantCount} {set.variantCount === 1 ? 'version' : 'versions'}</p>
+          <p className="catalog-count">{set.variantCount} {set.variantCount === 1 ? 'carte' : 'cartes'}</p>
         </div>
         <HeaderImage url={set.logoUrl} className="catalog-set-logo" />
       </div>

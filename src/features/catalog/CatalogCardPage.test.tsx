@@ -102,6 +102,7 @@ test('reference: one h1, shared Card resolver, semantic metadata, backend image,
     expect(within(header).getByText(text, { exact: true })).toBeVisible()
   }
   expect(header.querySelector('time')).toHaveAttribute('datetime', '2024-03-22')
+  expect(within(header).queryByText(/^\d+ cartes?$/)).not.toBeInTheDocument()
   expect(header.querySelectorAll('dl dt')).toHaveLength(5)
   expect(within(header).getByRole('link', { name: 'Forces Temporelles' })).toHaveAttribute('href', '/catalog/extensions/50')
   expect(within(header).queryByText('Pokémon associés')).not.toBeInTheDocument()
@@ -133,6 +134,7 @@ test.each([
     set: { ...catalogCard.set, abbreviationFr: fr, abbreviation: source } })
   const { container } = setup(); await loaded(); const header = container.querySelector('header')!
   expect(within(header).getByText('1 version')).toBeVisible()
+  expect(within(header).queryByText(/^\d+ cartes?$/)).not.toBeInTheDocument()
   expect(header.querySelectorAll('dt')).toHaveLength(1)
   expect(header.querySelector('time, .catalog-card-pokemon')).toBeNull()
   if (abbreviation) expect(within(header).getByText(abbreviation)).toBeVisible()

@@ -6,6 +6,28 @@ import { CatalogVariants } from './CatalogVariants'
 
 function Path() { return <p data-testid="path">{useLocation().pathname}</p> }
 
+test('List keeps Card/Extension links in the first row, Variant second and Detail independent', () => {
+  const onDetail = vi.fn()
+  const { container } = render(<MemoryRouter><CatalogVariants variants={catalogPokemon.variants} view="list" onDetail={onDetail} /><Path /></MemoryRouter>)
+  const row = screen.getAllByRole('listitem')[0]!
+  const info = row.querySelector('.catalog-variant-info')!
+  const firstLine = info.children[0]!
+  expect(firstLine).toHaveClass('catalog-variant-summary')
+  expect(within(firstLine as HTMLElement).getByRole('link', { name: 'Pikachu' })).toHaveAttribute('href', '/catalog/cards/300')
+  const extension = within(firstLine as HTMLElement).getByRole('link', { name: 'EV (SV)' })
+  expect(extension).toHaveAttribute('href', '/catalog/extensions/50')
+  expect(row.querySelector('.catalog-card-context')).toHaveTextContent('EV (SV) · 025')
+  expect(info.children[1]).toHaveClass('catalog-variant-label')
+  expect(info.children[1]).toHaveTextContent('Holo')
+  expect(container.querySelector('button a, a button, a a')).toBeNull()
+  const opener = within(row).getByRole('button', { name: /^Voir le détail/ })
+  fireEvent.click(opener)
+  expect(onDetail).toHaveBeenCalledExactlyOnceWith(catalogPokemon.variants[0]!.variantId, opener)
+  onDetail.mockClear(); fireEvent.click(extension)
+  expect(screen.getByTestId('path')).toHaveTextContent('/catalog/extensions/50')
+  expect(onDetail).not.toHaveBeenCalled()
+})
+
 test.each([
   { context: 'Pokémon', variants: catalogPokemon.variants, expected: 'Pikachu · EV (SV) · 025', label: 'Holo' },
   { context: 'Extension', variants: catalogSet.variants, set: catalogSet, expected: 'Duo électrique · EV05 (TEF) · 025', label: 'Reverse' },
