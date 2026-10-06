@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 6 terminées et validées.** Le cœur Collection est livré : contenu, exemplaires, réorganisation, ajout/retrait, recherches internes, détail Variante et UI. Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. Le [rapport Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) conserve audit Codex et checkpoint Cloud manuel du propriétaire. La **Phase 7** est en cours : préférences et trois vues Collection livrées, dont Classeur continu depuis 7B.3. Les trois pages Catalogue sont livrées ; recherche globale encore future ; les trois réglages Affichage de Paramètres sont fonctionnels.
+**Phases 0 à 6 terminées et validées.** Le cœur Collection est livré : contenu, exemplaires, réorganisation, ajout/retrait, recherches internes, détail Variante et UI. Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. Le [rapport Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) conserve audit Codex et checkpoint Cloud manuel du propriétaire. La **Phase 7** est en cours : préférences et trois vues Collection livrées, dont Classeur continu depuis 7B.3. Les trois pages Catalogue et l’identité sémantique Catalogue/Collections sont livrées jusqu’à 7D.5, en `0.7.11` ; les trois réglages Affichage de Paramètres sont fonctionnels. Recherche globale du header et navigation contextuelle restent à développer.
 
 | Grandes phases | Statut |
 |---|---|
@@ -31,7 +31,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 | 9 — Partage des collections | Planifiée |
 | 10 — Finalisation V1 et mise en production | Planifiée |
 
-Le socle SQL, le catalogue, Auth et les contrats Phase 6 sont déployés dans Supabase Cloud. Après l'audit technique validé, le propriétaire a exécuté manuellement le checkpoint Cloud : 12 migrations Phase 6 appliquées sans erreur, 23 migrations Local/Remote alignées jusqu'à `20260928083830`, puis dry-run final sans migration restante. Aucun nouvel accès Cloud pendant la clôture documentaire. Le détail des migrations et des validations reste dans le README et les rapports.
+Le socle SQL, le catalogue, Auth et les contrats Phase 6 sont déployés dans Supabase Cloud. Après l'audit technique validé, le propriétaire a exécuté manuellement le checkpoint Cloud : 12 migrations Phase 6 appliquées sans erreur, 23 migrations Local/Remote alignées jusqu'à `20260928083830`, puis dry-run final sans migration restante. Aucun nouvel accès Cloud pendant la clôture documentaire. Ce checkpoint historique précède les trois migrations Phase 7 locales : état documenté après 7D.5, **26 Local / 23 Cloud au dernier checkpoint confirmé**, sans déploiement Phase 7 ni nouvel accès Cloud pendant le checkpoint documentaire. Le détail des migrations et des validations reste dans le README et les rapports.
 
 **Le développement et les tests courants utilisent Supabase local ; les checkpoints Cloud ponctuels exigent une autorisation explicite et des fixtures temporaires. Supabase cloud reste réservé à la future production avec Vercel.** Aucun déploiement Vercel n'est en place. Les URLs de production seront configurées lors de la mise en production ; aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud.
 
@@ -87,7 +87,7 @@ Transformer `/profile` en page légère de Profil / gestion du compte :
 
 Les [fonctionnalités](01-FEATURES.md#profil-utilisateur), l'[UX](04-UX-UI.md#profil-utilisateur), le [modèle](03-DATA-MODEL.md#utilisateur-et-profil-my), l'[architecture](05-ARCHITECTURE.md#profil-et-gestion-du-compte--cible-phase-4) et la [base de données](06-DATABASE.md#suppression-dun-compte) portent le cadrage validé et ses contraintes. Les parcours Auth et la récupération administrative MFA déjà livrés restent acquis.
 
-Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. L'interface des préférences de vues reste prévue en Phase 7. Aucun profil social n'est ajouté.
+Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. À la clôture de Phase 4, l’interface des préférences de vues relevait de la Phase 7 ; elle est désormais livrée. Aucun profil social n'est ajouté.
 
 Le moyen de contact final et les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Les parcours Profil et leurs protections sont livrés et validés, avec leurs preuves locales et Cloud consignées dans le [rapport de clôture](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md).
 
@@ -123,7 +123,7 @@ Les collections permettent désormais de suivre les variantes et les exemplaires
 - recherche catalogue, sélection d'une variante exacte, confirmation, ajout début/fin sans doublon et retrait manuel conservant les exemplaires ; recherche normalisée en AND sur carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants et variante, **sans recherche du nom de série** ;
 - recherche interne côté client sur le contenu déjà chargé : carte, Extension, abréviations, série, numéro et variante, avec normalisation et AND multi-termes ; ordre conservé, reorder désactivé seulement si le filtre masque des éléments ;
 - détail Variante autonome via `get_variant_detail`, y compris historique/inactif, métadonnées/dates/stamps et fallback image ; panneau latéral desktop ou plein écran mobile sans route dédiée, exemplaires intégrés et droits propriétaire/partage ; croix seule en haut à droite, aucun header générique visible et aucun bloc `Caractéristiques` pour le type seul ;
-- modernisation UI : fondation graphite globale, accent rouge MY., public/Auth harmonisés, Dashboard en grille unifiée et FAB de création, Collection et FAB contextuel, reorder plus fluide, détail Variante et Profil modernisés, actions/icônes harmonisées. Le contrat métier du Profil reste inchangé ; Paramètres reste volontairement minimal.
+- modernisation UI : fondation graphite globale, accent rouge MY., public/Auth harmonisés, Dashboard en grille unifiée et FAB de création, Collection et FAB contextuel, reorder plus fluide, détail Variante et Profil modernisés, actions/icônes harmonisées. Le contrat métier du Profil reste inchangé ; Paramètres était volontairement minimal à la clôture de Phase 6.
 
 Les éléments automatiques restent non supprimables manuellement ; leur déplacement ne modifie ni origine ni rang canonique. Les exemplaires ne sont jamais dupliqués entre collections.
 
@@ -162,11 +162,12 @@ Rendre fonctionnel le champ permanent du header selon le cadrage validé :
 - sélection explicite d'une suggestion pour naviguer ;
 - aucune page générale de résultats ni sélection automatique à la validation du champ.
 
-La recherche globale reste distincte du filtre interne à une collection et de la recherche d'ajout d'une variante exacte. Les collections partagées accessibles seront intégrées à ses résultats lors de la Phase 9.
+La recherche globale reste distincte du filtre interne à une collection et de la recherche d'ajout d'une variante exacte. Dès la Phase 7, elle doit pouvoir retourner toutes les collections actuellement accessibles au viewer, personnelles ou reçues en partage. La Phase 9 est responsable du parcours utilisateur de création, gestion et retrait des partages ; elle n’est pas nécessaire pour lire ou rechercher un partage déjà existant.
 
 #### Navigation
 
-- détail Variante commun au catalogue et aux collections, avec actions adaptées au contexte ;
+Le Détail Variante commun au catalogue et aux collections est livré, avec actions adaptées au contexte. Restent à développer :
+
 - retour conservant autant que possible la consultation précédente ;
 - navigation Précédente / Suivante suivant l'ordre réel de la liste d'origine ;
 - interactions adaptées au mobile, sans inventer de séquence pour une arrivée sans liste d'origine.
@@ -201,7 +202,7 @@ Compléter le socle DB/RLS et la consultation Dashboard/overview en lecture seul
 - recherche limitée d'un destinataire par son identifiant public MY., sans annuaire de profils ;
 - identification du destinataire et confirmation par le propriétaire ;
 - création et retrait des accès, sans doublon ni partage à soi-même ;
-- intégration des collections reçues aux résultats de recherche accessibles, en complément de leur présence déjà livrée dans le Dashboard ;
+- gestion des accès reçus, dont le retrait par le destinataire, en complément de la consultation déjà livrée ;
 - consultation des variantes, de la progression et des exemplaires du propriétaire, avec les vues et outils de lecture ;
 - restrictions cohérentes dans l'interface et via RLS.
 

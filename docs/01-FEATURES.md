@@ -24,7 +24,9 @@ La V1 permet principalement de :
 
 Ces fonctionnalités doivent rester simples à comprendre et rapides à utiliser.
 
-**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres était minimal à la clôture de Phase 6 ; ses trois réglages Affichage sont désormais fonctionnels. Le backend de création automatique est livré ; son parcours catalogue et la recherche globale restent en Phase 7, en cours avec les préférences, les trois vues Collection et les réglages Affichage livrés. Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
+**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres était minimal à la clôture de Phase 6 ; le backend de création automatique était déjà livré.
+
+**État courant après 7D.5 (`0.7.11`) :** préférences, trois vues Collection, trois réglages Affichage, pages Catalogue Pokémon/Extension/Carte et parcours Créer/Ouvrir automatique personnel livrés. Identité sémantique commune : Partagée indigo prioritaire, Personnalisée rouge MY., Extension/Carte teal, Pokémon par types, fallback neutre. Recherche globale du header et navigation contextuelle restent à développer en Phase 7. Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
 
 ## Comptes utilisateurs
 
@@ -229,7 +231,7 @@ La note est limitée à 750 caractères Unicode. Un texte vide ou uniquement com
 
 ## Recherche globale et consultation du catalogue
 
-**Phase 7 en cours :** Pokémon (7D.2), Extension (7D.3) et Carte (7D.4, `0.7.10`) livrés sur le socle UI Catalogue commun et les contrats 7D.1. Recherche globale encore future. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
+**Phase 7 en cours, état après 7D.5 (`0.7.11`) :** Pokémon (7D.2), Extension (7D.3) et Carte (7D.4) livrés sur le socle UI Catalogue commun et les contrats 7D.1, avec identité sémantique finalisée en 7D.5. Recherche globale et navigation contextuelle encore futures. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
 
 La recherche globale est une navigation par suggestions dynamiques, disponible partout après connexion à partir de **3 caractères**. Il n'existe ni bouton de lancement requis, ni page générale de résultats. Valider le champ ne sélectionne aucun résultat et ne navigue pas ; l'utilisateur choisit explicitement une suggestion. Sur mobile, cette validation ferme seulement le clavier et conserve les suggestions.
 
@@ -237,10 +239,12 @@ La recherche globale est une navigation par suggestions dynamiques, disponible p
 |---|---|---:|
 | Pokémon | Nom français ; numéro Pokédex informatif | 2 |
 | Extensions | Nom de l'Extension uniquement | 2 |
-| Collections | Nom uniquement, parmi ses collections et celles partagées avec lui | 2 |
+| Collections | Nom uniquement, parmi toutes les collections actuellement accessibles au viewer : personnelles ou reçues en partage | 2 |
 | Cartes | Nom, Pokémon liés, numéro, Extension, abréviations, identifiants pertinents et métadonnées textuelles prises en charge par le moteur portable | Places restantes |
 
 Le total ne dépasse jamais **10 suggestions**. Chaque catégorie est triée par pertinence ; les trois premières ne dépassent pas leur quota pour remplir la liste. Le contenu d'une Extension ou d'une collection ne la fait pas correspondre à une recherche sur son nom. Une Carte apparaît une seule fois, indépendamment de ses variantes ; aucune suggestion globale ne cible directement une Variante ou une série/bloc. La recherche Carte conserve normalisation de casse/accents, préfixes, numéros, correspondances multi-champs et classement déterministe du moteur portable existant, détaillé dans [l'architecture](05-ARCHITECTURE.md#recherche-et-requêtes).
+
+La recherche globale Phase 7 inclut les collections personnelles et les partages déjà actifs, sous les droits actuels du viewer. Phase 9 reste responsable de la création, de la gestion et du retrait des partages ; elle ne conditionne pas la lecture ou la recherche d’une collection déjà accessible.
 
 Les pages catalogue Pokémon, Extension et Carte sont des pages de consultation. Elles utilisent **Liste / Cartes** ; Classeur reste réservé aux collections.
 

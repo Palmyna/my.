@@ -105,9 +105,9 @@ La vue cartes met davantage en avant les images afin d'offrir un parcours visuel
 
 La vue classeur est un élément important de l'identité de MY. Elle représente la collection comme si les cartes étaient disposées dans les pages d'un classeur physique. Elle aide ainsi l'utilisateur à visualiser l'organisation réelle ou souhaitée de sa collection.
 
-L'utilisateur peut choisir un format de page. Les formats `2 × 2`, `3 × 3` et `4 × 3` sont des exemples envisagés ; la liste définitive reste ouverte. Les cartes sont ensuite présentées page par page selon le format sélectionné.
+Depuis 7B.3, les trois vues Collection sont livrées. Le Classeur V1 est continu uniquement, avec exactement les formats `2x2`, `3x3` et `4x3`, et un défaut initial `3x3`. Les variantes remplissent les pages dans l'ordre de la collection, sans regroupement par bloc, série, ère, Extension, Pokémon ou catégorie. La pagination est calculée frontend, sans table `binder_pages`.
 
-La navigation, les emplacements vides, l'ordre des cartes, la personnalisation des pages et la représentation des cartes manquantes seront précisés lors des cadrages UX et fonctionnels.
+Les [fonctionnalités](01-FEATURES.md#vue-classeur) et l'[UX](04-UX-UI.md#vue-classeur) définissent la navigation, les pochettes vides, la recherche sans compactage et la représentation des cartes manquantes livrées. Le Classeur reste consultatif ; Liste et Cartes conservent la réorganisation propriétaire. Les préférences de format suivent l'override du viewer pour la collection, puis le défaut global du compte, puis `3x3`.
 
 ## Profil utilisateur
 
@@ -244,8 +244,7 @@ Les sujets suivants devront être traités dans de futurs documents dédiés et 
 - le degré de personnalisation d'une collection automatique ;
 - la nomenclature exacte des états de conservation ;
 - les sociétés et formats de notes de grading pris en charge ;
-- le fonctionnement précis des pages du classeur ;
-- la liste définitive des formats de pages ;
+- les éventuelles évolutions du classeur au-delà de la V1 continue et des trois formats livrés ;
 - l'UX détaillée, y compris les comportements sur mobile, tablette et ordinateur ;
 - les règles détaillées du design system.
 

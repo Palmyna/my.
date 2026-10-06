@@ -195,13 +195,7 @@ Le résultat complet est versionné dans [`data/pokemon/pokemon-reference.json`]
 
 ## Séries, sets et blocs
 
-MY. conserve la hiérarchie utile fournie par TCGdex entre séries, sets et cartes. Elle alimente notamment :
-
-- l'affichage ;
-- la recherche ;
-- l'ordre des collections ;
-- la vue classeur ;
-- l'organisation par blocs ou ères.
+MY. conserve la hiérarchie utile fournie par TCGdex entre séries, sets et cartes. Elle alimente notamment l'affichage et les recherches qui utilisent les noms de série ou d'Extension. L'ordre canonique reste celui défini ci-dessous ; la hiérarchie ne crée aucun regroupement dans le Classeur V1, continu uniquement. Aucun mode par bloc ou ère n'est prévu dans cette V1.
 
 Des groupes tels que *Base*, *EX*, *Diamond & Pearl*, *Black & White*, *XY*, *Sun & Moon*, *Sword & Shield* ou *Scarlet & Violet* illustrent les blocs et séries concernés. La nomenclature affichée peut être adaptée en français lorsque nécessaire.
 

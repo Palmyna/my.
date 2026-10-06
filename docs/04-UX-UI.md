@@ -56,7 +56,7 @@ Les rouges des boutons sont légèrement assombris par rapport à `#E42B35` pour
 
 Les champs et textarea partagent fond, texte, placeholder et focus. Leur bord inférieur utilise `--text-subtle` pour rester identifiable ; ce token n'atténue pas les informations importantes. Le focus conserve un contour net, un halo discret et les couleurs système en mode `forced-colors`. Les transitions courtes respectent `prefers-reduced-motion`.
 
-Le header authentifié conserve logo à gauche, recherche centrale et menu utilisateur à droite, avec le responsive existant. Les shells public/Auth et authentifié partagent le même footer : `Conditions d’utilisation` et, à droite, `© 2026 · MY. · v{version applicative}`. Le copyright est secondaire et lisible, avec retour à la ligne si nécessaire ; la surface `--surface`, la séparation neutre et les espacements existants sont conservés. Sa hauteur suit le contenu, sans recouvrir les contrôles ni le FAB. Dialogs, menus et panneau Version utilisent `--surface-raised` ; leurs structures internes sont conservées. Les feedbacks génériques restent neutres, les erreurs utilisent `--danger` et la confirmation de copie de MY.ID utilise `--success`. Les accents déterministes des collections et les feedbacks de réorganisation sont conservés.
+Le header authentifié conserve logo à gauche, recherche centrale et menu utilisateur à droite, avec le responsive existant. Les shells public/Auth et authentifié partagent le même footer : `Conditions d’utilisation` et, à droite, `© 2026 · MY. · v{version applicative}`. Le copyright est secondaire et lisible, avec retour à la ligne si nécessaire ; la surface `--surface`, la séparation neutre et les espacements existants sont conservés. Sa hauteur suit le contenu, sans recouvrir les contrôles ni le FAB. Dialogs, menus et panneau Version utilisent `--surface-raised` ; leurs structures internes sont conservées. Les feedbacks génériques restent neutres, les erreurs utilisent `--danger` et la confirmation de copie de MY.ID utilise `--success`. Les feedbacks de réorganisation sont conservés ; depuis 7D.5, les accents des collections suivent l’identité sémantique commune, sans attribution par hash, nom ou ID.
 
 Dashboard et Collection exploitent le contenu du shell jusqu'à **1 520 px**, avec au moins **24 px de marge latérale**. Profil et Paramètres restent limités à **720 px**. Cette fondation ne restructure aucune de ces pages. Les pages publiques et Auth (homepage, connexion, inscription, récupération, confirmations et MFA) changent uniquement de palette : composition, dimensions, responsive, textes, illustration et parcours sont conservés. Le fond blanc du QR MFA reste dédié à sa lisibilité ; il ne constitue pas un second thème.
 
@@ -156,6 +156,8 @@ MY. n'utilise pas de grande sidebar permanente. Les actions contextuelles resten
 
 ## Recherche globale du header
 
+Fonctionnement restant à développer en Phase 7. Les suggestions Collection doivent couvrir toutes les collections actuellement accessibles au viewer, personnelles ou reçues en partage. La lecture et la recherche d’un partage actif ne dépendent pas de la Phase 9, réservée au parcours de création, gestion et retrait des accès.
+
 ### Saisie et choix explicite
 
 La recherche agit comme un menu dynamique de navigation. Une même saisie interroge toutes les catégories sans sélection préalable. Avant **3 caractères saisis**, aucune recherche n'est déclenchée ; à partir de ce seuil, les suggestions se mettent à jour en direct.
@@ -231,7 +233,7 @@ En 7D.4, les liens de Carte ouvrent sa fiche et la surface principale d'une Vers
 
 La fiche Carte préserve son contexte d'arrivée. **Retour** restaure autant que possible la même page, la vue, les filtres, le scroll et le contexte de navigation. Ce retour dans une consultation en cours ne réapplique pas une préférence d'ouverture au détriment de l'état précédent.
 
-**Précédente / Suivante** suit la liste d'origine : ordre des Cartes Pokémon, ordre naturel de l'Extension ou ordre réel de la collection. Une arrivée par suggestion globale ou accès direct sans véritable liste ordonnée ne fabrique aucune séquence précédente/suivante.
+**Précédente / Suivante** suit la liste d'origine : ordre canonique du Catalogue Pokémon/Extension ou ordre réel de la collection. Une arrivée par suggestion globale ou accès direct sans véritable liste ordonnée ne fabrique aucune séquence précédente/suivante.
 
 Sur mobile, le swipe horizontal est prévu pour cette même navigation lorsqu'elle existe. Son seuil évite une navigation involontaire pendant le scroll ; sens, seuil et animation légère restent des choix d'implémentation cohérents avec les conventions retenues.
 
@@ -241,7 +243,7 @@ Le dashboard est le point central après connexion. Il permet de comprendre imm�
 
 Depuis 6F.2, le titre `Collections` et un compteur discret regroupent les collections personnelles et partagées dans une seule grille adaptative. Le compteur apparaît uniquement après une lecture réussie, au singulier ou au pluriel. L'ordre retourné par l'unique lecture serveur est conservé, sans filtre ni tri supplémentaire. Le Dashboard dispose d'une largeur propre, supérieure à celle des pages Profil et Paramètres.
 
-Sur mobile, le haut de page reste compact (`Collections` et le nombre). La recherche globale du header reste immédiatement disponible au-dessus de la liste ; son fonctionnement et sa structure ne changent pas. Aucune introduction ni hero ne précède les collections.
+Sur mobile, le haut de page reste compact (`Collections` et le nombre). Le champ du header reste visible au-dessus de la liste ; ses suggestions de recherche globale restent à développer en Phase 7. Aucune introduction ni hero ne précède les collections.
 
 ### Tuiles de collection
 
@@ -327,7 +329,7 @@ L'overview compact porte une surface graphite subtilement teintée et un gradien
 
 Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones.
 
-La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image indisponible/erreur : `card-placeholder.webp` commun ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques en Liste et le menu de retrait uniquement sur les éléments personnels du propriétaire. Liste, Cartes et Classeur ainsi que leur sélecteur sont fonctionnels depuis 7B.3, avec préférences du viewer, contenu et ordre autoritatifs communs. Classeur continu livré : pages sombres et pochettes, sans reorder ni actions métier directement sur les pochettes ; les trois réglages Affichage de Paramètres sont fonctionnels depuis 7C.1. Les 23 migrations Local/Cloud sont alignées après le checkpoint manuel exécuté par le propriétaire. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
+La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image indisponible/erreur : `card-placeholder.webp` commun ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques en Liste et le menu de retrait uniquement sur les éléments personnels du propriétaire. Liste, Cartes et Classeur ainsi que leur sélecteur sont fonctionnels depuis 7B.3, avec préférences du viewer, contenu et ordre autoritatifs communs. Classeur continu livré : pages sombres et pochettes, sans reorder ni actions métier directement sur les pochettes ; les trois réglages Affichage de Paramètres sont fonctionnels depuis 7C.1. Le checkpoint historique Phase 6 confirme 23 migrations Local/Cloud alignées par le propriétaire ; après 7D.5, l’état documenté est 26 Local / 23 Cloud confirmé, sans nouveau contrôle Cloud. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
 
 Une collection dispose d'une page principale commune à ses trois vues. Elle donne facilement accès à :
 
@@ -407,16 +409,17 @@ Une variante manquante reste présente dans la collection et demeure visible dan
 
 ### Vue Liste
 
-La vue Liste privilégie la densité, la lisibilité, la rapidité, la recherche et les grandes collections. Elle peut notamment présenter :
+La vue Liste privilégie la densité, la lisibilité, la rapidité, la recherche et les grandes collections. Le rendu livré présente :
 
+- une image compacte ;
 - le nom ;
 - le numéro ;
 - le set ;
 - la variante ;
 - l'état possédée ou manquante ;
-- le nombre d'exemplaires.
+- l'accès aux exemplaires, sans compteur visible.
 
-La composition exacte des colonnes reste ouverte.
+La composition livrée est celle décrite dans la page Collection ci-dessus : résumé compact, état de possession visuel et accessible, actions séparées selon les droits.
 
 La zone principale de chaque ligne (image, nom, abréviation d'Extension, numéro et version) ouvre le détail contextuel. La poignée de réorganisation, le raccourci Exemplaires et le menu `…` restent des interactions séparées ; la ligne entière n'est pas cliquable.
 
@@ -561,15 +564,15 @@ Livrée en 6C.3, cette action reste disponible à vide pour le propriétaire. De
 
 Escape/Annuler ferment hors mutation ; Tab reste dans la modal, le focus revient au déclencheur. Une réouverture repart d'un état vierge. Pendant l'écriture, doubles soumissions et réorganisation concurrente sont bloquées. Après conflit ou résultat incertain, un message sûr et une actualisation remplacent toute supposition locale sur le résultat. Aucun exemplaire physique n'est créé pendant l'ajout.
 
-L'interaction exacte de réorganisation reste à cadrer pour desktop et mobile : aucun choix final de drag & drop, poignée, boutons ou geste tactile n'est fixé.
+La réorganisation propriétaire est livrée en Liste et Cartes : poignée dédiée, souris, appui tactile prolongé et clavier, avec confirmation après relecture backend. Le Classeur reste consultatif, sans reorder.
 
 ### Collection automatique
 
 Une collection automatique propose également au propriétaire l'action `Ajouter une carte` et le même parcours 6C.3. La variante choisie dans le catalogue devient alors un élément manuel.
 
-Les éléments automatiques et manuels sont tous librement réordonnables par le propriétaire. L'ordre canonique MY. initialise la collection, puis sert de référence système. Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique ; les éléments manuels peuvent être ajoutés, retirés et déplacés librement. La possibilité de déplacer un automatique est validée ; l'interaction UX exacte reste ouverte, comme pour les collections personnalisées.
+Les éléments automatiques et manuels sont tous librement réordonnables par le propriétaire. L'ordre canonique MY. initialise la collection, puis sert de référence système. Les éléments automatiques restent non supprimables manuellement tant qu'ils appartiennent à la structure automatique ; les éléments manuels peuvent être ajoutés, retirés et déplacés librement. Le déplacement utilise la même interaction propriétaire Liste/Cartes que dans les collections personnalisées ; aucun déplacement directement dans les pochettes Classeur.
 
-Chaque ligne d'une collection automatique affiche discrètement `Auto` pour `origin='automatic'` ou `Perso` pour `origin='manual'`, avec un libellé d'origine accessible. Les valeurs DB/code restent `automatic` / `manual`. Aucun indicateur d'origine dans une collection personnalisée.
+Chaque ligne Liste d'une collection automatique affiche discrètement `Auto` pour `origin='automatic'` ou `Perso` pour `origin='manual'`, avec un libellé d'origine accessible. Les valeurs DB/code restent `automatic` / `manual`. Aucun indicateur d'origine dans une collection personnalisée.
 
 Le menu `…` des seuls éléments manuels du propriétaire propose `Retirer de la collection`. La confirmation affiche `Retirer cette carte de la collection ?`, puis `Cette carte sera retirée de la collection. Vos exemplaires seront conservés.` et les actions `Annuler` / `Retirer`. Le succès ferme la confirmation et actualise contenu, ordre, overview et Dashboard ; exemplaires et notes restent inchangés. Aucun menu de retrait sur Auto ni en lecture seule, aucun bouton Ajouter dans le partage. Retirer un élément manuel et supprimer un exemplaire physique restent deux actions distinctes.
 
@@ -676,7 +679,7 @@ Les réglages disponibles sont :
 
 Une vue fixe s'applique à chaque nouvelle ouverture. `Dernier choix utilisé` mémorise le dernier mode explicitement sélectionné pour les prochaines consultations. Le choix catalogue est global à Pokémon, Extension et Carte ; le choix de mode collection est global aux collections, sans mémorisation par collection.
 
-Les deux préférences et leurs derniers modes sont persistés pour le compte. Initialement, `Dernier choix utilisé` reprend Liste, jusqu'au premier choix explicite. Les préférences d'un propriétaire ne s'imposent pas au destinataire d'un partage : ce dernier utilise ses propres choix de consultation.
+Les deux préférences de vue et leurs derniers modes sont persistés pour le compte, indépendamment du troisième réglage de format Classeur. Initialement, `Dernier choix utilisé` reprend Liste, jusqu'au premier choix explicite. Les préférences d'un propriétaire ne s'imposent pas au destinataire d'un partage : ce dernier utilise ses propres choix de consultation.
 
 `binder_default_format` est global au compte. Un format explicitement choisi pour une collection devient un override du viewer (utilisateur + collection). Absence = héritage dynamique ; « utiliser le format par défaut » supprime l'override. Résolution : **override → global → `3x3`**. Propriétaire et lecteur autorisé ont leurs préférences indépendantes. Persistance livrée en 7A.3, contrôles Classeur livrés en 7B.3, trois réglages Paramètres livrés en 7C.1. Modifier le défaut global ne touche aucun override ; les collections héritières l'appliquent immédiatement. Un défaut de vue s'applique à la prochaine ouverture, sans modifier les derniers choix ni la vue ouverte.
 
@@ -752,21 +755,18 @@ Ce document ne constitue pas un audit WCAG complet.
 
 ## Éléments laissés ouverts
 
-Les sujets suivants seront définis lors du design détaillé ou de l'implémentation :
+Les sujets suivants concernent les fonctionnalités non livrées et d'éventuelles évolutions ultérieures. Les choix des écrans livrés, décrits ci-dessus et dans l'[architecture](05-ARCHITECTURE.md), restent la référence :
 
 - les wireframes et maquettes pixel-perfect ;
 - les textes définitifs des modales du Profil, ses intitulés de groupes et ses détails visuels, dans le respect des parcours validés ;
 - le moyen de contact final pour demander un remplacement d'Authenticator et la forme exacte de son message d'information ;
 - les dimensions, espacements, tailles typographiques et rayons exacts ;
-- l'apparence exacte des cartes possédées et manquantes ;
-- les badges exacts de variantes ;
+- les éventuelles évolutions visuelles des cartes et badges, dans le respect des états possédés/manquants livrés ;
 - les évolutions visuelles ultérieures du classeur, au-delà des pages/pochettes et transitions légères livrées en 7B.3 ;
 - les éventuelles animations de cartes ;
-- le comportement précis du drag and drop et son alternative mobile ;
-- la largeur et le design exacts du panneau latéral ;
-- le contenu exact d'une ligne de la vue Liste ;
-- le contenu exact d'une tuile de la vue Cartes ;
-- les dimensions du header et du champ, l'icône du menu utilisateur et le design final des Paramètres ;
+- les éventuelles évolutions du reorder au-delà des interactions Liste/Cartes livrées ;
+- les éventuelles évolutions de la composition Liste/Cartes et du panneau Détail, au-delà des rendus livrés ;
+- les finitions futures du header et du champ de recherche globale ; Paramètres Affichage est livré ;
 - l’intégration des identités 7D.5 dans les suggestions et les animations du dropdown ;
 - la recherche globale et la navigation contextuelle future ; Pokémon sans artwork, Extension à logo/symbole et Carte de référence sont livrés ;
 - le seuil du swipe et les animations précédente/suivante ;
@@ -776,8 +776,7 @@ Les sujets suivants seront définis lors du design détaillé ou de l'implément
 - le système d'icônes ;
 - les breakpoints et adaptations responsive détaillées ;
 - le design system complet ;
-- les composants frontend et la bibliothèque UI éventuelle ;
-- l'organisation détaillée du frontend et son implémentation technique ;
-- la stratégie de requêtes, cache et debounce ; le socle métier portable de recherche Carte existe déjà.
+- les éventuels composants nécessaires aux fonctionnalités restantes, selon la stack et l'organisation frontend déjà fixées dans l'architecture ;
+- la stratégie de requêtes, cache et debounce de la recherche globale ; le socle métier portable de recherche Carte existe déjà.
 
-Ces éléments ne doivent pas être considérés comme décidés avant leur cadrage et leur validation.
+Ces éléments futurs ne doivent pas être considérés comme décidés avant leur cadrage et leur validation.
