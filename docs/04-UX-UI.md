@@ -156,15 +156,19 @@ MY. n'utilise pas de grande sidebar permanente. Les actions contextuelles resten
 
 ## Recherche globale du header
 
-Contrat serveur et service TypeScript livrés en 7E.1 (`0.7.12`). Champ du header toujours visuel : dropdown, debounce, navigation, états et interactions mobile restent à développer en 7E.2. Les suggestions Collection doivent couvrir toutes les collections actuellement accessibles au viewer, personnelles ou reçues en partage. La lecture et la recherche d’un partage actif ne dépendent pas de la Phase 9, réservée au parcours de création, gestion et retrait des accès.
+Contrat serveur et service TypeScript livrés en 7E.1 (`0.7.12`). Recherche permanente du header fonctionnelle en 7E.2 (`0.7.13`) : dropdown, debounce, navigation explicite, états et interactions responsive. Les suggestions Collection couvrent toutes les collections actuellement accessibles au viewer, personnelles ou reçues en partage. La lecture et la recherche d’un partage actif ne dépendent pas de la Phase 9, réservée au parcours de création, gestion et retrait des accès. Voir le [rapport 7E.2](reports/2026-10-06-PHASE7E2-GLOBAL-SEARCH-UI.md).
 
 ### Saisie et choix explicite
 
 La recherche agit comme un menu dynamique de navigation. Une même saisie interroge toutes les catégories sans sélection préalable. Avant **3 caractères saisis**, aucune recherche n'est déclenchée ; à partir de ce seuil, les suggestions se mettent à jour en direct.
 
+La saisie est limitée à 200 caractères Unicode et temporisée de 300 ms. Chaque frappe retire immédiatement les anciennes suggestions ; `Recherche en cours…` reste affiché pendant debounce et requête. Les erreurs restent génériques, avec invitation à se reconnecter en cas de perte d’autorisation ; le texte saisi reste modifiable.
+
 Il n'existe aucune action classique « lancer la recherche » ni page générale de résultats. Valider directement le champ ne navigue pas, ne choisit pas la première suggestion et n'en sélectionne aucune automatiquement. L'utilisateur active explicitement une suggestion.
 
 Sur mobile, valider depuis le clavier virtuel ferme le clavier, conserve les suggestions et ne navigue pas. Le résultat voulu reste accessible au toucher. Sans correspondance, le dropdown reste ouvert avec un état simple tel que `Aucun résultat pour « xyz »`.
+
+Enter utilise le blur natif du champ sur tous les navigateurs, sans détection d’appareil. Escape ferme et restitue le focus au champ. Pointerdown ou focus réellement extérieur ferme sans déplacer le focus de destination ; le focus entre liens internes conserve le dropdown. Reprendre le focus dans le champ réouvre la saisie courante : résultats frais pendant 30 secondes, sinon rechargement sans anciens liens actifs. L’activation explicite d’un lien ferme et vide le champ. Recherche et menu compte se ferment mutuellement par leurs interactions extérieures existantes.
 
 ### Catégories et nombre de suggestions
 
@@ -183,9 +187,11 @@ Le contenu d'une Extension ou d'une collection ne détermine pas sa correspondan
 
 Chaque suggestion constitue directement une ligne interactive, sans sections intermédiaires à titres non cliquables. Les lignes restent modernes, aérées et sobres : information principale à gauche, **catégorie explicite à droite**, information secondaire seulement si utile, fond subtilement teinté et bordure ou accent de la même famille chromatique. Les états hover, focus et tactiles sont lisibles.
 
-Les catégories disposent de repères chromatiques ; leur intégration dans le dropdown reste à réaliser. Le socle 7D.5 fournit désormais la palette sémantique partagée Catalogue/Collections, sans donnée métier couleur par Pokémon. La couleur n'est jamais le seul repère. Le dropdown ne dépend pas de miniatures ou de logos obligatoires.
+Les catégories réutilisent les résolveurs 7D.5 : Pokémon par types, Extension/Carte teal, Collection avec priorité partagée indigo → personnalisée rouge MY. → cible automatique → neutre. Accents et fonds très légèrement teintés sur graphite, catégories textuelles toujours visibles. Pokémon affiche nom et Pokédex ; Extension nom FR avec fallback source et abréviation FR/source ; Collection nom et contexte personnalisé/automatique/partagé ; Carte nom, numéro brut et Extension/abréviation disponibles, sans dénominateur inventé. Aucune miniature ni logo.
 
 Depuis le champ, `Tab` entre dans les suggestions ; les tabulations suivantes les parcourent. Une suggestion ayant le focus s'active par le comportement clavier standard approprié. Le focus doit être visible, les contrastes suffisants et les zones tactiles confortables.
+
+Liens natifs React Router, sans menu/listbox ni sélection automatique. Le champ conserve son rôle natif searchbox et `aria-controls` lorsqu’un popup existe ; pas d’`aria-expanded`, incompatible avec ce rôle. Chargement/absence utilisent `status`, erreur `alert`. Dropdown aligné sous le champ, largeur identique, hauteur maximale `min(480px, 50dvh)` et scroll propre. Lignes d’au moins 56 px, textes longs repliés, aucun mouvement indispensable ni animation ajoutée ; structure responsive du header conservée.
 
 ## Pages catalogue
 
@@ -243,7 +249,7 @@ Le dashboard est le point central après connexion. Il permet de comprendre imm�
 
 Depuis 6F.2, le titre `Collections` et un compteur discret regroupent les collections personnelles et partagées dans une seule grille adaptative. Le compteur apparaît uniquement après une lecture réussie, au singulier ou au pluriel. L'ordre retourné par l'unique lecture serveur est conservé, sans filtre ni tri supplémentaire. Le Dashboard dispose d'une largeur propre, supérieure à celle des pages Profil et Paramètres.
 
-Sur mobile, le haut de page reste compact (`Collections` et le nombre). Le champ du header reste visible au-dessus de la liste ; ses suggestions de recherche globale restent à développer en Phase 7. Aucune introduction ni hero ne précède les collections.
+Sur mobile, le haut de page reste compact (`Collections` et le nombre). Le champ du header reste visible au-dessus de la liste ; ses suggestions de recherche globale sont fonctionnelles depuis 7E.2. Aucune introduction ni hero ne précède les collections.
 
 ### Tuiles de collection
 
@@ -766,9 +772,8 @@ Les sujets suivants concernent les fonctionnalités non livrées et d'éventuell
 - les éventuelles animations de cartes ;
 - les éventuelles évolutions du reorder au-delà des interactions Liste/Cartes livrées ;
 - les éventuelles évolutions de la composition Liste/Cartes et du panneau Détail, au-delà des rendus livrés ;
-- les finitions futures du header et du champ de recherche globale ; Paramètres Affichage est livré ;
-- l’intégration des identités 7D.5 dans les suggestions et les animations du dropdown ;
-- l’interface de recherche globale et la navigation contextuelle future ; contrat DB/service 7E.1 livré ; Pokémon sans artwork, Extension à logo/symbole et Carte de référence sont livrés ;
+- les éventuelles finitions visuelles ultérieures du header ; recherche globale 7E.2 et Paramètres Affichage livrés ;
+- la navigation contextuelle future 7F ; contrat DB/service 7E.1 et UI 7E.2 livrés ; Pokémon sans artwork, Extension à logo/symbole et Carte de référence sont livrés ;
 - le seuil du swipe et les animations précédente/suivante ;
 - le mécanisme de navigation rapide dans les grandes collections ;
 - le design du résumé de mise à jour ;
@@ -777,6 +782,5 @@ Les sujets suivants concernent les fonctionnalités non livrées et d'éventuell
 - les breakpoints et adaptations responsive détaillées ;
 - le design system complet ;
 - les éventuels composants nécessaires aux fonctionnalités restantes, selon la stack et l'organisation frontend déjà fixées dans l'architecture ;
-- la stratégie de requêtes, cache et debounce de la recherche globale ; le socle métier portable de recherche Carte existe déjà.
 
 Ces éléments futurs ne doivent pas être considérés comme décidés avant leur cadrage et leur validation.

@@ -1,23 +1,30 @@
 import { act, createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import { StrictMode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Link, MemoryRouter, useLocation } from 'react-router'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { AuthenticatedHeader } from './AuthenticatedHeader'
 
 const actions = vi.hoisted(() => ({ signOut: vi.fn() }))
-vi.mock('../features/auth/auth-context', () => ({ useAuth: () => ({ actions, user: { email: 'alice@example.test' } }) }))
+vi.mock('../features/auth/auth-context', () => ({ useAuth: () => ({ actions, user: { id: 'alice', email: 'alice@example.test' } }) }))
+vi.mock('../services/global-search', async importOriginal => ({ ...await importOriginal<typeof import('../services/global-search')>(),
+  searchGlobalNavigation: vi.fn().mockResolvedValue([{ kind: 'pokemon', pokemonId: '25', nameFr: 'Pikachu',
+    dexNumber: 25, primaryType: 'electric', secondaryType: null }]),
+}))
 beforeEach(() => { actions.signOut.mockReset().mockResolvedValue(undefined) })
 
 function PageProbe() {
   return <main><p data-testid="path">{useLocation().pathname}</p><Link to="/settings">Navigation extérieure</Link><button>Action de la page</button></main>
 }
 function setup(initialEntry = '/dashboard') {
-  return render(<StrictMode><MemoryRouter initialEntries={[initialEntry]}><AuthenticatedHeader /><PageProbe /></MemoryRouter></StrictMode>)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  return render(<StrictMode><QueryClientProvider client={client}><MemoryRouter initialEntries={[initialEntry]}>
+    <AuthenticatedHeader /><PageProbe /></MemoryRouter></QueryClientProvider></StrictMode>)
 }
 const trigger = () => screen.getByRole('button', { name: 'Mon compte' })
 function openMenu() { fireEvent.click(trigger()); return screen.getByRole('menu') }
 
-test('conserve le logo et fournit une recherche visuelle sans action ni requête', () => {
+test('conserve logo, champ permanent et Enter sans navigation', () => {
   setup()
   const fetchSpy = vi.fn()
   vi.stubGlobal('fetch', fetchSpy)
@@ -34,6 +41,22 @@ test('conserve le logo et fournit une recherche visuelle sans action ni requête
   expect(within(trigger()).getByText('A')).toHaveAttribute('aria-hidden', 'true')
   expect(trigger()).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+})
+
+test('recherche et menu compte se ferment mutuellement par leurs interactions extérieures', async () => {
+  setup()
+  const search = screen.getByRole('searchbox')
+  fireEvent.change(search, { target: { value: 'Pikachu' } })
+  const suggestion = await screen.findByRole('link', { name: /Pikachu/ })
+  act(() => suggestion.focus())
+  expect(search).toHaveAttribute('aria-controls')
+  fireEvent.pointerDown(trigger())
+  openMenu()
+  expect(search).not.toHaveAttribute('aria-controls')
+  expect(screen.queryByRole('list')).not.toBeInTheDocument()
+  act(() => search.focus())
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /Pikachu/ })).toBeInTheDocument()
 })
 
 test.each([['/profile', 'Profil'], ['/settings/?tab=account#details', 'Paramètres']])('indique la page active dans le menu dès l’arrivée sur %s', (path, name) => {
