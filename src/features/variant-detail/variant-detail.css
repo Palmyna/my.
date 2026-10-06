@@ -17,7 +17,7 @@
 .variant-detail-panel .catalog-card-metadata dt { font-size: .7rem; color: var(--text-muted); font-weight: 400; }
 .variant-detail-panel .catalog-card-metadata dd { font-size: .85rem; }
 .variant-detail-panel :is(.catalog-card-metadata a, .catalog-pokemon-links a) { color: var(--collection-ink, var(--catalog-ink, var(--text))); }
-.variant-detail-characteristics { padding: 16px 0; border-top: 1px solid var(--border); }
+.variant-detail-characteristics { margin-top:16px; padding: 16px 0; border-top: 1px solid var(--border); }
 .variant-detail-characteristics h3 { margin: 0; font-size: .8rem; font-weight: 600; }
 .variant-detail-characteristics .variant-detail-metadata { margin: 12px 0 0; }
 .variant-detail-panel .physical-copies-content { margin-top: 20px; padding: 20px 16px; border-radius: 10px; background: var(--surface); }

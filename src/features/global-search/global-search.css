@@ -1,4 +1,4 @@
-.global-search-popup { position: absolute; z-index: 10; top: calc(100% + 8px); inset-inline: 0; max-height: min(480px, 50dvh); overflow-y: auto; overscroll-behavior: contain; padding: 6px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-raised); box-shadow: 0 8px 24px #0005; }
+.global-search-popup { position: absolute; z-index: 10; top: calc(100% + 8px); inset-inline: 0; max-height: min(700px, 70dvh); overflow-y: auto; overscroll-behavior: contain; padding: 6px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-raised); box-shadow: 0 8px 24px #0005; }
 .global-search-popup ul { list-style: none; margin: 0; padding: 0; }
 .global-search-suggestion { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 10px 12px; border: 1px solid transparent; border-inline-start: 3px solid var(--search-border); border-radius: 6px; background: color-mix(in srgb, var(--search-accent) 3%, var(--surface-raised)); text-decoration: none; }
 .global-search-popup li + li { margin-top: 4px; }
