@@ -3,6 +3,7 @@ import { variantIdString, type VariantIdInput } from '../lib/variant-id'
 import type { Database } from '../types/database.generated'
 import type { VariantDetail, VariantDetailDatabase } from '../types/variant-detail'
 import { getSupabaseClient } from './supabase'
+import { catalogPokemonMetadataList } from './catalog-pokemon'
 
 export type VariantDetailErrorCode = 'not_authorized' | 'variant_unavailable' | 'unexpected'
 export class VariantDetailError extends Error {
@@ -21,7 +22,9 @@ function dateOrigin(value: unknown): value is VariantDetail['dateOrigin'] {
 function decodeVariantDetail(value: unknown): VariantDetail {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new VariantDetailError('unexpected')
   const row = value as Record<string, unknown>
-  if (Object.keys(row).length !== 20 || typeof row.variant_id !== 'string'
+  const pokemon = catalogPokemonMetadataList.safeParse(row.pokemon)
+  if (Object.keys(row).length !== 23 || typeof row.variant_id !== 'string'
+    || typeof row.source_card_id !== 'string' || typeof row.set_id !== 'string' || !pokemon.success
     || !nullableText(row.image_url) || !nullableText(row.card_name_fr) || !nullableText(row.local_id)
     || !nullableText(row.rarity) || !nullableText(row.category)
     || !nullableText(row.set_name_fr) || !nullableText(row.set_name_source)
@@ -34,9 +37,14 @@ function decodeVariantDetail(value: unknown): VariantDetail {
     throw new VariantDetailError('unexpected')
   }
   // Runtime payload IDs must already be decimal strings, even for small values.
-  try { variantIdString(row.variant_id) } catch { throw new VariantDetailError('unexpected') }
+  try {
+    for (const id of [row.variant_id, row.source_card_id, row.set_id]) {
+      if (variantIdString(id) !== id) throw new VariantDetailError('unexpected')
+    }
+  } catch { throw new VariantDetailError('unexpected') }
   return {
-    variantId: row.variant_id, imageUrl: row.image_url, cardNameFr: row.card_name_fr, localId: row.local_id,
+    variantId: row.variant_id, sourceCardId: row.source_card_id, setId: row.set_id, pokemon: pokemon.data,
+    imageUrl: row.image_url, cardNameFr: row.card_name_fr, localId: row.local_id,
     rarity: row.rarity, category: row.category, setNameFr: row.set_name_fr, setNameSource: row.set_name_source,
     setAbbreviationFr: row.set_abbreviation_fr, setAbbreviation: row.set_abbreviation,
     seriesNameFr: row.series_name_fr, seriesNameSource: row.series_name_source,

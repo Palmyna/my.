@@ -15,13 +15,13 @@ vi.mock('../../services/global-search', async importOriginal => ({
 const search = vi.mocked(searchGlobalNavigation)
 const suggestions: GlobalNavigationSuggestion[] = [
   { kind: 'pokemon', pokemonId: '25', nameFr: 'Pikachu', dexNumber: 25, primaryType: 'electric', secondaryType: null },
-  { kind: 'set', setId: '73', nameFr: 'Légendes Brillantes', nameSource: 'Shining Legends', abbreviationFr: 'SL3.5', abbreviation: 'SLG' },
+  { kind: 'set', setId: '73', nameFr: 'Légendes Brillantes', nameSource: 'Shining Legends', abbreviationFr: 'SL3.5', abbreviation: 'SLG', logoUrl: null },
   { kind: 'collection', collectionId: '00000000-0000-0000-0000-000000000001', name: 'Mes favoris', access: 'owned',
     collectionType: 'free', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null },
   { kind: 'collection', collectionId: '00000000-0000-0000-0000-000000000002', name: 'Pikachu partagé', access: 'shared',
     collectionType: 'automatic', targetType: 'pokemon', targetName: 'Pikachu', targetPrimaryType: 'electric', targetSecondaryType: null },
   { kind: 'card', sourceCardId: '9007199254740995', nameFr: 'Pikachu', localId: '028', setNameFr: 'Légendes Brillantes',
-    setAbbreviationFr: 'SL3.5', setAbbreviation: 'SLG' },
+    setAbbreviationFr: 'SL3.5', setAbbreviation: 'SLG', imageUrl: null, pokemon: [] },
 ]
 function Path() { return <p data-testid="path">{useLocation().pathname}</p> }
 function setup(viewerId = 'alice') {

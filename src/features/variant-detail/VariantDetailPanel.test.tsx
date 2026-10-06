@@ -14,7 +14,7 @@ vi.mock('../../services/physical-copies', async original => ({ ...await original
   listPhysicalCopies: vi.fn(), createPhysicalCopy: vi.fn(), updatePhysicalCopy: vi.fn(), deletePhysicalCopy: vi.fn() }))
 
 const variantId = '9007199254740995'
-const detail: VariantDetail = { variantId, cardNameFr: 'Pikachu', imageUrl: 'https://example.test/card.webp', localId: '025',
+const detail: VariantDetail = { variantId, sourceCardId: '25', setId: '73', pokemon: [], cardNameFr: 'Pikachu', imageUrl: 'https://example.test/card.webp', localId: '025',
   setNameFr: 'Écarlate et Violet', setNameSource: 'Scarlet & Violet', setAbbreviationFr: 'EV', setAbbreviation: 'SV',
   seriesNameFr: 'Série FR', seriesNameSource: 'Source series', rarity: 'Rare', category: 'Pokémon',
   variantLabel: 'Holo spéciale', variantType: 'holo', variantSubtype: null, variantSize: 'standard', variantFoil: 'cosmos',

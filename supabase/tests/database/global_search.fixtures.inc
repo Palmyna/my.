@@ -70,3 +70,15 @@ insert into public.collection_shares(collection_id,recipient_user_id) values
   ('c7e10000-0000-0000-0000-000000000005','a7e10000-0000-0000-0000-000000000001');
 insert into public.collection_items(collection_id,variant_id,origin,sort_position) values
   ('c7e10000-0000-0000-0000-000000000006',-97301,'manual',1);
+
+-- Presentation-only data must never enter matching or ranking.
+update public.tcg_sets set logo_url='https://example.test/PresentationOnly7e31-logo.webp' where id=-97001;
+update public.source_cards set image_url='https://example.test/PresentationOnly7e31-source.webp' where id=9007199254740995;
+update public.catalog_variants set image_url='https://example.test/PresentationOnly7e31-version.webp' where id=-97301;
+insert into public.catalog_variants(id,source_card_id,variant_key,sort_order,size,french_availability,is_active,image_url,source_present,origin)
+  overriding system value values
+  (-97401,-97010,'image-later',3,'standard','confirmed',true,'https://example.test/later.webp',false,'my'),
+  (-97402,-97010,'image-first',2,'standard','confirmed',true,'https://example.test/first.webp',false,'my'),
+  (-97403,-97010,'image-jumbo',0,'jumbo','confirmed',true,'https://example.test/jumbo.webp',false,'my'),
+  (-97404,-97010,'image-inactive',0,'standard','confirmed',false,'https://example.test/inactive.webp',false,'my'),
+  (-97405,-97010,'image-unknown',0,'standard','unknown',true,'https://example.test/unknown.webp',false,'my');

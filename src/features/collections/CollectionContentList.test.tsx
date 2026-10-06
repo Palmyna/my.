@@ -49,7 +49,7 @@ beforeEach(() => {
   create.mockReset().mockImplementation(() => { rows.push({ id: `copy-${rows.length}`, name: null, note: null, created_at: '2026-09-25T00:00:00Z' }); return Promise.resolve() })
   remove.mockReset().mockImplementation(copyId => { rows = rows.filter(copy => copy.id !== copyId); return Promise.resolve() })
   vi.mocked(updatePhysicalCopy).mockReset().mockResolvedValue(undefined)
-  vi.mocked(getVariantDetail).mockReset().mockResolvedValue({ variantId: bigId, cardNameFr: 'Nom catalogue', imageUrl: null,
+  vi.mocked(getVariantDetail).mockReset().mockResolvedValue({ variantId: bigId, sourceCardId: '25', setId: '73', pokemon: [], cardNameFr: 'Nom catalogue', imageUrl: null,
     localId: null, setNameFr: null, setNameSource: null, setAbbreviationFr: null, setAbbreviation: null,
     seriesNameFr: null, seriesNameSource: null, rarity: null, category: null, variantLabel: null, variantType: null,
     variantSubtype: null, variantSize: null, variantFoil: null, variantStamps: [], effectiveReleaseDate: null, dateOrigin: 'unknown' })

@@ -5,6 +5,8 @@ import type { Database } from '../types/database.generated'
 import type { GlobalNavigationSuggestion } from '../types/global-search'
 import { POKEMON_TYPES } from '../types/pokemon'
 import { getSupabaseClient } from './supabase'
+import { catalogPokemonSummaryFields, catalogPokemonTypeFields, catalogPokemonMetadataList,
+  consistentPokemonTypes } from './catalog-pokemon'
 
 export type GlobalSearchErrorCode = 'invalid_query' | 'not_authorized' | 'unexpected'
 export class GlobalSearchError extends Error {
@@ -16,19 +18,18 @@ const text = z.string().nullable(), type = z.enum(POKEMON_TYPES).nullable()
 const consistentTypes = (primary: string | null, secondary: string | null) =>
   secondary === null || (primary !== null && primary !== secondary)
 const suggestion = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('pokemon'), pokemon_id: id, name_fr: text,
-    dex_number: z.number().int().positive().max(2147483647), primary_type: type, secondary_type: type }),
+  z.strictObject({ kind: z.literal('pokemon'), ...catalogPokemonSummaryFields, ...catalogPokemonTypeFields }),
   z.strictObject({ kind: z.literal('set'), set_id: id, name_fr: text, name_source: text,
-    abbreviation_fr: text, abbreviation: text }),
+    abbreviation_fr: text, abbreviation: text, logo_url: text }),
   z.strictObject({ kind: z.literal('collection'),
     collection_id: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
     name: z.string(), access: z.enum(['owned', 'shared']), collection_type: z.enum(['free', 'automatic']),
     target_type: z.enum(['pokemon', 'set']).nullable(), target_name: text,
     target_primary_type: type, target_secondary_type: type }),
   z.strictObject({ kind: z.literal('card'), source_card_id: id, name_fr: text, local_id: text,
-    set_name_fr: text, set_abbreviation_fr: text, set_abbreviation: text }),
+    set_name_fr: text, set_abbreviation_fr: text, set_abbreviation: text, image_url: text, pokemon: catalogPokemonMetadataList }),
 ]).refine(row => {
-  if (row.kind === 'pokemon') return consistentTypes(row.primary_type, row.secondary_type)
+  if (row.kind === 'pokemon') return consistentPokemonTypes(row)
   if (row.kind !== 'collection') return true
   return consistentTypes(row.target_primary_type, row.target_secondary_type)
     && (row.target_type === 'pokemon' || (row.target_primary_type === null && row.target_secondary_type === null))
@@ -39,13 +40,14 @@ const suggestion = z.discriminatedUnion('kind', [
     case 'pokemon': return { kind: row.kind, pokemonId: row.pokemon_id, nameFr: row.name_fr,
       dexNumber: row.dex_number, primaryType: row.primary_type, secondaryType: row.secondary_type }
     case 'set': return { kind: row.kind, setId: row.set_id, nameFr: row.name_fr, nameSource: row.name_source,
-      abbreviationFr: row.abbreviation_fr, abbreviation: row.abbreviation }
+      abbreviationFr: row.abbreviation_fr, abbreviation: row.abbreviation, logoUrl: row.logo_url }
     case 'collection': return { kind: row.kind, collectionId: row.collection_id, name: row.name, access: row.access,
       collectionType: row.collection_type, targetType: row.target_type, targetName: row.target_name,
       targetPrimaryType: row.target_primary_type, targetSecondaryType: row.target_secondary_type }
     case 'card': return { kind: row.kind, sourceCardId: row.source_card_id, nameFr: row.name_fr,
       localId: row.local_id, setNameFr: row.set_name_fr,
-      setAbbreviationFr: row.set_abbreviation_fr, setAbbreviation: row.set_abbreviation }
+      setAbbreviationFr: row.set_abbreviation_fr, setAbbreviation: row.set_abbreviation,
+      imageUrl: row.image_url, pokemon: row.pokemon }
   }
 })
 const categoryOrder = { pokemon: 0, set: 1, collection: 2, card: 3 } as const

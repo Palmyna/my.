@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { variantIdString } from '../lib/variant-id'
-import { POKEMON_TYPES } from '../types/pokemon'
+import { catalogPokemonSummaryFields as pokemonFields, catalogPokemonTypeFields as typeFields,
+  catalogPokemonMetadataList, consistentPokemonTypes as validTypes } from './catalog-pokemon'
 import type { CatalogCard, CatalogDatabase, CatalogPokemon, CatalogSet } from '../types/catalog'
 import type { Database } from '../types/database.generated'
 import { getSupabaseClient } from './supabase'
@@ -11,15 +12,8 @@ export class CatalogError extends Error {
   constructor(readonly code: CatalogErrorCode) { super(code); this.name = 'CatalogError' }
 }
 const id = z.string().refine(value => { try { return variantIdString(value) === value } catch { return false } })
-const text = z.string().nullable(), date = z.iso.date().nullable(), type = z.enum(POKEMON_TYPES).nullable()
-const pokemonFields = { pokemon_id: id, dex_number: z.number().int().positive().max(2147483647), name_fr: text }
-const typeFields = { primary_type: type, secondary_type: type }
-const validTypes = (row: { primary_type: string | null; secondary_type: string | null }) =>
-  row.secondary_type === null || (row.primary_type !== null && row.primary_type !== row.secondary_type)
+const text = z.string().nullable(), date = z.iso.date().nullable()
 const pokemonSummary = z.strictObject(pokemonFields).transform(row => ({ pokemonId: row.pokemon_id, dexNumber: row.dex_number, nameFr: row.name_fr }))
-const pokemonMetadata = z.strictObject({ ...pokemonFields, ...typeFields }).refine(validTypes).transform(row => ({
-  pokemonId: row.pokemon_id, dexNumber: row.dex_number, nameFr: row.name_fr, primaryType: row.primary_type, secondaryType: row.secondary_type,
-}))
 const series = z.strictObject({ series_id: id, name_fr: text, name_source: text }).transform(row => ({ seriesId: row.series_id, nameFr: row.name_fr, nameSource: row.name_source }))
 const setFields = { set_id: id, name_fr: text, name_source: text, abbreviation_fr: text, abbreviation: text }
 const setSummary = z.strictObject(setFields).transform(row => ({ setId: row.set_id, nameFr: row.name_fr,
@@ -56,7 +50,7 @@ const setSchema = z.strictObject({ ...setFields, release_date: date, series, log
 }))
 const cardSchema = z.strictObject({ source_card_id: id, name_fr: text, local_id: text, rarity: text, category: text,
   effective_release_date: date, image_url: text, set: setSummary, series,
-  pokemon: z.array(pokemonMetadata).refine(rows => uniqueIds(rows, row => row.pokemonId)),
+  pokemon: catalogPokemonMetadataList,
   variants: z.array(variant).min(1).refine(rows => uniqueIds(rows, row => row.variantId)),
 }).transform(row => ({ sourceCardId: row.source_card_id, nameFr: row.name_fr, localId: row.local_id,
   rarity: row.rarity, category: row.category, effectiveReleaseDate: row.effective_release_date, imageUrl: row.image_url,

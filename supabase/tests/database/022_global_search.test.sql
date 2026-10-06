@@ -73,7 +73,7 @@ insert into navigation_results select query,public.search_global_navigation(quer
   'fixture7e1 evoli coeur d''or','GS7E1A','SérieSeule7e1','151','97001',
   'Fallback7e1','AliasNom7e1','SecretSeul7e1','RetiréSeul7e1','JumboSeul7e1',
   'JumboSet7e1','EmptySet7e1','SansVersion7e1','InactiveCard7e1','InactiveSet7e1','NullSize7e1',
-  'xture7e1','fixture7e1 ecl','fixture7e1 clair','TieNom7e1'
+  'xture7e1','fixture7e1 ecl','fixture7e1 clair','TieNom7e1','tcgdex:fallback7e1-7'
 ]) query;
 select is(jsonb_array_length(value),10,'Total maximum with all quotas filled') from navigation_results where query='fixture7e1';
 select is((select array_agg(x->>'kind' order by n) from jsonb_array_elements(value) with ordinality t(x,n)),
@@ -145,11 +145,33 @@ select is((select array_agg(x->>'collection_id' order by n) from jsonb_array_ele
 select is((select array_agg(k order by k) from jsonb_object_keys(value->0) k),
   array['dex_number','kind','name_fr','pokemon_id','primary_type','secondary_type'],'Exact Pokemon payload') from navigation_results where query='fixture7e1';
 select is((select array_agg(k order by k) from jsonb_object_keys(value->2) k),
-  array['abbreviation','abbreviation_fr','kind','name_fr','name_source','set_id'],'Exact Extension payload') from navigation_results where query='fixture7e1';
+  array['abbreviation','abbreviation_fr','kind','logo_url','name_fr','name_source','set_id'],'Exact Extension payload') from navigation_results where query='fixture7e1';
 select is((select array_agg(k order by k) from jsonb_object_keys(value->4) k),
   array['access','collection_id','collection_type','kind','name','target_name','target_primary_type','target_secondary_type','target_type'],'Exact Collection payload') from navigation_results where query='fixture7e1';
 select is((select array_agg(k order by k) from jsonb_object_keys(value->0) k),
-  array['kind','local_id','name_fr','set_abbreviation','set_abbreviation_fr','set_name_fr','source_card_id'],'Exact Card payload') from navigation_results where query='fixture7e1 28/73';
+  array['image_url','kind','local_id','name_fr','pokemon','set_abbreviation','set_abbreviation_fr','set_name_fr','source_card_id'],'Exact Card payload') from navigation_results where query='fixture7e1 28/73';
+
+select is(value->2->>'logo_url','https://example.test/PresentationOnly7e31-logo.webp','Exact Extension logo') from navigation_results where query='fixture7e1';
+select is(value->3->'logo_url','null'::jsonb,'Missing Extension logo stays NULL') from navigation_results where query='fixture7e1';
+select is(public.search_global_navigation('PresentationOnly7e31'),'[]'::jsonb,'Image/logo URLs never match');
+select is(value->0->>'image_url','https://example.test/PresentationOnly7e31-source.webp','Source Card image wins over Version image')
+  from navigation_results where query='fixture7e1 28/73';
+select is(value->0->>'image_url','https://example.test/first.webp','First non-NULL eligible canonical Version, skipping null/inactive/jumbo/unknown')
+  from navigation_results where query='my:fixture7e1-alliance';
+select is(value->0->'image_url','null'::jsonb,'No source or eligible Version image stays NULL') from navigation_results where query='tcgdex:fallback7e1-7';
+select is(value->0->'pokemon','[]'::jsonb,'Card without Pokemon remains eligible with empty array') from navigation_results where query='tcgdex:fallback7e1-7';
+select is(value->0->'pokemon','[
+  {"pokemon_id":"9007199254740995","dex_number":97001,"name_fr":"Fixture7e1","primary_type":"electric","secondary_type":null},
+  {"pokemon_id":"-97002","dex_number":97002,"name_fr":"Fixture7e1 Éclair","primary_type":"fire","secondary_type":"flying"}
+]'::jsonb,'All actual Pokemon, ordered by dex then numeric ID, complete strict metadata') from navigation_results where query='fixture7e1 28/73';
+select is(jsonb_typeof(value->0->'pokemon'->0->'pokemon_id'),'string','Nested Pokemon BIGINT is text') from navigation_results where query='fixture7e1 28/73';
+select is(value->0->'pokemon',public.get_catalog_card((value->0->>'source_card_id')::bigint)->'pokemon','Pokemon aligned with unchanged Catalogue Card')
+  from navigation_results where query='my:fixture7e1-alliance';
+select is(x->'image_url',public.get_catalog_card((x->>'source_card_id')::bigint)->'image_url','Every fixture suggestion image matches Catalogue Card')
+  from navigation_results cross join lateral jsonb_array_elements(value) x where x->>'kind'='card';
+select ok(not exists(select 1 from navigation_results cross join lateral jsonb_array_elements(value) x
+  cross join lateral jsonb_array_elements(x->'pokemon') p where x->>'kind'='card'
+  and (select count(*) from jsonb_array_elements(x->'pokemon') q where q->>'pokemon_id'=p->>'pokemon_id')<>1),'Pokemon aggregation never duplicates identities');
 
 reset role;
 delete from public.collection_shares where collection_id='c7e10000-0000-0000-0000-000000000005';

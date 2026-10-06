@@ -48,11 +48,13 @@ try {
     for (const card of cards) {
       const readable = (await client.query('select public.get_catalog_card($1::bigint) value', [card.source_card_id])).rows[0].value
       assert.ok(readable?.variants.length > 0, 'Every suggestion has a consultable Catalogue Card')
+      assert.equal(card.image_url, readable.image_url, 'Suggestion image matches the canonical Catalogue Card')
+      assert.deepEqual(card.pokemon, readable.pokemon, 'Suggestion contains every source Card Pokemon in Catalogue order')
       cardReaders++
     }
   }
   await client.query('rollback')
-  console.log(`PASS SQL/portable: ${queries.length} queries, ${cardReaders} Catalogue Card reader checks; transactional fixtures rolled back`)
+  console.log(`PASS SQL/portable: ${queries.length} queries, ${cardReaders} Catalogue Card reader/image/Pokemon checks; transactional fixtures rolled back`)
 
   // Real catalogue only, plus one viewer/profile in this rollback transaction.
   await client.query('begin')

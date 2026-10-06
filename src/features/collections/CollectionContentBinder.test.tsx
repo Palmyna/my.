@@ -48,7 +48,7 @@ beforeEach(() => {
   vi.mocked(listCollectionItemOrder).mockReset().mockResolvedValue(items.map(item => item.collectionItemId))
   vi.mocked(moveCollectionItem).mockReset()
   vi.mocked(listPhysicalCopies).mockReset().mockResolvedValue([])
-  vi.mocked(getVariantDetail).mockReset().mockResolvedValue({ variantId: items[0]!.variantId, cardNameFr: 'Nom catalogue', imageUrl: null,
+  vi.mocked(getVariantDetail).mockReset().mockResolvedValue({ variantId: items[0]!.variantId, sourceCardId: '25', setId: '73', pokemon: [], cardNameFr: 'Nom catalogue', imageUrl: null,
     localId: null, setNameFr: null, setNameSource: null, setAbbreviationFr: null, setAbbreviation: null,
     seriesNameFr: null, seriesNameSource: null, rarity: null, category: null, variantLabel: null, variantType: null,
     variantSubtype: null, variantSize: null, variantFoil: null, variantStamps: [], effectiveReleaseDate: null, dateOrigin: 'unknown' })

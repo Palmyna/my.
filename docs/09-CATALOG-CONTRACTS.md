@@ -1,6 +1,6 @@
 # Socle Catalogue authentifié — Phase 7D.1
 
-Contrats de lecture livrés en `0.7.7` (7D.1). Pokémon (`0.7.8`, 7D.2) et Extension (`0.7.9`, 7D.3) consomment ces contrats avec un socle UI Liste/Cartes commun, sans changement SQL. Carte (`0.7.10`, 7D.4) consomme son contrat minimal. Le panneau Détail Variante garde son contrat détaillé historique.
+Contrats de lecture livrés en `0.7.7` (7D.1). Pokémon (`0.7.8`, 7D.2) et Extension (`0.7.9`, 7D.3) consomment ces contrats avec un socle UI Liste/Cartes commun, sans changement SQL. Carte (`0.7.10`, 7D.4) consomme son contrat minimal. Le panneau Détail Variante garde ses 20 champs historiques et reçoit en 7E.3.1 trois champs de navigation/identité : `source_card_id`, `set_id`, `pokemon`. Rendu inchangé jusqu’à 7E.3.2.
 
 ## Règles communes
 
@@ -48,7 +48,7 @@ Zod strict : objets/champs/nullabilité, IDs canoniques bornés BIGINT, dates ca
 
 [`formatFrSource`](../src/lib/format-fr-source.ts) : valeurs différentes → `FR (source)`, identiques → une seule, une disponible → celle-ci, aucune → null. Résumés compacts et Détail Variante réutilisent le helper sans changement de présentation.
 
-[`src/types/pokemon.ts`](../src/types/pokemon.ts) : 18 identifiants, libellés FR et type guard runtime. [`src/lib/catalog-identity.ts`](../src/lib/catalog-identity.ts) : palette Pokémon MY. unique, tons clairs/sombres dans les familles reconnues. `resolvePokemonIdentity(primary, secondary)` sert Catalogue et Collections ; absence de type primaire : fallback neutre. `resolveFunctionalIdentity(kind)` distingue Extension (`set`), Personnalisée (`free`) et Partagée (`shared`). Extension et Carte Catalogue utilisent explicitement `set`. Aucune attribution depuis nom/ID, hash, image ou réseau ; aucune couleur en PostgreSQL.
+[`src/types/pokemon.ts`](../src/types/pokemon.ts) : 18 identifiants, libellés FR et type guard runtime. [`src/lib/catalog-identity.ts`](../src/lib/catalog-identity.ts) : palette Pokémon MY. unique, tons clairs/sombres dans les familles reconnues. `resolvePokemonIdentity(primary, secondary)` sert Catalogue et Collections ; absence de type primaire : fallback neutre. `resolveFunctionalIdentity(kind)` distingue Extension (`set`), Personnalisée (`free`) et Partagée (`shared`). Extension utilise `set`. Carte l’utilise encore dans le rendu, mais cette règle est remplacée par l’identité Pokémon/fallback validée ci-dessous, à réaliser en 7E.3.2. Aucune attribution depuis nom/ID, hash, image ou réseau ; aucune couleur en PostgreSQL.
 
 ## Page Pokémon et socle UI — 7D.2
 
@@ -88,7 +88,7 @@ Livraison frontend sur contrats 7D.1/7D.2 inchangés ; anciens consommateurs com
 
 Route authentifiée `/catalog/cards/:cardId`, ID interne MY. de `source_cards`. Query `['catalog', 'card', viewerId, cardId]`, exclusivement `getCatalogCard`. Chargement, indisponibilité uniforme avec Dashboard, erreur sûre/retry et titre de document sans refocus. Zéro Version reste une erreur de décodage du contrat, aucun nouvel état produit.
 
-Fiche de famille Extension teal/turquoise `resolveFunctionalIdentity('set')`, un h1, image représentative du backend via `CardImage`, fallback commun et alternative basée sur le nom. Contexte compact `formatFrSource` + local ID. Métadonnées disponibles dans un dl : Extension liée par `set.setId`, rareté, catégorie, série FR/source et date effective Carte française UTC. Pokémon nommés liés séparément par `pokemonId`, bloc absent sans rattachement. Nombre de Versions directement issu de la longueur du tableau. Aucun CTA Collection.
+Fiche encore teal/turquoise `resolveFunctionalIdentity('set')` jusqu’à l’application de l’identité Carte validée en 7E.3.2, un h1, image représentative du backend via `CardImage`, fallback commun et alternative basée sur le nom. Contexte compact `formatFrSource` + local ID. Métadonnées disponibles dans un dl : Extension liée par `set.setId`, rareté, catégorie, série FR/source et date effective Carte française UTC. Pokémon nommés liés séparément par `pokemonId`, bloc absent sans rattachement. Nombre de Versions directement issu de la longueur du tableau. Aucun CTA Collection.
 
 `CatalogContent` accepte le mode Carte sans adapter les payloads ; `CatalogToolbar` affiche h2 Versions et sélecteur sans recherche. `CatalogVariants` rend les entrées minimales : image propre, label permanent/fallback, date seulement si différente de Carte. Aucun nom/numéro/Extension recopié, tri ou possession. Liste/Cartes et une seule Version suivent la préférence Catalogue globale inchangée ; deux colonnes mobile. Détail Variante natif existant, owner = viewer, erreurs locales, exemplaires personnels confinés au panneau, trap/Esc/focus exact.
 
@@ -109,3 +109,9 @@ Version locale **0.7.11**. Palette de départ retenue sans modification des 18 p
 La [migration 7D.5](../supabase/migrations/20261005181925_phase7d5_collection_identity.sql) ajoute en fin de `dashboard_collections` deux métadonnées nullable TEXT, `target_primary_type` et `target_secondary_type`, issues de la jointure Pokémon existante ; Extension/libre : NULL. `security_invoker`, RLS, grants SELECT et compteurs inchangés. Les deux lecteurs Collections sélectionnent/décodent ces champs via `isPokemonType` ; valeur inconnue ou contradiction : `CollectionsError('unexpected')`. Aucun fetch supplémentaire ni stockage redondant.
 
 Appliquer le schéma avant le frontend 7D.5. Anciens lecteurs compatibles avec ces colonnes additives ; retry de migration sans étape destructrice. Retour arrière : restaurer le frontend précédent et conserver le schéma additif/données ; aucune contraction implicite. Application Cloud réservée au checkpoint final Phase 7. [Rapport 7D.5](reports/2026-10-05-PHASE7D5-COLOR-IDENTITY.md).
+
+## Présentation et identité Carte — contrats 7E.3.1, rendu futur 7E.3.2
+
+`get_catalog_card` reste inchangée et constitue le socle commun : IDs Carte/Extension, Pokémon complets et image représentative. Recherche globale reçoit logo Extension, image représentative et Pokémon Carte ; Détail Variante reçoit `source_card_id`, `set_id`, `pokemon` sans perdre caractéristiques Variante/historique. Schéma Zod Pokémon strict partagé par ces trois services : clés exactes, BIGINT texte, types, cohérence primaire/secondaire, IDs uniques. [Contrats DB](06-DATABASE.md#recherche-globale-de-navigation--contrat-7e1), [rapport](reports/2026-10-06-PHASE7E3-1-PRESENTATION-CONTRACTS.md).
+
+Un Pokémon lié avec métadonnées suffisantes → identité complète, type principal + secondaire éventuel. Plusieurs Pokémon avec exactement le même couple principal/secondaire → identité complète commune ; sinon exactement un type exploitable commun à tous → identité simple de ce type ; sinon fallback Carte. Aucun Pokémon, ambiguïté ou métadonnées insuffisantes → fallback Carte, sans sélectionner le premier Pokémon. Fallback fixe distinct du teal Extension, rouge MY. et indigo Partagé ; teinte et `resolveCardIdentity` à réaliser en 7E.3.2. Logique frontend centralisée avec la palette Pokémon existante, aucune couleur SQL. Aucun changement visuel en 7E.3.1.

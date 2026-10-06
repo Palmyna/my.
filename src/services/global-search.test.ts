@@ -8,11 +8,11 @@ import { getSupabaseClient } from './supabase'
 vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
 const id = '9007199254740995'
 const pokemon = { kind: 'pokemon', pokemon_id: id, name_fr: 'Pikachu', dex_number: 25, primary_type: 'electric', secondary_type: null }
-const set = { kind: 'set', set_id: id, name_fr: null, name_source: 'Shining Legends', abbreviation_fr: null, abbreviation: 'SLG' }
+const set = { kind: 'set', set_id: id, name_fr: null, name_source: 'Shining Legends', abbreviation_fr: null, abbreviation: 'SLG', logo_url: 'https://example.test/logo.webp' }
 const collection = { kind: 'collection', collection_id: 'c7e10000-0000-0000-0000-000000000001', name: 'Mes Pikachu',
   access: 'owned', collection_type: 'automatic', target_type: 'pokemon', target_name: 'Pikachu', target_primary_type: 'electric', target_secondary_type: null }
 const card = { kind: 'card', source_card_id: id, name_fr: 'Pikachu', local_id: '28', set_name_fr: 'Légendes Brillantes',
-  set_abbreviation_fr: 'SL3.5', set_abbreviation: 'SLG' }
+  set_abbreviation_fr: 'SL3.5', set_abbreviation: 'SLG', image_url: 'https://example.test/card.webp', pokemon: [] }
 const rows = [pokemon, set, collection, card]
 function setup(data: unknown, error: unknown = null) {
   const rpc = vi.fn().mockResolvedValue({ data, error })
@@ -24,10 +24,10 @@ it('calls only exact RPC with untouched parameter, maps all four categories and 
   const query = " PIKACHU’ — 28/73'; select 1; "
   expect(await search(query)).toEqual([
     { kind: 'pokemon', pokemonId: id, nameFr: 'Pikachu', dexNumber: 25, primaryType: 'electric', secondaryType: null },
-    { kind: 'set', setId: id, nameFr: null, nameSource: 'Shining Legends', abbreviationFr: null, abbreviation: 'SLG' },
+    { kind: 'set', setId: id, nameFr: null, nameSource: 'Shining Legends', abbreviationFr: null, abbreviation: 'SLG', logoUrl: set.logo_url },
     { kind: 'collection', collectionId: collection.collection_id, name: 'Mes Pikachu', access: 'owned', collectionType: 'automatic',
       targetType: 'pokemon', targetName: 'Pikachu', targetPrimaryType: 'electric', targetSecondaryType: null },
-    { kind: 'card', sourceCardId: id, nameFr: 'Pikachu', localId: '28', setNameFr: 'Légendes Brillantes', setAbbreviationFr: 'SL3.5', setAbbreviation: 'SLG' },
+    { kind: 'card', sourceCardId: id, nameFr: 'Pikachu', localId: '28', setNameFr: 'Légendes Brillantes', setAbbreviationFr: 'SL3.5', setAbbreviation: 'SLG', imageUrl: card.image_url, pokemon: [] },
   ])
   expect(rpc).toHaveBeenCalledExactlyOnceWith('search_global_navigation', { p_query: query })
 })
@@ -54,10 +54,39 @@ describe.each(rows)('strict $kind decoder', row => {
   it('rejects unexpected/missing fields and wrong primitive types', async () => {
     const invalid = [{ ...row, score: 1 }, { ...row, variant_id: '1' }, { ...row, kind: 'variant' },
       ...Object.keys(row).map(key => Object.fromEntries(Object.entries(row).filter(([field]) => field !== key))),
-      ...Object.keys(row).filter(key => key !== 'kind').map(key => ({ ...row, [key]: [] })),
+      ...Object.keys(row).filter(key => key !== 'kind').map(key => ({ ...row, [key]: key === 'pokemon' ? {} : [] })),
     ]
     for (const value of invalid) await expect(setup([value]).search('Pikachu')).rejects.toMatchObject({ code: 'unexpected', message: 'unexpected' })
   })
+})
+it('preserves nullable presentation and complete ordered Pokemon metadata without another RPC', async () => {
+  const metadata = { pokemon_id: id, dex_number: 25, name_fr: 'Pikachu', primary_type: 'electric', secondary_type: null }
+  const second = { pokemon_id: '26', dex_number: 26, name_fr: null, primary_type: 'electric', secondary_type: 'flying' }
+  const { search, rpc } = setup([{ ...set, logo_url: null }, { ...card, image_url: null, pokemon: [metadata, second] }])
+  expect(await search('Pikachu')).toMatchObject([{ logoUrl: null }, { imageUrl: null, pokemon: [
+    { pokemonId: id, dexNumber: 25, nameFr: 'Pikachu', primaryType: 'electric', secondaryType: null },
+    { pokemonId: '26', dexNumber: 26, nameFr: null, primaryType: 'electric', secondaryType: 'flying' },
+  ] }])
+  expect(rpc).toHaveBeenCalledTimes(1)
+  expect(await setup([{ ...card, pokemon: [{ ...metadata, primary_type: null }] }]).search('Pikachu'))
+    .toMatchObject([{ pokemon: [{ primaryType: null, secondaryType: null }] }])
+})
+it.each(POKEMON_TYPES)('accepts Card Pokemon type %s', async primary_type => {
+  const metadata = { pokemon_id: id, dex_number: 25, name_fr: null, primary_type, secondary_type: null }
+  expect(await setup([{ ...card, pokemon: [metadata] }]).search('Pikachu')).toMatchObject([{ pokemon: [{ primaryType: primary_type }] }])
+})
+it('rejects malformed, duplicate or incoherent Card Pokemon metadata', async () => {
+  const metadata = { pokemon_id: id, dex_number: 25, name_fr: null, primary_type: 'electric', secondary_type: null }
+  const invalid = [null, {}, '[]', [metadata, metadata], [null], [1],
+    ...Object.keys(metadata).map(key => [Object.fromEntries(Object.entries(metadata).filter(([field]) => field !== key))]),
+    ...[{ pokemon_id: Number(id) }, { pokemon_id: '01' }, { pokemon_id: '9223372036854775808' },
+      { dex_number: 0 }, { dex_number: 1.5 }, { name_fr: 25 }, { primary_type: 'stellar' },
+      { secondary_type: 'stellar' }, { primary_type: null, secondary_type: 'fire' },
+      { secondary_type: 'electric' }, { score: 1 },
+    ].map(patch => [{ ...metadata, ...patch }]),
+  ]
+  for (const pokemon of invalid) await expect(setup([{ ...card, pokemon }]).search('Pikachu'))
+    .rejects.toMatchObject({ code: 'unexpected', message: 'unexpected' })
 })
 it('rejects noncanonical/out-of-range/numeric BIGINT and accepts signed boundaries', async () => {
   for (const row of [pokemon, set, card]) {
