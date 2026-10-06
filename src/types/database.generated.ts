@@ -366,6 +366,9 @@ isOneToOne: true
                            },
 "search_catalog_variants_for_add":
 { Args: { "p_limit"?: number,"p_offset"?: number,"p_query": string }; Returns: Json
+                           },
+"search_global_navigation":
+{ Args: { "p_query": string }; Returns: Json
                            }
           }
           Enums: {

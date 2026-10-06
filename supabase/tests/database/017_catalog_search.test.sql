@@ -16,7 +16,8 @@ select ok(not has_function_privilege(role_name,f,'EXECUTE'), role_name || ' cann
   from unnest(array['anon','service_role']) role_name cross join unnest(array[
     'public.search_catalog_variants_for_add(text,integer,integer)',
     'private.catalog_search_normalize(text)', 'private.catalog_search_score(text[],integer[],text,integer,text[])']) f;
-select ok(not has_function_privilege('authenticated',f,'EXECUTE'), 'helpers private') from unnest(array[
+-- 7E.1 invoker orchestration needs only these pure helpers, still in private.
+select ok(has_function_privilege('authenticated',f,'EXECUTE'), 'pure helpers executable for invoker navigation') from unnest(array[
   'private.catalog_search_normalize(text)', 'private.catalog_search_score(text[],integer[],text,integer,text[])']) f;
 select ok(not exists(select 1 from pg_proc p, lateral aclexplode(p.proacl) a where
   p.oid='public.search_catalog_variants_for_add(text,integer,integer)'::regprocedure and a.grantee=0), 'no PUBLIC grant');

@@ -156,7 +156,7 @@ MY. n'utilise pas de grande sidebar permanente. Les actions contextuelles resten
 
 ## Recherche globale du header
 
-Fonctionnement restant à développer en Phase 7. Les suggestions Collection doivent couvrir toutes les collections actuellement accessibles au viewer, personnelles ou reçues en partage. La lecture et la recherche d’un partage actif ne dépendent pas de la Phase 9, réservée au parcours de création, gestion et retrait des accès.
+Contrat serveur et service TypeScript livrés en 7E.1 (`0.7.12`). Champ du header toujours visuel : dropdown, debounce, navigation, états et interactions mobile restent à développer en 7E.2. Les suggestions Collection doivent couvrir toutes les collections actuellement accessibles au viewer, personnelles ou reçues en partage. La lecture et la recherche d’un partage actif ne dépendent pas de la Phase 9, réservée au parcours de création, gestion et retrait des accès.
 
 ### Saisie et choix explicite
 
@@ -329,7 +329,7 @@ L'overview compact porte une surface graphite subtilement teintée et un gradien
 
 Le chargement conserve le shell authentifié. Une collection absente, inaccessible, dont le partage a été retiré, ou un identifiant manifestement invalide présente le même état : `Collection indisponible` puis `Cette collection n’existe pas ou vous n’y avez plus accès.` Une erreur temporaire propose `Réessayer`, sans détail serveur. Le titre du document devient `Nom de la collection — MY.` après chargement ; le `h1` persistant reçoit le focus à la navigation, sans le reprendre aux mises à jour asynchrones.
 
-La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image indisponible/erreur : `card-placeholder.webp` commun ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques en Liste et le menu de retrait uniquement sur les éléments personnels du propriétaire. Liste, Cartes et Classeur ainsi que leur sélecteur sont fonctionnels depuis 7B.3, avec préférences du viewer, contenu et ordre autoritatifs communs. Classeur continu livré : pages sombres et pochettes, sans reorder ni actions métier directement sur les pochettes ; les trois réglages Affichage de Paramètres sont fonctionnels depuis 7C.1. Le checkpoint historique Phase 6 confirme 23 migrations Local/Cloud alignées par le propriétaire ; après 7D.5, l’état documenté est 26 Local / 23 Cloud confirmé, sans nouveau contrôle Cloud. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
+La première liste fonctionnelle est branchée en Phase 6B.3 sous l'overview : poignée dédiée au propriétaire, image compacte, informations et bouton Exemplaires. Le partage conserve uniquement la consultation des exemplaires et notes du propriétaire. Image indisponible/erreur : `card-placeholder.webp` commun ; carte non possédée : image grisée et textes atténués, contrôles actifs, état accessible masqué. Aucun badge visible de possession ni compteur d'exemplaires. La Phase 6C.3 ajoute les repères `Auto` / `Perso` uniquement dans les collections automatiques en Liste et le menu de retrait uniquement sur les éléments personnels du propriétaire. Liste, Cartes et Classeur ainsi que leur sélecteur sont fonctionnels depuis 7B.3, avec préférences du viewer, contenu et ordre autoritatifs communs. Classeur continu livré : pages sombres et pochettes, sans reorder ni actions métier directement sur les pochettes ; les trois réglages Affichage de Paramètres sont fonctionnels depuis 7C.1. Le checkpoint historique Phase 6 confirme 23 migrations Local/Cloud alignées par le propriétaire ; après 7E.1, l’état est 27 Local / 23 Cloud au dernier checkpoint confirmé, sans nouveau contrôle Cloud. Voir le [statut DB Phase 6](06-DATABASE.md#phase-6--clôture-et-alignement).
 
 Une collection dispose d'une page principale commune à ses trois vues. Elle donne facilement accès à :
 
@@ -768,7 +768,7 @@ Les sujets suivants concernent les fonctionnalités non livrées et d'éventuell
 - les éventuelles évolutions de la composition Liste/Cartes et du panneau Détail, au-delà des rendus livrés ;
 - les finitions futures du header et du champ de recherche globale ; Paramètres Affichage est livré ;
 - l’intégration des identités 7D.5 dans les suggestions et les animations du dropdown ;
-- la recherche globale et la navigation contextuelle future ; Pokémon sans artwork, Extension à logo/symbole et Carte de référence sont livrés ;
+- l’interface de recherche globale et la navigation contextuelle future ; contrat DB/service 7E.1 livré ; Pokémon sans artwork, Extension à logo/symbole et Carte de référence sont livrés ;
 - le seuil du swipe et les animations précédente/suivante ;
 - le mécanisme de navigation rapide dans les grandes collections ;
 - le design du résumé de mise à jour ;
