@@ -81,6 +81,7 @@ test('chargement dès debounce puis requête, sans résultats actifs', async () 
 test('quatre catégories, ordre serveur, données compactes et identité partagée prioritaire', async () => {
   const pokemon = vi.spyOn(catalogIdentity, 'resolvePokemonIdentity')
   const functional = vi.spyOn(catalogIdentity, 'resolveFunctionalIdentity')
+  const card = vi.spyOn(catalogIdentity, 'resolveCardIdentity')
   const collection = vi.spyOn(collectionIdentity, 'resolveCollectionIdentity')
   setup(); const links = await results()
   expect(links.map(link => within(link).getByText(/^(Pokémon|Extension|Collection|Carte)$/).textContent))
@@ -92,10 +93,48 @@ test('quatre catégories, ordre serveur, données compactes et identité partag�
   expect(links[4]).toHaveTextContent('028 · Légendes Brillantes · SL3.5 (SLG)')
   expect(pokemon).toHaveBeenCalledWith('electric', null)
   expect(functional).toHaveBeenCalledWith('set')
+  expect(card).toHaveBeenCalledWith([])
+  expect(links[4]?.style.getPropertyValue('--search-accent')).toBe('#C9A34A')
+  expect(links[1]?.style.getPropertyValue('--search-accent')).toBe('#44C7B7')
   expect(collection).toHaveBeenCalledWith(suggestions[2])
   expect(collection).toHaveBeenCalledWith(suggestions[3])
   expect(links[3]?.style.getPropertyValue('--search-accent')).toBe(catalogIdentity.resolveFunctionalIdentity('shared').primaryAccent)
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
+})
+test('Card media and shared Pokemon identity; decorative images do not duplicate accessible names', async () => {
+  const pokemon = [suggestions[0] as Extract<GlobalNavigationSuggestion, { kind: 'pokemon' }>]
+  search.mockResolvedValue([{ ...suggestions[4] as Extract<GlobalNavigationSuggestion, { kind: 'card' }>, pokemon,
+    imageUrl: 'https://example.test/pikachu.webp' }])
+  const resolve = vi.spyOn(catalogIdentity, 'resolveCardIdentity')
+  setup(); const [link] = await results()
+  const image = link!.querySelector('img')!
+  expect(image).toHaveAttribute('src', 'https://example.test/pikachu.webp')
+  expect(image).toHaveAttribute('alt', '')
+  expect(resolve).toHaveBeenCalledWith(pokemon)
+  expect(link!.style.getPropertyValue('--search-accent')).toBe(catalogIdentity.resolvePokemonIdentity('electric').primaryAccent)
+  expect(link).toHaveAttribute('href', '/catalog/cards/9007199254740995')
+  expect(within(link!).getByText('Carte')).toBeVisible()
+  fireEvent.error(image)
+  expect(image.getAttribute('src')).toContain('card-placeholder.webp')
+  expect(image).toHaveAttribute('alt', '')
+  expect(within(link!).queryByRole('img')).not.toBeInTheDocument()
+})
+test('absent Card image uses the common placeholder', async () => {
+  setup(); const links = await results()
+  expect(links[4]!.querySelector('img')!.getAttribute('src')).toContain('card-placeholder.webp')
+})
+test.each([null, 'https://example.test/logo.png'])('optional Extension logo %s disappears on failure without an empty media column', async logoUrl => {
+  search.mockResolvedValue([{ ...suggestions[1] as Extract<GlobalNavigationSuggestion, { kind: 'set' }>, logoUrl }])
+  setup(); const [link] = await results()
+  if (logoUrl) {
+    const logo = link!.querySelector('img')!
+    expect(logo).toHaveAttribute('src', logoUrl); expect(logo).toHaveAttribute('alt', '')
+    fireEvent.error(logo)
+  }
+  expect(link!.querySelector('img, .collection-content-image')).toBeNull()
+  expect(link).toHaveTextContent('Légendes Brillantes')
+  expect(link).toHaveAttribute('href', '/catalog/extensions/73')
+  expect(link!.style.getPropertyValue('--search-accent')).toBe('#44C7B7')
 })
 test('fallback Extension source et cible collection automatique depuis payload uniquement', async () => {
   search.mockResolvedValue([{ ...suggestions[1] as Extract<GlobalNavigationSuggestion, { kind: 'set' }>, nameFr: null },

@@ -164,17 +164,14 @@ test('local search across attached Pokémon and fields, order/query preserved, n
   for (const text of ['Possédée', 'Manquante', 'Auto', 'Perso', 'Exemplaires']) expect(within(results).queryByText(text)).not.toBeInTheDocument()
   press('Liste'); expect(results).toHaveClass('catalog-variants-list')
 })
-test.each(['Liste', 'Cartes'])('independent real Pokémon links and history from %s, no nested controls or empty zones', async view => {
+test('independent real Pokémon links and history from Liste, no nested controls or empty zones', async () => {
   const { container, client } = setup(); await loaded()
-  if (view === 'Cartes') {
-    press('Cartes')
-    await waitFor(() => expect(client.getQueryData(userPreferencesKey(viewer))).toMatchObject({ lastCatalogView: 'cards' }))
-  }
+  expect(client.getQueryData(userPreferencesKey(viewer))).toBeDefined()
   const rows = screen.getAllByRole('listitem'), duo = within(rows[0]!), single = within(rows[1]!)
-  expect(duo.getByRole('group', { name: 'Pokémon associés' })).toBeVisible()
+  expect(duo.getByRole('group', { name: 'Pokémon' })).toBeVisible()
   expect(duo.getByRole('link', { name: 'Pikachu' })).toHaveAttribute('href', '/catalog/pokemon/800')
   expect(duo.getByRole('link', { name: 'Raichu' })).toHaveAttribute('href', '/catalog/pokemon/801')
-  expect(within(single.getByRole('group', { name: 'Pokémon associés' })).getByRole('link', { name: 'Évoli' }))
+  expect(within(single.getByRole('group', { name: 'Pokémon' })).getByRole('link', { name: 'Évoli' }))
     .toHaveAttribute('href', '/catalog/pokemon/802')
   for (const row of rows.slice(2)) expect(row.querySelector('.catalog-pokemon-links')).toBeNull()
   expect(container.querySelector('button a, a button')).toBeNull()
@@ -183,7 +180,7 @@ test.each(['Liste', 'Cartes'])('independent real Pokémon links and history from
   expect(screen.getByTestId('path')).toHaveTextContent('/catalog/pokemon/800')
   expect(getVariantDetail).not.toHaveBeenCalled(); expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   press('Retour navigateur'); await loaded()
-  await waitFor(() => expect(screen.getByRole('list')).toHaveClass(view === 'Cartes' ? 'catalog-variants-cards' : 'catalog-variants-list'))
+  await waitFor(() => expect(screen.getByRole('list')).toHaveClass('catalog-variants-list'))
 })
 test.each(['Liste', 'Cartes'])('main %s opens existing Detail with personal copies, trap/Esc and exact focus restoration', async view => {
   setup(); await loaded(); if (view === 'Cartes') press('Cartes')

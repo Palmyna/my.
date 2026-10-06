@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { isPokemonType, POKEMON_TYPES, POKEMON_TYPE_LABELS } from '../types/pokemon'
-import { FUNCTIONAL_IDENTITY_PALETTE, NEUTRAL_CATALOG_TONE, POKEMON_TYPE_PALETTE, resolveFunctionalIdentity, resolvePokemonIdentity } from './catalog-identity'
+import { CARD_FALLBACK_ACCENT, FUNCTIONAL_IDENTITY_PALETTE, NEUTRAL_CATALOG_TONE, POKEMON_TYPE_PALETTE, resolveCardIdentity, resolveFunctionalIdentity, resolvePokemonIdentity } from './catalog-identity'
 
 it('covers exactly 18 types with distinct deep/light tones and French labels', () => {
   expect(Object.keys(POKEMON_TYPE_PALETTE)).toEqual([...POKEMON_TYPES])
@@ -38,6 +38,31 @@ it.each(['unknown','Electric','',42,undefined,null])('type guard rejects unknown
   expect(isPokemonType(value)).toBe(false)
 })
 
+it.each([
+  { types: [], accents: [CARD_FALLBACK_ACCENT, CARD_FALLBACK_ACCENT] },
+  { types: [['electric', null]], accents: [POKEMON_TYPE_PALETTE.electric.light, POKEMON_TYPE_PALETTE.electric.light] },
+  { types: [['electric', 'flying']], accents: [POKEMON_TYPE_PALETTE.electric.light, POKEMON_TYPE_PALETTE.flying.light] },
+  { types: [['electric', 'flying'], ['electric', 'flying']], accents: [POKEMON_TYPE_PALETTE.electric.light, POKEMON_TYPE_PALETTE.flying.light] },
+  { types: [['electric', null], ['electric', 'flying']], accents: [POKEMON_TYPE_PALETTE.electric.light, POKEMON_TYPE_PALETTE.electric.light] },
+  { types: [['electric', 'flying'], ['water', 'flying']], accents: [POKEMON_TYPE_PALETTE.flying.light, POKEMON_TYPE_PALETTE.flying.light] },
+  { types: [['electric', 'electric'], ['electric', null]], accents: [POKEMON_TYPE_PALETTE.electric.light, POKEMON_TYPE_PALETTE.electric.light] },
+  { types: [['electric', null], ['fire', null]], accents: [CARD_FALLBACK_ACCENT, CARD_FALLBACK_ACCENT] },
+  { types: [['electric', null], [null, null]], accents: [CARD_FALLBACK_ACCENT, CARD_FALLBACK_ACCENT] },
+  { types: [[null, 'electric']], accents: [CARD_FALLBACK_ACCENT, CARD_FALLBACK_ACCENT] },
+  { types: [['electric', 'flying'], ['flying', 'electric']], accents: [CARD_FALLBACK_ACCENT, CARD_FALLBACK_ACCENT] },
+] as const)('Card identity agrees across all Pokemon: $types', ({ types, accents }) => {
+  const pokemon = Object.freeze(types.map(([primaryType, secondaryType]) => Object.freeze({ primaryType, secondaryType })))
+  const before = structuredClone(pokemon)
+  const result = resolveCardIdentity(pokemon)
+  expect([result.primaryAccent, result.secondaryAccent]).toEqual(accents)
+  expect(resolveCardIdentity([...pokemon].reverse())).toEqual(result)
+  expect(pokemon).toEqual(before)
+})
+it('Card fallback is soft gold, distinct from every functional context', () => {
+  expect(CARD_FALLBACK_ACCENT).toBe('#C9A34A')
+  for (const kind of ['set', 'free', 'shared'] as const) expect(resolveCardIdentity([])).not.toEqual(resolveFunctionalIdentity(kind))
+})
+
 function rgb(hex: string) { return [1,3,5].map(start => Number.parseInt(hex.slice(start,start+2),16)) }
 function mix(a: number[], b: number[], ratio: number) { return a.map((v,i) => v*ratio+b[i]!*(1-ratio)) }
 function luminance(color: number[]) {
@@ -47,9 +72,10 @@ function luminance(color: number[]) {
 function contrast(a: number[], b: number[]) { const x=luminance(a), y=luminance(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05) }
 it('palette roles meet contrast on graphite: text 4.5, focus/progress 3, owner FAB label 4.5', () => {
   const graphite=rgb('#15181D'), text=rgb('#F5F7FA'), app=rgb('#0E1014')
-  for (const accent of [...Object.values(POKEMON_TYPE_PALETTE).map(t=>t.light),...Object.values(FUNCTIONAL_IDENTITY_PALETTE),NEUTRAL_CATALOG_TONE.light]) {
+  for (const accent of [...Object.values(POKEMON_TYPE_PALETTE).map(t=>t.light),...Object.values(FUNCTIONAL_IDENTITY_PALETTE),NEUTRAL_CATALOG_TONE.light,CARD_FALLBACK_ACCENT]) {
     const color=rgb(accent), surface=mix(color,graphite,.12)
     expect(contrast(mix(color,text,.75),surface), `${accent} text`).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(mix(color,text,.75),rgb('#1C2027')), `${accent} panel links`).toBeGreaterThanOrEqual(4.5)
     expect(contrast(color,surface), `${accent} focus`).toBeGreaterThanOrEqual(3)
     // Shared has no owner FAB. Brand red retains white label, other FABs graphite.
     if (accent !== FUNCTIONAL_IDENTITY_PALETTE.shared)

@@ -1,9 +1,10 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
-import { resolveFunctionalIdentity, resolvePokemonIdentity } from '../../lib/catalog-identity'
+import { resolveCardIdentity, resolveFunctionalIdentity, resolvePokemonIdentity } from '../../lib/catalog-identity'
 import { formatFrSource } from '../../lib/format-fr-source'
 import type { GlobalNavigationSuggestion } from '../../types/global-search'
 import { resolveCollectionIdentity } from '../dashboard/collection-color'
+import { CardImage } from '../collections/CardImage'
 
 function presentation(suggestion: GlobalNavigationSuggestion) {
   switch (suggestion.kind) {
@@ -28,7 +29,7 @@ function presentation(suggestion: GlobalNavigationSuggestion) {
       to: `/catalog/cards/${suggestion.sourceCardId}`, name: suggestion.nameFr || 'Nom indisponible',
       secondary: [suggestion.localId, suggestion.setNameFr,
         formatFrSource(suggestion.setAbbreviationFr, suggestion.setAbbreviation)].filter(Boolean).join(' · '),
-      category: 'Carte', identity: resolveFunctionalIdentity('set'),
+      category: 'Carte', identity: resolveCardIdentity(suggestion.pokemon),
     }
   }
 }
@@ -41,9 +42,17 @@ export function GlobalSearchSuggestion({ suggestion, onNavigate }: {
     '--search-accent': identity.primaryAccent, '--search-border': identity.border,
     '--search-text': identity.textAccent,
   } as CSSProperties}>
+    {suggestion.kind === 'card' && <CardImage url={suggestion.imageUrl} name="" placeholderAlt="" />}
+    {suggestion.kind === 'set' && <SetLogo url={suggestion.logoUrl} />}
     <span className="global-search-info"><span className="global-search-name">{name}</span>
       {secondary && <span className="global-search-secondary">{secondary}</span>}
     </span>
     <span className="global-search-category">{category}</span>
   </Link>
+}
+
+function SetLogo({ url }: { url: string | null }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  if (!url || failedUrl === url) return null
+  return <img className="global-search-logo" src={url} alt="" onError={() => setFailedUrl(url)} />
 }

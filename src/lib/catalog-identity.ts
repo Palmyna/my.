@@ -1,4 +1,5 @@
 import type { PokemonType } from '../types/pokemon'
+import type { CatalogPokemonMetadata } from '../types/catalog'
 
 export interface CatalogTone { light: string; dark: string }
 /** MY. type families adapted to graphite; presentation only, never persisted. */
@@ -23,6 +24,7 @@ export const POKEMON_TYPE_PALETTE: Record<PokemonType, CatalogTone> = {
   fairy: { light: '#E6A7D3', dark: '#81506E' },
 }
 export const NEUTRAL_CATALOG_TONE: CatalogTone = { light: '#8FA8BD', dark: '#344E66' }
+export const CARD_FALLBACK_ACCENT = '#C9A34A'
 export const FUNCTIONAL_IDENTITY_PALETTE = {
   set: '#44C7B7', free: '#E22B35', shared: '#6366F1',
 } as const
@@ -52,7 +54,19 @@ export function resolvePokemonIdentity(primaryType: PokemonType | null, secondar
     secondaryType === null ? POKEMON_TYPE_PALETTE[primaryType].light : POKEMON_TYPE_PALETTE[secondaryType].light)
 }
 
-/** Extension also owns Catalogue Card; free/shared are Collection contexts. */
+/** Card identity requires agreement across every linked Pokemon, never a first-entry guess. */
+export function resolveCardIdentity(pokemon: readonly Pick<CatalogPokemonMetadata, 'primaryType' | 'secondaryType'>[]): CatalogIdentity {
+  if (pokemon.length === 0 || pokemon.some(entry => entry.primaryType === null)) return identity(CARD_FALLBACK_ACCENT)
+  const first = pokemon[0]!
+  if (pokemon.every(entry => entry.primaryType === first.primaryType && entry.secondaryType === first.secondaryType)) {
+    return resolvePokemonIdentity(first.primaryType, first.secondaryType)
+  }
+  const common = [...new Set([first.primaryType!, first.secondaryType].filter((type): type is PokemonType => type !== null))]
+    .filter(type => pokemon.every(entry => entry.primaryType === type || entry.secondaryType === type))
+  return common.length === 1 ? resolvePokemonIdentity(common[0]!) : identity(CARD_FALLBACK_ACCENT)
+}
+
+/** Extension, free and shared Collection contexts; Catalogue Card has its own resolver. */
 export function resolveFunctionalIdentity(kind: keyof typeof FUNCTIONAL_IDENTITY_PALETTE): CatalogIdentity {
   return identity(FUNCTIONAL_IDENTITY_PALETTE[kind], undefined, kind === 'free' ? 'var(--on-brand)' : 'var(--app-bg)')
 }

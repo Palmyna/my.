@@ -19,12 +19,7 @@
 .catalog-card-reference { min-width: 0; }
 .catalog-card-header h1 { margin: 0 0 12px; font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.2; overflow-wrap: anywhere; }
 .catalog-card-reference-context { margin: 0 0 20px; font-size: .95rem; overflow-wrap: anywhere; }
-.catalog-card-metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; margin: 0; }
-.catalog-card-metadata dt, .catalog-card-pokemon > p { margin: 0 0 4px; font-size: .8rem; font-weight: 600; }
-.catalog-card-metadata dd { margin: 0; font-size: .9rem; overflow-wrap: anywhere; }
-.catalog-card-metadata a { text-underline-offset: 3px; }
 .catalog-card-header :is(.catalog-card-metadata a, .catalog-pokemon-links a) { color: color-mix(in srgb, var(--catalog-accent) 30%, var(--text)); }
-.catalog-card-pokemon { margin-top: 20px; }
 .catalog-types { display: flex; flex-wrap: wrap; gap: 8px; }
 .catalog-types span { display: inline-flex; align-items: center; min-height: 32px; padding: 3px 12px; border: 1px solid currentColor; border-radius: 20px; font-size: .8rem; font-weight: 600; background: #0e1014e6; }
 .catalog-type-primary { color: var(--catalog-accent); }
@@ -63,34 +58,26 @@
 .catalog-variant-info > .catalog-variant-label:first-child { margin-top: 0; color: var(--text); font-size: .9rem; font-weight: 600; }
 .catalog-variant-date { display: block; margin-top: 4px; color: var(--text-muted); font-size: .75rem; }
 .catalog-variant-summary a { position: relative; z-index: 2; display: inline-block; min-height: 36px; padding-block: 6px; color: var(--catalog-accent); text-underline-offset: 3px; }
-.catalog-pokemon-links { display: flex; flex-wrap: wrap; gap: 0 4px; margin-top: 2px; font-size: .8rem; }
-.catalog-pokemon-links > span { display: inline-flex; align-items: center; min-width: 0; }
-.catalog-pokemon-links a { position: relative; z-index: 2; display: inline-flex; align-items: center; min-height: 36px; padding: 4px 2px; color: var(--catalog-accent); text-underline-offset: 3px; overflow-wrap: anywhere; }
-.catalog-pokemon-links a:hover { text-decoration-thickness: 2px; text-decoration-color: currentColor; }
-.catalog-link-separator { color: var(--text-muted); margin-right: 4px; }
 .catalog-variants-list > li + li { border-top: 1px solid var(--border); }
-.catalog-variants-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 20px 14px; }
-.catalog-variants-cards .catalog-variant { flex-direction: column; align-items: stretch; gap: 10px; padding: 6px; }
-.catalog-variants-cards .collection-content-image { flex: none; width: 100%; border-radius: 10px; }
-.catalog-variants-cards .catalog-variant-summary { display: block; }
-.catalog-variants-cards .catalog-card-name, .catalog-variants-cards .catalog-card-context { display: block; }
-.catalog-variants-cards .catalog-card-name { font-size: .85rem; }
-.catalog-variants-cards .catalog-card-context { margin-top: 3px; font-size: .75rem; }
+.catalog-variants-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px 12px; margin: 16px 0; }
+.catalog-variants-cards .catalog-variant { flex-direction: column; align-items: stretch; gap: 8px; padding: 0; }
+.catalog-variants-cards .collection-content-image { flex: none; width: 100%; border-radius: 12px; }
+.catalog-card-line { font-size: .78rem; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.catalog-card-line a { position: relative; z-index: 2; color: var(--catalog-accent); }
+.catalog-variants-cards .catalog-variant-label { margin-top: 2px; font-size: .72rem; }
 @media (max-width: 600px) {
   .catalog-card-header { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 24px; }
   .catalog-card-header .collection-content-image { justify-self: center; max-width: 200px; }
-  .catalog-card-metadata { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .catalog-toolbar:has(h2) { flex-direction: column; align-items: stretch; }
   .catalog-toolbar:has(h2) .catalog-view-selector { align-self: flex-start; margin-left: 0; }
   .catalog-variant-summary a { min-height: 44px; }
   :is(.catalog-pokemon-header, .catalog-set-header) { flex-direction: column; align-items: stretch; gap: 24px; padding: 24px; }
   .catalog-set-identity { flex-direction: column; align-items: flex-start; gap: 16px; }
   .catalog-set-logo { width: 112px; max-height: 64px; }
-  .catalog-pokemon-links a { min-height: 44px; }
   .catalog-collection-action { flex: none; min-width: 0; width: 100%; }
   .catalog-search { flex-basis: 100%; }
   .catalog-view-selector { margin-left: auto; }
-  .catalog-variants-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 8px; }
+  .catalog-variants-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
   .catalog-variant { gap: 10px; padding: 10px 2px; }
   .catalog-variants-list .catalog-card-context::before { content: ''; }
   .catalog-variants-list .catalog-variant-summary { display: flex; flex-direction: column; }

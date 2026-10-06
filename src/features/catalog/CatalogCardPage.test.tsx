@@ -8,7 +8,7 @@ import { getUserPreferences, saveUserPreferences } from '../../services/view-pre
 import { getVariantDetail, VariantDetailError } from '../../services/variant-detail'
 import { listPhysicalCopies } from '../../services/physical-copies'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
-import { resolveFunctionalIdentity } from '../../lib/catalog-identity'
+import * as catalogIdentity from '../../lib/catalog-identity'
 import { catalogCard, catalogPokemon, catalogSet } from '../../test/catalog-fixtures'
 import type { CatalogCard } from '../../types/catalog'
 import { catalogCardKey } from './catalog-query'
@@ -91,22 +91,25 @@ test('technical error and retry hide backend messages', async () => {
   expect(screen.queryByText(/42501|Supabase|private payload/)).not.toBeInTheDocument()
   press('Réessayer'); await loaded(); expect(read).toHaveBeenCalledTimes(2)
 })
-test('reference: one h1, semantic metadata, backend image, teal Extension identity, no search or collection CTA', async () => {
+test('reference: one h1, shared Card resolver, semantic metadata, backend image, no search or collection CTA', async () => {
+  const resolve = vi.spyOn(catalogIdentity, 'resolveCardIdentity')
   const { container } = setup(); await loaded()
   const header = container.querySelector('header')!
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   expect(screen.getByRole('heading', { name: 'Versions', level: 2 })).toBeVisible()
   expect(within(header).getByRole('img', { name: catalogCard.nameFr! })).toHaveAttribute('src', catalogCard.imageUrl)
-  for (const text of ['EV05 (TEF) · 025/165', 'Rare', 'Pokémon', 'Écarlate et Violet', '22 mars 2024', '3 versions']) {
+  for (const text of ['EV05 (TEF) · 025/165', 'Rare', 'Écarlate et Violet', '22 mars 2024', '3 versions']) {
     expect(within(header).getByText(text, { exact: true })).toBeVisible()
   }
   expect(header.querySelector('time')).toHaveAttribute('datetime', '2024-03-22')
   expect(header.querySelectorAll('dl dt')).toHaveLength(5)
   expect(within(header).getByRole('link', { name: 'Forces Temporelles' })).toHaveAttribute('href', '/catalog/extensions/50')
-  const links = within(header).getByRole('group', { name: 'Pokémon associés' })
+  expect(within(header).queryByText('Pokémon associés')).not.toBeInTheDocument()
+  const links = within(header).getByRole('group', { name: 'Pokémon' })
   expect(within(links).getByRole('link', { name: 'Pikachu' })).toHaveAttribute('href', '/catalog/pokemon/800')
   expect(within(links).getByRole('link', { name: 'Raichu' })).toHaveAttribute('href', '/catalog/pokemon/801')
-  const theme = container.querySelector<HTMLElement>('.catalog-themed')!, identity = resolveFunctionalIdentity('set')
+  const theme = container.querySelector<HTMLElement>('.catalog-themed')!, identity = catalogIdentity.resolveCardIdentity(catalogCard.pokemon)
+  expect(resolve).toHaveBeenCalledWith(catalogCard.pokemon)
   expect(theme.style.getPropertyValue('--catalog-accent')).toBe(identity.primaryAccent)
   expect(theme.style.getPropertyValue('--catalog-gradient')).toBe(identity.gradient)
   expect(header.querySelector('.catalog-types')).toBeNull()
@@ -151,7 +154,7 @@ test('source metadata fallbacks and unnamed associations omitted without fabrica
 test.each(['Pokémon', 'Trainer', 'Energy'])('category %s and optional associations', async category => {
   read.mockResolvedValue({ ...catalogCard, category, pokemon: category === 'Pokémon' ? catalogCard.pokemon.slice(0, 1) : [] })
   const { container } = setup(); await loaded()
-  expect(within(container.querySelector('header')!).getByText(category, { exact: true })).toBeVisible()
+  expect(within(container.querySelector('header')!).getByText(category, { selector: 'dd', exact: true })).toBeVisible()
   expect(screen.queryAllByRole('link', { name: 'Pikachu' })).toHaveLength(category === 'Pokémon' ? 1 : 0)
   expect(screen.queryByRole('link', { name: 'Raichu' })).not.toBeInTheDocument()
 })
@@ -168,10 +171,15 @@ test.each(['list', 'cards'] as const)('global default %s opens without a write; 
   expect(rows[1]!.querySelector('img')).toHaveAttribute('src', catalogCard.variants[1]!.imageUrl)
   expect(rows[2]!.querySelector('img')!.getAttribute('src')).toContain('card-placeholder.webp')
   expect(rows[0]!.querySelector('time')).toBeNull()
-  expect(within(rows[1]!).getByText('1 avril 2024')).toHaveAttribute('datetime', '2024-04-01')
+  if (view === 'list') expect(within(rows[1]!).getByText('1 avril 2024')).toHaveAttribute('datetime', '2024-04-01')
+  else expect(rows[1]!.querySelector('time')).toBeNull()
   expect(list.querySelectorAll('a')).toHaveLength(0)
-  expect(within(list).queryByText(catalogCard.nameFr!)).not.toBeInTheDocument()
-  expect(within(list).queryByText('025/165')).not.toBeInTheDocument()
+  if (view === 'list') {
+    expect(within(list).queryByText(catalogCard.nameFr!)).not.toBeInTheDocument()
+    expect(within(list).queryByText('025/165')).not.toBeInTheDocument()
+  } else {
+    expect(rows[0]!.querySelector('.catalog-card-line')).toHaveTextContent('Duo électrique · EV05 (TEF) · 025/165')
+  }
   expect(container.querySelector('[class*="is-missing"], [class*="owned"], [class*="reorder"], [class*="collection-content-actions"]')).toBeNull()
   for (const text of ['Possédée', 'Manquante', 'Auto', 'Perso', 'Exemplaires', 'Créer ma collection']) expect(within(list).queryByText(text)).not.toBeInTheDocument()
 })
@@ -229,7 +237,8 @@ test.each(['Liste', 'Cartes'])('Extension result Card link remains independent o
   const { container } = setup('/catalog/extensions/50')
   await screen.findByRole('heading', { name: 'Forces Temporelles', level: 1 }); if (view === 'Cartes') press('Cartes')
   const row = screen.getAllByRole('listitem')[0]!
-  expect(within(row).getByRole('link', { name: 'Pikachu' })).toHaveAttribute('href', '/catalog/pokemon/800')
+  if (view === 'Liste') expect(within(row).getByRole('link', { name: 'Pikachu' })).toHaveAttribute('href', '/catalog/pokemon/800')
+  else expect(row.querySelector('.catalog-pokemon-links')).toBeNull()
   const link = within(row).getByRole('link', { name: 'Duo électrique' })
   expect(link).toHaveAttribute('href', '/catalog/cards/300')
   expect(container.querySelector('button a, a button, a a')).toBeNull()
