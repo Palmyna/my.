@@ -422,9 +422,9 @@ Le Classeur V1 est **continu uniquement**, selon l'ordre autoritatif des éléme
 
 La recherche interne à une collection utilise les informations du catalogue liées aux variantes présentes dans cette collection. Ces informations peuvent provenir de la carte, de la variante, du set, de la série, de la rareté, du numéro, des noms français et d'autres métadonnées utiles.
 
-La recherche globale de navigation, restant à développer en Phase 7, utilise quatre entités existantes : Pokémon par nom français, Set par nom, collections accessibles par nom et Cartes sources par les champs pris en charge par le moteur portable. Elle retourne une Carte source unique, jamais directement une Variante. Les variantes restent l'unité collectible des collections et des exemplaires ; la recherche d'ajout sélectionne une variante exacte. Aucun nouvel objet persistant de résultat de recherche n'est nécessaire. Toutes les collections actuellement accessibles au viewer sont candidates : personnelles ou reçues en partage. La Phase 9 crée, gère et retire les accès ; elle n'est pas requise pour lire ou rechercher un partage déjà actif.
+La recherche globale de navigation, livrée en 7E.1/7E.2, utilise quatre entités existantes : Pokémon par nom français, Set par nom, collections accessibles par nom et Cartes sources par les champs pris en charge par le moteur portable. Elle retourne une Carte source unique, jamais directement une Variante. Les variantes restent l'unité collectible des collections et des exemplaires ; la recherche d'ajout sélectionne une variante exacte. Aucun nouvel objet persistant de résultat de recherche n'est nécessaire. Toutes les collections actuellement accessibles au viewer sont candidates : personnelles ou reçues en partage. La Phase 9 crée, gère et retire les accès ; elle n'est pas requise pour lire ou rechercher un partage déjà actif.
 
-La projection et l'indexation de la future recherche Supabase restent à définir ; les règles portables de normalisation, tokenisation, matching, score et tri de `scripts/catalog/search-catalog.ts` servent de socle pour les Cartes.
+La RPC `search_global_navigation(text)` fournit une projection limitée à dix suggestions sous Auth/MFA/RLS ; les règles portables de normalisation, tokenisation, matching, score et tri de `scripts/catalog/search-catalog.ts` servent de socle pour les Cartes. Contrat, quotas et grants : [schéma PostgreSQL / Supabase](06-DATABASE.md#recherche-globale-de-navigation--contrat-7e1).
 
 Les pages Pokémon et Extension livrées présentent une entrée par **Variante**, sans regroupement sous des Cartes uniques. Elles réutilisent le même univers et le même ordre canonique backend que la génération automatique : date effective de Variante puis numéro naturel et ordre de Variante pour Pokémon ; numéro naturel puis Variante pour Extension. La fiche Carte source présente séparément ses Versions. Ces consultations ne matérialisent aucune nouvelle collection ou structure automatique.
 
@@ -474,9 +474,9 @@ Des valeurs mises en cache peuvent être utilisées si nécessaire pour les perf
 
 ### Comptages catalogue Pokémon et Extension
 
-`variant_count` compte les Variantes réellement retournées par les contrats Pokémon/Extension et s'affiche comme nombre de versions. Il égale la longueur du tableau, sans multiplication par les rattachements Pokémon. Aucun `card_count` n'est fourni ni utilisé comme compteur principal dans ces listings. La fiche Carte compte ses Versions depuis son tableau de Variantes.
+`variant_count` compte les Variantes réellement retournées par les contrats Pokémon/Extension et s'affiche comme nombre de `carte(s)` depuis 7E.3.4. Il égale la longueur du tableau, sans multiplication par les rattachements Pokémon ni comptage de Cartes sources distinctes. Aucun `card_count` n'est fourni ni utilisé comme compteur principal dans ces listings. La fiche Carte compte ses `version(s)` depuis son tableau de Variantes.
 
-Ces valeurs sont dérivées du catalogue, sans nouvelle source de vérité persistée. `tcg_sets.official_card_count` conserve le total officiel de Cartes du set, distinct du nombre de versions affichées par MY. Ces compteurs ne mesurent aucune possession ou progression personnelle.
+Ces valeurs sont dérivées du catalogue, sans nouvelle source de vérité persistée. `tcg_sets.official_card_count` conserve le total officiel de Cartes du set, distinct du compteur du listing MY. Ces compteurs ne mesurent aucune possession ou progression personnelle.
 
 ### Progression d'une collection
 

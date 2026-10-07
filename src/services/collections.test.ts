@@ -178,6 +178,12 @@ describe('création libre', () => {
 })
 
 describe('création ou ouverture automatique', () => {
+  test.each([Number.MAX_SAFE_INTEGER + 1, Number.NaN, 1.5, '9007199254740995 ', '01', '9223372036854775808'])('refuse une cible BIGINT invalide avant RPC : %j', async targetId => {
+    const mock = mockCollectionsClient()
+    await expect(mock.service.createAutomatic({ ...automatic, targetId })).rejects.toMatchObject({ code: 'invalid_target', message: 'invalid_target' })
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.from).not.toHaveBeenCalled()
+  })
   test.each([true, false])('un appel RPC exact, created=%s', async created => {
     const mock = mockCollectionsClient()
     mock.rpc.mockResolvedValue({ data: [{ collection_id: id, created, extra: 'not exposed' }], error: null })

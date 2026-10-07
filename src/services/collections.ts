@@ -153,6 +153,9 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
     },
     createAutomatic(input: CreateAutomaticCollectionInput): Promise<AutomaticCollectionResult> {
       return request(async () => {
+        // Preserve exact strings and safe legacy numbers; reject precision loss
+        // before PostgreSQL can interpret an already rounded target ID.
+        try { variantIdString(input.targetId) } catch { throw new CollectionsError('invalid_target') }
         // Do not prevalidate the name: an existing collection bypasses that validation in SQL.
         // The generated Database type infers the RPC arguments and its table return type.
         const writer = client as unknown as SupabaseClient<AutomaticCollectionDatabase>
