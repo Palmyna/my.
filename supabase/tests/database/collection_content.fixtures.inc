@@ -6,16 +6,16 @@ insert into auth.users(id) values
   ('a1600000-0000-0000-0000-000000000003');
 insert into public.tcg_series(id,name_fr) overriding system value values (-86001,'Série différente');
 insert into public.tcg_sets(id,series_id,name_fr,abbreviation_fr,abbreviation) overriding system value values
-  (-86001,-86001,'Extension précise','EXT','SRC'), (-86002,-86001,null,null,null);
+  (-86001,-86001,'Extension précise','EXT','SRC'), (-9007199254740996,-86001,null,null,null);
 insert into public.source_cards(id,set_id,name_fr,local_id,image_url,source_present,origin) overriding system value values
   (-86001,-86001,'Évoli fixture','TG01','https://example.invalid/source/high.webp',true,'tcgdex'),
-  (-86002,-86002,null,null,null,false,'my');
+  (-9007199254740995,-9007199254740996,null,null,null,false,'my');
 insert into public.catalog_variants(id,source_card_id,variant_key,label,image_url,source_present,origin,is_active) overriding system value values
   (-86001,-86001,'normal','Normal',null,true,'tcgdex',true),
   (-86002,-86001,'holo','Holo','https://example.invalid/variant/original.png',true,'tcgdex',true),
   (-86003,-86001,'reverse','Reverse',null,true,'tcgdex',true),
   (-9007199254740995,-86001,'stamp','Holo Cosmos Stamp corrigé',null,false,'my',false),
-  (-86005,-86002,'unknown',null,null,false,'my',false),
+  (-86005,-9007199254740995,'unknown',null,null,false,'my',false),
   (-86006,-86001,'outside','Normal hors collection',null,true,'tcgdex',true);
 insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_set_id,applied_target_version) values
   ('c1600000-0000-0000-0000-000000000001','a1600000-0000-0000-0000-000000000001','Contenu mixte','automatic','set',-86001,1),

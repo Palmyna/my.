@@ -18,7 +18,7 @@ vi.mock('../../services/collections', async original => ({ ...await original<typ
 }))
 const rename = vi.mocked(renameCollection), remove = vi.mocked(deleteCollection), get = vi.mocked(getCollectionOverview)
 const id = 'c1200000-0000-0000-0000-000000000001'
-const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
+const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
 let row: CollectionOverview | null
 const detail = collectionOverviewKey('owner', id), dashboard = dashboardCollectionsKey('owner')
 beforeAll(() => {
@@ -96,7 +96,7 @@ test.each(['', '   ', ' ab '])('renommage invalide %j sans mutation', async name
 })
 
 test.each(['free', 'pokemon', 'set'] as const)('renommage %s confirmé, caches exacts, titre et Dashboard', async kind => {
-  if (kind !== 'free') row = { ...base, collectionType: 'automatic', targetType: kind, targetName: 'Cible' }
+  if (kind !== 'free') row = { ...base, collectionType: 'automatic', targetType: kind, targetId: '25', targetName: 'Cible' }
   const { client } = setup(); const trigger = await open('rename')
   const newName = '  Mes nouvelles cartes  '
   changeName(newName); submit()

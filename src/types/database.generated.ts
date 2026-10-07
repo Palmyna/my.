@@ -324,7 +324,7 @@ isOneToOne: true
           Views: {
             "dashboard_collections": {
                   Row: {
-                    "access": string | null,"collection_id": string | null,"collection_type": string | null,"name": string | null,"owned_count": number | null,"target_name": string | null,"target_primary_type": string | null,"target_secondary_type": string | null,"target_type": string | null,"total_count": number | null
+                    "access": string | null,"collection_id": string | null,"collection_type": string | null,"name": string | null,"owned_count": number | null,"target_id": string | null,"target_name": string | null,"target_primary_type": string | null,"target_secondary_type": string | null,"target_type": string | null,"total_count": number | null
                   }
                   Relationships: [
 

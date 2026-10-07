@@ -6,7 +6,7 @@ import { collectionPresentation } from '../collections/collection-presentation'
 import { resolveCollectionIdentity } from './collection-color'
 
 const base: DashboardCollection = { collectionId: 'a', name: 'Arbitrary name', collectionType: 'automatic', access: 'owned',
-  targetType: 'pokemon', targetName: 'Arbitrary target', targetPrimaryType: 'electric', targetSecondaryType: null, ownedCount: 1, totalCount: 3 }
+  targetType: 'pokemon', targetId: '25', targetName: 'Arbitrary target', targetPrimaryType: 'electric', targetSecondaryType: null, ownedCount: 1, totalCount: 3 }
 test.each(POKEMON_TYPES)('Catalogue and Collection share the exact identity for %s', type => {
   expect(resolveCollectionIdentity({ ...base, targetPrimaryType: type })).toEqual(resolvePokemonIdentity(type))
 })

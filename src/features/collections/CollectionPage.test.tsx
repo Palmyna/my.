@@ -20,7 +20,7 @@ vi.mock('../../services/collections', async importOriginal => ({
 }))
 const get = vi.mocked(getCollectionOverview)
 const id = 'c1200000-0000-0000-0000-000000000001'
-const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
+const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
 beforeEach(() => {
   auth.user = { id: 'owner' }; auth.isAuthorized = true; get.mockReset().mockResolvedValue(base)
   vi.mocked(getUserPreferences).mockReset().mockResolvedValue(DEFAULT_USER_PREFERENCES)
@@ -54,12 +54,12 @@ test('charge indépendamment du Dashboard et conserve un h1 stable sans voler le
 
 test.each([
   { ...base },
-  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: 'Pikachu', targetPrimaryType: 'electric' as const, ownedCount: 82, totalCount: 120 },
-  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: 'Dracaufeu', targetPrimaryType: 'fire' as const, targetSecondaryType: 'flying' as const, ownedCount: 3, totalCount: 4 },
-  { ...base, collectionType: 'automatic' as const, targetType: 'set' as const, targetName: '151', ownedCount: 1, totalCount: 2 },
-  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: 'Dracaufeu', targetPrimaryType: 'fire' as const, targetSecondaryType: 'flying' as const, access: 'shared' as const, ownedCount: 3, totalCount: 4 },
-  { ...base, collectionType: 'automatic' as const, targetType: 'set' as const, targetName: 'Légendes Brillantes', access: 'shared' as const, ownedCount: 3, totalCount: 4 },
-  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: null, targetPrimaryType: null, targetSecondaryType: null },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetId: '25', targetName: 'Pikachu', targetPrimaryType: 'electric' as const, ownedCount: 82, totalCount: 120 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetId: '25', targetName: 'Dracaufeu', targetPrimaryType: 'fire' as const, targetSecondaryType: 'flying' as const, ownedCount: 3, totalCount: 4 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'set' as const, targetId: '73', targetName: '151', ownedCount: 1, totalCount: 2 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetId: '25', targetName: 'Dracaufeu', targetPrimaryType: 'fire' as const, targetSecondaryType: 'flying' as const, access: 'shared' as const, ownedCount: 3, totalCount: 4 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'set' as const, targetId: '73', targetName: 'Légendes Brillantes', access: 'shared' as const, ownedCount: 3, totalCount: 4 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetId: '25', targetName: null, targetPrimaryType: null, targetSecondaryType: null },
 ])('identité, progression et accès depuis le contrat $collectionType/$targetType/$access', async collection => {
   get.mockResolvedValue(collection)
   setup()
@@ -97,9 +97,9 @@ test.each(['collection_unavailable', 'not_authorized'] as const)('indisponibilit
 
 test.each([
   { ...base,accent:'#E22B35' },
-  { ...base,collectionType:'automatic' as const,targetType:'pokemon' as const,targetPrimaryType:'electric' as const,accent:'#E2C84A' },
-  { ...base,collectionType:'automatic' as const,targetType:'pokemon' as const,targetPrimaryType:'fire' as const,targetSecondaryType:'flying' as const,accent:'#E58A4A' },
-  { ...base,collectionType:'automatic' as const,targetType:'set' as const,accent:'#44C7B7' },
+  { ...base,collectionType:'automatic' as const,targetType:'pokemon' as const, targetId: '25',targetPrimaryType:'electric' as const,accent:'#E2C84A' },
+  { ...base,collectionType:'automatic' as const,targetType:'pokemon' as const, targetId: '25',targetPrimaryType:'fire' as const,targetSecondaryType:'flying' as const,accent:'#E58A4A' },
+  { ...base,collectionType:'automatic' as const,targetType:'set' as const, targetId: '73',accent:'#44C7B7' },
 ])('owner FAB belongs to Collection context $accent and progress remains primary', async ({accent,...collection}) => {
   get.mockResolvedValue(collection);setup()
   const fab=await screen.findByRole('button',{name:'Ajouter une carte'},{timeout:5000})

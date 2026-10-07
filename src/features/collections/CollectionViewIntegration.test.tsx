@@ -13,7 +13,7 @@ vi.mock('../auth/auth-context', () => ({ useAuth: () => ({ user: { id: 'recipien
 vi.mock('../../services/collections', () => ({
   CollectionsError: class extends Error {},
   getCollectionOverview: vi.fn().mockResolvedValue({ collectionId: 'collection', ownerId: 'real-owner', name: 'Favoris',
-    collectionType: 'free', access: 'shared', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 2 }),
+    collectionType: 'free', access: 'shared', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 2 }),
 }))
 vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn() }))
 vi.mock('../../services/view-preferences', () => ({
@@ -25,7 +25,7 @@ vi.mock('../../services/view-preferences', () => ({
 afterEach(() => { vi.restoreAllMocks() })
 
 test('selector changes both renderers immediately, preserves search and content query, saves only viewer last choice', async () => {
-  const first: CollectionContentItem = { collectionItemId: 'first', variantId: '42', cardNameFr: 'Pikachu',
+  const first: CollectionContentItem = { sourceCardId: '25', setId: '73', collectionItemId: 'first', variantId: '42', cardNameFr: 'Pikachu',
     setNameFr: 'Extension', setAbbreviationFr: null, setAbbreviation: 'EXT', seriesNameFr: null, seriesNameSource: null,
     localId: '025', variantLabel: null, imageUrl: null, origin: 'manual', owned: false }
   vi.mocked(getCollectionContent).mockResolvedValue([first, { ...first, collectionItemId: 'second', variantId: '43', cardNameFr: 'Évoli' }])

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
 import type { CollectionContentItem } from '../types/collection-content'
 import { getSupabaseClient } from './supabase'
+import { variantIdString } from '../lib/variant-id'
 
 export type CollectionContentErrorCode = 'not_authorized' | 'unexpected'
 export class CollectionContentError extends Error {
@@ -11,19 +12,19 @@ export class CollectionContentError extends Error {
 // Same UUID format accepted by the collection overview, without a version restriction.
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 function decimalId(value: unknown): value is string {
-  // PostgreSQL BIGINT::text is canonical signed decimal, including local fixture IDs.
-  // Never pass an identifier through a JavaScript number, even during validation.
-  return typeof value === 'string' && value.length <= 20 && value.trim() === value && /^(?:0|-?[1-9]\d*)$/.test(value)
-    && BigInt(value) >= -9223372036854775808n && BigInt(value) <= 9223372036854775807n
+  // Reject even safe numbers; reuse the lossless canonical BIGINT boundary.
+  if (typeof value !== 'string') return false
+  try { return variantIdString(value) === value } catch { return false }
 }
 function nullableString(value: unknown): value is string | null { return value === null || typeof value === 'string' }
 
 function contentItem(value: unknown): CollectionContentItem {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new CollectionContentError('unexpected')
   const row = value as Record<string, unknown>
-  if (Object.keys(row).length !== 13
+  if (Object.keys(row).length !== 15
     || typeof row.collection_item_id !== 'string' || row.collection_item_id.length !== 36 || !uuid.test(row.collection_item_id)
     || !decimalId(row.variant_id) || (row.origin !== 'manual' && row.origin !== 'automatic')
+    || !decimalId(row.source_card_id) || !decimalId(row.set_id)
     || !nullableString(row.card_name_fr) || !nullableString(row.local_id) || !nullableString(row.set_name_fr)
     || !nullableString(row.set_abbreviation) || !nullableString(row.set_abbreviation_fr)
     || !nullableString(row.series_name_fr) || !nullableString(row.series_name_source)
@@ -32,6 +33,7 @@ function contentItem(value: unknown): CollectionContentItem {
   }
   return {
     collectionItemId: row.collection_item_id, variantId: row.variant_id, origin: row.origin,
+    sourceCardId: row.source_card_id, setId: row.set_id,
     cardNameFr: row.card_name_fr, localId: row.local_id, setNameFr: row.set_name_fr, setAbbreviationFr: row.set_abbreviation_fr, setAbbreviation: row.set_abbreviation,
     seriesNameFr: row.series_name_fr, seriesNameSource: row.series_name_source,
     imageUrl: row.image_url, variantLabel: row.variant_label, owned: row.owned,

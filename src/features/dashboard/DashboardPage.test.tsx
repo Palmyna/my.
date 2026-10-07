@@ -11,9 +11,9 @@ const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true, pass
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
 vi.mock('../../services/collections', () => ({ listDashboardCollections: vi.fn() }))
 const load = vi.mocked(listDashboardCollections)
-const free: DashboardCollection = { collectionId: 'private-id', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
-const pokemon: DashboardCollection = { ...free, collectionId: 'pokemon-id', name: 'Éclairs', collectionType: 'automatic', targetType: 'pokemon', targetName: 'Pikachu', targetPrimaryType: 'electric', ownedCount: 82, totalCount: 120 }
-const shared: DashboardCollection = { ...pokemon, collectionId: 'set-id', name: 'Souvenirs', targetType: 'set', targetName: 'Légendes Brillantes', targetPrimaryType: null, access: 'shared', ownedCount: 3, totalCount: 4 }
+const free: DashboardCollection = { collectionId: 'private-id', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
+const pokemon: DashboardCollection = { ...free, collectionId: 'pokemon-id', name: 'Éclairs', collectionType: 'automatic', targetType: 'pokemon', targetId: '25', targetName: 'Pikachu', targetPrimaryType: 'electric', ownedCount: 82, totalCount: 120 }
+const shared: DashboardCollection = { ...pokemon, collectionId: 'set-id', name: 'Souvenirs', targetType: 'set', targetId: '73', targetName: 'Légendes Brillantes', targetPrimaryType: null, access: 'shared', ownedCount: 3, totalCount: 4 }
 
 beforeEach(() => {
   auth.user = { id: 'owner' }; auth.isAuthorized = true; auth.passwordChanged = false
@@ -51,7 +51,7 @@ test.each([
   { collection:free,accent:'#E22B35',secondary:'#E22B35' },
   { collection:pokemon,accent:'#E2C84A',secondary:'#E2C84A' },
   { collection:{...pokemon,targetPrimaryType:'fire' as const,targetSecondaryType:'flying' as const},accent:'#E58A4A',secondary:'#77BDD7' },
-  { collection:{...pokemon,targetType:'set' as const,targetPrimaryType:null},accent:'#44C7B7',secondary:'#44C7B7' },
+  { collection:{...pokemon,targetType:'set' as const, targetId: '73',targetPrimaryType:null},accent:'#44C7B7',secondary:'#44C7B7' },
   { collection:{...pokemon,access:'shared' as const},accent:'#6366F1',secondary:'#6366F1' },
   { collection:shared,accent:'#6366F1',secondary:'#6366F1' },
   { collection:{...pokemon,targetPrimaryType:null},accent:'#8FA8BD',secondary:'#8FA8BD' },

@@ -27,7 +27,7 @@ vi.mock('../services/view-preferences', async () => ({
 }))
 const collection: CollectionOverview = { ownerId: 'owner',
   collectionId: 'c1200000-0000-0000-0000-000000000001', name: 'Collection de test', collectionType: 'free', access: 'owned',
-  targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0,
+  targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0,
 }
 const collectionPath = `/collections/${collection.collectionId}`
 beforeEach(() => {

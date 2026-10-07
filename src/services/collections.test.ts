@@ -310,12 +310,68 @@ test.each(['free', 'automatic', 'rename', 'delete'] as const)('%s : rejet résea
 describe('lecture Dashboard', () => {
   const free = {
     collection_id: id, name: 'Libre', collection_type: 'free', access: 'owned',
-    target_type: null, target_name: null, target_primary_type: null, target_secondary_type: null, owned_count: 1, total_count: 3,
+    target_type: null, target_id: null, target_name: null, target_primary_type: null, target_secondary_type: null, owned_count: 1, total_count: 3,
   }
+  test('both readers reject missing fields and unexpected extra keys', async () => {
+    const missing = Object.keys(free).map(field => {
+      const row: Record<string, unknown> = { ...free }; delete row[field]; return row
+    })
+    for (const row of [...missing, { ...free, extra: 'unexpected' }]) {
+      const mock = mockCollectionsClient()
+      mock.dashboardSelect.mockImplementation(() => Object.assign(Promise.resolve({ data: [row], error: null }), { eq: mock.overviewEq }))
+      mock.overviewSingle.mockResolvedValue({ data: row, error: null })
+      await expect(mock.service.listDashboardCollections()).rejects.toHaveProperty('code', 'unexpected')
+      await expect(mock.service.getCollectionOverview(id)).rejects.toHaveProperty('code', 'unexpected')
+      expect(mock.ownerSelect).not.toHaveBeenCalled()
+    }
+  })
+  test.each(['pokemon', 'set'] as const)('both readers preserve %s target BIGINT text without Catalogue fetch', async target_type => {
+    for (const target_id of ['0', '-42', '9007199254740995', '-9223372036854775808', '9223372036854775807']) {
+      const mock = mockCollectionsClient()
+      const row = { ...free, collection_type: 'automatic', target_type, target_id }
+      mock.dashboardSelect.mockImplementation(() => Object.assign(Promise.resolve({ data: [row], error: null }), { eq: mock.overviewEq }))
+      mock.overviewSingle.mockResolvedValue({ data: row, error: null })
+      await expect(mock.service.listDashboardCollections()).resolves.toMatchObject([{ targetType: target_type, targetId: target_id }])
+      await expect(mock.service.getCollectionOverview(id)).resolves.toMatchObject({ targetType: target_type, targetId: target_id })
+      expect(mock.from.mock.calls).toEqual([['dashboard_collections'], ['dashboard_collections'], ['collections']])
+      expect(mock.ownerSelect).toHaveBeenCalledExactlyOnceWith('owner_id')
+    }
+  })
+  test.each(['pokemon', 'set'] as const)('both readers reject invalid or missing %s target ID', async target_type => {
+    for (const target_id of [null, undefined, 42, Number.MAX_SAFE_INTEGER + 2, '', 'abc', '01', '-0', '+42', '1.5', '1e3', '42\n', ' 42', '9223372036854775808', '-9223372036854775809']) {
+      const mock = mockCollectionsClient()
+      const row = { ...free, collection_type: 'automatic', target_type, target_id }
+      mock.dashboardSelect.mockImplementation(() => Object.assign(Promise.resolve({ data: [row], error: null }), { eq: mock.overviewEq }))
+      mock.overviewSingle.mockResolvedValue({ data: row, error: null })
+      await expect(mock.service.listDashboardCollections()).rejects.toHaveProperty('code', 'unexpected')
+      await expect(mock.service.getCollectionOverview(id)).rejects.toHaveProperty('code', 'unexpected')
+      expect(mock.ownerSelect).not.toHaveBeenCalled()
+    }
+    const missing: Record<string, unknown> = { ...free, collection_type: 'automatic', target_type }
+    delete missing.target_id
+    const mock = mockCollectionsClient()
+    mock.dashboardSelect.mockImplementation(() => Object.assign(Promise.resolve({ data: [missing], error: null }), { eq: mock.overviewEq }))
+    mock.overviewSingle.mockResolvedValue({ data: missing, error: null })
+    await expect(mock.service.listDashboardCollections()).rejects.toHaveProperty('code', 'unexpected')
+    await expect(mock.service.getCollectionOverview(id)).rejects.toHaveProperty('code', 'unexpected')
+  })
+  test.each([
+    { target_id: '25' }, { target_id: 25 }, { target_id: undefined },
+    { collection_type: 'automatic', target_id: '25' },
+    { target_type: 'pokemon', target_id: '25' }, { target_type: 'set', target_id: '73' },
+  ])('free/null-target inconsistencies rejected by both readers: %j', async patch => {
+    const mock = mockCollectionsClient()
+    const row = { ...free, ...patch }
+    mock.dashboardSelect.mockImplementation(() => Object.assign(Promise.resolve({ data: [row], error: null }), { eq: mock.overviewEq }))
+    mock.overviewSingle.mockResolvedValue({ data: row, error: null })
+    await expect(mock.service.listDashboardCollections()).rejects.toHaveProperty('code', 'unexpected')
+    await expect(mock.service.getCollectionOverview(id)).rejects.toHaveProperty('code', 'unexpected')
+    expect(mock.ownerSelect).not.toHaveBeenCalled()
+  })
   test.each(POKEMON_TYPES)('validates Pokemon primary/secondary %s without an extra fetch', async type => {
     const mock = mockCollectionsClient()
-    const row = { ...free, collection_type:'automatic',target_type:'pokemon',target_name:'Snapshot',target_primary_type:type,target_secondary_type:null }
-    mock.dashboardSelect.mockResolvedValue({ data:[row],error:null })
+    const row = { ...free, collection_type:'automatic',target_type:'pokemon',target_id:'25',target_name:'Snapshot',target_primary_type:type,target_secondary_type:null }
+    mock.dashboardSelect.mockImplementation(() => Object.assign(Promise.resolve({ data: [row], error: null }), { eq: mock.overviewEq }))
     await expect(mock.service.listDashboardCollections()).resolves.toMatchObject([{ targetPrimaryType:type,targetSecondaryType:null }])
     const double = { ...row,target_primary_type:type==='fire' ? 'water' : 'fire',target_secondary_type:type }
     mock.dashboardSelect.mockResolvedValue({ data:[double],error:null })
@@ -330,8 +386,8 @@ describe('lecture Dashboard', () => {
     { target_type:'set',target_primary_type:'water' },{ collection_type:'free',target_type:null,target_primary_type:'water' },
   ])('invalid or inconsistent type metadata fails closed for both readers: %j', async patch => {
     const mock = mockCollectionsClient()
-    const row={ ...free,collection_type:'automatic',target_type:'pokemon',...patch }
-    mock.dashboardSelect.mockResolvedValue({ data:[row],error:null })
+    const row={ ...free,collection_type:'automatic',target_type:'pokemon',target_id:'25',...patch }
+    mock.dashboardSelect.mockImplementation(() => Object.assign(Promise.resolve({ data: [row], error: null }), { eq: mock.overviewEq }))
     mock.overviewSingle.mockResolvedValue({ data:row,error:null })
     await expect(mock.service.listDashboardCollections()).rejects.toMatchObject({ code:'unexpected',message:'unexpected' })
     await expect(mock.service.getCollectionOverview(id)).rejects.toMatchObject({ code:'unexpected',message:'unexpected' })
@@ -342,28 +398,28 @@ describe('lecture Dashboard', () => {
     mock.dashboardSelect.mockResolvedValue({ error: null, data: [
       free,
       { ...free, collection_id: 'pokemon-id', name: 'Partagée', collection_type: 'automatic', access: 'shared',
-        target_type: 'pokemon', target_name: 'Évoli', owned_count: 82, total_count: 120 },
-      { ...free, collection_id: 'set-id', name: 'Extension', collection_type: 'automatic', target_type: 'set',
+        target_type: 'pokemon', target_id: '9007199254740995', target_name: 'Évoli', owned_count: 82, total_count: 120 },
+      { ...free, collection_id: 'set-id', name: 'Extension', collection_type: 'automatic', target_type: 'set', target_id: '9007199254740996',
         target_name: 'Légendes Brillantes', owned_count: 3, total_count: 5 },
       { ...free, collection_id: 'empty-id', name: 'Vide', owned_count: 0, total_count: 0 },
       { ...free, collection_id: 'unnamed-id', name: 'Sans nom cible', collection_type: 'automatic', access: 'shared',
-        target_type: 'pokemon', target_name: null, target_primary_type: null, target_secondary_type: null, owned_count: 0, total_count: 0 },
+        target_type: 'pokemon', target_id: '9007199254740995', target_name: null, target_primary_type: null, target_secondary_type: null, owned_count: 0, total_count: 0 },
     ] })
     await expect(mock.service.listDashboardCollections()).resolves.toEqual([
       { collectionId: id, name: 'Libre', collectionType: 'free', access: 'owned',
-        targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 1, totalCount: 3 },
+        targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 1, totalCount: 3 },
       { collectionId: 'pokemon-id', name: 'Partagée', collectionType: 'automatic', access: 'shared',
-        targetType: 'pokemon', targetName: 'Évoli', targetPrimaryType: null, targetSecondaryType: null, ownedCount: 82, totalCount: 120 },
+        targetType: 'pokemon', targetId: '9007199254740995', targetName: 'Évoli', targetPrimaryType: null, targetSecondaryType: null, ownedCount: 82, totalCount: 120 },
       { collectionId: 'set-id', name: 'Extension', collectionType: 'automatic', access: 'owned',
-        targetType: 'set', targetName: 'Légendes Brillantes', targetPrimaryType: null, targetSecondaryType: null, ownedCount: 3, totalCount: 5 },
+        targetType: 'set', targetId: '9007199254740996', targetName: 'Légendes Brillantes', targetPrimaryType: null, targetSecondaryType: null, ownedCount: 3, totalCount: 5 },
       { collectionId: 'empty-id', name: 'Vide', collectionType: 'free', access: 'owned',
-        targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 },
+        targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 },
       { collectionId: 'unnamed-id', name: 'Sans nom cible', collectionType: 'automatic', access: 'shared',
-        targetType: 'pokemon', targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 },
+        targetType: 'pokemon', targetId: '9007199254740995', targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 },
     ])
     expect(mock.from).toHaveBeenCalledExactlyOnceWith('dashboard_collections')
     expect(mock.dashboardSelect).toHaveBeenCalledExactlyOnceWith(
-      'collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type',
+      'collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type,target_id',
     )
     expect(mock.rpc).not.toHaveBeenCalled()
     expect(mock.eq).not.toHaveBeenCalled()
@@ -412,7 +468,7 @@ describe('lecture Dashboard', () => {
 })
 
 describe('overview Collection', () => {
-  const row = { collection_id: id, name: 'Ma collection', collection_type: 'free', access: 'owned', target_type: null, target_name: null, target_primary_type: null, target_secondary_type: null, owned_count: 0, total_count: 0 }
+  const row = { collection_id: id, name: 'Ma collection', collection_type: 'free', access: 'owned', target_type: null, target_id: null, target_name: null, target_primary_type: null, target_secondary_type: null, owned_count: 0, total_count: 0 }
   test.each([null, {}, { owner_id: '' }, { owner_id: 42 }])('missing/malformed owner %j fails closed', async data => {
     const mock = mockCollectionsClient()
     mock.overviewSingle.mockResolvedValue({ data: { ...row, access: 'shared' }, error: null })
@@ -427,19 +483,19 @@ describe('overview Collection', () => {
   })
   test.each([
     { ...row },
-    { ...row, collection_type: 'automatic', target_type: 'pokemon', target_name: 'Évoli', owned_count: 82, total_count: 120 },
-    { ...row, collection_type: 'automatic', target_type: 'set', target_name: 'Légendes Brillantes', access: 'shared', owned_count: 3, total_count: 4 },
+    { ...row, collection_type: 'automatic', target_type: 'pokemon', target_id: '9007199254740995', target_name: 'Évoli', owned_count: 82, total_count: 120 },
+    { ...row, collection_type: 'automatic', target_type: 'set', target_id: '9007199254740996', target_name: 'Légendes Brillantes', access: 'shared', owned_count: 3, total_count: 4 },
   ])('overview et propriétaire ciblés, mapping $collection_type/$target_type/$access', async data => {
     const mock = mockCollectionsClient()
     mock.overviewSingle.mockResolvedValue({ data, error: null })
     await expect(mock.service.getCollectionOverview(id)).resolves.toEqual({
       collectionId: id, ownerId: id, name: data.name, collectionType: data.collection_type, access: data.access,
-      targetType: data.target_type, targetName: data.target_name, targetPrimaryType: data.target_primary_type, targetSecondaryType: data.target_secondary_type, ownedCount: data.owned_count, totalCount: data.total_count,
+      targetType: data.target_type, targetId: data.target_id, targetName: data.target_name, targetPrimaryType: data.target_primary_type, targetSecondaryType: data.target_secondary_type, ownedCount: data.owned_count, totalCount: data.total_count,
     })
     expect(mock.from.mock.calls).toEqual([['dashboard_collections'], ['collections']])
     expect(mock.ownerSelect).toHaveBeenCalledExactlyOnceWith('owner_id')
     expect(mock.ownerEq).toHaveBeenCalledExactlyOnceWith('id', id)
-    expect(mock.dashboardSelect).toHaveBeenCalledExactlyOnceWith('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type')
+    expect(mock.dashboardSelect).toHaveBeenCalledExactlyOnceWith('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type,target_id')
     expect(mock.overviewEq).toHaveBeenCalledExactlyOnceWith('collection_id', id)
     expect(mock.overviewSingle).toHaveBeenCalledOnce()
     expect(mock.rpc).not.toHaveBeenCalled()

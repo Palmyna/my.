@@ -99,7 +99,7 @@ Les adaptations peuvent notamment concerner :
 
 ### Desktop
 
-Le desktop exploite l'espace disponible pour proposer davantage de colonnes, un affichage plus dense, une navigation rapide, un classeur plus grand et un détail latéral lorsque pertinent. Les contenus textuels ne doivent pas être étirés inutilement sur toute la largeur.
+Le desktop exploite l'espace disponible pour proposer davantage de colonnes, un affichage plus dense, un classeur plus grand et un détail latéral lorsque pertinent. Les contenus textuels ne doivent pas être étirés inutilement sur toute la largeur.
 
 ### Tablette
 
@@ -249,17 +249,23 @@ Depuis 7D.4, `/catalog/cards/:cardId` représente une **carte source**. Fiche à
 
 La section **Versions** suit la préférence globale Liste/Cartes et l’ordre backend. Liste garde image/label et date si distincte de Carte. Cartes répète `Nom · Abrév · N°`, puis Variante, sans date supplémentaire ; même géométrie et deux colonnes mobile que Collection. Aucun filtre local, reorder, possession ou CTA Collection.
 
-### Actions rapides et navigation contextuelle — prévues en 7F
+### Navigation Collection / Catalogue — Phase 7F
 
-En vues Liste et Cartes Collection, 7F ajoutera des liens indépendants : nom de Carte → `/catalog/cards/:cardId`, contexte Extension → `/catalog/extensions/:setId`, Numéro non cliquable. La surface principale continuera à ouvrir le Détail Variante ; exemplaires, menu et reorder resteront indépendants, sans contrôle imbriqué. Même comportement en partage lecture seule lorsque la navigation Catalogue est autorisée. `get_collection_content` devra fournir `source_card_id` et `set_id`, absents du contrat actuel ; aucun ID reconstruit côté frontend. Cet enrichissement et ces liens ne sont pas implémentés en 7E.3.4 et devront conserver le contexte d'origine pour le retour, précédente/suivante et swipe décrits ci-dessous.
+**7F.1 livré (`0.7.18`) : contrats uniquement.** `get_collection_content` fournit les IDs obligatoires `source_card_id` et `set_id` en texte BIGINT lossless ; `dashboard_collections` fournit `target_id` en fin de vue. Aucun bouton, lien, route ou CSS modifié.
 
-En 7D.4, les liens de Carte ouvrent sa fiche et la surface principale d'une Version ouvre le Détail Variante. Seul le retour navigateur standard est livré. Les menus secondaires et la navigation contextuelle décrits ci-dessous restent futurs ; leurs actions devront identifier la Variante exacte sans choix arbitraire derrière une Carte.
+**7F.2 reste à réaliser :** bouton commun `← Retour` et liens Carte/Extension/Pokémon corrects. Le retour conserve autant que possible la consultation précédente. Précédente / Suivante, swipe de navigation entre cartes, séquence de navigation et navigation rapide contextuelle sont abandonnés pour la V1 actuelle. La pagination Classeur existante reste indépendante.
 
-La fiche Carte préserve son contexte d'arrivée. **Retour** restaure autant que possible la même page, la vue, les filtres, le scroll et le contexte de navigation. Ce retour dans une consultation en cours ne réapplique pas une préférence d'ouverture au détriment de l'état précédent.
+La destination dépend toujours de l’ID et du type d’entité, jamais du texte visible :
 
-**Précédente / Suivante** suit la liste d'origine : ordre canonique du Catalogue Pokémon/Extension ou ordre réel de la collection. Une arrivée par suggestion globale ou accès direct sans véritable liste ordonnée ne fabrique aucune séquence précédente/suivante.
+- nom de Carte → `/catalog/cards/:sourceCardId` ; `Pikachu-ex` reste une Carte, sans extraire de Pokémon depuis son nom ;
+- nom ou contexte Extension → `/catalog/extensions/:setId` ;
+- Pokémon explicitement fourni comme entité (bloc, liste ou métadonnée Pokémon) → `/catalog/pokemon/:pokemonId`.
 
-Sur mobile, le swipe horizontal est prévu pour cette même navigation lorsqu'elle existe. Son seuil évite une navigation involontaire pendant le scroll ; sens, seuil et animation légère restent des choix d'implémentation cohérents avec les conventions retenues.
+Une cible automatique utilise `targetType + targetId + targetName` : `pokemon` → `/catalog/pokemon/:targetId`, `set` → `/catalog/extensions/:targetId`. Collection libre : les trois valeurs sont nulles.
+
+En vues Liste et Cartes Collection, la surface Détail et les futurs liens seront indépendants des exemplaires, menu et reorder, sans contrôle interactif imbriqué ni double ouverture. Navigation Catalogue également disponible en partage lecture seule autorisé. Numéro non cliquable ; aucun ID reconstruit côté frontend, aucune requête Catalogue supplémentaire.
+
+La tuile Dashboard reste entièrement son lien principal vers la Collection, sans lien imbriqué ni restructuration en 7F.1. 7F.2 déterminera les surfaces de références liables sans conflit d’interaction.
 
 ## Dashboard
 
@@ -791,9 +797,7 @@ Les sujets suivants concernent les fonctionnalités non livrées et d'éventuell
 - les éventuelles évolutions du reorder au-delà des interactions Liste/Cartes livrées ;
 - les éventuelles évolutions de la composition Liste/Cartes et du panneau Détail, au-delà des rendus livrés ;
 - les éventuelles finitions visuelles ultérieures du header ; recherche globale 7E.2 et Paramètres Affichage livrés ;
-- la navigation contextuelle future 7F ; contrat DB/service 7E.1 et UI 7E.2 livrés ; Pokémon sans artwork, Extension à logo/symbole et Carte de référence sont livrés ;
-- le seuil du swipe et les animations précédente/suivante ;
-- le mécanisme de navigation rapide dans les grandes collections ;
+- le bouton commun Retour et les liens UI 7F.2 ; contrats 7F.1 livrés ;
 - le design du résumé de mise à jour ;
 - le design des états de chargement et des notifications ;
 - le système d'icônes ;

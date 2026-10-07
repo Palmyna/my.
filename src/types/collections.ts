@@ -38,6 +38,7 @@ export interface DashboardCollection extends CollectionMutationResult {
   collectionType: 'free' | 'automatic'
   access: 'owned' | 'shared'
   targetType: 'pokemon' | 'set' | null
+  targetId: string | null
   targetName: string | null
   targetPrimaryType: PokemonType | null
   targetSecondaryType: PokemonType | null

@@ -25,7 +25,7 @@ vi.mock('../../services/physical-copies', async original => ({ ...await original
 vi.mock('../../services/collection-items', async original => ({ ...await original<typeof import('../../services/collection-items')>(), listCollectionItemOrder: vi.fn(), moveCollectionItem: vi.fn() }))
 
 const items: CollectionContentItem[] = Array.from({ length: 49 }, (_, index) => ({
-  collectionItemId: `item-${index}`, variantId: String(9007199254740995n + BigInt(index)),
+  collectionItemId: `item-${index}`, variantId: String(9007199254740995n + BigInt(index)), sourceCardId: '25', setId: '73',
   cardNameFr: [10, 12, 27, 46].includes(index) ? 'Pikachu' : `Évoli ${index}`,
   setNameFr: 'Extension', setAbbreviationFr: null, setAbbreviation: 'EXT', seriesNameFr: 'Soleil et Lune', seriesNameSource: null,
   localId: String(index), variantLabel: 'Holo', imageUrl: index === 0 ? '/remote.webp' : null, origin: 'manual', owned: index % 2 === 0,
@@ -66,7 +66,7 @@ function setup({ initialView = 'binder', globalFormat = '3x3', owned = false, vi
     return <CollectionContentView key={identity} viewerId={identity} query={query} setQuery={setQuery}
       currentView={view} setCurrentView={choice => { setView(choice); return Promise.resolve(true) }}
       collection={{ collectionId: 'collection', ownerId: owned ? identity : 'real-owner', name: 'Favoris', collectionType: 'free',
-        access: owned ? 'owned' : 'shared', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 25, totalCount: items.length }} />
+        access: owned ? 'owned' : 'shared', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 25, totalCount: items.length }} />
   }
   const tree = (identity: string) => <QueryClientProvider client={client}><Workspace key={identity} identity={identity} /></QueryClientProvider>
   const result = render(tree(viewer))

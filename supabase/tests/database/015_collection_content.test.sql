@@ -54,13 +54,19 @@ select results_eq($$select x->>'variant_id',x->>'origin',x->>'card_name_fr',x->>
     ('-9007199254740995','manual','Évoli fixture','TG01','Extension précise','https://example.invalid/source/high.webp','Holo Cosmos Stamp corrigé',true),
     ('-86005','manual',null,null,null,null,null,false)$$,
   'Exact variant labels, source number/FR names, extension not series, original image resolution/fallback, NULLs and owner possession');
-select ok((select bool_and(jsonb_typeof(x->'variant_id')='string' and jsonb_typeof(x->'owned')='boolean')
+select ok((select bool_and(jsonb_typeof(x->'variant_id')='string' and jsonb_typeof(x->'source_card_id')='string'
+    and jsonb_typeof(x->'set_id')='string' and x->>'source_card_id' ~ '^-?[0-9]+$' and x->>'set_id' ~ '^-?[0-9]+$' and jsonb_typeof(x->'owned')='boolean')
   from jsonb_array_elements(public.get_collection_content('c1600000-0000-0000-0000-000000000001')) x),
   'BIGINT identifiers are lossless decimal strings; owned is boolean');
 select ok((select bool_and((select array_agg(k order by k) from jsonb_object_keys(x) k) =
-  array['card_name_fr','collection_item_id','image_url','local_id','origin','owned','series_name_fr','series_name_source','set_abbreviation','set_abbreviation_fr','set_name_fr','variant_id','variant_label'])
+  array['card_name_fr','collection_item_id','image_url','local_id','origin','owned','series_name_fr','series_name_source','set_abbreviation','set_abbreviation_fr','set_id','set_name_fr','source_card_id','variant_id','variant_label'])
   from jsonb_array_elements(public.get_collection_content('c1600000-0000-0000-0000-000000000001')) x),
-  'Exactly thirteen fields: no positions, ranks, counts, owner IDs, timestamps or pipeline metadata');
+  'Exactly fifteen fields: no positions, ranks, counts, owner IDs, timestamps or pipeline metadata');
+select results_eq($$select x->>'source_card_id',x->>'set_id' from jsonb_array_elements(
+  public.get_collection_content('c1600000-0000-0000-0000-000000000001')) with ordinality e(x,n) order by n$$,
+  $$values ('-86001'::text,'-86001'::text),('-86001','-86001'),('-86001','-86001'),('-86001','-86001'),
+    ('-9007199254740995','-9007199254740996')$$,
+  'Exact source card and Extension IDs, including BIGINT beyond JavaScript precision');
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000002'),'[]'::jsonb,'Visible empty collection');
 select is(public.get_collection_content('c1600000-0000-0000-0000-000000000099'),'[]'::jsonb,'Missing collection reveals nothing');
 select is(public.get_collection_content(null),'[]'::jsonb,'NULL collection reveals nothing');
@@ -107,6 +113,14 @@ select is((select array_agg((x->>'collection_item_id')::uuid order by n) from js
 
 set local request.jwt.claims = '{"sub":"a1600000-0000-0000-0000-000000000002","aal":"aal2"}';
 select is(jsonb_array_length(public.get_collection_content('c1600000-0000-0000-0000-000000000001')),5,'Active recipient reads content');
+select results_eq($$select x->>'source_card_id',x->>'set_id' from jsonb_array_elements(
+  public.get_collection_content('c1600000-0000-0000-0000-000000000001')) with ordinality e(x,n) order by n$$,
+  $$values ('-86001'::text,'-86001'::text),('-86001','-86001'),('-86001','-86001'),('-86001','-86001'),
+    ('-9007199254740995','-9007199254740996')$$,
+  'Exact source card and Extension IDs, including BIGINT beyond JavaScript precision');
+select throws_ok($$update public.collection_items set origin='manual'
+  where collection_id='c1600000-0000-0000-0000-000000000001'$$,'42501',null,'Recipient content remains read-only');
+
 select results_eq($$select x->>'variant_id',(x->>'owned')::boolean from jsonb_array_elements(
   public.get_collection_content('c1600000-0000-0000-0000-000000000001')) with ordinality e(x,n) order by n$$,
   $$values ('-86003'::text,false),('-86001',true),('-86002',false),('-9007199254740995',true),('-86005',false)$$,

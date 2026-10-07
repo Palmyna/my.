@@ -22,8 +22,8 @@ vi.mock('../../services/catalog-search', async original => ({ ...await original<
 
 const bigId = '9007199254740995'
 const variant: CatalogVariantForAdd = { variantId: bigId, imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Set exemple', setAbbreviationFr: null, setAbbreviation: 'ASC', localId: '025', variantLabel: 'Reverse' }
-const item: CollectionContentItem = { ...variant, seriesNameFr: null, seriesNameSource: null, collectionItemId: 'c1900000-0000-0000-0000-000000000001', origin: 'manual', owned: true }
-const collection: CollectionOverview = { collectionId: 'collection', ownerId: 'owner', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, totalCount: 1, ownedCount: 1 }
+const item: CollectionContentItem = { sourceCardId: '25', setId: '73', ...variant, seriesNameFr: null, seriesNameSource: null, collectionItemId: 'c1900000-0000-0000-0000-000000000001', origin: 'manual', owned: true }
+const collection: CollectionOverview = { collectionId: 'collection', ownerId: 'owner', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, totalCount: 1, ownedCount: 1 }
 const content = vi.mocked(getCollectionContent), add = vi.mocked(addManualCollectionItem), remove = vi.mocked(removeManualCollectionItem)
 const search = vi.mocked(searchCatalogVariantsForAdd)
 beforeAll(() => {

@@ -1,6 +1,8 @@
 export interface CollectionContentItem {
   collectionItemId: string
   variantId: string
+  sourceCardId: string
+  setId: string
   origin: 'manual' | 'automatic'
   cardNameFr: string | null
   localId: string | null

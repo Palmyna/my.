@@ -116,7 +116,7 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
           throw new CollectionsError('collection_unavailable')
         }
         const { data, error } = await client.from('dashboard_collections')
-          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type')
+          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type,target_id')
           .eq('collection_id', collectionId).maybeSingle()
         if (error) throw error
         if (data === null) throw new CollectionsError('collection_unavailable')
@@ -136,7 +136,7 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
     listDashboardCollections(): Promise<DashboardCollection[]> {
       return request(async () => {
         const { data, error } = await client.from('dashboard_collections')
-          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type')
+          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type,target_id')
         if (error) throw error
         if (!Array.isArray(data)) throw new CollectionsError('unexpected')
         return data.map(dashboardCollection)
@@ -192,10 +192,12 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
 function dashboardCollection(row: Database['public']['Views']['dashboard_collections']['Row']): DashboardCollection {
   // Generated view columns are nullable. Fail closed on malformed or contradictory
   // responses instead of inventing target names, access modes or progress values.
-  if (!row || typeof row.collection_id !== 'string' || !row.collection_id || typeof row.name !== 'string'
+  if (!row || Object.keys(row).length !== 11
+    || typeof row.collection_id !== 'string' || !row.collection_id || typeof row.name !== 'string'
     || (row.collection_type !== 'free' && row.collection_type !== 'automatic')
     || (row.access !== 'owned' && row.access !== 'shared')
     || (row.target_type !== null && row.target_type !== 'pokemon' && row.target_type !== 'set')
+    || (row.target_type === null ? row.target_id !== null : typeof row.target_id !== 'string')
     || (row.target_name !== null && typeof row.target_name !== 'string')
     || (row.target_primary_type !== null && !isPokemonType(row.target_primary_type))
     || (row.target_secondary_type !== null && !isPokemonType(row.target_secondary_type))
@@ -207,9 +209,12 @@ function dashboardCollection(row: Database['public']['Views']['dashboard_collect
     || typeof row.total_count !== 'number' || !Number.isSafeInteger(row.total_count) || row.total_count < row.owned_count) {
     throw new CollectionsError('unexpected')
   }
+  if (row.target_id !== null) {
+    try { variantIdString(row.target_id) } catch { throw new CollectionsError('unexpected') }
+  }
   return {
     collectionId: row.collection_id, name: row.name, collectionType: row.collection_type, access: row.access,
-    targetType: row.target_type, targetName: row.target_name, ownedCount: row.owned_count, totalCount: row.total_count,
+    targetType: row.target_type, targetId: row.target_id, targetName: row.target_name, ownedCount: row.owned_count, totalCount: row.total_count,
     targetPrimaryType: row.target_primary_type, targetSecondaryType: row.target_secondary_type,
   }
 }

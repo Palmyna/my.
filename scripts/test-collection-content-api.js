@@ -63,7 +63,7 @@ try {
   const direct = await request(`collection_items?collection_id=eq.${collection}&select=id&order=sort_position,id`, users[0])
   assert.equal(direct.value.length, 1000, 'This regression requires the configured REST max_rows=1000')
   const expectedIds = Array.from({ length: 1005 }, (_, n) => `d1610000-0000-0000-0000-${String(n + 1).padStart(12, '0')}`)
-  const keys = ['card_name_fr', 'collection_item_id', 'image_url', 'local_id', 'origin', 'owned', 'series_name_fr', 'series_name_source', 'set_abbreviation','set_abbreviation_fr', 'set_name_fr', 'variant_id', 'variant_label']
+  const keys = ['card_name_fr', 'collection_item_id', 'image_url', 'local_id', 'origin', 'owned', 'series_name_fr', 'series_name_source', 'set_abbreviation','set_abbreviation_fr', 'set_id', 'set_name_fr', 'source_card_id', 'variant_id', 'variant_label']
   let ownerPayload
   for (const user of users.slice(0, 2)) {
     const started = performance.now()
@@ -73,6 +73,8 @@ try {
     assert.deepEqual(value.map(item => item.collection_item_id), expectedIds, 'Every ID exactly once in authoritative order')
     value.forEach((item, n) => {
       assert.deepEqual(Object.keys(item).sort(), keys, 'Exact minimal payload')
+      assert.equal(item.source_card_id, '-86001', 'Exact source card ID')
+      assert.equal(item.set_id, '-86001', 'Exact Extension ID')
       assert.equal(item.variant_id, String(-86101 - n), 'Lossless variant ID')
       assert.equal(item.variant_label, `Fixture ${n + 1}`, 'Exact catalogue label')
       assert.equal(item.owned, false, 'No owner copies in volume fixture')
@@ -88,6 +90,8 @@ try {
   // Wire representation preserves a BIGINT outside JavaScript's safe integers.
   const mixed = await request('rpc/get_collection_content', users[1], { p_collection_id: 'c1600000-0000-0000-0000-000000000001' })
   assert.equal(mixed.value[3].variant_id, '-9007199254740995')
+  assert.equal(mixed.value[4].source_card_id, '-9007199254740995')
+  assert.equal(mixed.value[4].set_id, '-9007199254740996')
   assert.equal(mixed.value[1].owned, true, 'A owns/B does not')
   assert.equal(mixed.value[2].owned, false, 'A does not own/B owns')
   assert.equal(mixed.value[4].set_abbreviation, null, 'Missing abbreviation remains explicit null')
@@ -104,9 +108,9 @@ try {
     if (installed) {
       await client.query('begin')
       await client.query('delete from auth.users where id=any($1::uuid[])', [users])
-      await client.query('delete from public.catalog_variants where source_card_id in (-86001,-86002)')
-      await client.query('delete from public.source_cards where id in (-86001,-86002)')
-      await client.query('delete from public.tcg_sets where id in (-86001,-86002)')
+      await client.query('delete from public.catalog_variants where source_card_id in (-86001,-9007199254740995)')
+      await client.query('delete from public.source_cards where id in (-86001,-9007199254740995)')
+      await client.query('delete from public.tcg_sets where id in (-86001,-9007199254740996)')
       await client.query('delete from public.tcg_series where id=-86001')
       await client.query('commit')
       console.log('Synthetic content fixtures removed')
