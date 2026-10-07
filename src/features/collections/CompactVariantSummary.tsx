@@ -4,8 +4,8 @@ import { CardImage } from './CardImage'
 import { formatFrSource } from '../../lib/format-fr-source'
 import { Link } from 'react-router'
 
-export function CompactVariantSummary({ variant, origin, showVariantFallback = false, catalogLinks }: {
-  variant: CatalogVariantForAdd; origin?: CollectionContentItem['origin'] | undefined
+export function CompactVariantSummary({ variant, showVariantFallback = false, catalogLinks }: {
+  variant: CatalogVariantForAdd
   showVariantFallback?: boolean
   catalogLinks?: Pick<CollectionContentItem, 'sourceCardId' | 'setId'>
 }) {
@@ -21,7 +21,6 @@ export function CompactVariantSummary({ variant, origin, showVariantFallback = f
           {extension && <> · <Link to={`/catalog/extensions/${catalogLinks.setId}`}>{extension}</Link></>}
           {variant.localId && <> · <span>{variant.localId}</span></>}
         </> : label}</span>
-        {origin && <span className="collection-content-origin"><span className="visually-hidden">Origine : </span>{origin === 'automatic' ? 'Auto' : 'Perso'}</span>}
       </span>
       {(variant.variantLabel || showVariantFallback) && <span className="collection-content-variant" title={variant.variantLabel || 'Variante indisponible'}>{variant.variantLabel || 'Variante indisponible'}</span>}
     </span>

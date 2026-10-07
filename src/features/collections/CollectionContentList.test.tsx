@@ -69,7 +69,7 @@ const region = () => screen.getByRole('region', { name: 'Contenu de la collectio
 const contentRows = () => within(region()).getAllByRole('listitem')
 
 test.each([['owned', 'list'], ['shared', 'list'], ['owned', 'cards'], ['shared', 'cards']] as const)('Pikachu-ex is a Card; independent links, number, variant and reorder: %s/%s', async (access, view) => {
-  get.mockResolvedValue({ ...overview, access })
+  get.mockResolvedValue({ ...overview, collectionType: 'automatic', access })
   content.mockResolvedValue([{ ...first, cardNameFr: 'Pikachu-ex', sourceCardId: '9007199254740997', setId: '9007199254740998' }])
   setup(view)
   await waitFor(() => expect(screen.getByRole('button', { name: view === 'cards' ? 'Cartes' : 'Liste' })).toHaveAttribute('aria-pressed', 'true'))
@@ -105,9 +105,12 @@ test.each(['list', 'cards'] as const)('Extension link navigates independently in
 })
 
 test.each([['owned', 'list'], ['shared', 'list'], ['owned', 'cards'], ['shared', 'cards']] as const)('main trigger preserves context and route, separate copies shortcut: %s/%s', async (access, view) => {
-  get.mockResolvedValue({ ...overview, access, ownerId: access === 'owned' ? 'viewer' : 'real-owner' })
+  get.mockResolvedValue({ ...overview, collectionType: 'automatic', access, ownerId: access === 'owned' ? 'viewer' : 'real-owner' })
+  content.mockResolvedValue([first, { ...second, origin: 'manual' }])
   // Wait for the real lazy chunk as well as the content query under suite load.
   setup(view); await screen.findByRole('link', { name: 'Pikachu' }, { timeout: 5000 })
+  expect(within(region()).queryByText('Auto')).not.toBeInTheDocument()
+  expect(within(region()).queryByText('Perso')).not.toBeInTheDocument()
   const search = screen.getByRole('searchbox')
   fireEvent.change(search, { target: { value: 'pikachu soleil' } })
   const opener = screen.getByRole('button', { name: /^Voir le détail de Pikachu/  })

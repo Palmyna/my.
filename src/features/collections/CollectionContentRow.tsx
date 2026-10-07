@@ -2,8 +2,8 @@ import { CompactVariantSummary } from './CompactVariantSummary'
 import { CollectionItemMenu } from './CollectionItemMenu'
 import type { CollectionContentItem } from '../../types/collection-content'
 
-export function CollectionContentRow({ item, readOnly, onCopies, onDetail, automatic = false, busy = false, onRemove, view = 'list' }: {
-  item: CollectionContentItem; readOnly: boolean; onCopies: () => void; automatic?: boolean; busy?: boolean
+export function CollectionContentRow({ item, readOnly, onCopies, onDetail, busy = false, onRemove, view = 'list' }: {
+  item: CollectionContentItem; readOnly: boolean; onCopies: () => void; busy?: boolean
   onRemove?: (opener: HTMLElement) => void
   onDetail: (opener: HTMLElement) => void
   view?: 'list' | 'cards'
@@ -25,7 +25,7 @@ export function CollectionContentRow({ item, readOnly, onCopies, onDetail, autom
       {/* Same sibling surface/link pattern as CatalogVariants. Actions stay outside. */}
       <button type="button" className="collection-detail-trigger" aria-haspopup="dialog" aria-label={`Voir le détail de ${actionName}`}
         onClick={event => onDetail(event.currentTarget)} />
-      <CompactVariantSummary variant={item} catalogLinks={item} origin={automatic && view === 'list' ? item.origin : undefined} showVariantFallback={view === 'cards'} />
+      <CompactVariantSummary variant={item} catalogLinks={item} showVariantFallback={view === 'cards'} />
     </div>
     <span className="visually-hidden">{item.owned ? 'Carte possédée' : 'Carte manquante'}</span>
     {view === 'cards' ? <div className="collection-card-image-overlay">{actions}</div> : actions}

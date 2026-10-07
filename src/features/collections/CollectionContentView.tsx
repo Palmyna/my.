@@ -65,7 +65,7 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
   const binderNavigation = useBinderNavigation(items, visibleItems, binderPreferences.format, query, binder && binderPreferences.ready && content.isSuccess)
   const row = (item: CollectionContentItem) => <CollectionContentRow item={item} readOnly={readOnly}
     view={view === 'cards' ? 'cards' : 'list'}
-    automatic={collection.collectionType === 'automatic'} busy={manual.busy}
+    busy={manual.busy}
     onDetail={opener => setDetail({ variantId: item.variantId, opener })}
     onCopies={() => setSelectedId(item.collectionItemId)} onRemove={opener => {
       manual.reset(); setNotice(''); setAddSuccess(false); setAction({ type: 'remove', item, opener })
