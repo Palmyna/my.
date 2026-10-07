@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
+import { PageBackButton } from '../../app/PageBackButton'
 import { resolveCardIdentity } from '../../lib/catalog-identity'
 import { formatFrSource } from '../../lib/format-fr-source'
 import { CatalogError, getCatalogCard } from '../../services/catalog'
@@ -25,10 +26,11 @@ function CardPage({ viewerId, cardId }: { viewerId: string; cardId: string }) {
   const view = useCatalogView(`card:${cardId}`)
   useEffect(() => { document.title = `${card.data?.nameFr || 'Carte'} — MY.` }, [card.data?.nameFr])
   return <section className="catalog-page" aria-label="Catalogue Carte">
+    <PageBackButton />
     {card.isPending && <><h1 tabIndex={-1}>Carte</h1><p role="status">Chargement de la carte…</p></>}
     {card.isError && <><h1 tabIndex={-1}>Carte</h1>
       {card.error instanceof CatalogError && card.error.code === 'catalog_unavailable'
-        ? <><p role="status">Cette carte n’est pas disponible dans le catalogue.</p><Link to="/dashboard">Revenir aux collections</Link></>
+        ? <p role="status">Cette carte n’est pas disponible dans le catalogue.</p>
         : <><p role="alert">Impossible de charger cette carte.</p><button type="button" className="button secondary catalog-retry"
           disabled={card.isFetching} onClick={() => void card.refetch()}>Réessayer</button></>}
     </>}

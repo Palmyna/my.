@@ -96,7 +96,11 @@ test('réunit les accès dans l’ordre serveur, affiche types, cibles et progre
     expect(tile).not.toHaveAttribute('tabindex')
   }
   expect(screen.getByRole('button', { name: 'Créer une collection personnalisée' })).toBeVisible()
-  for (const tile of screen.getAllByRole('article')) expect(within(tile).queryByRole('button')).not.toBeInTheDocument()
+  for (const tile of screen.getAllByRole('article')) {
+    expect(within(tile).queryByRole('button')).not.toBeInTheDocument()
+    expect(tile.querySelector('a a')).toBeNull()
+    expect(within(tile).getAllByRole('link')).toHaveLength(1)
+  }
   expect(screen.getByRole('link', { name: free.name })).toHaveAttribute('href', `/collections/${free.collectionId}`)
   expect(screen.getByRole('link', { name: shared.name })).toHaveAttribute('href', `/collections/${shared.collectionId}`)
   for (const value of ['free', 'pokemon', 'set', free.collectionId, shared.collectionId]) expect(screen.queryByText(value, { exact: true })).not.toBeInTheDocument()

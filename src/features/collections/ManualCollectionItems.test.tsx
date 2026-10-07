@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
@@ -44,7 +45,7 @@ function CollectionContentList({ collection, viewerId }: { collection: Collectio
 }
 function setup(overrides: Partial<CollectionOverview> = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const view = render(<QueryClientProvider client={client}><CollectionContentList collection={{ ...collection, ...overrides }} viewerId="owner" /></QueryClientProvider>)
+  const view = render(<QueryClientProvider client={client}><CollectionContentList collection={{ ...collection, ...overrides }} viewerId="owner" /></QueryClientProvider>, { wrapper: MemoryRouter })
   return { client, ...view }
 }
 const button = (name: string) => screen.getByRole('button', { name })
@@ -88,7 +89,7 @@ test('only manual rows have menu; origin labels only in automatic collections', 
   const view = setup({ collectionType: 'automatic' })
   await screen.findByText('Perso'); expect(screen.getByText('Auto')).toBeVisible()
   expect(screen.getAllByRole('button', { name: /Actions de/ })).toHaveLength(1)
-  view.unmount(); setup(); await screen.findByText('Pikachu · ASC · 025')
+  view.unmount(); setup(); await screen.findByRole('link', { name: 'Pikachu' })
   expect(screen.queryByText('Auto')).not.toBeInTheDocument(); expect(screen.queryByText('Perso')).not.toBeInTheDocument()
 })
 test('300ms debounce, no request for empty/useless input, single character accepted', async () => {
@@ -201,7 +202,7 @@ test('pending add blocks double submission, Escape, cancellation and reorder', a
   await act(async () => { finish(item.collectionItemId); await Promise.resolve() })
 })
 test('in-flight reorder blocks opening add/remove', async () => {
-  const { client } = setup(); await screen.findByText('Pikachu · ASC · 025')
+  const { client } = setup(); await screen.findByRole('link', { name: 'Pikachu' })
   let finish!: () => void
   const mutation = client.getMutationCache().build(client, { mutationKey: collectionStructureMutationKey('owner', 'collection'),
     mutationFn: () => new Promise<void>(resolve => { finish = resolve }) })

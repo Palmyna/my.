@@ -2,7 +2,10 @@
 .collection-content-list { list-style: none; margin: 16px 0; padding: 0; }
 .collection-content-list > li { padding: 3px 0; border-radius: 8px; }
 .collection-content-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.collection-detail-trigger { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; min-height: 44px; padding: 6px; border: 0; border-radius: 7px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.collection-detail-surface { position: relative; display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; min-height: 44px; padding: 6px; border-radius: 7px; }
+.collection-detail-trigger { position: absolute; z-index: 1; inset: 0; width: 100%; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+.collection-content-name a { position: relative; z-index: 2; color: var(--collection-ink, var(--text)); text-decoration-color: currentColor; }
+.collection-content-name a:focus-visible { text-decoration: underline; }
 /* List frame includes independent actions and the optional reorder handle. */
 .collection-content :is(.collection-content-list > li, .collection-reorder-list > .collection-reorder-row) { position: relative; }
 .collection-content :is(.collection-content-list > li, .collection-reorder-list > .collection-reorder-row)::before { content: ''; position: absolute; inset: 0; border: 1px solid transparent; border-radius: inherit; pointer-events: none; }
@@ -15,6 +18,7 @@
 .collection-content-title { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .collection-content-name { display: block; min-width: 0; font-weight: 600; font-size: .88rem; color: var(--text); }
 .collection-content-name, .collection-content-variant { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collection-detail-surface .collection-content-name { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
 .collection-content-variant { display: block; color: var(--text-muted); font-size: .75rem; margin-top: 2px; }
 .collection-content-row.is-missing .collection-content-image { filter: grayscale(1); opacity: .55; }
 .collection-content-row.is-missing .collection-content-info { opacity: .75; }
@@ -35,14 +39,13 @@
 .collection-card-grid { --collection-card-gap: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px var(--collection-card-gap); list-style: none; padding: 0; margin: 16px 0; }
 .collection-card-grid > li { min-width: 0; }
 .collection-content-card { position: relative; display: block; }
-.collection-content-card .collection-detail-trigger { display: flex; flex-direction: column; align-items: stretch; width: 100%; gap: 8px; padding: 0; }
-.collection-content-card .collection-detail-trigger:hover { background: transparent; }
+.collection-content-card .collection-detail-surface { display: flex; flex-direction: column; align-items: stretch; width: 100%; gap: 8px; padding: 0; }
 .collection-content-card .collection-content-image { flex: none; width: 100%; }
 .collection-content-card .collection-content-image img, .collection-content-card .collection-content-image svg { border-radius: 12px; }
 .collection-content-card .collection-content-info { flex: none; width: 100%; }
 .collection-content-card .collection-content-name { font-size: .78rem; }
 .collection-content-card .collection-content-variant { font-size: .72rem; }
-.collection-card-image-overlay { position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 48 / 67; pointer-events: none; }
+.collection-card-image-overlay { position: absolute; z-index: 2; top: 0; left: 0; width: 100%; aspect-ratio: 48 / 67; pointer-events: none; }
 .collection-card-image-overlay .collection-content-actions { position: absolute; right: 6px; bottom: 6px; pointer-events: auto; transition: opacity 120ms ease; }
 .collection-card-image-overlay .collection-content-actions :is(.collection-copies-trigger, .collection-actions-trigger) { background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--text); border-color: color-mix(in srgb, var(--border-strong) 70%, transparent); transition: background-color 120ms ease; }
 @media (hover: hover) and (pointer: fine) {
@@ -81,7 +84,7 @@
 .collection-item-placement input { width: auto; accent-color: var(--collection-accent); }
 @media (max-width: 600px) {
   .collection-content-row, .collection-content .collection-reorder-row { gap: 2px; }
-  .collection-detail-trigger { gap: 8px; padding: 4px 2px; }
+  .collection-detail-surface { gap: 8px; padding: 4px 2px; }
   .collection-content-name { font-size: .78rem; }
   .collection-content-variant { font-size: .7rem; }
   .collection-content-title { gap: 4px; }

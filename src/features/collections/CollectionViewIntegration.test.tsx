@@ -34,7 +34,7 @@ test('selector changes both renderers immediately, preserves search and content 
     <Route path="/collections/:collectionId" element={<CollectionPage />} />
   </Routes></MemoryRouter></QueryClientProvider>)
   // Include the real lazy chunk's transform time in the parallel full suite.
-  await screen.findByText('Pikachu · EXT · 025', {}, { timeout: 5000 })
+  await screen.findByRole('link', { name: 'Pikachu' }, { timeout: 5000 })
   const list = screen.getByRole('button', { name: 'Liste' })
   const cards = screen.getByRole('button', { name: 'Cartes' })
   expect(list).toHaveAttribute('aria-pressed', 'true')

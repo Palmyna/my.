@@ -58,7 +58,11 @@ function setup(id = catalogSet.setId) {
   return { ...result, client }
 }
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
-async function loaded() { await screen.findByRole('heading', { name: catalogSet.nameFr!, level: 1 }) }
+async function loaded() {
+  const title = await screen.findByRole('heading', { name: catalogSet.nameFr!, level: 1 })
+  expect(title.querySelector('a')).toBeNull()
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
+}
 async function creation() { await screen.findByRole('button', { name: 'Créer ma collection' }); press('Créer ma collection'); return screen.getByRole('dialog') }
 
 test('loading, private resource key, title without refocus, no premature CTA', async () => {
@@ -66,6 +70,7 @@ test('loading, private resource key, title without refocus, no premature CTA', a
   read.mockReturnValueOnce(new Promise(done => { resolve = done }))
   const { client } = setup()
   expect(screen.getByText('Chargement de l’Extension…')).toHaveAttribute('role', 'status')
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
   expect(screen.queryByRole('button', { name: 'Créer ma collection' })).not.toBeInTheDocument()
   const target = screen.getByRole('button', { name: 'Retour navigateur' }); target.focus()
   await act(async () => { resolve(catalogSet); await Promise.resolve() }); await loaded()
@@ -82,12 +87,13 @@ test('unauthorized page reads nothing', () => {
 test.each(['invalid', '50'])('unavailable %s has uniform outcome and safe navigation', async id => {
   read.mockRejectedValue(new CatalogError('catalog_unavailable')); setup(id)
   await screen.findByText('Cette Extension n’est pas disponible dans le catalogue.')
-  expect(screen.getByRole('link', { name: 'Revenir aux collections' })).toHaveAttribute('href', '/dashboard')
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
   expect(find).not.toHaveBeenCalled()
 })
 test('technical error hides server messages and retries', async () => {
   read.mockRejectedValueOnce(new Error('42501 SQL secret')).mockResolvedValue(catalogSet); setup()
   await screen.findByText('Impossible de charger cette Extension.')
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
   expect(screen.queryByText(/42501/)).not.toBeInTheDocument(); press('Réessayer'); await loaded()
   expect(read).toHaveBeenCalledTimes(2)
 })

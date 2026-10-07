@@ -89,7 +89,10 @@ h1:focus { outline: none; }
 @media (hover: hover) { .collection-tile:hover { border-color: var(--collection-accent); box-shadow: 0 4px 16px #0003; transform: translateY(-2px); } }
 .collection-tile:focus-visible { outline: 3px solid var(--collection-accent); outline-offset: 3px; border-color: var(--collection-accent); }
 .collection-page { --focus: var(--collection-accent, var(--brand)); max-width: none; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
-.collection-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; font-size: .8rem; color: var(--text-muted); text-decoration: none; }
+.page-back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; padding: 0; border: 0; background: transparent; font-size: .8rem; color: var(--text-muted); cursor: pointer; }
+.page-back:hover { text-decoration: underline; text-underline-offset: .25em; }
+.collection-target a { color: var(--collection-ink); text-decoration-color: currentColor; }
+.collection-target a:focus-visible { text-decoration: underline; }
 .collection-overview { overflow-wrap: anywhere; padding: 16px 20px 20px; border: 1px solid var(--collection-border, var(--border)); border-left: 4px solid var(--collection-accent, var(--border)); border-radius: 10px; background: var(--collection-gradient, var(--surface)); }
 .collection-heading { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 20px; margin-bottom: 8px; }
 .collection-heading h1 { flex: 1 1 0; min-width: 0; margin: 0; font-size: clamp(1.4rem, 3vw, 1.9rem); line-height: 1.4; letter-spacing: -.025em; }

@@ -60,6 +60,7 @@ function setup(initialView: 'list' | 'cards' = 'list') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={[`/collections/${id}`]}><Routes>
     <Route path="/collections/:collectionId" element={<><LocationProbe /><CollectionPage /></>} />
+    <Route path="/catalog/*" element={<LocationProbe />} />
   </Routes></MemoryRouter></QueryClientProvider>
   const view = render(tree())
   return { client, rerender: () => view.rerender(tree()) }
@@ -67,10 +68,46 @@ function setup(initialView: 'list' | 'cards' = 'list') {
 const region = () => screen.getByRole('region', { name: 'Contenu de la collection' })
 const contentRows = () => within(region()).getAllByRole('listitem')
 
+test.each([['owned', 'list'], ['shared', 'list'], ['owned', 'cards'], ['shared', 'cards']] as const)('Pikachu-ex is a Card; independent links, number, variant and reorder: %s/%s', async (access, view) => {
+  get.mockResolvedValue({ ...overview, access })
+  content.mockResolvedValue([{ ...first, cardNameFr: 'Pikachu-ex', sourceCardId: '9007199254740997', setId: '9007199254740998' }])
+  setup(view)
+  await waitFor(() => expect(screen.getByRole('button', { name: view === 'cards' ? 'Cartes' : 'Liste' })).toHaveAttribute('aria-pressed', 'true'))
+  const card = await screen.findByRole('link', { name: 'Pikachu-ex' }, { timeout: 5000 })
+  expect(card).toHaveAttribute('href', '/catalog/cards/9007199254740997')
+  const row = contentRows()[0]!
+  const extension = within(row).getByRole('link', { name: 'EXT' })
+  expect(extension).toHaveAttribute('href', '/catalog/extensions/9007199254740998')
+  expect(within(row).getAllByRole('link')).toHaveLength(2)
+  expect(within(row).getByText('025').closest('a')).toBeNull()
+  expect(within(row).getByText('Holo').closest('a')).toBeNull()
+  expect(row.querySelector('button a, a button, a a')).toBeNull()
+  for (const link of [card, extension]) { link.focus(); expect(link).toHaveFocus() }
+  if (access === 'shared') expect(within(row).queryByRole('button', { name: /Déplacer|Actions/ })).not.toBeInTheDocument()
+  else {
+    const handle = within(row).getByRole('button', { name: 'Déplacer Pikachu-ex' })
+    handle.focus(); expect(handle).toHaveFocus()
+    expect(handle).not.toContainElement(card)
+  }
+  fireEvent.click(card)
+  expect(screen.getByLabelText('Route')).toHaveTextContent('/catalog/cards/9007199254740997')
+  expect(getVariantDetail).not.toHaveBeenCalled(); expect(move).not.toHaveBeenCalled()
+})
+
+test.each(['list', 'cards'] as const)('Extension link navigates independently in %s', async view => {
+  setup(view)
+  await waitFor(() => expect(screen.getByRole('button', { name: view === 'cards' ? 'Cartes' : 'Liste' })).toHaveAttribute('aria-pressed', 'true'))
+  const card = await screen.findByRole('link', { name: 'Pikachu' })
+  const row = card.closest('li')!
+  fireEvent.click(within(row).getByRole('link', { name: 'EXT' }))
+  expect(screen.getByLabelText('Route')).toHaveTextContent('/catalog/extensions/73')
+  expect(getVariantDetail).not.toHaveBeenCalled(); expect(move).not.toHaveBeenCalled(); expect(copies).not.toHaveBeenCalled()
+})
+
 test.each([['owned', 'list'], ['shared', 'list'], ['owned', 'cards'], ['shared', 'cards']] as const)('main trigger preserves context and route, separate copies shortcut: %s/%s', async (access, view) => {
   get.mockResolvedValue({ ...overview, access, ownerId: access === 'owned' ? 'viewer' : 'real-owner' })
   // Wait for the real lazy chunk as well as the content query under suite load.
-  setup(view); await screen.findByText('Pikachu · EXT · 025', {}, { timeout: 5000 })
+  setup(view); await screen.findByRole('link', { name: 'Pikachu' }, { timeout: 5000 })
   const search = screen.getByRole('searchbox')
   fireEvent.change(search, { target: { value: 'pikachu soleil' } })
   const opener = screen.getByRole('button', { name: /^Voir le détail de Pikachu/  })
@@ -93,7 +130,7 @@ test.each([['owned', 'list'], ['shared', 'list'], ['owned', 'cards'], ['shared',
 
 test.each([['owned', 'list'], ['shared', 'list'], ['owned', 'cards'], ['shared', 'cards']] as const)('local search, clear focus and full restoration for %s/%s', async (access, view) => {
   get.mockResolvedValue({ ...overview, access, ownerId: access === 'owned' ? 'viewer' : 'real-owner' })
-  setup(view); await screen.findByText('Pikachu · EXT · 025')
+  setup(view); await screen.findByRole('link', { name: 'Pikachu' })
   const input = within(region()).getByRole('searchbox', { name: 'Rechercher dans la collection…' })
   expect(input).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Effacer la recherche' })).not.toBeInTheDocument()
@@ -126,7 +163,7 @@ test.each([['owned', 'list'], ['shared', 'list'], ['owned', 'cards'], ['shared',
 })
 
 test('matching all cards keeps reorder; current query applies to authoritative added/removed rows', async () => {
-  const { client } = setup(); await screen.findByText('Pikachu · EXT · 025')
+  const { client } = setup(); await screen.findByRole('link', { name: 'Pikachu' })
   const input = within(region()).getByRole('searchbox')
   await waitFor(() => expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'false'))
   fireEvent.change(input, { target: { value: 'EXT' } })
@@ -160,7 +197,7 @@ test('content waits for authorized overview, then loading and exact content key'
   expect(await screen.findByText('Chargement des cartes…')).toBeVisible()
   await waitFor(() => expect(content).toHaveBeenCalledExactlyOnceWith(id))
   await act(() => { finishContent([first]); return Promise.resolve() })
-  expect(await screen.findByText('Pikachu · EXT · 025')).toBeVisible()
+  expect(await screen.findByRole('link', { name: 'Pikachu' })).toBeVisible()
   expect(client.getQueryData(collectionContentKey('viewer', id))).toEqual([first])
 })
 
@@ -185,7 +222,7 @@ test('content failure is sanitized, retry accepts [] without declaring collectio
 })
 
 test.each(['list', 'cards'] as const)('backend order, ownership visuals, enabled controls and masked status: %s', async view => {
-  setup(view); await screen.findByText('Pikachu · EXT · 025')
+  setup(view); await screen.findByRole('link', { name: 'Pikachu' })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'false'))
   const [missing, owned] = contentRows()
   expect(missing).toHaveTextContent('Pikachu'); expect(owned).toHaveTextContent('Évoli')
@@ -197,7 +234,7 @@ test.each(['list', 'cards'] as const)('backend order, ownership visuals, enabled
   expect(screen.getByRole('button', { name: /^Gérer les exemplaires de Pikachu/  })).toBeEnabled()
   expect(within(region()).queryByText(/^(Possédée|Manquante|automatic|manual|origin|…|\.\.\.)$/)).not.toBeInTheDocument()
   expect(within(region()).queryByRole('button', { name: /Enregistrer|reset|Réinitialiser|Actions de/ })).not.toBeInTheDocument()
-  expect(within(region()).queryByRole('link')).not.toBeInTheDocument()
+  expect(within(region()).getAllByRole('link')).toHaveLength(4)
 })
 
 test.each([
@@ -208,7 +245,7 @@ test.each([
   [null, 'SLG', '28/73', 'Pikachu · SLG · 28/73'],
   [null, 'EXT', null, 'Pikachu · EXT'], [null, null, '025', 'Pikachu · 025'], [null, null, null, 'Pikachu'],
 ])('compact title %s / %s / %s', (setAbbreviationFr, setAbbreviation, localId, expected) => {
-  const { container } = render(<CollectionContentRow item={{ ...first, setAbbreviationFr, setAbbreviation, localId }} readOnly={false} onCopies={() => {}} onDetail={() => {}} />)
+  const { container } = render(<CollectionContentRow item={{ ...first, setAbbreviationFr, setAbbreviation, localId }} readOnly={false} onCopies={() => {}} onDetail={() => {}} />, { wrapper: MemoryRouter })
   expect(container.querySelector('.collection-content-name')).toHaveTextContent(expected)
   expect(screen.queryByText('Extension')).not.toBeInTheDocument()
   expect(container.querySelector('.collection-content-variant')).toHaveTextContent('Holo')
@@ -216,14 +253,14 @@ test.each([
 })
 
 test('name fallback, optional variant, exact image URL and graphical missing/broken image', () => {
-  const view = render(<CollectionContentRow item={first} readOnly={false} onCopies={() => {}} onDetail={() => {}} />)
+  const view = render(<CollectionContentRow item={first} readOnly={false} onCopies={() => {}} onDetail={() => {}} />, { wrapper: MemoryRouter })
   expect(screen.getByText('Holo')).toBeVisible()
   const image = screen.getByRole('img', { name: 'Pikachu' })
   expect(image).toHaveAttribute('src', first.imageUrl)
   fireEvent.error(image)
   expect(screen.getByRole('img', { name: 'Image indisponible' }).tagName).toBe('IMG')
   view.rerender(<CollectionContentRow item={{ ...first, imageUrl: null, cardNameFr: null, variantLabel: null }} readOnly onCopies={() => {}} onDetail={() => {}} />)
-  expect(screen.getByText('Nom indisponible · EXT · 025')).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Nom indisponible' })).toBeVisible()
   expect(screen.getByRole('button', { name: 'Consulter les exemplaires de Nom indisponible' })).toBeEnabled()
   expect(screen.queryByText('Holo')).not.toBeInTheDocument()
   expect(screen.getByRole('img', { name: 'Image indisponible' })).toBeInTheDocument()
@@ -233,7 +270,7 @@ test('Cards reuses exact image/placeholder, keeps variant visible, actions separ
   const detail = vi.fn(), copiesAction = vi.fn(), removal = vi.fn()
   const tile = (item: CollectionContentItem, readOnly = false) => <CollectionContentRow item={item} view="cards"
     readOnly={readOnly} onDetail={detail} onCopies={copiesAction} onRemove={removal} />
-  const { container, rerender } = render(tile({ ...first, origin: 'manual' }))
+  const { container, rerender } = render(tile({ ...first, origin: 'manual' }), { wrapper: MemoryRouter })
   expect(screen.getByRole('img', { name: 'Pikachu' })).toHaveAttribute('src', first.imageUrl)
   expect(screen.getByText('Holo')).toBeVisible()
   expect(container.querySelector('.collection-content-card')).toHaveClass('is-missing')
@@ -263,7 +300,7 @@ test('Cards reuses exact image/placeholder, keeps variant visible, actions separ
 test.each([false, true])('shared copies (present=%s) use real owner; no DnD or write controls, notes readable', async present => {
   get.mockResolvedValue({ ...overview, access: 'shared', ownerId: 'real-owner' })
   if (present) rows = [{ id: 'copy', name: 'Cadeau', note: 'Recto intact', created_at: '2026-09-25T00:00:00Z' }]
-  setup(); await screen.findByText('Pikachu · EXT · 025')
+  setup(); await screen.findByRole('link', { name: 'Pikachu' })
   expect(order).not.toHaveBeenCalled()
   expect(screen.queryByRole('button', { name: /Déplacer/ })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Consulter les exemplaires de Pikachu' }))
@@ -279,7 +316,7 @@ test.each([false, true])('shared copies (present=%s) use real owner; no DnD or w
 
 test('BIGINT line -> full dialog -> first/second copy -> delete to zero; owned comes from refetch', async () => {
   content.mockImplementation(() => Promise.resolve([{ ...first, owned: rows.length > 0 }]))
-  const { client } = setup(); await screen.findByText('Pikachu · EXT · 025')
+  const { client } = setup(); await screen.findByRole('link', { name: 'Pikachu' })
   expect(client.getQueryData<CollectionContentItem[]>(collectionContentKey('viewer', id))?.[0]?.variantId).toBe(bigId)
   const opener = screen.getByRole('button', { name: /^Gérer les exemplaires de Pikachu/  })
   opener.focus(); fireEvent.click(opener)
@@ -319,7 +356,7 @@ test.each([[false, 'list'], [true, 'list'], [false, 'cards'], [true, 'cards']] a
   vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(800)
   vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(600)
   vi.spyOn(window, 'scrollBy').mockImplementation(() => {})
-  const { client } = setup(view); await screen.findByText('Pikachu · EXT · 025')
+  const { client } = setup(view); await screen.findByRole('link', { name: 'Pikachu' })
   const handle = screen.getByRole('button', { name: 'Déplacer Pikachu' })
   await waitFor(() => expect(handle).toHaveAttribute('aria-disabled', 'false'))
   const other = collectionContentKey('other-viewer', id)
@@ -374,7 +411,7 @@ test('order read error is accessible beside the list and refresh restores handle
 test('revoked overview removes visible cached rows, open notes/dialog, and private caches', async () => {
   get.mockResolvedValue({ ...overview, access: 'shared', ownerId: 'real-owner' })
   rows = [{ id: 'copy', name: 'Secret', note: 'Note privée', created_at: '2026-09-25T00:00:00Z' }]
-  const { client } = setup(); await screen.findByText('Pikachu · EXT · 025')
+  const { client } = setup(); await screen.findByRole('link', { name: 'Pikachu' })
   fireEvent.click(screen.getByRole('button', { name: 'Consulter les exemplaires de Pikachu' }))
   await screen.findByText('Secret')
   fireEvent.click(screen.getByRole('button', { name: 'Afficher l’état / note de Secret' }))
@@ -387,11 +424,11 @@ test('revoked overview removes visible cached rows, open notes/dialog, and priva
 })
 
 test('logout and viewer switch never show previous private rows', async () => {
-  const { rerender } = setup(); await screen.findByText('Pikachu · EXT · 025')
+  const { rerender } = setup(); await screen.findByRole('link', { name: 'Pikachu' })
   auth.isAuthorized = false; rerender()
-  expect(screen.queryByText('Pikachu · EXT · 025')).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Pikachu' })).not.toBeInTheDocument()
   auth.user = { id: 'next-viewer' }; auth.isAuthorized = true
   get.mockReturnValue(new Promise(() => {})); rerender()
-  expect(screen.queryByText('Pikachu · EXT · 025')).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Pikachu' })).not.toBeInTheDocument()
   expect(content).toHaveBeenCalledTimes(1)
 })

@@ -253,7 +253,7 @@ La section **Versions** suit la préférence globale Liste/Cartes et l’ordre b
 
 **7F.1 livré (`0.7.18`) : contrats uniquement.** `get_collection_content` fournit les IDs obligatoires `source_card_id` et `set_id` en texte BIGINT lossless ; `dashboard_collections` fournit `target_id` en fin de vue. Aucun bouton, lien, route ou CSS modifié.
 
-**7F.2 reste à réaliser :** bouton commun `← Retour` et liens Carte/Extension/Pokémon corrects. Le retour conserve autant que possible la consultation précédente. Précédente / Suivante, swipe de navigation entre cartes, séquence de navigation et navigation rapide contextuelle sont abandonnés pour la V1 actuelle. La pagination Classeur existante reste indépendante.
+**7F.2 livré (`0.7.19`), 7F terminée :** bouton partagé `← Retour` au même emplacement avant Collection/Pokémon/Extension/Carte, présent pendant chargement, erreur et indisponibilité. Historique réel React Router/navigateur, retour exploitable après refresh ; sinon `/dashboard` avec remplacement. Aucune pile métier, restauration manuelle de scroll/filtre ou sessionStorage de séquence. Précédente / Suivante, swipe de navigation entre cartes, séquence de navigation et navigation rapide contextuelle sont abandonnés pour la V1 actuelle. La pagination Classeur existante reste indépendante.
 
 La destination dépend toujours de l’ID et du type d’entité, jamais du texte visible :
 
@@ -263,9 +263,9 @@ La destination dépend toujours de l’ID et du type d’entité, jamais du text
 
 Une cible automatique utilise `targetType + targetId + targetName` : `pokemon` → `/catalog/pokemon/:targetId`, `set` → `/catalog/extensions/:targetId`. Collection libre : les trois valeurs sont nulles.
 
-En vues Liste et Cartes Collection, la surface Détail et les futurs liens seront indépendants des exemplaires, menu et reorder, sans contrôle interactif imbriqué ni double ouverture. Navigation Catalogue également disponible en partage lecture seule autorisé. Numéro non cliquable ; aucun ID reconstruit côté frontend, aucune requête Catalogue supplémentaire.
+En vues Liste et Cartes Collection, la surface Détail et les liens sont indépendants des exemplaires, menu et reorder, sans contrôle interactif imbriqué ni double ouverture. Navigation Catalogue également disponible en partage lecture seule autorisé. Nom Carte et contexte Extension liés indépendamment sur la première ligne semibold ; Variante secondaire et numéro non cliquables. Hover de ligne subtil conservé, liens individuellement soulignés au hover/focus ; aucun ID reconstruit côté frontend, aucune requête Catalogue supplémentaire.
 
-La tuile Dashboard reste entièrement son lien principal vers la Collection, sans lien imbriqué ni restructuration en 7F.1. 7F.2 déterminera les surfaces de références liables sans conflit d’interaction.
+La cible automatique du header Collection est liée selon son type/ID. Nom Carte du Détail Variante lié à la fiche Carte ; fermeture, cleanup et blocage pendant écriture/relecture communs aux liens Extension/Pokémon. La tuile Dashboard et chaque suggestion globale restent un seul lien entier. Titres courants sans self-link ; workflows d’action et Classeur sans navigation supplémentaire.
 
 ## Dashboard
 
@@ -351,7 +351,7 @@ Dans la V1, toutes les collections automatiques sont accessibles sans abonnement
 
 ## Page principale d'une collection
 
-La page livrée en 5D.1, modernisée en 6F.3, présente l'identité de la collection : nom dominant en `h1`, type (`Personnalisée`, `Automatique · Pokémon` ou `Automatique · Extension`) et cible automatique dans une ligne secondaire, progression compacte et mode d'accès. Elle reprend la famille chromatique de sa tuile, y compris l'état neutre `0 / 0`. Le lien `← Collections` mène toujours à `/dashboard`, dans tous les états. Les collections partagées portent le libellé discret `Partagée · Lecture seule`, avec la progression du propriétaire et sans menu propriétaire. La Phase 5D.2 ajoute le renommage et la suppression des collections personnelles, personnalisées comme automatiques.
+La page livrée en 5D.1, modernisée en 6F.3, présente l'identité de la collection : nom dominant en `h1`, type (`Personnalisée`, `Automatique · Pokémon` ou `Automatique · Extension`) et cible automatique dans une ligne secondaire, progression compacte et mode d'accès. Elle reprend la famille chromatique de sa tuile, y compris l'état neutre `0 / 0`. Le bouton partagé `← Retour` utilise l’historique réel, avec fallback `/dashboard` sans entrée MY. précédente exploitable, dans tous les états. Les collections partagées portent le libellé discret `Partagée · Lecture seule`, avec la progression du propriétaire et sans menu propriétaire. La Phase 5D.2 ajoute le renommage et la suppression des collections personnelles, personnalisées comme automatiques.
 
 L'overview compact porte une surface graphite subtilement teintée et un gradient primaire → secondaire, une bordure discrète et un bord gauche primaire. Recherche et contenu restent graphite. `collectionPresentation()` fournit `--collection-accent`, `--collection-secondary`, `--collection-surface`, `--collection-border`, `--collection-gradient`, plus des compagnons de contraste texte/FAB. Partagée ne laisse aucune couleur de cible en arrière-plan. Nom flexible, menu propriétaire, progression, FAB et règles footer existants conservés ; aucun menu/FAB propriétaire en partage. Possédée reste normale, manquante atténuée et N&B dans Liste/Cartes/Classeur ; Catalogue toujours couleur.
 
@@ -797,7 +797,6 @@ Les sujets suivants concernent les fonctionnalités non livrées et d'éventuell
 - les éventuelles évolutions du reorder au-delà des interactions Liste/Cartes livrées ;
 - les éventuelles évolutions de la composition Liste/Cartes et du panneau Détail, au-delà des rendus livrés ;
 - les éventuelles finitions visuelles ultérieures du header ; recherche globale 7E.2 et Paramètres Affichage livrés ;
-- le bouton commun Retour et les liens UI 7F.2 ; contrats 7F.1 livrés ;
 - le design du résumé de mise à jour ;
 - le design des états de chargement et des notifications ;
 - le système d'icônes ;

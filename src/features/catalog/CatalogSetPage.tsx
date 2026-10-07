@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
+import { PageBackButton } from '../../app/PageBackButton'
 import { resolveFunctionalIdentity } from '../../lib/catalog-identity'
 import { formatFrSource } from '../../lib/format-fr-source'
 import { CatalogError, getCatalogSet } from '../../services/catalog'
@@ -25,10 +26,11 @@ function SetPage({ viewerId, setId }: { viewerId: string; setId: string }) {
   const view = useCatalogView(`set:${setId}`)
   useEffect(() => { document.title = `${set.data?.nameFr || set.data?.nameSource || 'Extension'} — MY.` }, [set.data?.nameFr, set.data?.nameSource])
   return <section className="catalog-page" aria-label="Catalogue Extension">
+    <PageBackButton />
     {set.isPending && <><h1 tabIndex={-1}>Extension</h1><p role="status">Chargement de l’Extension…</p></>}
     {set.isError && <><h1 tabIndex={-1}>Extension</h1>
       {set.error instanceof CatalogError && set.error.code === 'catalog_unavailable'
-        ? <><p role="status">Cette Extension n’est pas disponible dans le catalogue.</p><Link to="/dashboard">Revenir aux collections</Link></>
+        ? <p role="status">Cette Extension n’est pas disponible dans le catalogue.</p>
         : <><p role="alert">Impossible de charger cette Extension.</p><button type="button" className="button secondary catalog-retry"
           disabled={set.isFetching} onClick={() => void set.refetch()}>Réessayer</button></>}
     </>}

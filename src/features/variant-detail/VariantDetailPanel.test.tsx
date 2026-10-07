@@ -144,13 +144,14 @@ test('empty specific fields omit Characteristics and Pokemon without placeholder
 })
 
 test.each([
-  ['Extension', '/catalog/extensions/73'], ['Pikachu', '/catalog/pokemon/25'],
+  ['Carte', '/catalog/cards/9007199254740997'], ['Extension', '/catalog/extensions/73'], ['Pikachu', '/catalog/pokemon/25'],
 ])('dialog link %s navigates and cleans up even when its parent remains mounted', async (name, path) => {
-  get.mockResolvedValue({ ...detail, pokemon: [{ pokemonId: '25', dexNumber: 25, nameFr: 'Pikachu', primaryType: 'electric', secondaryType: null }] })
+  get.mockResolvedValue({ ...detail, cardNameFr: 'Pikachu-ex', sourceCardId: '9007199254740997', pokemon: [{ pokemonId: '25', dexNumber: 25, nameFr: 'Pikachu', primaryType: 'electric', secondaryType: null }] })
   document.body.style.overflow = 'auto'
-  setup(); await screen.findByRole('heading', { name: 'Pikachu' })
+  setup(); await screen.findByRole('heading', { name: 'Pikachu-ex' })
   const dialog = screen.getByRole('dialog')
-  const link = name === 'Extension' ? within(dialog).getByRole('link', { name: 'Écarlate et Violet' })
+  const link = name === 'Carte' ? within(dialog).getByRole('link', { name: 'Pikachu-ex' })
+    : name === 'Extension' ? within(dialog).getByRole('link', { name: 'Écarlate et Violet' })
     : within(within(dialog).getByRole('group', { name: 'Pokémon' })).getByRole('link', { name: 'Pikachu' })
   expect(link).toHaveAttribute('href', path)
   fireEvent.click(link, { ctrlKey: true })
@@ -163,7 +164,8 @@ test.each([
   document.body.style.overflow = ''
 })
 
-test('navigation cannot bypass copy write/reread lock and never remounts an active form', async () => {
+test.each(['Carte', 'Extension', 'Pokémon'])('navigation %s cannot bypass copy write/reread lock and never remounts an active form', async name => {
+  get.mockResolvedValue({ ...detail, cardNameFr: 'Pikachu-ex', pokemon: [{ pokemonId: '26', dexNumber: 26, nameFr: 'Raichu', primaryType: 'electric', secondaryType: null }] })
   let saved!: () => void
   create.mockReturnValueOnce(new Promise(resolve => { saved = resolve }))
   const { client } = setup(); await screen.findByText('Aucun exemplaire.')
@@ -177,7 +179,7 @@ test('navigation cannot bypass copy write/reread lock and never remounts an acti
   list.mockReturnValueOnce(new Promise(resolve => { reread = resolve }))
   fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
   await waitFor(() => expect(create).toHaveBeenCalledOnce())
-  const extension = screen.getByRole('link', { name: 'Écarlate et Violet' })
+  const extension = screen.getByRole('link', { name: name === 'Carte' ? 'Pikachu-ex' : name === 'Extension' ? 'Écarlate et Violet' : 'Raichu' })
   fireEvent.click(extension)
   expect(screen.getByRole('dialog')).toBeInTheDocument()
   expect(screen.getByTestId('path')).toHaveTextContent(/^\/$/)
@@ -189,7 +191,7 @@ test('navigation cannot bypass copy write/reread lock and never remounts an acti
   await screen.findByRole('button', { name: 'Ajouter un exemplaire' })
   fireEvent.click(extension)
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(screen.getByTestId('path')).toHaveTextContent('/catalog/extensions/73')
+  expect(screen.getByTestId('path')).toHaveTextContent(name === 'Carte' ? '/catalog/cards/25' : name === 'Extension' ? '/catalog/extensions/73' : '/catalog/pokemon/26')
 })
 
 test('loading can close, errors retry explicitly; variant_unavailable has no invented cause', async () => {

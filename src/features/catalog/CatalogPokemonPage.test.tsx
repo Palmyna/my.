@@ -48,7 +48,11 @@ function setup(id = catalogPokemon.pokemonId) {
   return { ...result, client }
 }
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
-async function loaded() { await screen.findByRole('heading', { name: 'Pikachu', level: 1 }) }
+async function loaded() {
+  const title = await screen.findByRole('heading', { name: 'Pikachu', level: 1 })
+  expect(title.querySelector('a')).toBeNull()
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
+}
 async function creation() { await screen.findByRole('button', { name: 'Créer ma collection' }); press('Créer ma collection'); return screen.getByRole('dialog') }
 
 test('loading stable, no fake CTA; title update never steals focus', async () => {
@@ -56,6 +60,7 @@ test('loading stable, no fake CTA; title update never steals focus', async () =>
   read.mockReturnValueOnce(new Promise(done => { resolve = done }))
   setup()
   expect(screen.getByText('Chargement du Pokémon…')).toHaveAttribute('role', 'status')
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
   expect(screen.queryByRole('button', { name: 'Créer ma collection' })).not.toBeInTheDocument()
   const target = document.createElement('button'); document.body.append(target); target.focus()
   await act(async () => { resolve(catalogPokemon); await Promise.resolve() })
@@ -70,12 +75,13 @@ test('unauthorized page reads nothing', () => {
 test.each(['invalid', '800'])('unavailable ID %s is indistinguishable with safe navigation', async id => {
   read.mockRejectedValue(new CatalogError('catalog_unavailable')); setup(id)
   await screen.findByText('Ce Pokémon n’est pas disponible dans le catalogue.')
-  expect(screen.getByRole('link', { name: 'Revenir aux collections' })).toHaveAttribute('href', '/dashboard')
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
   expect(find).not.toHaveBeenCalled()
 })
 test('technical error + retry does not display server text', async () => {
   read.mockRejectedValueOnce(new Error('42501 secret')).mockResolvedValue(catalogPokemon); setup()
   await screen.findByText('Impossible de charger ce Pokémon.')
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
   expect(screen.queryByText(/42501/)).not.toBeInTheDocument(); press('Réessayer'); await loaded()
   expect(read).toHaveBeenCalledTimes(2)
 })

@@ -11,6 +11,7 @@ import { CollectionActions } from './CollectionActions'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import type { CollectionOverview } from '../../types/collections'
 import { useCollectionView } from './useCollectionView'
+import { PageBackButton } from '../../app/PageBackButton'
 
 export function CollectionPage() {
   const { collectionId = '' } = useParams()
@@ -58,7 +59,7 @@ export function CollectionPage() {
   }
 
   return <section className="authenticated-page collection-page" style={presentation?.style} aria-labelledby="page-title">
-    <Link className="collection-back" to="/dashboard">← Collections</Link>
+    <PageBackButton />
     <div className="collection-overview">
       <header className="collection-heading">
         <h1 ref={heading} id="page-title" tabIndex={-1}>{title}</h1>
@@ -67,7 +68,9 @@ export function CollectionPage() {
       {collection && <>
         <div className="collection-overview-meta">
           <p className="collection-type">{presentation?.typeLabel}</p>
-          {collection.collectionType === 'automatic' && collection.targetName && <p className="collection-target">{collection.targetName}</p>}
+          {collection.collectionType === 'automatic' && collection.targetName && collection.targetId && <p className="collection-target">
+            <Link to={`/catalog/${collection.targetType === 'pokemon' ? 'pokemon' : 'extensions'}/${collection.targetId}`}>{collection.targetName}</Link>
+          </p>}
           {collection.access === 'shared' && <p className="collection-access">Partagée · Lecture seule</p>}
         </div>
         <CollectionProgress collection={collection} />

@@ -11,6 +11,8 @@ import { PhysicalCopiesContent, type PhysicalCopiesContentHandle } from '../phys
 import { trapDialogFocus } from '../physical-copies/trap-dialog-focus'
 import '../collections/collection-content.css'
 import './variant-detail.css'
+import { Link } from 'react-router'
+import { isPlainLinkClick } from '../../lib/is-plain-link-click'
 
 type Props = {
   variantId: VariantIdInput; ownerId: string; readOnly?: boolean; opener: HTMLElement | null; onClose: () => void
@@ -83,7 +85,9 @@ function CatalogDetail({ detail, onNavigate }: { detail: VariantDetail; onNaviga
   return <>
     <div className="variant-detail-intro">
       <CardImage key={detail.imageUrl} url={detail.imageUrl} name={name} size="detail" />
-      <div><h3>{name}</h3>{detail.variantLabel && <p className="variant-detail-version">{detail.variantLabel}</p>}
+      <div><h3><Link to={`/catalog/cards/${detail.sourceCardId}`} onClick={event => {
+        if (isPlainLinkClick(event)) onNavigate(event)
+      }}>{name}</Link></h3>{detail.variantLabel && <p className="variant-detail-version">{detail.variantLabel}</p>}
         {context && <p>{context}</p>}</div>
     </div>
     <CatalogCardMetadata set={{ setId: detail.setId, nameFr: detail.setNameFr, nameSource: detail.setNameSource }}

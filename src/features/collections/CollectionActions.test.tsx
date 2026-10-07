@@ -62,14 +62,14 @@ test('menu propriétaire compact : ouverture, focus, Échap, extérieur et absen
   expect(trigger).toHaveFocus(); expect(trigger).toHaveAttribute('aria-expanded', 'false')
   fireEvent.click(trigger); fireEvent.pointerDown(document.body)
   expect(trigger).toHaveFocus(); expect(screen.queryByRole('group')).not.toBeInTheDocument()
-  fireEvent.click(trigger); screen.getByRole('link', { name: '← Collections' }).focus()
+  fireEvent.click(trigger); screen.getByRole('button', { name: '← Retour' }).focus()
   await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'false'))
 })
 
 test('shared reste sans action propriétaire', async () => {
   row = { ...base, access: 'shared' }; setup()
   await screen.findByText('Partagée · Lecture seule')
-  expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Actions|Réessayer|Ajouter/ })).not.toBeInTheDocument()
 })
 
 test.each(['rename', 'delete'] as const)('dialog %s : ouverture, focus, tabulation, annulation et Échap', async action => {
@@ -110,7 +110,7 @@ test.each(['free', 'pokemon', 'set'] as const)('renommage %s confirmé, caches e
   expect(client.getQueryState(dashboard)?.isInvalidated).toBe(true)
   expect(client.getQueryState(dashboardCollectionsKey('someone-else'))?.isInvalidated).toBe(false)
   expect(client.getQueryData(collectionOverviewKey('someone-else', id))).toEqual(base)
-  fireEvent.click(screen.getByRole('link', { name: '← Collections' }))
+  fireEvent.click(screen.getByRole('button', { name: '← Retour' }))
   expect(await screen.findByRole('link', { name: newName.trim() })).toBeVisible()
 })
 
@@ -142,10 +142,11 @@ test.each(['rename', 'delete'] as const)('%s indisponible : fermeture, cache ret
   (action === 'rename' ? rename : remove).mockRejectedValue(new CollectionsError('collection_unavailable'))
   const { client } = setup(); await open(action); submit()
   const heading = await screen.findByRole('heading', { name: 'Collection indisponible' })
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(heading).toHaveFocus()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  await waitFor(() => expect(heading).toHaveFocus())
   expect(screen.getByRole('alert')).toHaveTextContent('Cette collection n’existe pas ou vous n’y avez plus accès.')
   expect(client.getQueryData(detail)).toBeUndefined()
-  expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Actions|Réessayer|Ajouter/ })).not.toBeInTheDocument()
 })
 
 test.each([

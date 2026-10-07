@@ -10,7 +10,7 @@
 .variant-detail-intro .variant-detail-version { color: var(--collection-ink, var(--catalog-ink, var(--text))); font-size: .95rem; margin-top: 0; }
 .collection-content-image.variant-detail-image { flex: 0 0 168px; width: 168px; border-radius: 8px; background: var(--surface); }
 .variant-detail-panel .catalog-card-metadata { margin: 28px 0 0; }
-.variant-detail-panel :is(.catalog-card-metadata a, .catalog-pokemon-links a) { color: var(--collection-ink, var(--catalog-ink, var(--text))); }
+.variant-detail-panel :is(.variant-detail-intro a, .catalog-card-metadata a, .catalog-pokemon-links a) { color: var(--collection-ink, var(--catalog-ink, var(--text))); text-decoration-color: currentColor; }
 .variant-detail-characteristics { margin-top:16px; padding: 16px 0; border-top: 1px solid var(--border); }
 .variant-detail-characteristics h3 { margin: 0; font-size: .8rem; font-weight: 600; }
 .variant-detail-characteristics .variant-detail-metadata { margin: 12px 0 0; }

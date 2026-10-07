@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
 import { getCollectionContent } from '../../services/collection-content'
@@ -69,7 +70,7 @@ function setup({ initialView = 'binder', globalFormat = '3x3', owned = false, vi
         access: owned ? 'owned' : 'shared', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 25, totalCount: items.length }} />
   }
   const tree = (identity: string) => <QueryClientProvider client={client}><Workspace key={identity} identity={identity} /></QueryClientProvider>
-  const result = render(tree(viewer))
+  const result = render(tree(viewer), { wrapper: MemoryRouter })
   return { ...result, client, changeViewer: (identity: string) => result.rerender(tree(identity)) }
 }
 const book = () => screen.getByRole('region', { name: 'Classeur' })
@@ -239,7 +240,7 @@ test('search keeps pages/slots, jumps once, navigates occurrences without loop a
 test('override is lazy, viewer-specific and authoritative; format change resets page/search/occurrence/halo; reset deletes', async () => {
   vi.mocked(getCollectionViewOverride).mockImplementation(viewer => Promise.resolve(viewer === 'recipient' ? '2x2' : '4x3'))
   const { client, changeViewer } = setup({ initialView: 'list' })
-  await screen.findByText('Évoli 0 · EXT · 0')
+  await screen.findByRole('link', { name: 'Évoli 0' })
   expect(getCollectionViewOverride).not.toHaveBeenCalled()
   search('pikachu'); fireEvent.click(screen.getByRole('button', { name: 'Cartes' }))
   expect(getCollectionViewOverride).not.toHaveBeenCalled()

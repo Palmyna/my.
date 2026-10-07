@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
+import { PageBackButton } from '../../app/PageBackButton'
 import { resolvePokemonIdentity } from '../../lib/catalog-identity'
 import { CatalogError, getCatalogPokemon } from '../../services/catalog'
 import type { CatalogPokemon } from '../../types/catalog'
@@ -27,10 +28,11 @@ function PokemonPage({ viewerId, pokemonId }: { viewerId: string; pokemonId: str
     document.title = `${pokemon.data?.nameFr || 'Pokémon'} — MY.`
   }, [pokemon.data?.nameFr])
   return <section className="catalog-page" aria-label="Catalogue Pokémon">
+    <PageBackButton />
     {pokemon.isPending && <><h1 tabIndex={-1}>Pokémon</h1><p role="status">Chargement du Pokémon…</p></>}
     {pokemon.isError && <><h1 tabIndex={-1}>Pokémon</h1>
       {pokemon.error instanceof CatalogError && pokemon.error.code === 'catalog_unavailable'
-        ? <><p role="status">Ce Pokémon n’est pas disponible dans le catalogue.</p><Link to="/dashboard">Revenir aux collections</Link></>
+        ? <p role="status">Ce Pokémon n’est pas disponible dans le catalogue.</p>
         : <><p role="alert">Impossible de charger ce Pokémon.</p><button type="button" className="button secondary catalog-retry"
           disabled={pokemon.isFetching} onClick={() => void pokemon.refetch()}>Réessayer</button></>}
     </>}

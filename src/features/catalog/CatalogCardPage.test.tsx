@@ -58,13 +58,18 @@ function setup(path = `/catalog/cards/${catalogCard.sourceCardId}`) {
   return { ...result, client }
 }
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
-async function loaded() { await screen.findByRole('heading', { name: catalogCard.nameFr!, level: 1 }) }
+async function loaded() {
+  const title = await screen.findByRole('heading', { name: catalogCard.nameFr!, level: 1 })
+  expect(title.querySelector('a')).toBeNull()
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
+}
 
 test('loading, private stable key, ID unchanged and title without stealing focus', async () => {
   let resolve!: (value: CatalogCard) => void
   read.mockReturnValueOnce(new Promise(done => { resolve = done }))
   const { client } = setup()
   expect(screen.getByText('Chargement de la carte…')).toHaveAttribute('role', 'status')
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
   const target = screen.getByRole('button', { name: 'Retour navigateur' }); target.focus()
   await act(async () => { resolve(catalogCard); await Promise.resolve() }); await loaded()
   expect(target).toHaveFocus(); expect(document.title).toBe('Duo électrique — MY.')
@@ -81,13 +86,15 @@ test('unauthorized reads nothing', () => {
 test.each(['invalid', '300'])('unavailable %s has safe dashboard navigation', async id => {
   read.mockRejectedValue(new CatalogError('catalog_unavailable')); setup(`/catalog/cards/${id}`)
   await screen.findByText('Cette carte n’est pas disponible dans le catalogue.')
-  const link = screen.getByRole('link', { name: 'Revenir aux collections' })
-  expect(link).toHaveAttribute('href', '/dashboard'); fireEvent.click(link)
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
+  const link = screen.getByRole('button', { name: '← Retour' })
+  fireEvent.click(link)
   await screen.findByRole('heading', { name: 'Collections' })
 })
 test('technical error and retry hide backend messages', async () => {
   read.mockRejectedValueOnce(new Error('42501 Supabase private payload')).mockResolvedValue(catalogCard); setup()
   await screen.findByText('Impossible de charger cette carte.')
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
   expect(screen.queryByText(/42501|Supabase|private payload/)).not.toBeInTheDocument()
   press('Réessayer'); await loaded(); expect(read).toHaveBeenCalledTimes(2)
 })

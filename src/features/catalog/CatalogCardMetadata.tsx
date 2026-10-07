@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import type { CatalogPokemonSummary, CatalogSeries, CatalogSetSummary } from '../../types/catalog'
 import { formatCatalogDate } from './format-catalog-date'
 import './catalog-card-metadata.css'
+import { isPlainLinkClick } from '../../lib/is-plain-link-click'
 
 /** Shared reference fields, order and labels for the Card page and Variant panel. */
 export function CatalogCardMetadata({ set, rarity, category, series, effectiveReleaseDate, pokemon, onNavigate }: {
@@ -18,7 +19,7 @@ export function CatalogCardMetadata({ set, rarity, category, series, effectiveRe
   const namedPokemon = pokemon.filter(entry => entry.nameFr?.trim())
   function navigate(event: MouseEvent<HTMLAnchorElement>) {
     // Let Link own routing, including keyboard activation and modified clicks.
-    if (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) onNavigate?.(event)
+    if (isPlainLinkClick(event)) onNavigate?.(event)
   }
   return <>
     {(setName || rarity?.trim() || category?.trim() || seriesName || releaseDate) && <dl className="catalog-card-metadata">
