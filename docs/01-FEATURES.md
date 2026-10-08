@@ -171,7 +171,7 @@ Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. To
 
 ### Mise à jour contrôlée — décisions Phase 8
 
-**Planifiée / en cadrage, non implémentée.** Phase 7 clôturée en `0.7.21` ; Phase 8 cible `0.8.0`, sans changement de version pendant 8A.1.
+**Planifiée / en conception documentaire, non implémentée.** Phase 7 clôturée en `0.7.21` ; Phase 8 cible `0.8.0`, sans changement de version pendant 8A.
 
 Une collection automatique peut évoluer lorsque le catalogue change pour sa cible Pokémon ou Extension. Elle ne doit jamais être modifiée silencieusement.
 
@@ -208,15 +208,22 @@ Exemples métier de référence :
 | A | `A B C D` | `C avant A` | `A X B C D` | **`C A X B D`** |
 | B | `A B C D` | `C avant B` | `A X B C D` | **`A X C B D`** |
 
-Ces exemples ne couvrent pas tout l'algorithme. **8A.2** formalise les cas complexes : déplacements successifs ou interdépendants, disparition d'ancrages, insertions multiples, changements canoniques d'ordre, conversions et interaction avec les éléments masqués non affichés. **8A.3** arrête la représentation persistante et les contrats techniques. Le modèle livré reste `automatic_rank` / `sort_position` ; aucune table, colonne ou signature future n'est choisie ici.
+**R1–R4 validées explicitement par le propriétaire après 8A.2 :**
 
-Compatibilité historique : les collections existantes sont uniquement des données de test. Aucune récupération des intentions de déplacement passées n'est nécessaire ; le propriétaire accepte de recréer ses collections de test. Cette décision n'autorise aucun reset ni suppression pendant 8A.1.
+- **R1 :** contexte de repli issu de l'ordre complet autoritatif juste avant chaque déplacement accepté, automatiques/manuels/masqués compris. Conserver immuablement les successeurs historiques de l'ancre, sujet exclu ; première identité encore présente, puis fin à défaut. Ne jamais recalculer l'intention d'origine à partir d'un nouvel ordre.
+- **R2 :** geste avant B = avant B dans l'ordre complet ; après A = avant son successeur complet après extraction du sujet, sinon fin. Seul le sujet change de place ; les masqués ne sont jamais déplacés implicitement. `A H B C`, H masquée, C avant B → **`A H C B`**. Une recherche textuelle partielle bloque toujours le reorder.
+- **R3 :** retrait réel = perte des intentions propres et du masquage ; réintroduction = nouvel élément/UUID, sans restauration des anciennes personnalisations. Conversion manuel → automatique = même identité et mêmes intentions. Exemplaires/notes conservés indépendamment ; seules les références historiques nécessaires aux intentions d'autres sujets vivants restent conservées.
+- **R4 :** annulation ou séquence inchangée = aucune intention ; retry technique = même opération, jamais second geste. L'ajout manuel enregistre toujours son placement initial, même fin par défaut.
+
+L'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) conserve l'analyse historique et ses 36 scénarios. La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) recommande journal chronologique, contextes immuables et reçus d'opération ; `sort_position` reste l'unique ordre affiché. Les [contrats projetés](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) précisent persistance, révisions et transition, sans fonctionnalité Phase 8 livrée.
+
+Compatibilité historique : les collections existantes sont uniquement des données de test. Aucune récupération des intentions de déplacement passées n'est nécessaire ; le propriétaire accepte de recréer ses collections de test. Cette décision n'autorise aucun reset ni suppression pendant 8A. Les anciens writers devront être refusés sur une collection utilisant le nouveau journal.
 
 ### Masquage des cartes automatiques — décisions Phase 8
 
 **Planifié, non implémenté.** Seul le propriétaire peut masquer/réafficher un élément automatique d'une collection automatique. Le masquage est persistant et propre à cet élément de collection ; les cartes manuelles ne sont pas masquables. Il ne supprime rien et ne modifie ni exemplaires, ni notes, ni origine, ni positions enregistrées.
 
-Les filtres `Non masquées` (actif par défaut) et `Toutes` sont disponibles en Liste, Cartes et Classeur. Le propriétaire dispose d'un petit bouton œil en Liste et Cartes uniquement : aucun dans le Classeur ou les modales de détail/variantes. La réorganisation reste disponible en Liste et Cartes avec les deux filtres de masquage ; les cartes masquées non affichées conservent leur place et ne sont jamais déplacées implicitement. La restriction existante liée à une recherche textuelle partielle reste distincte.
+Les filtres `Non masquées` (actif par défaut) et `Toutes` sont disponibles en Liste, Cartes et Classeur. Le propriétaire dispose d'un petit bouton œil en Liste et Cartes uniquement : aucun dans le Classeur ou les modales de détail/variantes. La réorganisation reste disponible en Liste et Cartes avec les deux filtres de masquage ; seul le sujet est déplacé, l'ordre relatif des autres éléments masqués ou visibles reste identique, sans gel de leurs indices absolus. La restriction existante liée à une recherche textuelle partielle reste distincte.
 
 En Classeur, les cartes masquées sont retirées de la séquence affichée sous `Non masquées` ; les suivantes occupent les emplacements libérés et la pagination est recalculée pour `2x2`, `3x3`, `4x3`. `Toutes` réintègre les éléments masqués dans la séquence. Ce compactage ne modifie jamais l'ordre enregistré ni les exemplaires. La recherche textuelle navigue vers les occurrences dans la séquence du filtre choisi, sans compactage supplémentaire des cartes non masquées.
 
@@ -410,7 +417,7 @@ Une seule notification active par collection, destinée au propriétaire. De nou
 
 Une consultation suffit normalement à les rendre lus et traités. Une annonce nécessitant une action peut rester en attente. Les utilisateurs déjà inscrits reçoivent les nouvelles annonces même déconnectés ; les nouveaux inscrits ne reçoivent pas automatiquement les annonces/changelogs anciens. Exception possible : annonce importante encore d'actualité visible aux nouveaux utilisateurs.
 
-Stockage et suivi individuel via Supabase. Publication par commande ou script sécurisé, utilisable depuis le terminal ou par Codex ; aucune interface d'administration, aucun secret administratif frontend, aucun droit de publication administrative pour les utilisateurs ordinaires. Mécanisme précis à arrêter en 8A.3 et dans les sous-phases notifications. Les notifications de partage ne sont pas ajoutées au périmètre Phase 9.
+Stockage et suivi individuel via Supabase. Publication par commande ou script sécurisé, utilisable depuis le terminal ou par Codex ; aucune interface d'administration, aucun secret administratif frontend, aucun droit de publication administrative pour les utilisateurs ordinaires. La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#8-notifications-et-publication) recommande événements de collection dérivés des versions, annonces communes avec ciblage par date d'inscription et suivi individuel à la lecture, puis publication transactionnelle par rôle PostgreSQL dédié. Aucun mécanisme implémenté. Les notifications de partage ne sont pas ajoutées au périmètre Phase 9.
 
 ## Partage d'une collection
 
@@ -579,12 +586,12 @@ Les collections automatiques sont accessibles normalement dans la V1, sans abonn
 Les sujets suivants devront être définis dans de futurs documents dédiés ou lors de l'implémentation concernée :
 
 - les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
-- en 8A.2, les cas complexes de l'[ordre relatif validé](#réordonnancement-relatif--décisions-phase-8), puis en 8A.3 sa persistance et ses contrats techniques ;
+- la validation de la conception technique 8A.3 avant développement ; algorithme 8A.2 et décisions R1–R4 acquis pour l'[ordre relatif](#réordonnancement-relatif--décisions-phase-8) ;
 - les vérifications historiques d'inclusion de certaines variantes rares et les éventuelles évolutions au-delà des règles V1 du pipeline ;
 - la classification des blocs et des ères ;
 - les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;
 - la fréquence de vérification des mises à jour ;
-- les contrats et la présentation détaillée du résumé, ainsi que les mécanismes techniques du [centre de notifications validé](#centre-de-notifications--décisions-phase-8) ;
+- la présentation détaillée du résumé et du centre, la fraîcheur du badge, les annonces importantes destinées aussi aux nouveaux inscrits et les conditions de traitement des annonces exigeant une action ; contrats techniques proposés en 8A.3 ;
 - la liste définitive des champs utilisés par la recherche ;
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
 - le moyen de contact final pour modifier/remplacer l'Authenticator ;

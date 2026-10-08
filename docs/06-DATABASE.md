@@ -576,7 +576,7 @@ Dans une collection personnalisée, tous les éléments sont manuels. Dans une c
 
 #### Ordre
 
-`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 6A.3 fournit le déplacement contrôlé par midpoint, avec rééquilibrage de la collection et sérialisation des déplacements, décrits ci-dessous. Aucun calcul de position en flottant JavaScript. Le principe futur d'ordre relatif est validé ; sa représentation et ses contrats restent à arrêter en 8A.2/8A.3, voir les [contrats projetés](#contrats-projetés-phase-8--non-implémentés).
+`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 6A.3 fournit le déplacement contrôlé par midpoint, avec rééquilibrage de la collection et sérialisation des déplacements, décrits ci-dessous. Aucun calcul de position en flottant JavaScript. L'algorithme futur 8A.2 et R1–R4 sont validés ; journal, révision et reçus sont recommandés en 8A.3, voir les [contrats projetés](#contrats-projetés-phase-8--non-implémentés). `sort_position` reste leur unique matérialisation affichée.
 
 `automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection personnalisée, y compris lors d'un changement de parent.
 
@@ -937,7 +937,7 @@ Les arguments, contraintes de nom, cible inexistante et refus d'autorisation uti
 
 ### Preview de mise à jour
 
-**Contrat conceptuel futur, non implémenté ; nom et signature illustratifs, à arrêter en 8A.3.**
+**Contrat futur non implémenté, recommandé en 8A.3** : `preview_collection_update(p_collection_id UUID) → JSONB`. Formats détaillés dans les [contrats projetés](#contrats-projetés-phase-8--non-implémentés).
 
 Une opération conceptuelle telle que `preview_collection_update(collection_id)` compare les éléments automatiques matérialisés à la structure actuelle de la cible sans modifier aucune donnée.
 
@@ -957,7 +957,7 @@ Lorsqu'une variante ajoutée manuellement devient éligible automatiquement, l'�
 - le même `collection_item` est conservé ;
 - son `origin` devient `automatic` ;
 - son `automatic_rank` est défini selon le rang canonique système ;
-- son `sort_position` est préservé autant que possible ;
+- ses intentions de placement sont conservées et rejouées ; `sort_position` matérialise ce résultat, sans exigence de garder la même valeur numérique ;
 - aucun doublon n'est créé ;
 - les exemplaires restent inchangés.
 
@@ -971,9 +971,9 @@ Aucun `physical_copy` n'est supprimé. Les exemplaires restent globaux au compte
 
 ### Application transactionnelle
 
-**Contrat conceptuel futur, non implémenté ; nom et signature illustratifs, à arrêter en 8A.3.**
+**Contrat futur non implémenté, recommandé en 8A.3** : `apply_collection_update(p_collection_id UUID, p_preview_token JSONB, p_operation_id UUID) → JSONB`. Le token porte sur l'état canonique et personnel, pas seulement sur une version cible.
 
-Une opération conceptuelle telle que `apply_collection_update(collection_id, expected_target_version)` doit :
+Cette opération doit :
 
 1. vérifier l'identité du propriétaire ;
 2. vérifier que la collection est automatique ;
@@ -988,7 +988,7 @@ Une opération conceptuelle telle que `apply_collection_update(collection_id, ex
 
 Toutes les étapes réussissent ou échouent ensemble.
 
-Le contrat doit aussi contrôler la concurrence avec les mutations de collection et le catalogue, préserver le masquage des automatiques conservés, rendre visibles les nouveaux automatiques et les manuels convertis. La notification de collection n'est traitée qu'après application effective. Mécanismes de contrôle et articulation des états à arrêter en 8A.3.
+Le contrat contrôle aussi la concurrence avec les mutations de collection et le catalogue, préserve le masquage des automatiques conservés et rend visibles les nouveaux automatiques et les manuels convertis. La notification de collection n'est traitée qu'après application effective, par la version réellement appliquée. Révision personnelle, reçus idempotents et ordre de verrous sont recommandés ci-dessous. Une cible devenue vide peut être appliquée à une collection existante après aperçu explicite, sans supprimer les manuels ni autoriser une nouvelle création vide.
 
 Si la cible évolue entre la preview et la validation, l'opération ne doit pas appliquer silencieusement un résumé obsolète. Elle refuse l'application avec l'ancienne version et permet de demander une nouvelle preview.
 
@@ -1006,7 +1006,7 @@ L'ajout augmente immédiatement le total de progression. Une variante déjà pos
 
 Tous les éléments d'une collection personnalisée ou automatique sont librement réordonnables par le propriétaire. Un déplacement modifie `sort_position`, sans modifier `origin`, `automatic_rank`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Les automatiques restent non supprimables manuellement ; les manuels peuvent être ajoutés, retirés et déplacés librement.
 
-Les mises à jour futures suivent le [principe relatif validé](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8). Les cas complexes et la traduction SQL restent à formaliser en 8A.2/8A.3 ; la possibilité de déplacer un automatique est déjà livrée. La primitive 6A.3 ci-dessous ne mémorise actuellement aucune intention relative.
+Les mises à jour futures suivent le [principe relatif et R1–R4 validés](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8), l'algorithme 8A.2 et les contrats 8A.3 ci-dessous. La possibilité de déplacer un automatique est déjà livrée ; la primitive 6A.3 ci-dessous ne mémorise actuellement aucune intention relative.
 
 #### Réorganisation 6A.3 — migration et primitives
 
@@ -1029,20 +1029,47 @@ Les types ont été régénérés depuis le schéma local ; `PendingCollectionRe
 
 ## Contrats projetés Phase 8 — non implémentés
 
-8A.1 valide des besoins, sans créer de table, colonne, RPC, script, type généré ou composant. Les signatures conceptuelles de preview/application ci-dessus ne sont pas des API livrées.
+**Conception 8A.3 recommandée, à valider avant migration ; aucune API Phase 8 livrée.** Le [rapport technique](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) contient les formats complets, erreurs, séquences transactionnelles et preuves requises. Les règles durables ci-dessous complètent le socle livré sans le remplacer rétroactivement.
 
-| Domaine | Garanties attendues | Choix techniques ouverts |
-|---|---|---|
-| Ordre relatif | Intention « avant cet élément » ou fin explicite ; ajouts manuels relatifs ; réapplication chronologique ; ancrage disparu → prochaine carte présente dans l'ancien ordre, sinon fin ; masqués inclus structurellement | Représentation persistante, chronologie, résolution des cas complexes, adaptation des primitives actuelles |
-| Masquage | Persistant par élément automatique d'une collection automatique ; mutation propriétaire seulement ; partagé en lecture seule ; aucun changement d'origine, position, notes ou exemplaires | Champ/stockage, mutation et payloads de lecture, contraintes et policies précises |
-| Progression | Exclusion des masqués des deux comptes, même possédés ; manuels inclus ; Dashboard/Collection/partage cohérents et indépendants du filtre | Évolution coordonnée des lecteurs et agrégations existants |
-| Actualisation | Aperçu ajout/retrait/conversion/ordre ; validation propriétaire ; version présentée et concurrence contrôlées ; application atomique sans perte ni doublon | Payloads, erreurs, validation de preview, verrous et protocole de confirmation |
-| Notifications | États individuels persistants ; non lues seules dans le badge ; traitées/obsolètes retirées ; une active par collection, réactualisée et repassée non lue lors de nouveaux changements | Stockage, unicité, distribution, obsolescence, transitions et intégration avec application |
-| Publication | Annonces/changelogs aux comptes déjà inscrits même déconnectés ; pas de rétroactivité automatique sauf annonce importante actuelle ; commande/script sécurisé sans frontend administratif | Ciblage et exception nouveaux inscrits, mécanisme privilégié, authentification administrative, garanties de reprise |
+**R1–R4 validées :** contexte historique complet capturé juste avant le geste, suffixe immuable sujet exclu ; geste avant/après une visible résolu dans l'ordre complet masqués compris ; nouvel UUID et perte des personnalisations propres après retrait réel, identité conservée à la conversion ; absence d'effet sans intention, retry sans second geste, ajout manuel avec placement initial même en fin. Rejouer toutes les intentions chronologiquement depuis le canonique cible, jamais depuis la sortie personnalisée ni seulement le dernier déplacement du sujet.
 
-Les [règles métier complètes](01-FEATURES.md#centre-de-notifications--décisions-phase-8) fixent les trois catégories initiales ; aucune catégorie supplémentaire implémentée. Les droits doivent préserver RLS, MFA/profil, propriété et confidentialité du partage : aucun utilisateur ordinaire ne publie administrativement et aucun secret privilégié n'est exposé au frontend.
+| Donnée projetée | Contrat durable recommandé |
+|---|---|
+| `collections.personal_revision BIGINT` | Non négative, incrémentée une fois sous verrou parent par mutation structurelle/personnelle effective. Ordre total par collection ; pas de timestamp comme chronologie. Copies, notes, lectures, renommage et préférences hors révision structurelle. |
+| `collections.order_contract_version` | 1 = legacy ; 2 = journal complet. Serveur seul choisit ; collections existantes restent legacy, nouvelles créations v2 après activation coordonnée. |
+| `collection_items.introduced_revision` | Révision du placement initial manuel, conservée lors d'une conversion ; ordre d'introduction des manuels vivants hors canonique. |
+| `private.collection_order_intents` | PK `(collection_id,sequence)` ; UNIQUE `(collection_id,operation_id)` ; sujet vivant avec FK composite/cascade, type ajout initial/déplacement, destination `before/end`, ancre et suffixe ordonné d'UUID historiques **sans FK vers items vivants**, date informative. Retrait du sujet supprime ses intentions, sans modifier les contextes d'autres sujets vivants. |
+| `private.collection_operation_receipts` | PK `(collection_id,operation_id)`, type d'action, empreinte normalisée et résultat minimal/révision. Même UUID/paramètres → résultat accepté, avant contrôle de vieille révision ; autre requête → conflit. Reçu et mutation atomiques, no-op reçu sans intention ; conservé pendant vie du parent sans restaurer de personnalisation. |
+| `collection_items.is_hidden` | Booléen faux par défaut ; vrai seulement automatique dans parent automatique. CHECK d'origine + invariant de parent. Maintenu à l'actualisation pour automatiques conservés ; nouveaux/convertis visibles. Aucun état de masquage sur variante/exemplaire/viewer. |
 
-**8A.2** formalise les cas complexes de déplacements relatifs et les invariants de reorder avec éléments masqués non affichés. **8A.3** arrête persistance, contrats de lecture/écriture, sécurité, concurrence, déploiement coordonné et retour arrière. Pas de récupération d'intentions historiques : collections existantes uniquement de test, recréation acceptée par le propriétaire. Aucune suppression/reset autorisée ici. Le maintien des données lors d'une future transition et la compatibilité avec les décodeurs stricts restent à traiter avant toute migration.
+`sort_position` reste l'unique ordre affiché complet, `automatic_rank` le canonique appliqué et `origin` l'origine métier. Gestes réutilisent midpoint/rééquilibrage ; actualisation matérialise la permutation finale en `1…N`. Canonique indépendant du journal. Ancien canonique reconstitué depuis automatiques matérialisés et rangs appliqués, sans historique de toutes les versions catalogue ni reconstruction des anciens gestes.
+
+| API projetée | Paramètres / retour recommandés |
+|---|---|
+| `reorder_collection_item_v2` | Parent, sujet, `start/end/before/after`, ancre nullable, révision attendue, UUID d'opération → résultat strict action/révision/item. Normalisation serveur avant/ancre ou fin ; contexte depuis ordre complet pré-geste. |
+| `add_manual_collection_item_v2` / `remove_manual_collection_item_v2` | Parent, variante exacte + `start/end` ou item manuel, révision attendue, UUID d'opération → même résultat. Critères/droits 6C.1 conservés, ajout initial journalisé ; retrait sans compaction, copies/notes intactes. |
+| `get_collection_operation_result` | Parent + UUID d'opération → reçu ou NULL ; propriétaire seul, parent actuellement autorisé obligatoire. |
+| `get_collection_content_v2` | Parent → NULL invisible ou `{order_contract_version,personal_revision,items}` ; items = 15 clés 7F.1 + `is_hidden`, séquence complète autoritative. B produit `is_hidden=false` constant ; C raccorde la colonne persistée sans modifier la forme JSON. Lecture invoker sous RLS ; payload v1 conservé pour anciens décodeurs. |
+| `get_collection_update_status` | Parent automatique propriétaire → versions appliquée/cible, hash cible, mode et disponibilité. Écart de versions signale candidat ; égalité de listes canoniques après retour de structure rend le delta inutile/notification obsolète, sans avancer silencieusement version appliquée. |
+| `preview_collection_update` | Parent automatique v2 propriétaire → token, ajouts/retraits/conversions/changements de rang et ordre final complet. Aucun item/UUID nouveau persisté ; aucune lecture automatique par prefetch. |
+| `apply_collection_update` | Parent, token strict, UUID d'opération → version/révision acceptées et correspondances nouveaux UUID. Calcul identique à l'aperçu, contrôle de concurrence, application/reçu atomiques ; copies/notes intactes. |
+| `set_collection_item_hidden` | Parent/item, état booléen demandé, révision attendue, UUID d'opération → résultat action/révision ; propriétaire automatique v2 seulement, manuel refusé. |
+
+Token : version de contrat/calcul, version appliquée, version/hash cible, révision personnelle et empreinte du plan. Changements pertinents depuis aperçu → `preview_stale`, nouvel aperçu requis. Plan sans labels, copies ou notes ; nouveaux items identifiés par variante jusqu'à l'allocation d'UUID à l'application. Statut/aperçu protégés sans écriture de données ; application vers cible vide explicite possible pour un parent existant, création vide toujours refusée.
+
+Progression : coordonner les deux agrégats de `dashboard_collections` avec `NOT (origin='automatic' AND is_hidden)`, puis `EXISTS` de copie pour `collections.owner_id` au numérateur. Dashboard, overview Collection et partage réutilisent la même règle, indépendamment du filtre ; `owned` du contenu reste inchangé. Aucun compteur frontend ni persistant supplémentaire, aucun nouvel accès aux copies des tiers.
+
+Notifications privées recommandées : `collection_notification_reads` (PK parent, version cible lue/date), `notification_announcements` (contenu immuable, clé de publication unique/hash, catégorie changelog/annonce, date serveur, exception nouveaux inscrits, action/expiration/retrait), `notification_announcement_states` (PK utilisateur/annonce, dates lecture/traitement, traité implique lu). Un événement de collection dérive de la version cible et du delta non appliqué : clé unique stable par parent, nouvelle version repasse non lu sans écrire chez tous les propriétaires ; seule application effective traite. Aperçu affiché acquitte sa version observée, jamais une version nouvelle non consultée. Suppression/delta nul → obsolète. Annonces éligibles selon `auth.users.created_at` du seul appelant, même hors connexion ; suivi créé à la demande, exception explicite tant qu'actuelle.
+
+Centre/compteur partagent prédicat d'activité/éligibilité/lecture ; pagination par curseur, compteur global indépendant de la page. `get_notification_center`, `get_notification_unread_count`, `get_notification_content`, `mark_notification_read` et `process_announcement_notification` exposent des unions strictes et suivi du seul appelant. Aucun endpoint utilisateur ne traite une collection à la place de l'application. Contenu ordinaire consulté → lu/traité ; annonce exigeant action → condition validée par publication. Liens/actions internes typés, pas d'HTML exécutable ou URL arbitraire. Aucun Realtime/worker/fanout imposé.
+
+Publication : script Node/`pg` dans un environnement de confiance, rôle PostgreSQL dédié avec EXECUTE sur fonctions privées de publication/retrait uniquement, sans DML direct ni secret frontend. Validation stricte fichier + serveur ; clé unique/hash assure reprise identique ou refus de collision, contenu publié immuable ; correction par retrait/nouvelle publication contrôlés. Rôle ordinaire/`anon`/`service_role` sans EXECUTE sur ces fonctions. Provisionnement secret hors Git, aucune administration UI ni notification externe.
+
+Sécurité/concurrence : journal/reçus/notifications privés sans grants navigateur, RLS en défense ; lectures ordinaires invoker ; RPC privées contrôlées via definer justifié, `search_path=''`, contrôles explicites identité/MFA/profil/propriété ou utilisateur concerné, EXECUTE utilisateur seulement à `authenticated`. Publication par rôle dédié distinct. `READ COMMITTED` et ordre **catalogue partagé `771402` → parent → items/reçus/suivi** pour opérations concernées ; reorder/retrait/masquage sans lecture catalogue verrouillent parent seulement et ne prennent pas le verrou catalogue ensuite. Pipeline exclusif conserve ses verrous catalogue, sans writer de collection.
+
+Interfaces TypeScript : BIGINT/versions/rangs/révisions transportés en chaînes décimales, UUID et JSON validés strictement, erreurs par couples SQLSTATE/message assainis ; types futurs générés depuis migrations Local réelles. Réutiliser clés viewer/parent et verrou UI de mutation structurelle ; invalider contenu/ordre et aperçu après reorder, agrégats après ajout/retrait/masquage/application, centre/compteur après lecture/traitement/application. Relecture après issue incertaine et aucun retry avec nouvel UUID. Partages toujours consultatifs, aucun accès au journal/reçu/aperçu/notifications propriétaire.
+
+Transition : garder payload v1 strict et lecteur v2 distinct, aucune récupération d'intentions historiques. Anciens writers vérifient le mode et **refusent v2**, nouveaux writers refusent legacy ; gardes engagées avant activation des créations v2. Tests existants recréables par propriétaire, sans reset/suppression pendant 8A. Rollback après gestes v2 : conserver journal/reçus/items/masquages/versions et lecteurs compatibles, rendre temporairement v2 consultatif si nécessaire ; jamais restaurer un writer legacy sur v2 ni supprimer des données pour retirer l'API.
 
 ## Partage par identifiant public
 
@@ -1462,10 +1489,10 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
-- pour la Phase 8, les cas complexes du modèle relatif validé (8A.2), puis la persistance et les contrats techniques d'ordre, masquage, actualisation et notifications (8A.3) ;
+- la validation de la conception 8A.3 avant migrations et services des blocs 8B à 8H ; R1–R4 et algorithme 8A.2 acquis ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
-- le code et les signatures finaux des RPC ;
+- le code final des RPC ; signatures Phase 8 recommandées dans les contrats projetés et le rapport 8A.3 ;
 - les éventuelles exigences légales/rétentions particulières liées à la suppression ;
 - la politique opérationnelle de sauvegarde ;
 - les besoins futurs éventuels d'historique ;

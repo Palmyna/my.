@@ -620,7 +620,7 @@ L'action finale est explicite :
 
 La collection n'est jamais mise à jour silencieusement. L'utilisateur reste maître de l'application et ne doit pas subir plusieurs confirmations successives après qu'un résumé clair lui a été présenté.
 
-L'application effective traite la notification. Un aperçu obsolète exige une nouvelle consultation avant confirmation. L'ordre suit les [règles relatives Phase 8](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) ; représentation persistante et cas complexes restent à formaliser en 8A.2/8A.3.
+L'application effective traite la notification. Un aperçu obsolète exige une nouvelle consultation avant confirmation. L'ordre suit les [règles relatives Phase 8 et R1–R4 validées](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8). La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#6-détection-aperçu-et-application) lie le plan aux versions canonique/appliquée et à la révision personnelle ; aucune application silencieuse d'un plan plus récent. Affichage réussi de l'aperçu → acquitter seulement la version effectivement vue ; un préchargement ou aperçu échoué ne marque pas automatiquement lue.
 
 ### Masquage et vues — projet Phase 8
 
@@ -628,7 +628,9 @@ Les trois vues proposent `Non masquées` par défaut et `Toutes`. Ces filtres so
 
 En Liste et Cartes, un petit bouton œil permet au seul propriétaire de masquer/réafficher les éléments automatiques d'une collection automatique. Aucune action sur les cartes manuelles, dans le Classeur ou dans les modales de détail/variantes. L'icône reste un contrôle accessible au clavier, avec état et nom compréhensibles et cible tactile conforme aux 44 px existants ; ses interactions restent indépendantes du détail et du reorder.
 
-La réorganisation reste disponible en Liste et Cartes avec `Non masquées` et `Toutes`. Une carte masquée non affichée conserve sa place, sans déplacement implicite. La règle livrée désactivant le reorder lors d'une recherche textuelle partielle reste distincte : le filtre de masquage seul ne le bloque pas.
+La réorganisation reste disponible en Liste et Cartes avec `Non masquées` et `Toutes`. **R2 validée :** avant une carte visible signifie avant cette carte dans l'ordre complet ; après signifie avant son successeur complet après extraction du sujet, ou fin. Seul le sujet est extrait/réinséré ; l'ordre relatif de tous les autres éléments, masqués compris, reste identique. `A H B C`, H masquée, C avant B → `A H C B`. Les indices absolus peuvent varier sans déplacement implicite. La règle livrée désactivant le reorder lors d'une recherche textuelle partielle reste distincte : comparer les résultats textuels à la séquence du filtre de masquage, qui seul ne le bloque pas.
+
+**R1/R3/R4 validées :** repli d'une ancre selon son contexte immuable au moment du geste ; réintroduction sans anciennes personnalisations, conversion avec même identité ; annulation/absence d'effet sans nouvelle intention, retry sans second geste, ajout manuel avec placement initial même en fin. Aucun parcours de confirmation d'une relation déjà satisfaite ajouté.
 
 En Classeur, `Non masquées` retire les masquées de la séquence affichée ; les suivantes remplissent les emplacements libérés. Pagination recalculée pour les trois formats existants, sans modifier ordre enregistré ni exemplaires. `Toutes` réintègre les masquées. La recherche conserve la navigation par occurrences/halo dans cette séquence, sans compactage textuel supplémentaire. Aucun reorder ni bouton œil sur les pochettes.
 

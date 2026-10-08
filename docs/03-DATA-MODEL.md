@@ -288,11 +288,13 @@ Le modèle doit représenter un ordre stable des éléments :
 
 La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. Les primitives 6A.3 et 6C.1 calculent les positions en PostgreSQL et sérialisent réorganisation, ajout et retrait par verrou de la collection. Un ajout manuel accepte `start` ou `end` (défaut), avec rééquilibrage si nécessaire ; le retrait ne compacte pas l'ordre.
 
-**Modèle conceptuel Phase 8 validé, non persisté actuellement :** distinguer le nouvel ordre canonique des intentions personnelles de positionnement (« avant cet élément » ou fin explicite), y compris pour les ajouts manuels. Réappliquer les déplacements chronologiquement après reconstruction canonique. Les éléments masqués restent dans ce calcul. Le repli d'un ancrage disparu suit la prochaine carte encore présente dans l'ancien ordre, puis la fin à défaut. Les [règles et exemples](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) fixent le comportement ; 8A.2/8A.3 préciseront les cas complexes et la représentation, sans déduire les intentions depuis `sort_position`. Les collections historiques sont des tests recréables, sans récupération des anciens déplacements.
+**Modèle Phase 8 conçu, non persisté actuellement :** reconstruire le canonique cible puis rejouer toutes les intentions personnelles avant/ancre ou fin dans leur chronologie, placements initiaux manuels compris. Les [décisions R1–R4 validées](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) imposent contexte historique complet au moment du geste, immuable ; gestes filtrés résolus dans l'ordre complet ; nouvel UUID après retrait réel, identité conservée lors d'une conversion ; aucun nouveau geste pour annulation, absence d'effet ou retry. Masqués inclus dans le calcul.
+
+La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#4-modèle-persistant-projeté) recommande une révision personnelle transactionnelle par collection, un journal privé de tous les placements utiles et des reçus idempotents distincts. `sort_position` reste l'unique ordre lu ; rangs appliqués et journal servent à reconstruire une actualisation, sans lecteur parallèle ni déduction des anciennes intentions. Les références d'ancre/successeurs peuvent survivre comme UUID historiques dans les intentions d'autres sujets vivants ; les intentions propres d'un sujet retiré sont supprimées. Les collections historiques sont des tests legacy recréables, sans récupération des anciens déplacements ni destruction pendant 8A.
 
 ### Masquage d'un élément — projet Phase 8
 
-Le masquage persistant appartient à l'élément de collection, uniquement automatique dans une collection automatique ; il n'appartient ni à la Variante du catalogue, ni à l'exemplaire, ni au viewer. Seul le propriétaire le modifie. Origine, positions, exemplaires et notes sont inchangés. Un automatique conservé garde son masquage ; un nouvel automatique ou un manuel converti est visible par défaut. Aucune colonne ou table de masquage n'existe dans le socle livré.
+Le masquage persistant appartient à l'élément de collection, uniquement automatique dans une collection automatique ; il n'appartient ni à la Variante du catalogue, ni à l'exemplaire, ni au viewer. Seul le propriétaire le modifie. Origine, positions, exemplaires et notes sont inchangés. Un automatique conservé garde son masquage ; un nouvel automatique ou un manuel converti est visible par défaut. 8A.3 recommande `collection_items.is_hidden`, faux par défaut, invariant d'origine/parent et mutation propriétaire avec révision/reçu. Aucune colonne ou table de masquage n'existe dans le socle livré.
 
 ### Ordre canonique du catalogue
 
@@ -329,7 +331,7 @@ La détection seule ne modifie jamais la collection.
 
 Le modèle doit permettre d'identifier précisément les changements proposés afin de présenter un résumé avant leur application.
 
-Ce résumé peut être calculé à la demande, stocké temporairement ou persisté comme une entité dédiée. Ce choix reste technique et n'est pas fixé ici.
+8A.3 recommande un résumé calculé à la demande, sans table de previews : ajouts, retraits, conversions, changements de rang et séquence finale complète. Un token lie version appliquée, version/hash cible, révision personnelle et empreinte du plan. Aperçu et application partagent le même calcul autoritatif ; changement pertinent depuis l'aperçu → refus et nouvel aperçu. Les nouveaux UUID sont alloués à l'application, les items nouveaux étant identifiés par variante dans le plan. [Formats projetés](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#6-détection-aperçu-et-application).
 
 ### Application d'une mise à jour
 
@@ -339,7 +341,7 @@ Après validation explicite de l'utilisateur :
 - leurs `automatic_rank` sont mis à jour, en préservant autant que possible l'ordre personnalisé sans réinitialisation arbitraire de `sort_position` vers l'ordre canonique ;
 - les éléments automatiques encore éligibles sont conservés ;
 - les éléments automatiques devenus non éligibles sont retirés de la collection ;
-- un élément manuel devenu automatiquement éligible conserve le même `collection_item`, passe à `origin = automatic`, reçoit son `automatic_rank` et conserve autant que possible son `sort_position`, sans doublon ;
+- un élément manuel devenu automatiquement éligible conserve le même `collection_item`, passe à `origin = automatic`, reçoit son `automatic_rank` et conserve ses intentions de placement rejouées, sans doublon ; sa position numérique peut être rematérialisée ;
 - les autres éléments manuels sont préservés ;
 - les exemplaires physiques restent inchangés ;
 - les notes et autres informations personnelles restent inchangées.
@@ -350,7 +352,7 @@ Une mise à jour du catalogue ou d'une collection ne doit jamais entraîner de p
 
 **Projet, non implémenté.** Distinguer le contenu publié ou l'événement de collection de son suivi individuel par utilisateur : non lu, lu non traité, traité. Le badge dérive des non lues actives ; le centre exclut les traitées et les obsolètes. Une collection possède au plus une notification active pour son propriétaire ; de nouveaux changements actualisent celle-ci et réinitialisent sa lecture.
 
-Les annonces/changelogs concernent les comptes déjà inscrits à leur publication, y compris déconnectés. Pas de réception automatique des contenus anciens à l'inscription, sauf annonce importante encore d'actualité. Aucun choix de tables, distribution, horodatages, rétention ou mécanisme d'obsolescence n'est arrêté ici. Le [cycle de vie métier](01-FEATURES.md#centre-de-notifications--décisions-phase-8) et les [frontières techniques](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) font référence.
+Les annonces/changelogs concernent les comptes déjà inscrits à leur publication, y compris déconnectés. Pas de réception automatique des contenus anciens à l'inscription, sauf annonce importante encore d'actualité. 8A.3 recommande événements de collection dérivés des versions, une ligne de lecture par collection à la demande, contenu d'annonce partagé et suivi individuel créé seulement à la lecture/au traitement. Éligibilité par date d'inscription serveur, exception nouveaux inscrits explicite tant que l'annonce reste active ; retrait/expiration rendent obsolète. Pas de diffusion écrivant chez tous les utilisateurs. Le [cycle de vie métier](01-FEATURES.md#centre-de-notifications--décisions-phase-8) et les [contrats projetés](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) font référence ; aucune de ces structures n'est livrée.
 
 ## Exemplaires physiques
 
@@ -589,8 +591,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les éventuelles exigences légales/rétentions particulières liées à la suppression, sans remettre en question le périmètre fonctionnel validé ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
-- la persistance ou non des résumés de mise à jour ;
-- les cas complexes du positionnement relatif en 8A.2, puis sa représentation persistante et les contrats d'actualisation, masquage et notifications en 8A.3 ;
+- la validation technique 8A.3 avant migrations : résumé à la demande, token de confirmation, journal/reçus privés et contrats d'actualisation, masquage et notifications recommandés ; R1–R4 déjà validées ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;

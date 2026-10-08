@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 7 terminées et validées. Version applicative `0.7.21`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Phase 8 — Actualisation, masquage et notifications : planifiée / en cadrage documentaire 8A.1, sans fonctionnalité livrée.**
+**Phases 0 à 7 terminées et validées. Version applicative `0.7.21`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Phase 8 — Actualisation, masquage et notifications : planifiée ; 8A.1 et algorithme 8A.2 validés, R1–R4 acquis, conception documentaire 8A.3 rédigée à valider, sans fonctionnalité livrée.**
 
 | Grandes phases | Statut |
 |---|---|
@@ -182,7 +182,7 @@ Précédente / Suivante, swipe entre cartes, séquence de navigation et navigati
 
 **Statut : PLANIFIÉE / EN CADRAGE — AUCUNE FONCTIONNALITÉ LIVRÉE**
 
-8A.1 consigne les décisions métier. Version cible de Phase 8 : **`0.8.0`** ; application conservée en **`0.7.21`**, aucun changement de version pendant ce cadrage.
+8A.1 consigne les décisions métier ; l'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) et ses arbitrages R1–R4 sont validés. La [conception technique 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) est rédigée, à valider avant tout développement. Version cible de Phase 8 : **`0.8.0`** ; application conservée en **`0.7.21`**, aucun changement de version pendant ce cadrage.
 
 Trois fonctionnalités prévues : actualisation contrôlée des collections automatiques, masquage des cartes automatiques et centre de notifications interne.
 
@@ -197,7 +197,7 @@ Permettre au propriétaire d'actualiser une collection lorsque la structure cano
 
 La synchronisation du catalogue ne modifie jamais silencieusement la structure d'une collection. Si la cible change après l'aperçu, un résumé actualisé est nécessaire avant application.
 
-Principe relatif validé : reconstruire le nouvel ordre canonique puis réappliquer chronologiquement les personnalisations du propriétaire. Relations « avant telle carte » ou fin explicite, y compris pour les ajouts manuels ; nouvelles automatiques insérées après leur prédécesseur canonique ; ancrage disparu → prochaine carte présente dans l'ancien ordre, sinon fin. Masqués inclus dans les calculs. Une conversion conserve le même élément et sa personnalisation autant que possible. [Règles et exemples A/B](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) ; algorithme détaillé en 8A.2, persistance et contrats en 8A.3. Collections historiques uniquement de test, recréation acceptée, sans récupération des anciens déplacements.
+Principe relatif validé : reconstruire le nouvel ordre canonique puis réappliquer chronologiquement toutes les personnalisations. Relations avant/ancre ou fin, ajouts manuels compris. R1 fixe le contexte complet immuable au geste ; R2 résout les gestes filtrés dans l'ordre complet sans déplacer implicitement les masqués ; R3 renouvelle l'identité après retrait réel et la conserve à la conversion ; R4 exclut gestes sans effet/doublons techniques et garde le placement initial manuel. [Règles et exemples A/B](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8). 8A.3 recommande journal/révision/reçus privés, ordre affiché unique via `sort_position`, token d'aperçu et application atomique. Collections historiques de test legacy, recréation acceptée sans récupération des anciens gestes ; aucune destruction pendant 8A.
 
 Masquage persistant réservé au propriétaire et aux éléments automatiques des collections automatiques. Exclusion des deux comptes de progression, manuels inclus, dans Dashboard/Collection/partage quel que soit le filtre. `Non masquées` par défaut / `Toutes` dans les trois vues ; œil seulement Liste/Cartes propriétaire. Classeur compacté sans mutation d'ordre ; recherche sans compactage supplémentaire. Reorder Liste/Cartes disponible avec les deux filtres, sans déplacer implicitement les masqués non affichés. Partage toujours en lecture seule.
 
@@ -217,7 +217,7 @@ Découpage prévisionnel, affinable avant chaque développement :
 | 8H | Notifications : header, panneau, indicateurs |
 | 8I | Tests, audit, clôture et checkpoint Cloud |
 
-**8A.1 uniquement documentaire.** 8A.2 devra formaliser les cas complexes ; 8A.3 arrêtera les choix persistants et les contrats, y compris sécurité, concurrence et compatibilité. Ces étapes ne sont pas réalisées ici. Phase 9 conserve la gestion complète des partages, Phase 10 la finalisation V1 et la production ; la lecture partagée déjà livrée reste acquise.
+**8A reste uniquement documentaire.** 8A.3 prépare persistance, contrats, sécurité, concurrence, compatibilité et retour arrière ; validation attendue avant 8B. Premières dépendances : B fournit journal/révision/reçus et gardes des writers, C complète masquage/progression, E/F réutilisent ces fondations pour aperçu/application, G/H ajoutent backend puis centre de notifications. [Dépendances détaillées](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#13-dépendances-8b-à-8h-et-première-intervention-8b) dans le rapport, sans les transformer en nouvelles grandes phases. Phase 9 conserve la gestion complète des partages, Phase 10 la finalisation V1 et la production ; lecture partagée déjà livrée acquise.
 
 ### Phase 9 — Partage des collections
 
