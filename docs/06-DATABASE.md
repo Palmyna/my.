@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. **Phase 7 terminée et validée : 29 migrations Local / 29 Cloud**, alignées jusqu’à `20261007085921`. Les 29 fichiers sont présents et appliqués Local ; les six migrations Phase 7 sont déployées selon le checkpoint manuel communiqué par le propriétaire après 7G.1. Aucun accès Cloud en 7G.2. Le [rapport de clôture](reports/2026-10-08-PHASE7-CLOSURE.md) distingue preuves locales, audit acquis et confirmations Cloud. Depuis [8B.1](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md), 30 migrations sont appliquées Local ; la dernière prépare l’ordre relatif sans activer de fonctionnalité. Dernier checkpoint Cloud propriétaire : 29 ; aucun accès distant en 8B.1. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. **Phase 7 terminée et validée : 29 migrations Local / 29 Cloud**, alignées jusqu’à `20261007085921`. Les 29 fichiers sont présents et appliqués Local ; les six migrations Phase 7 sont déployées selon le checkpoint manuel communiqué par le propriétaire après 7G.1. Aucun accès Cloud en 7G.2. Le [rapport de clôture](reports/2026-10-08-PHASE7-CLOSURE.md) distingue preuves locales, audit acquis et confirmations Cloud. Depuis [8B.2](reports/2026-10-08-PHASE8B2-RELATIVE-ORDER-ENGINE.md), 31 migrations sont appliquées Local ; stockage 8B.1 et calcul interne de fusion/rejeu 8B.2 livrés sans activer de fonctionnalité utilisateur. Dernier checkpoint Cloud propriétaire : 29 ; aucun accès distant pendant 8B.1/8B.2. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -579,7 +579,7 @@ Dans une collection personnalisée, tous les éléments sont manuels. Dans une c
 
 #### Ordre
 
-`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 6A.3 fournit le déplacement contrôlé par midpoint, avec rééquilibrage de la collection et sérialisation des déplacements, décrits ci-dessous. Aucun calcul de position en flottant JavaScript. L'algorithme futur 8A.2 et R1–R4 sont validés ; stockage du journal, révisions et reçus livré Local en 8B.1, voir les [fondations](#phase-8b1--fondations-postgresql-locales). Leur alimentation et les [contrats v2](#contrats-projetés-phase-8--non-implémentés) restent à développer. `sort_position` reste leur unique matérialisation affichée.
+`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 6A.3 fournit le déplacement contrôlé par midpoint, avec rééquilibrage de la collection et sérialisation des déplacements, décrits ci-dessous. Aucun calcul de position en flottant JavaScript. L'algorithme 8A.2 et R1–R4 sont validés ; stockage du journal, révisions et reçus livré Local en 8B.1, voir les [fondations](#phase-8b1--fondations-postgresql-locales). Le calcul interne 8B.2 est livré ; leur alimentation et les [contrats v2](#contrats-projetés-phase-8--non-implémentés) restent à développer. `sort_position` reste leur unique matérialisation affichée.
 
 `automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection personnalisée, y compris lors d'un changement de parent.
 
@@ -1047,9 +1047,30 @@ Deux tables dans `private`, non exposé dans la configuration API ; RLS sans pol
 
 Rollback avant commit : transaction intégralement annulée. Après commit : conserver le stockage inutilisé et les valeurs par défaut legacy ; aucune contraction/suppression de données autorisée en 8B.1. `is_hidden` reste absent jusqu’à 8C.
 
+## Phase 8B.2 — Moteur PostgreSQL interne Local
+
+Migration [20261008180634_phase8b2_relative_order_engine.sql](../supabase/migrations/20261008180634_phase8b2_relative_order_engine.sql), additive et appliquée Local sans reset. [Contrat détaillé et preuves](reports/2026-10-08-PHASE8B2-RELATIVE-ORDER-ENGINE.md).
+
+```sql
+private.merge_collection_relative_order(
+  p_collection_id uuid,
+  p_canonical private.collection_order_canonical_entry[],
+  p_items private.collection_order_item_entry[],
+  p_intents private.collection_order_intents[]
+) returns jsonb
+```
+
+Deux types composites privés servent uniquement de projections en mémoire : canonique `(variant_id BIGINT, automatic_rank BIGINT)` ; item `(collection_id UUID, collection_item_id UUID, variant_id BIGINT, origin TEXT, automatic_rank BIGINT, introduced_revision BIGINT, is_hidden BOOLEAN)`. Journal : type de ligne 8B.1 réutilisé, sans lecture de sa table. Canonique fourni ordonné aux rangs continus `1…N`, items complets sans ordre requis, intentions strictement croissantes par `sequence` avec trous autorisés. Tous les manuels vivants et les automatiques déjà convertis gardent leur introduction et leur placement initial. Aucun `sort_position`, filtre, vue ou possession en entrée. Jusqu’à 8C, un futur appelant fournira `is_hidden=false` ; aucune colonne de masquage ajoutée ici.
+
+Résultat strict interne : `final_order`, `added`, `removed`, `converted`, `rank_changes`, `replay`. Les cinq premières listes suivent les formes structurelles 8A.3 ; `replay` trace en interne chaque séquence, sujet, résolution et ancre effective. BIGINT sérialisés en chaînes décimales exactes ; UUID existants conservés, UUID des nouveaux automatiques NULL. Retraits triés par ancien rang ; autres classifications par rang cible. Rangs jamais modifiés par les déplacements. `replay` n’est pas un contrat public et ne contient pas de copie d’ordre par geste.
+
+Fonction `STABLE`, `PARALLEL SAFE`, `SECURITY INVOKER`, `search_path=''` : seules les entrées sont consultées ; aucune écriture, allocation d’UUID, lecture de table ou prise de verrou. `STABLE` respecte les constructeurs JSONB PostgreSQL ; le résultat reste déterministe. EXECUTE et USAGE des nouveaux types révoqués à PUBLIC, anon, authenticated et service_role. Erreur d’entrée logique : `22023 / collection_order_input_invalid`, catégorie en DETAIL ; erreurs natives de type/overflow à la construction des paramètres. L’appartenance historique des UUID absents et l’exhaustivité du suffixe R1 doivent être garanties lors de la capture par les futurs writers ; elles ne sont pas déduites de l’ordre actuel.
+
+Validation : **36/36 scénarios 8A.2**, 498 assertions pgTAP ciblées et 384 cas de permutation/destination de la primitive ; **24 fichiers / 2 157 assertions DB PASS**. Calcul aussi vérifié en transaction READ ONLY. Fonctions/lecteurs/writers v1, données et permissions préexistantes identiques ; toutes les collections réelles restent contrat 1/révision zéro. Aucun appel applicatif, writer v2, aperçu ou application livré. Avant commit, rollback intégral ; après commit, conserver ces objets privés inutilisés. Toute suppression ultérieure exige vérification des dépendances, sans retour arrière sur les données.
+
 ## Contrats projetés Phase 8 — non implémentés
 
-**Conception 8A.3 validée ; stockage 8B.1 livré Local, aucune API ni calcul Phase 8 livrés.** Le [rapport technique](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) contient les formats complets, erreurs, séquences transactionnelles et preuves requises. Les règles durables ci-dessous complètent le socle livré sans le remplacer rétroactivement.
+**Conception 8A.3 validée ; stockage 8B.1 et calcul interne 8B.2 livrés Local, aucune API utilisateur Phase 8 livrée.** Le [rapport technique](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) contient les formats complets, erreurs, séquences transactionnelles et preuves requises. Les règles durables ci-dessous complètent le socle livré sans le remplacer rétroactivement.
 
 **R1–R4 validées :** contexte historique complet capturé juste avant le geste, suffixe immuable sujet exclu ; geste avant/après une visible résolu dans l'ordre complet masqués compris ; nouvel UUID et perte des personnalisations propres après retrait réel, identité conservée à la conversion ; absence d'effet sans intention, retry sans second geste, ajout manuel avec placement initial même en fin. Rejouer toutes les intentions chronologiquement depuis le canonique cible, jamais depuis la sortie personnalisée ni seulement le dernier déplacement du sujet.
 
@@ -1509,7 +1530,7 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
-- les calculs, writers/lecteurs v2 et leur activation selon 8A.3 validée ; seul le stockage préparatoire 8B.1 est livré Local ;
+- les writers/lecteurs v2 et leur activation selon 8A.3 validée ; stockage préparatoire 8B.1 et calcul interne 8B.2 livrés Local ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code final des RPC ; signatures Phase 8 recommandées dans les contrats projetés et le rapport 8A.3 ;
