@@ -38,7 +38,9 @@ select col_type_is('public', 'profiles', 'public_id', 'citext', 'Public ID equal
 select hasnt_column('public', 'physical_copies', 'collection_id', 'Copies are independent of collections');
 select hasnt_column('public', 'physical_copies', 'quantity', 'One row per physical copy');
 select hasnt_column('public', 'collection_shares', 'status', 'Share existence means active');
-select is((select count(*) from information_schema.tables where table_schema = 'private'), 3::bigint, 'Phase 2 pipeline tables remain private');
+select results_eq($$select table_name::text collate "default" from information_schema.tables where table_schema = 'private' order by table_name$$,
+  array['catalog_entity_keys','catalog_overrides','catalog_sync_runs','collection_operation_receipts','collection_order_intents']::text[],
+  'Pipeline and relative-order storage remain private');
 
 -- Synthetic fixtures only; all tests roll back. Never assume user tables are empty.
 create temporary table schema_fixture_users (id uuid primary key) on commit drop;

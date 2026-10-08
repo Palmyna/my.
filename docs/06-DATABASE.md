@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. **Phase 7 terminée et validée : 29 migrations Local / 29 Cloud**, alignées jusqu’à `20261007085921`. Les 29 fichiers sont présents et appliqués Local ; les six migrations Phase 7 sont déployées selon le checkpoint manuel communiqué par le propriétaire après 7G.1. Aucun accès Cloud en 7G.2. Le [rapport de clôture](reports/2026-10-08-PHASE7-CLOSURE.md) distingue preuves locales, audit acquis et confirmations Cloud. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. **Phase 7 terminée et validée : 29 migrations Local / 29 Cloud**, alignées jusqu’à `20261007085921`. Les 29 fichiers sont présents et appliqués Local ; les six migrations Phase 7 sont déployées selon le checkpoint manuel communiqué par le propriétaire après 7G.1. Aucun accès Cloud en 7G.2. Le [rapport de clôture](reports/2026-10-08-PHASE7-CLOSURE.md) distingue preuves locales, audit acquis et confirmations Cloud. Depuis [8B.1](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md), 30 migrations sont appliquées Local ; la dernière prépare l’ordre relatif sans activer de fonctionnalité. Dernier checkpoint Cloud propriétaire : 29 ; aucun accès distant en 8B.1. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -523,6 +523,8 @@ Une collection appartient à exactement un utilisateur. La table conserve notamm
 | `target_pokemon_id` | Cible Pokémon éventuelle |
 | `target_set_id` | Cible Extension éventuelle |
 | `applied_target_version` | Version de structure réellement appliquée |
+| `personal_revision BIGINT` | Préparée en 8B.1 Local, NOT NULL, défaut 0, CHECK ≥ 0 ; writers v1 ne l’incrémentent pas |
+| `order_contract_version SMALLINT` | Préparé en 8B.1 Local, NOT NULL, défaut 1, CHECK IN (1,2) ; serveur seul, aucune activation v2 |
 | timestamps | Création et mise à jour |
 
 `collection_type` utilise `free` (collection personnalisée dans l'interface) et `automatic`. `automatic_target_type` utilise `pokemon` et `set`. Ces valeurs sont représentées par `TEXT + CHECK`, comme les origines et la disponibilité française, pour faciliter les migrations d'une jeune application sans enum PostgreSQL figé.
@@ -562,6 +564,7 @@ Cette table matérialise les variantes présentes dans une collection. Elle cons
 | `origin` | Élément automatique ou manuel |
 | `sort_position` | Ordre réel affiché dans cette collection, pour tous les éléments |
 | `automatic_rank` | Rang canonique système d'un élément automatique |
+| `introduced_revision BIGINT NULL` | Préparée en 8B.1 Local, positive si présente ; historiques et ajouts v1 restent NULL |
 | timestamps | Création et mise à jour |
 
 Une variante ne peut apparaître qu'une seule fois dans une collection :
@@ -576,7 +579,7 @@ Dans une collection personnalisée, tous les éléments sont manuels. Dans une c
 
 #### Ordre
 
-`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 6A.3 fournit le déplacement contrôlé par midpoint, avec rééquilibrage de la collection et sérialisation des déplacements, décrits ci-dessous. Aucun calcul de position en flottant JavaScript. L'algorithme futur 8A.2 et R1–R4 sont validés ; journal, révision et reçus sont recommandés en 8A.3, voir les [contrats projetés](#contrats-projetés-phase-8--non-implémentés). `sort_position` reste leur unique matérialisation affichée.
+`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 6A.3 fournit le déplacement contrôlé par midpoint, avec rééquilibrage de la collection et sérialisation des déplacements, décrits ci-dessous. Aucun calcul de position en flottant JavaScript. L'algorithme futur 8A.2 et R1–R4 sont validés ; stockage du journal, révisions et reçus livré Local en 8B.1, voir les [fondations](#phase-8b1--fondations-postgresql-locales). Leur alimentation et les [contrats v2](#contrats-projetés-phase-8--non-implémentés) restent à développer. `sort_position` reste leur unique matérialisation affichée.
 
 `automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection personnalisée, y compris lors d'un changement de parent.
 
@@ -1027,19 +1030,36 @@ Le service `collection-items` expose la lecture des IDs et un déplacement méti
 
 Les types ont été régénérés depuis le schéma local ; `PendingCollectionReorderDatabase` et le cast associé sont supprimés. Pour `start`/`end`, le service omet `p_anchor_id` : PostgreSQL applique son défaut `NULL`, conformément à la signature générée optionnelle. Pour `before`/`after`, l'ancre reste transmise. Aucun comportement métier modifié. Le test pgTAP `014_collection_reorder.test.sql` et `scripts/test-collection-reorder-concurrency.ts` ont été exécutés avec succès après application locale durable ; le second utilise des fixtures synthétiques et vérifie l'attente réelle de deux connexions, l'indépendance d'une autre collection, l'atomicité et le rollback. Il exige une base locale disposant des fonctions ; il n'applique aucune migration. Un rollback du déploiement peut supprimer les deux fonctions par une nouvelle migration ; les positions stockées restent valides. Ces preuves locales sont complétées par le checkpoint Cloud manuel du propriétaire consigné dans le rapport de clôture Phase 6.
 
+## Phase 8B.1 — Fondations PostgreSQL locales
+
+Migration [20261008153458_phase8b1_relative_order_foundations.sql](../supabase/migrations/20261008153458_phase8b1_relative_order_foundations.sql), créée par la CLI et appliquée au volume Local conservé. [Rapport et validations](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md). Conception 8A.3 validée ; rapports 8A.2/8A.3 historiques conservés.
+
+Les colonnes décrites ci-dessus sont désormais présentes Local. Toutes les collections existantes et nouvelles restent en contrat 1, révision zéro ; introductions historiques/manuelles v1 NULL. Aucune modification des créations, writers, lecteurs, positions, rangs, données catalogue ou privilèges existants. Pas de contrainte différée imposant déjà une intention initiale : cet invariant v2 sera livré avec ses writers avant activation.
+
+| Table privée livrée | Intégrité persistante |
+|---|---|
+| `collection_order_intents` | UUID parent/opération/sujet ; `sequence BIGINT > 0` ; `kind manual_add/move` ; `destination before/end` ; ancre nullable, suffixe UUID[] obligatoire, date serveur par défaut. PK `(collection_id,sequence)`, UNIQUE `(collection_id,operation_id)`. FK parent cascade et FK sujet composite vers UNIQUE `collection_items(collection_id,id)`, cascade ; index `(collection_id,subject_item_id)`. |
+| `collection_operation_receipts` | PK `(collection_id,operation_id)`, FK parent cascade ; `kind move/add/remove/hide/apply` ; empreinte SHA-256 hexadécimale minuscule à 64 caractères ; révision acceptée BIGINT ≥ 0, résultat JSONB objet obligatoire, date serveur par défaut. Aucun lien aux items : retrait du sujet conserve le reçu. |
+
+Avant exige ancre distincte du sujet ; fin exige ancre NULL et suffixe vide. Suffixe ordonné à une dimension, indices depuis 1, sans NULL, doublon, sujet ni ancre ; validation SQL pure interne. Ancre/suffixe sont des UUID historiques **sans FK** vers les items. Trigger d’intégrité interdit toute modification effective d’une intention acceptée, dont réordonnancement du suffixe ; suppressions/cascades restent possibles. Retirer ancre/successeur conserve les références des autres sujets vivants. Retirer le sujet supprime toutes ses intentions ; supprimer le parent supprime journal/reçus.
+
+Deux tables dans `private`, non exposé dans la configuration API ; RLS sans policy et révocation explicite de tous droits à PUBLIC, anon, authenticated et service_role. Helpers invoker, `search_path=''`, EXECUTE fermé. Aucun accès frontend ni writer métier. Les futurs writers contrôleront sous verrou la validité des références à l’acceptation, l’allocation de révision, le placement manuel initial et les reprises ; le schéma seul n’invente pas ces traitements. Aucune relation journal/reçu obligatoire avant leur livraison atomique.
+
+Rollback avant commit : transaction intégralement annulée. Après commit : conserver le stockage inutilisé et les valeurs par défaut legacy ; aucune contraction/suppression de données autorisée en 8B.1. `is_hidden` reste absent jusqu’à 8C.
+
 ## Contrats projetés Phase 8 — non implémentés
 
-**Conception 8A.3 recommandée, à valider avant migration ; aucune API Phase 8 livrée.** Le [rapport technique](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) contient les formats complets, erreurs, séquences transactionnelles et preuves requises. Les règles durables ci-dessous complètent le socle livré sans le remplacer rétroactivement.
+**Conception 8A.3 validée ; stockage 8B.1 livré Local, aucune API ni calcul Phase 8 livrés.** Le [rapport technique](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) contient les formats complets, erreurs, séquences transactionnelles et preuves requises. Les règles durables ci-dessous complètent le socle livré sans le remplacer rétroactivement.
 
 **R1–R4 validées :** contexte historique complet capturé juste avant le geste, suffixe immuable sujet exclu ; geste avant/après une visible résolu dans l'ordre complet masqués compris ; nouvel UUID et perte des personnalisations propres après retrait réel, identité conservée à la conversion ; absence d'effet sans intention, retry sans second geste, ajout manuel avec placement initial même en fin. Rejouer toutes les intentions chronologiquement depuis le canonique cible, jamais depuis la sortie personnalisée ni seulement le dernier déplacement du sujet.
 
-| Donnée projetée | Contrat durable recommandé |
+| Donnée / état | Contrat durable validé |
 |---|---|
-| `collections.personal_revision BIGINT` | Non négative, incrémentée une fois sous verrou parent par mutation structurelle/personnelle effective. Ordre total par collection ; pas de timestamp comme chronologie. Copies, notes, lectures, renommage et préférences hors révision structurelle. |
-| `collections.order_contract_version` | 1 = legacy ; 2 = journal complet. Serveur seul choisit ; collections existantes restent legacy, nouvelles créations v2 après activation coordonnée. |
-| `collection_items.introduced_revision` | Révision du placement initial manuel, conservée lors d'une conversion ; ordre d'introduction des manuels vivants hors canonique. |
-| `private.collection_order_intents` | PK `(collection_id,sequence)` ; UNIQUE `(collection_id,operation_id)` ; sujet vivant avec FK composite/cascade, type ajout initial/déplacement, destination `before/end`, ancre et suffixe ordonné d'UUID historiques **sans FK vers items vivants**, date informative. Retrait du sujet supprime ses intentions, sans modifier les contextes d'autres sujets vivants. |
-| `private.collection_operation_receipts` | PK `(collection_id,operation_id)`, type d'action, empreinte normalisée et résultat minimal/révision. Même UUID/paramètres → résultat accepté, avant contrôle de vieille révision ; autre requête → conflit. Reçu et mutation atomiques, no-op reçu sans intention ; conservé pendant vie du parent sans restaurer de personnalisation. |
+| `collections.personal_revision BIGINT` — stockage livré Local | Non négative, incrémentée une fois sous verrou parent par mutation structurelle/personnelle effective. Ordre total par collection ; pas de timestamp comme chronologie. Copies, notes, lectures, renommage et préférences hors révision structurelle. |
+| `collections.order_contract_version` — stockage livré Local | 1 = legacy ; 2 = journal complet. Serveur seul choisit ; collections existantes restent legacy, nouvelles créations v2 après activation coordonnée. |
+| `collection_items.introduced_revision` — stockage livré Local | Révision du placement initial manuel, conservée lors d'une conversion ; ordre d'introduction des manuels vivants hors canonique. |
+| `private.collection_order_intents` — stockage livré Local | PK `(collection_id,sequence)` ; UNIQUE `(collection_id,operation_id)` ; sujet vivant avec FK composite/cascade, type ajout initial/déplacement, destination `before/end`, ancre et suffixe ordonné d'UUID historiques **sans FK vers items vivants**, date informative. Retrait du sujet supprime ses intentions, sans modifier les contextes d'autres sujets vivants. |
+| `private.collection_operation_receipts` — stockage livré Local | PK `(collection_id,operation_id)`, type d'action, empreinte normalisée et résultat minimal/révision. Même UUID/paramètres → résultat accepté, avant contrôle de vieille révision ; autre requête → conflit. Reçu et mutation atomiques, no-op reçu sans intention ; conservé pendant vie du parent sans restaurer de personnalisation. |
 | `collection_items.is_hidden` | Booléen faux par défaut ; vrai seulement automatique dans parent automatique. CHECK d'origine + invariant de parent. Maintenu à l'actualisation pour automatiques conservés ; nouveaux/convertis visibles. Aucun état de masquage sur variante/exemplaire/viewer. |
 
 `sort_position` reste l'unique ordre affiché complet, `automatic_rank` le canonique appliqué et `origin` l'origine métier. Gestes réutilisent midpoint/rééquilibrage ; actualisation matérialise la permutation finale en `1…N`. Canonique indépendant du journal. Ancien canonique reconstitué depuis automatiques matérialisés et rangs appliqués, sans historique de toutes les versions catalogue ni reconstruction des anciens gestes.
@@ -1489,7 +1509,7 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
-- la validation de la conception 8A.3 avant migrations et services des blocs 8B à 8H ; R1–R4 et algorithme 8A.2 acquis ;
+- les calculs, writers/lecteurs v2 et leur activation selon 8A.3 validée ; seul le stockage préparatoire 8B.1 est livré Local ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code final des RPC ; signatures Phase 8 recommandées dans les contrats projetés et le rapport 8A.3 ;

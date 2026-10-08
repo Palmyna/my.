@@ -171,7 +171,7 @@ Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. To
 
 ### Mise à jour contrôlée — décisions Phase 8
 
-**Planifiée / en conception documentaire, non implémentée.** Phase 7 clôturée en `0.7.21` ; Phase 8 cible `0.8.0`, sans changement de version pendant 8A.
+**Actualisation non implémentée.** Conception 8A.3 validée ; Phase 8 en développement depuis `0.8.0`. [8B.1](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md) livre uniquement le stockage PostgreSQL Local, sans nouvelle fonctionnalité utilisateur ni activation du contrat 2.
 
 Une collection automatique peut évoluer lorsque le catalogue change pour sa cible Pokémon ou Extension. Elle ne doit jamais être modifiée silencieusement.
 
@@ -586,7 +586,7 @@ Les collections automatiques sont accessibles normalement dans la V1, sans abonn
 Les sujets suivants devront être définis dans de futurs documents dédiés ou lors de l'implémentation concernée :
 
 - les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
-- la validation de la conception technique 8A.3 avant développement ; algorithme 8A.2 et décisions R1–R4 acquis pour l'[ordre relatif](#réordonnancement-relatif--décisions-phase-8) ;
+- l’implémentation des contrats techniques 8A.3 validés ; algorithme 8A.2 et R1–R4 acquis pour l’[ordre relatif](#réordonnancement-relatif--décisions-phase-8), stockage seul livré Local en 8B.1 ;
 - les vérifications historiques d'inclusion de certaines variantes rares et les éventuelles évolutions au-delà des règles V1 du pipeline ;
 - la classification des blocs et des ères ;
 - les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;

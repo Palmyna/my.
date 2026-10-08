@@ -522,7 +522,7 @@ Après création, le propriétaire peut réordonner tous les éléments automati
 
 ### Mise à jour autoritative et contrôlée
 
-**Phase 8 planifiée / en cadrage : aperçu et application non implémentés.**
+**Phase 8 en développement : stockage 8B.1 livré Local ; aperçu et application non implémentés.**
 
 Le frontend demande ou reçoit le résumé des changements, l'affiche puis recueille la validation explicite de l'utilisateur.
 
@@ -530,19 +530,19 @@ Le frontend demande ou reçoit le résumé des changements, l'affiche puis recue
 
 La synchronisation du catalogue ne modifie jamais silencieusement une collection utilisateur.
 
-### Responsabilités Phase 8 — projet non implémenté
+### Responsabilités Phase 8 — socle livré et développements futurs
 
 Les lecteurs actuels sont `dashboard_collections`, l'overview Collection, `get_collection_content` et la lecture d'ordre ; Liste/Cartes/Classeur consomment leur contenu autoritatif. Les écritures d'ordre et d'éléments passent par les primitives 6A.3/6C.1, avec verrou du parent. Le pipeline possède le catalogue et ses états canoniques, pas les intentions personnelles. Ce socle doit être réutilisé et faire évoluer ses contrats de manière coordonnée, sans vérité concurrente frontend.
 
 Le masquage appartient à l'élément automatique de la collection automatique. Autorisation propriétaire côté backend ; consultation partagée en lecture seule. Les agrégations Dashboard/Collection/partage excluront les masqués des deux comptes ; les vues filtreront la séquence sans écrire l'ordre ni toucher aux exemplaires. Aucun élargissement des droits d'édition des destinataires.
 
-La conception 8A.3 recommande un journal privé chronologique d'intentions avant/fin, leurs suffixes historiques immuables, des reçus idempotents et une révision personnelle par collection. **R1–R4 sont validées** : contexte complet capturé au geste ; geste filtré normalisé dans l'ordre complet ; identité renouvelée après retrait mais conservée à la conversion ; absence d'effet/retry sans second geste et placement initial manuel toujours enregistré. `sort_position` reste l'unique ordre affiché ; `automatic_rank` reste indépendant. Une fonction PostgreSQL commune reconstruit le canonique cible puis rejoue toutes les intentions pour l'aperçu et l'application.
+La conception 8A.3 est validée. [8B.1](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md) livre Local les colonnes préparatoires et le journal/reçus privés, sans writer ni traitement idempotent. Les contraintes garantissent sujet du même parent, cascade au retrait, contexte historique immuable et aucun accès direct API. Contrat par défaut 1 et révision zéro : créations et mutations livrées conservent leur comportement. **R1–R4 sont validées** : contexte complet capturé au geste ; geste filtré normalisé dans l'ordre complet ; identité renouvelée après retrait mais conservée à la conversion ; absence d'effet/retry sans second geste et placement initial manuel toujours enregistré. `sort_position` reste l'unique ordre affiché ; `automatic_rank` reste indépendant. Une future fonction PostgreSQL commune reconstruira le canonique cible puis rejouera toutes les intentions pour l’aperçu et l’application.
 
 Aperçu sans stockage dédié, avec token liant version appliquée, version/hash cible, révision personnelle et empreinte du plan. Application propriétaire atomique, reçu d'opération et contrôle du même plan ; verrous dans l'ordre **catalogue partagé `771402` puis parent**, compatibles avec la sync exclusive existante. Cible devenue vide traitée explicitement pour une collection existante, sans autoriser une nouvelle création vide. Aucun calcul d'ordre frontend.
 
 Notifications projetées : événements de collection dérivés des versions, suivi de lecture à la demande, contenu d'annonce partagé et suivi individuel privé. Ciblage par date d'inscription serveur, exception explicite pour nouveaux inscrits ; aucune diffusion massive par sync/signup. Lecteurs ordinaires restent invoker ; accès aux structures privées uniquement par fonctions contrôlées vérifiant identité/MFA/profil et propriété/utilisateur concerné. Publication par script Node/`pg` existant et rôle PostgreSQL dédié à des fonctions privées, sans secret frontend, UI d'administration ou droit ordinaire. Trois catégories initiales uniquement, aucune notification externe.
 
-Le [rapport 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) détaille formats, contraintes, erreurs, tests et déploiement/retour arrière ; les [contrats durables](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) en fixent les responsabilités. Lecture de contenu v2 distincte du payload historique strict à 15 clés, puis livraison coordonnée des services. Collections existantes legacy, nouvelles créations v2 après préparation ; anciens writers refusés sur v2 avant activation. Aucune récupération des intentions historiques ou destruction pendant 8A. Rollback après gestes v2 : garder données/journal/reçus et rendre les collections v2 consultatives si nécessaire, jamais réactiver un ancien writer incompatible. Aucun schéma, RPC, script ou composant Phase 8 livré par ce cadrage.
+Le [rapport 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) détaille formats, contraintes, erreurs, tests et déploiement/retour arrière ; les [contrats durables](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) en fixent les responsabilités. Lecture de contenu v2 distincte du payload historique strict à 15 clés, puis livraison coordonnée des services. Collections existantes legacy, nouvelles créations v2 après préparation ; anciens writers refusés sur v2 avant activation. Aucune récupération des intentions historiques ou destruction pendant 8A. Rollback après gestes v2 : garder données/journal/reçus et rendre les collections v2 consultatives si nécessaire, jamais réactiver un ancien writer incompatible. Seul le stockage additif est livré en 8B.1 ; aucun RPC, calcul, script métier ou composant Phase 8 activé.
 
 ## Catalogue local et synchronisation TCGdex
 
@@ -713,7 +713,7 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. distingue développement et production. **Phase 7 terminée et validée en `0.7.21` ; 29 migrations Local / 29 Cloud alignées jusqu’à `20261007085921`.** Après l’audit 7G.1 de Codex, le propriétaire a exécuté manuellement le checkpoint Cloud : six migrations Phase 7 appliquées avec succès, puis dry-run final `Remote database is up to date.` Le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md) distingue ces confirmations des validations locales 7G.2 ; aucun accès Cloud pendant cette clôture. Outillage courant : Node.js 24.20.0, npm 12.1.0, Supabase CLI 2.120.0. Le pipeline refuse toujours toute base distante. Le staging et les futurs workflows de déploiement restent à cadrer.
+MY. distingue développement et production. **Phase 7 terminée et validée en `0.7.21` ; 29 migrations Local / 29 Cloud alignées jusqu’à `20261007085921`.** Après l’audit 7G.1 de Codex, le propriétaire a exécuté manuellement le checkpoint Cloud : six migrations Phase 7 appliquées avec succès, puis dry-run final `Remote database is up to date.` Le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md) distingue ces confirmations des validations locales 7G.2 ; aucun accès Cloud pendant cette clôture. Outillage courant : Node.js 24.20.0, npm 12.1.0, Supabase CLI 2.120.0. Le pipeline refuse toujours toute base distante. Depuis 8B.1, version applicative `0.8.0` et 30 migrations appliquées Local ; dernier checkpoint Cloud confirmé toujours 29, sans accès distant. Le staging et les futurs workflows de déploiement restent à cadrer.
 
 Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Le développement et les tests courants ciblent Supabase local, hors checkpoints Cloud explicitement autorisés et consignés ; Supabase cloud constitue la future instance de production associée à Vercel.
 

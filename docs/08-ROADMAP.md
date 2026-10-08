@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 7 terminées et validées. Version applicative `0.7.21`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Phase 8 — Actualisation, masquage et notifications : planifiée ; 8A.1 et algorithme 8A.2 validés, R1–R4 acquis, conception documentaire 8A.3 rédigée à valider, sans fonctionnalité livrée.**
+**Phases 0 à 7 terminées et validées. Version applicative `0.8.0`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Phase 8 — Actualisation, masquage et notifications : en développement ; 8A.1, algorithme 8A.2 et conception 8A.3 validés, R1–R4 acquis. Fondations persistantes livrées Local ; application encore en contrat 1, aucune nouvelle fonctionnalité utilisateur activée.**
 
 | Grandes phases | Statut |
 |---|---|
@@ -27,7 +27,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 | 5 — Dashboard, création et gestion des collections | Terminée |
 | 6 — Cœur fonctionnel des collections | Terminée |
 | 7 — Vues, catalogue, recherche globale et préférences | Terminée |
-| 8 — Actualisation, masquage et notifications | Planifiée / en cadrage |
+| 8 — Actualisation, masquage et notifications | En développement |
 | 9 — Partage des collections | Planifiée |
 | 10 — Finalisation V1 et mise en production | Planifiée |
 
@@ -180,9 +180,9 @@ Précédente / Suivante, swipe entre cartes, séquence de navigation et navigati
 
 ### Phase 8 — Actualisation, masquage et notifications
 
-**Statut : PLANIFIÉE / EN CADRAGE — AUCUNE FONCTIONNALITÉ LIVRÉE**
+**Statut : EN DÉVELOPPEMENT — FONDATIONS LOCAL, AUCUNE NOUVELLE FONCTIONNALITÉ UTILISATEUR ACTIVÉE**
 
-8A.1 consigne les décisions métier ; l'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) et ses arbitrages R1–R4 sont validés. La [conception technique 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) est rédigée, à valider avant tout développement. Version cible de Phase 8 : **`0.8.0`** ; application conservée en **`0.7.21`**, aucun changement de version pendant ce cadrage.
+8A.1 consigne les décisions métier ; l'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) et ses arbitrages R1–R4 sont validés. La [conception technique 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) est validée. Première livraison de développement en **`0.8.0`** : [stockage PostgreSQL additif Local](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md), sans activation du contrat 2 ni comportement utilisateur nouveau. Calculs, writers/lecteurs v2 et bascule restent futurs. 30 migrations appliquées Local ; Cloud toujours au dernier checkpoint propriétaire 29, sans accès distant pendant cette livraison.
 
 Trois fonctionnalités prévues : actualisation contrôlée des collections automatiques, masquage des cartes automatiques et centre de notifications interne.
 

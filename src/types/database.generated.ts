@@ -9,6 +9,7 @@ export type Database = {
                   Row: {
                     "content_hash": string,"generation_version": number,"id": number,"pokemon_id": number | null,"set_id": number | null,"target_type": string,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "content_hash": string,"generation_version": number,"id"?: never,"pokemon_id"?: number | null,"set_id"?: number | null,"target_type": string,"updated_at"?: string
                   }
@@ -34,6 +35,7 @@ isOneToOne: true
                   Row: {
                     "card_id": number,"pokemon_id": number
                   }
+                  ComputedFields: never
                   Insert: {
                     "card_id": number,"pokemon_id": number
                   }
@@ -59,6 +61,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"date_origin": string,"effective_release_date": string | null,"foil": string | null,"french_availability": string,"id": number,"image_url": string | null,"is_active": boolean,"label": string | null,"origin": string,"size": string | null,"sort_order": number | null,"source_card_id": number,"source_present": boolean,"source_variant_id": string | null,"stamp": (string)[],"subtype": string | null,"updated_at": string,"variant_key": string,"variant_type": string | null
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"date_origin"?: string,"effective_release_date"?: string | null,"foil"?: string | null,"french_availability"?: string,"id"?: never,"image_url"?: string | null,"is_active"?: boolean,"label"?: string | null,"origin": string,"size"?: string | null,"sort_order"?: number | null,"source_card_id": number,"source_present": boolean,"source_variant_id"?: string | null,"stamp"?: (string)[],"subtype"?: string | null,"updated_at"?: string,"variant_key": string,"variant_type"?: string | null
                   }
@@ -76,13 +79,14 @@ isOneToOne: false
                   ]
                 },"collection_items": {
                   Row: {
-                    "automatic_rank": number | null,"collection_id": string,"created_at": string,"id": string,"origin": string,"sort_position": number,"updated_at": string,"variant_id": number
+                    "automatic_rank": number | null,"collection_id": string,"created_at": string,"id": string,"introduced_revision": number | null,"origin": string,"sort_position": number,"updated_at": string,"variant_id": number
                   }
+                  ComputedFields: never
                   Insert: {
-                    "automatic_rank"?: number | null,"collection_id": string,"created_at"?: string,"id"?: string,"origin": string,"sort_position": number,"updated_at"?: string,"variant_id": number
+                    "automatic_rank"?: number | null,"collection_id": string,"created_at"?: string,"id"?: string,"introduced_revision"?: number | null,"origin": string,"sort_position": number,"updated_at"?: string,"variant_id": number
                   }
                   Update: {
-                    "automatic_rank"?: number | null,"collection_id"?: string,"created_at"?: string,"id"?: string,"origin"?: string,"sort_position"?: number,"updated_at"?: string,"variant_id"?: number
+                    "automatic_rank"?: number | null,"collection_id"?: string,"created_at"?: string,"id"?: string,"introduced_revision"?: number | null,"origin"?: string,"sort_position"?: number,"updated_at"?: string,"variant_id"?: number
                   }
                   Relationships: [
                     {
@@ -109,6 +113,7 @@ isOneToOne: false
                   Row: {
                     "collection_id": string,"created_at": string,"id": string,"recipient_user_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "collection_id": string,"created_at"?: string,"id"?: string,"recipient_user_id": string
                   }
@@ -140,6 +145,7 @@ isOneToOne: false
                   Row: {
                     "binder_format": string,"collection_id": string,"created_at": string,"updated_at": string,"user_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "binder_format": string,"collection_id": string,"created_at"?: string,"updated_at"?: string,"user_id"?: string
                   }
@@ -169,13 +175,14 @@ isOneToOne: false
                   ]
                 },"collections": {
                   Row: {
-                    "applied_target_version": number | null,"automatic_target_type": string | null,"collection_type": string,"created_at": string,"id": string,"name": string,"owner_id": string,"target_pokemon_id": number | null,"target_set_id": number | null,"updated_at": string
+                    "applied_target_version": number | null,"automatic_target_type": string | null,"collection_type": string,"created_at": string,"id": string,"name": string,"order_contract_version": number,"owner_id": string,"personal_revision": number,"target_pokemon_id": number | null,"target_set_id": number | null,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
-                    "applied_target_version"?: number | null,"automatic_target_type"?: string | null,"collection_type": string,"created_at"?: string,"id"?: string,"name": string,"owner_id"?: string,"target_pokemon_id"?: number | null,"target_set_id"?: number | null,"updated_at"?: string
+                    "applied_target_version"?: number | null,"automatic_target_type"?: string | null,"collection_type": string,"created_at"?: string,"id"?: string,"name": string,"order_contract_version"?: number,"owner_id"?: string,"personal_revision"?: number,"target_pokemon_id"?: number | null,"target_set_id"?: number | null,"updated_at"?: string
                   }
                   Update: {
-                    "applied_target_version"?: number | null,"automatic_target_type"?: string | null,"collection_type"?: string,"created_at"?: string,"id"?: string,"name"?: string,"owner_id"?: string,"target_pokemon_id"?: number | null,"target_set_id"?: number | null,"updated_at"?: string
+                    "applied_target_version"?: number | null,"automatic_target_type"?: string | null,"collection_type"?: string,"created_at"?: string,"id"?: string,"name"?: string,"order_contract_version"?: number,"owner_id"?: string,"personal_revision"?: number,"target_pokemon_id"?: number | null,"target_set_id"?: number | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -202,6 +209,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"id": string,"name": string | null,"note": string | null,"updated_at": string,"user_id": string,"variant_id": number
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"id"?: string,"name"?: string | null,"note"?: string | null,"updated_at"?: string,"user_id"?: string,"variant_id": number
                   }
@@ -227,6 +235,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"dex_number": number,"id": number,"is_active": boolean,"name_fr": string | null,"primary_type": string | null,"secondary_type": string | null,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"dex_number": number,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"primary_type"?: string | null,"secondary_type"?: string | null,"updated_at"?: string
                   }
@@ -240,6 +249,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"id": string,"public_id": string,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"id": string,"public_id": string,"updated_at"?: string
                   }
@@ -253,6 +263,7 @@ isOneToOne: false
                   Row: {
                     "category": string | null,"created_at": string,"effective_release_date": string | null,"id": number,"image_url": string | null,"is_active": boolean,"local_id": string | null,"name_fr": string | null,"normalized_number": number | null,"origin": string,"rarity": string | null,"set_id": number,"source_present": boolean,"source_updated_at": string | null,"tcgdex_id": string | null,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "category"?: string | null,"created_at"?: string,"effective_release_date"?: string | null,"id"?: never,"image_url"?: string | null,"is_active"?: boolean,"local_id"?: string | null,"name_fr"?: string | null,"normalized_number"?: number | null,"origin": string,"rarity"?: string | null,"set_id": number,"source_present": boolean,"source_updated_at"?: string | null,"tcgdex_id"?: string | null,"updated_at"?: string
                   }
@@ -272,6 +283,7 @@ isOneToOne: false
                   Row: {
                     "created_at": string,"id": number,"is_active": boolean,"name_fr": string | null,"name_source": string | null,"sort_order": number | null,"tcgdex_id": string | null,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "created_at"?: string,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"name_source"?: string | null,"sort_order"?: number | null,"tcgdex_id"?: string | null,"updated_at"?: string
                   }
@@ -285,6 +297,7 @@ isOneToOne: false
                   Row: {
                     "abbreviation": string | null,"abbreviation_fr": string | null,"created_at": string,"id": number,"is_active": boolean,"logo_url": string | null,"name_fr": string | null,"name_source": string | null,"official_card_count": number | null,"release_date": string | null,"series_id": number,"sort_order": number | null,"symbol_url": string | null,"tcgdex_id": string | null,"updated_at": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "abbreviation"?: string | null,"abbreviation_fr"?: string | null,"created_at"?: string,"id"?: never,"is_active"?: boolean,"logo_url"?: string | null,"name_fr"?: string | null,"name_source"?: string | null,"official_card_count"?: number | null,"release_date"?: string | null,"series_id": number,"sort_order"?: number | null,"symbol_url"?: string | null,"tcgdex_id"?: string | null,"updated_at"?: string
                   }
@@ -304,6 +317,7 @@ isOneToOne: false
                   Row: {
                     "binder_default_format": string,"catalog_default_view": string,"collection_default_view": string,"created_at": string,"last_catalog_view": string,"last_collection_view": string,"updated_at": string,"user_id": string
                   }
+                  ComputedFields: never
                   Insert: {
                     "binder_default_format"?: string,"catalog_default_view"?: string,"collection_default_view"?: string,"created_at"?: string,"last_catalog_view"?: string,"last_collection_view"?: string,"updated_at"?: string,"user_id"?: string
                   }
@@ -326,6 +340,7 @@ isOneToOne: true
                   Row: {
                     "access": string | null,"collection_id": string | null,"collection_type": string | null,"name": string | null,"owned_count": number | null,"target_id": string | null,"target_name": string | null,"target_primary_type": string | null,"target_secondary_type": string | null,"target_type": string | null,"total_count": number | null
                   }
+                  ComputedFields: never
                   Relationships: [
 
                   ]
