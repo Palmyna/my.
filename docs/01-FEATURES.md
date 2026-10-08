@@ -171,7 +171,7 @@ Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. To
 
 ### Mise à jour contrôlée — décisions Phase 8
 
-**Actualisation non implémentée.** Conception 8A.3 validée ; Phase 8 en développement depuis `0.8.0`. [8B.1](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md) livre le stockage PostgreSQL Local ; [8B.2](reports/2026-10-08-PHASE8B2-RELATIVE-ORDER-ENGINE.md) livre le moteur interne de fusion/rejeu, sans nouvelle fonctionnalité utilisateur ni activation du contrat 2.
+**Actualisation non implémentée.** Conception 8A.3 validée ; Phase 8 en développement depuis `0.8.0`. [8B.1](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md) livre le stockage PostgreSQL Local ; [8B.2](reports/2026-10-08-PHASE8B2-RELATIVE-ORDER-ENGINE.md) livre le moteur interne de fusion/rejeu. [8B.3](reports/2026-10-08-PHASE8B3-REORDER-WRITER-V2.md) livre le déplacement v2 backend, capture historique, révisions et reçus idempotents, avec refus des writers legacy sur contrat 2. Aucune nouvelle fonctionnalité utilisateur ni activation du contrat 2 ; interface et créations restent v1.
 
 Une collection automatique peut évoluer lorsque le catalogue change pour sa cible Pokémon ou Extension. Elle ne doit jamais être modifiée silencieusement.
 
@@ -215,9 +215,9 @@ Exemples métier de référence :
 - **R3 :** retrait réel = perte des intentions propres et du masquage ; réintroduction = nouvel élément/UUID, sans restauration des anciennes personnalisations. Conversion manuel → automatique = même identité et mêmes intentions. Exemplaires/notes conservés indépendamment ; seules les références historiques nécessaires aux intentions d'autres sujets vivants restent conservées.
 - **R4 :** annulation ou séquence inchangée = aucune intention ; retry technique = même opération, jamais second geste. L'ajout manuel enregistre toujours son placement initial, même fin par défaut.
 
-L'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) conserve l'analyse historique et ses 36 scénarios. La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) recommande journal chronologique, contextes immuables et reçus d'opération ; `sort_position` reste l'unique ordre affiché. Les [contrats projetés](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) précisent persistance, révisions et transition, sans fonctionnalité Phase 8 livrée.
+L'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) conserve l'analyse historique et ses 36 scénarios. La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) recommande journal chronologique, contextes immuables et reçus d'opération ; `sort_position` reste l'unique ordre affiché. Les [contrats projetés](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) précisent persistance, révisions et transition ; stockage, moteur et déplacement backend sont livrés Local, aucune fonctionnalité Phase 8 accessible dans l'interface.
 
-Compatibilité historique : les collections existantes sont uniquement des données de test. Aucune récupération des intentions de déplacement passées n'est nécessaire ; le propriétaire accepte de recréer ses collections de test. Cette décision n'autorise aucun reset ni suppression pendant 8A. Les anciens writers devront être refusés sur une collection utilisant le nouveau journal.
+Compatibilité historique : les collections existantes sont uniquement des données de test. Aucune récupération des intentions de déplacement passées n'est nécessaire ; le propriétaire accepte de recréer ses collections de test. Cette décision n'autorise aucun reset ni suppression pendant 8A. Les trois anciens writers sont désormais refusés sur contrat 2 en Local ; contrat 1 conserve strictement ses règles. Le déplacement v2 exige contrat 2, encore inaccessible aux collections utilisateur.
 
 ### Masquage des cartes automatiques — décisions Phase 8
 
@@ -586,7 +586,7 @@ Les collections automatiques sont accessibles normalement dans la V1, sans abonn
 Les sujets suivants devront être définis dans de futurs documents dédiés ou lors de l'implémentation concernée :
 
 - les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
-- l’implémentation des contrats techniques 8A.3 validés ; algorithme 8A.2 et R1–R4 acquis pour l’[ordre relatif](#réordonnancement-relatif--décisions-phase-8), stockage 8B.1 et moteur interne 8B.2 livrés Local, mutations v2 futures ;
+- l’implémentation des contrats techniques 8A.3 validés ; algorithme 8A.2 et R1–R4 acquis pour l’[ordre relatif](#réordonnancement-relatif--décisions-phase-8), stockage 8B.1, moteur interne 8B.2 et déplacement backend 8B.3 livrés Local ; autres mutations, lecteurs/services et activation v2 futurs ;
 - les vérifications historiques d'inclusion de certaines variantes rares et les éventuelles évolutions au-delà des règles V1 du pipeline ;
 - la classification des blocs et des ères ;
 - les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;

@@ -379,6 +379,9 @@ isOneToOne: true
 "reorder_collection_item":
 { Args: { "p_anchor_id"?: string,"p_collection_id": string,"p_item_id": string,"p_placement": string }; Returns: undefined
                            },
+"reorder_collection_item_v2":
+{ Args: { "p_anchor_id": string,"p_collection_id": string,"p_expected_revision": number,"p_item_id": string,"p_operation_id": string,"p_placement": string }; Returns: Json
+                           },
 "search_catalog_variants_for_add":
 { Args: { "p_limit"?: number,"p_offset"?: number,"p_query": string }; Returns: Json
                            },
