@@ -4,7 +4,7 @@
 
 Ce document constitue la source de vérité concernant la **roadmap globale de MY.** : l'état, l'ordre et le périmètre des grandes phases du projet, jusqu'à la V1 puis au-delà.
 
-La roadmap reste volontairement **macro**. Chaque phase représente un ensemble fonctionnel cohérent. Le découpage opérationnel est défini au moment de sa réalisation ; les sous-phases de développement ne sont pas documentées ici.
+La roadmap reste volontairement **macro**. Chaque phase représente un ensemble fonctionnel cohérent. Le découpage opérationnel est défini au moment de sa réalisation ; les blocs prévisionnels de Phase 8 ci-dessous cadrent ses dépendances, sans constituer un journal de sous-phases de développement.
 
 Elle permet de voir ce qui est terminé, la prochaine étape et les orientations futures, sans remplacer les spécifications détaillées :
 
@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 7 terminées et validées. Version applicative `0.7.21`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Prochaine phase : Phase 8 — Mise à jour des collections automatiques, planifiée et non commencée.**
+**Phases 0 à 7 terminées et validées. Version applicative `0.7.21`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Phase 8 — Actualisation, masquage et notifications : planifiée / en cadrage documentaire 8A.1, sans fonctionnalité livrée.**
 
 | Grandes phases | Statut |
 |---|---|
@@ -27,7 +27,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 | 5 — Dashboard, création et gestion des collections | Terminée |
 | 6 — Cœur fonctionnel des collections | Terminée |
 | 7 — Vues, catalogue, recherche globale et préférences | Terminée |
-| 8 — Mise à jour des collections automatiques | Planifiée |
+| 8 — Actualisation, masquage et notifications | Planifiée / en cadrage |
 | 9 — Partage des collections | Planifiée |
 | 10 — Finalisation V1 et mise en production | Planifiée |
 
@@ -178,22 +178,46 @@ Précédente / Suivante, swipe entre cartes, séquence de navigation et navigati
 
 `/settings` est fonctionnelle : section Affichage cohérente avec Profil, vue catalogue/collection par défaut et format Classeur global. Sauvegarde immédiate par réglage, chargement/erreur/retry et contrôles accessibles responsive. Les derniers modes restent indépendants, la vue d'une collection ouverte reste conservée et le format global s'applique aux héritiers sans toucher aux overrides viewer + collection. Aucun autre réglage validé par cette phase.
 
-### Phase 8 — Mise à jour des collections automatiques
+### Phase 8 — Actualisation, masquage et notifications
 
-**Statut : PLANIFIÉE — PROCHAINE PHASE, NON COMMENCÉE**
+**Statut : PLANIFIÉE / EN CADRAGE — AUCUNE FONCTIONNALITÉ LIVRÉE**
 
-Permettre au propriétaire d'actualiser une collection lorsque la structure de sa cible évolue dans le catalogue :
+8A.1 consigne les décisions métier. Version cible de Phase 8 : **`0.8.0`** ; application conservée en **`0.7.21`**, aucun changement de version pendant ce cadrage.
+
+Trois fonctionnalités prévues : actualisation contrôlée des collections automatiques, masquage des cartes automatiques et centre de notifications interne.
+
+Permettre au propriétaire d'actualiser une collection lorsque la structure canonique de sa cible Pokémon ou Extension évolue :
 
 - détection par version de cible et signalement d'une mise à jour disponible ;
 - aperçu des ajouts, retraits, conversions d'éléments manuels en automatiques et changements d'ordre ;
 - application après validation explicite de l'utilisateur ;
-- opération autoritative et atomique, avec contrôle de la version présentée ;
+- opération autoritative et atomique, avec contrôle de la version présentée et de la concurrence ;
 - absence de doublons lors des conversions et préservation des exemplaires physiques ;
 - actualisation des rangs canoniques et préservation autant que possible de l'ordre personnalisé des éléments automatiques et manuels, sans réinitialisation arbitraire des positions vers l'ordre canonique.
 
 La synchronisation du catalogue ne modifie jamais silencieusement la structure d'une collection. Si la cible change après l'aperçu, un résumé actualisé est nécessaire avant application.
 
-Le placement d'un nouvel élément automatique dans un ordre personnalisé et la stratégie de préservation/ancrage des positions restent ouverts pour cette Phase 8 ; cette roadmap ne fixe aucun algorithme exact d'insertion/fusion. Une conversion conserve le même élément et préserve autant que possible sa position.
+Principe relatif validé : reconstruire le nouvel ordre canonique puis réappliquer chronologiquement les personnalisations du propriétaire. Relations « avant telle carte » ou fin explicite, y compris pour les ajouts manuels ; nouvelles automatiques insérées après leur prédécesseur canonique ; ancrage disparu → prochaine carte présente dans l'ancien ordre, sinon fin. Masqués inclus dans les calculs. Une conversion conserve le même élément et sa personnalisation autant que possible. [Règles et exemples A/B](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) ; algorithme détaillé en 8A.2, persistance et contrats en 8A.3. Collections historiques uniquement de test, recréation acceptée, sans récupération des anciens déplacements.
+
+Masquage persistant réservé au propriétaire et aux éléments automatiques des collections automatiques. Exclusion des deux comptes de progression, manuels inclus, dans Dashboard/Collection/partage quel que soit le filtre. `Non masquées` par défaut / `Toutes` dans les trois vues ; œil seulement Liste/Cartes propriétaire. Classeur compacté sans mutation d'ordre ; recherche sans compactage supplémentaire. Reorder Liste/Cartes disponible avec les deux filtres, sans déplacer implicitement les masqués non affichés. Partage toujours en lecture seule.
+
+Centre interne : cloche entre recherche et compte, badge non lues, panneau et navigation. Trois types initiaux (actualisation, changelog/version, annonce générale), états individuels persistants et retrait des traitées/obsolètes. Publication sécurisée terminal/Codex via Supabase, sans administration UI, secret frontend ou droit administratif ordinaire. Aucun push système, notification navigateur externe ni email. [Cycle de vie complet](01-FEATURES.md#centre-de-notifications--décisions-phase-8).
+
+Découpage prévisionnel, affinable avant chaque développement :
+
+| Bloc | Contenu |
+|---|---|
+| 8A | Cadrage documentaire, algorithme relatif, contrats techniques |
+| 8B | Persistance et réordonnancement relatif |
+| 8C | Masquage : base de données, droits et progression |
+| 8D | Masquage : vues Liste, Cartes et Classeur |
+| 8E | Détection et aperçu des actualisations |
+| 8F | Application transactionnelle et confirmation UI |
+| 8G | Notifications : backend, cycle de vie, publication |
+| 8H | Notifications : header, panneau, indicateurs |
+| 8I | Tests, audit, clôture et checkpoint Cloud |
+
+**8A.1 uniquement documentaire.** 8A.2 devra formaliser les cas complexes ; 8A.3 arrêtera les choix persistants et les contrats, y compris sécurité, concurrence et compatibilité. Ces étapes ne sont pas réalisées ici. Phase 9 conserve la gestion complète des partages, Phase 10 la finalisation V1 et la production ; la lecture partagée déjà livrée reste acquise.
 
 ### Phase 9 — Partage des collections
 

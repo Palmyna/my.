@@ -401,7 +401,7 @@ Le filtre est local, immédiat, sans requête réseau : nom français de carte, 
 
 Dès que le champ contient du texte, une croix interne (`aria-label="Effacer la recherche"`) restaure immédiatement la liste complète et rend le focus au champ. Aucun bouton texte sous la liste. Une collection non vide sans résultat affiche exactement `Aucune carte ne correspond à cette recherche.` ; une collection réellement vide conserve son message propre.
 
-Si le filtre masque une partie de la collection, les poignées de réorganisation sont visuellement indisponibles avec l'indication masquée `Effacez la recherche pour réorganiser la collection.`, liée par `aria-describedby`. Aucun message volumineux n'est ajouté au flux. Une recherche correspondant à toutes les cartes ne bloque pas la réorganisation. Effacer rétablit les règles habituelles ; consultation, exemplaires et retrait manuel autorisé restent disponibles.
+Si la recherche textuelle masque une partie de la collection, les poignées de réorganisation sont visuellement indisponibles avec l'indication masquée `Effacez la recherche pour réorganiser la collection.`, liée par `aria-describedby`. Aucun message volumineux n'est ajouté au flux. Une recherche correspondant à toutes les cartes ne bloque pas la réorganisation. Effacer rétablit les règles habituelles ; consultation, exemplaires et retrait manuel autorisé restent disponibles.
 
 ### Recherche dans le catalogue pour ajouter une carte
 
@@ -470,7 +470,7 @@ Le nombre de colonnes s'adapte à l'écran : pistes d'au moins 168 px sur deskto
 
 La zone principale ouvre le détail Variante Phase 6 ; Exemplaires et menu `…` restent indépendants, avec menu seulement pour retrait manuel autorisé. En partage, détail et consultation des exemplaires du propriétaire réel restent accessibles sans mutation, menu ni espace de drag.
 
-Le propriétaire déplace depuis une zone superposée aux 44 px hauts de l'image, sans fond, bordure, en-tête ou espace ajouté au repos. L'indicateur apparaît seulement au survol de cette zone, au focus ou pendant déplacement. Les capteurs Phase 6 gèrent souris, appui tactile prolongé (scroll avant appui annulant le drag), Espace/flèches/Échap et annonces accessibles. Après sauvegarde et relectures autoritatives, une coche verte temporaire confirme le déplacement sans toast ni changement de dimensions. Erreurs et récupération restent celles de Liste. Aucun handle si le filtre masque des cartes ; un filtre correspondant à tout le contenu conserve le reorder. Animations réduites selon `prefers-reduced-motion`.
+Le propriétaire déplace depuis une zone superposée aux 44 px hauts de l'image, sans fond, bordure, en-tête ou espace ajouté au repos. L'indicateur apparaît seulement au survol de cette zone, au focus ou pendant déplacement. Les capteurs Phase 6 gèrent souris, appui tactile prolongé (scroll avant appui annulant le drag), Espace/flèches/Échap et annonces accessibles. Après sauvegarde et relectures autoritatives, une coche verte temporaire confirme le déplacement sans toast ni changement de dimensions. Erreurs et récupération restent celles de Liste. Aucun handle si la recherche textuelle masque des cartes ; une recherche correspondant à tout le contenu conserve le reorder. Animations réduites selon `prefers-reduced-motion`.
 
 #### Variantes partageant une image
 
@@ -610,9 +610,9 @@ En 6F.3, la disparition autoritative de la ligne suffit comme feedback visuel ap
 
 ## Mise à jour d'une collection automatique
 
-Une mise à jour disponible doit être clairement visible sans devenir intrusive. Elle peut être signalée sur la tuile du dashboard, dans la collection ou au moyen d'un indicateur ou bandeau discret.
+**Décisions Phase 8 validées, interface non implémentée.** Une mise à jour disponible est signalée au propriétaire par le centre de notifications. D'autres indicateurs éventuels restent à préciser, sans devenir intrusifs.
 
-Avant toute application, l'utilisateur ouvre un résumé qui explique les changements, notamment les nouvelles cartes, les nouvelles variantes et les autres ajouts pertinents.
+Avant toute application, le propriétaire ouvre un aperçu des cartes/variantes ajoutées, retirées, converties de manuelles en automatiques et des changements d'ordre pertinents. Consulter cet aperçu marque la notification lue, jamais traitée ni appliquée.
 
 L'action finale est explicite :
 
@@ -620,7 +620,25 @@ L'action finale est explicite :
 
 La collection n'est jamais mise à jour silencieusement. L'utilisateur reste maître de l'application et ne doit pas subir plusieurs confirmations successives après qu'un résumé clair lui a été présenté.
 
-La mise à jour préserve autant que possible l'ordre personnalisé des éléments automatiques et manuels, y compris lors d'une conversion manuel → automatique, sans retour arbitraire à l'ordre canonique. Le placement des nouveaux éléments et la stratégie de préservation/ancrage restent à cadrer en Phase 8.
+L'application effective traite la notification. Un aperçu obsolète exige une nouvelle consultation avant confirmation. L'ordre suit les [règles relatives Phase 8](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) ; représentation persistante et cas complexes restent à formaliser en 8A.2/8A.3.
+
+### Masquage et vues — projet Phase 8
+
+Les trois vues proposent `Non masquées` par défaut et `Toutes`. Ces filtres sont distincts de la recherche textuelle. La progression est indépendante du filtre : les automatiques masqués sont toujours exclus de ses deux comptes, manuels inclus.
+
+En Liste et Cartes, un petit bouton œil permet au seul propriétaire de masquer/réafficher les éléments automatiques d'une collection automatique. Aucune action sur les cartes manuelles, dans le Classeur ou dans les modales de détail/variantes. L'icône reste un contrôle accessible au clavier, avec état et nom compréhensibles et cible tactile conforme aux 44 px existants ; ses interactions restent indépendantes du détail et du reorder.
+
+La réorganisation reste disponible en Liste et Cartes avec `Non masquées` et `Toutes`. Une carte masquée non affichée conserve sa place, sans déplacement implicite. La règle livrée désactivant le reorder lors d'une recherche textuelle partielle reste distincte : le filtre de masquage seul ne le bloque pas.
+
+En Classeur, `Non masquées` retire les masquées de la séquence affichée ; les suivantes remplissent les emplacements libérés. Pagination recalculée pour les trois formats existants, sans modifier ordre enregistré ni exemplaires. `Toutes` réintègre les masquées. La recherche conserve la navigation par occurrences/halo dans cette séquence, sans compactage textuel supplémentaire. Aucun reorder ni bouton œil sur les pochettes.
+
+Le lecteur partagé consulte les choix et la progression du propriétaire, utilise les filtres, mais ne modifie jamais le masquage. Ses préférences de vue et de format restent indépendantes comme en Phase 7.
+
+## Centre de notifications — projet Phase 8
+
+**Non implémenté.** Cloche dans le header, entre recherche globale et menu du compte ; badge du nombre de non lues, panneau de consultation et navigation adaptée au type. Centre interne uniquement, sans push système, notification navigateur externe ou email. Le panneau et la cloche suivent les règles existantes de focus, clavier, noms accessibles et responsive ; détails à cadrer en 8H.
+
+Une notification non lue est visible et comptabilisée ; lue non traitée, visible sans badge ; traitée ou obsolète, retirée du centre. Une action permet de marquer lue sans traiter. Une notification de collection ouvre la collection et l'aperçu ; seule l'application effective la traite. Consulter une annonce/changelog suffit normalement à la lire et la traiter ; une annonce nécessitant une action peut rester en attente. [Types, distribution et cycle de vie](01-FEATURES.md#centre-de-notifications--décisions-phase-8).
 
 ## Partage
 
@@ -798,7 +816,7 @@ Les sujets suivants concernent les fonctionnalités non livrées et d'éventuell
 - les éventuelles évolutions de la composition Liste/Cartes et du panneau Détail, au-delà des rendus livrés ;
 - les éventuelles finitions visuelles ultérieures du header ; recherche globale 7E.2 et Paramètres Affichage livrés ;
 - le design du résumé de mise à jour ;
-- le design des états de chargement et des notifications ;
+- le design des états de chargement et du panneau de notifications Phase 8, dont les règles métier sont validées ;
 - le système d'icônes ;
 - les breakpoints et adaptations responsive détaillées ;
 - le design system complet ;

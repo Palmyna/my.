@@ -138,7 +138,7 @@ Une collection automatique par extension ne se limite pas aux cartes de catégor
 
 Chaque variante française pertinente produit une entrée distincte. L'extension ciblée est un set précis et ne doit pas être confondue avec une série ou un bloc TCGdex.
 
-Une collection automatique par extension calcule sa progression comme les autres collections. Tous ses éléments, automatiques comme manuels, contribuent au total ; une variante contribue au nombre possédé lorsque le propriétaire en possède au moins un exemplaire.
+Une collection automatique par extension calcule sa progression comme les autres collections, selon la [règle de progression](#progression), incluant l'exclusion des automatiques masqués prévue en Phase 8.
 
 ### Structure automatique et ordre personnalisable
 
@@ -169,7 +169,9 @@ Le propriétaire peut :
 
 Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. Tous les éléments sont librement repositionnables. La réorganisation livrée accepte début/fin/avant/après, par souris, tactile ou clavier ; le backend calcule midpoint/rééquilibrage et sérialise les déplacements. L'ordre visuel transitoire pendant la sauvegarde et les relectures évite le snap-back ; le frontend ne devient jamais une source permanente de vérité.
 
-### Mise à jour contrôlée
+### Mise à jour contrôlée — décisions Phase 8
+
+**Planifiée / en cadrage, non implémentée.** Phase 7 clôturée en `0.7.21` ; Phase 8 cible `0.8.0`, sans changement de version pendant 8A.1.
 
 Une collection automatique peut évoluer lorsque le catalogue change pour sa cible Pokémon ou Extension. Elle ne doit jamais être modifiée silencieusement.
 
@@ -181,7 +183,46 @@ Lorsqu'une mise à jour est disponible :
 
 Le résumé doit permettre de comprendre les changements : variantes ajoutées ou retirées, éléments manuels qui deviendront automatiques et changements d'ordre pertinents. Une évolution peut provenir d'une nouvelle carte, d'une nouvelle variante française, d'une correction TCGdex ou d'une correction locale MY.
 
-Lorsqu'elle est validée, la mise à jour ajoute les nouveaux éléments automatiques, retire ceux devenus non éligibles et actualise les `automatic_rank`. Une conversion manuel → automatique conserve le même `collection_item`, passe `origin` à `automatic`, définit `automatic_rank` et préserve autant que possible `sort_position`, sans doublon. Les autres éléments manuels et les exemplaires physiques sont conservés. La mise à jour préserve autant que possible l'ordre personnalisé de tous les éléments et ne réinitialise pas arbitrairement `sort_position` vers l'ordre canonique. Le placement des nouveaux éléments automatiques et la stratégie de préservation/ancrage des positions restent explicitement ouverts pour la Phase 8 ; aucun algorithme exact d'insertion/fusion n'est fixé.
+La détection repose sur les versions canoniques des cibles Pokémon ou Extension. Une modification descriptive du catalogue ne constitue pas nécessairement une modification structurelle : voir le [hash de structure](06-DATABASE.md#hash-de-structure).
+
+L'application exige une validation explicite du propriétaire. Elle est atomique et sécurisée, contrôle la version présentée et la concurrence. Si l'aperçu est devenu obsolète, il doit être renouvelé avant application. La synchronisation du catalogue ne modifie jamais silencieusement la structure d'une collection.
+
+Après validation, les nouveaux automatiques sont ajoutés, ceux devenus non éligibles sont retirés et les rangs canoniques actualisés. Une conversion manuel → automatique conserve le même élément, son identité et sa personnalisation autant que possible, sans doublon. Les autres éléments manuels, les exemplaires physiques, leurs notes et les personnalisations sont préservés.
+
+### Réordonnancement relatif — décisions Phase 8
+
+**Principe validé, non implémenté : reconstruire le nouvel ordre canonique, puis réappliquer les personnalisations du propriétaire.**
+
+- Un déplacement personnel mémorise « cette carte avant telle autre carte » ; un placement en fin est explicite.
+- Une carte ajoutée manuellement suit le même principe de positionnement relatif.
+- Une nouvelle carte automatique est d'abord insérée dans la structure canonique, après son prédécesseur canonique.
+- Les déplacements personnels sont ensuite réappliqués dans leur ordre chronologique. Les cartes déjà présentes ne sont pas arbitrairement replacées dans l'ordre canonique.
+- Une carte masquée participe toujours aux calculs structurels.
+- Si l'ancrage disparaît, retenir la prochaine carte encore présente dans l'ancien ordre ; à défaut, placer l'élément en fin.
+- Une conversion manuel → automatique conserve l'élément existant et sa personnalisation autant que possible.
+
+Exemples métier de référence :
+
+| Exemple | Canonique initial | Déplacement personnel | Nouveau canonique | Résultat attendu |
+|---|---|---|---|---|
+| A | `A B C D` | `C avant A` | `A X B C D` | **`C A X B D`** |
+| B | `A B C D` | `C avant B` | `A X B C D` | **`A X C B D`** |
+
+Ces exemples ne couvrent pas tout l'algorithme. **8A.2** formalise les cas complexes : déplacements successifs ou interdépendants, disparition d'ancrages, insertions multiples, changements canoniques d'ordre, conversions et interaction avec les éléments masqués non affichés. **8A.3** arrête la représentation persistante et les contrats techniques. Le modèle livré reste `automatic_rank` / `sort_position` ; aucune table, colonne ou signature future n'est choisie ici.
+
+Compatibilité historique : les collections existantes sont uniquement des données de test. Aucune récupération des intentions de déplacement passées n'est nécessaire ; le propriétaire accepte de recréer ses collections de test. Cette décision n'autorise aucun reset ni suppression pendant 8A.1.
+
+### Masquage des cartes automatiques — décisions Phase 8
+
+**Planifié, non implémenté.** Seul le propriétaire peut masquer/réafficher un élément automatique d'une collection automatique. Le masquage est persistant et propre à cet élément de collection ; les cartes manuelles ne sont pas masquables. Il ne supprime rien et ne modifie ni exemplaires, ni notes, ni origine, ni positions enregistrées.
+
+Les filtres `Non masquées` (actif par défaut) et `Toutes` sont disponibles en Liste, Cartes et Classeur. Le propriétaire dispose d'un petit bouton œil en Liste et Cartes uniquement : aucun dans le Classeur ou les modales de détail/variantes. La réorganisation reste disponible en Liste et Cartes avec les deux filtres de masquage ; les cartes masquées non affichées conservent leur place et ne sont jamais déplacées implicitement. La restriction existante liée à une recherche textuelle partielle reste distincte.
+
+En Classeur, les cartes masquées sont retirées de la séquence affichée sous `Non masquées` ; les suivantes occupent les emplacements libérés et la pagination est recalculée pour `2x2`, `3x3`, `4x3`. `Toutes` réintègre les éléments masqués dans la séquence. Ce compactage ne modifie jamais l'ordre enregistré ni les exemplaires. La recherche textuelle navigue vers les occurrences dans la séquence du filtre choisi, sans compactage supplémentaire des cartes non masquées.
+
+Lors d'une actualisation, un automatique masqué encore présent conserve son masquage. Un nouvel automatique et un manuel converti en automatique sont visibles par défaut.
+
+En partage, les choix de masquage et la progression restent ceux du propriétaire ; les filtres de consultation restent disponibles, sans droit de modifier le masquage ni la collection.
 
 ## Cartes de référence et exemplaires physiques
 
@@ -208,7 +249,9 @@ L'interface doit distinguer clairement ces deux états sans exposer la structure
 
 ### Progression
 
-La progression d'une collection utilise tous ses éléments, automatiques comme manuels. Son total correspond au nombre de variantes présentes dans la collection ; son nombre possédé correspond aux variantes pour lesquelles le propriétaire possède au moins un exemplaire. Plusieurs exemplaires d'une même variante ne la font compter qu'une fois.
+**Livré jusqu'à Phase 7 :** tous les éléments, automatiques comme manuels, contribuent au total ; une variante compte comme possédée si le propriétaire en possède au moins un exemplaire. Plusieurs exemplaires ne la font compter qu'une fois.
+
+**Décision Phase 8, non implémentée :** une carte automatique masquée est exclue du numérateur **et** du dénominateur, même possédée. Les cartes manuelles restent comptabilisées. Cette règle s'applique au Dashboard, à la page Collection et aux collections partagées, indépendamment du filtre affiché (`Non masquées`, `Toutes` ou recherche).
 
 Une collection partagée affiche la progression de son propriétaire.
 
@@ -290,7 +333,7 @@ Champs recherchés lorsqu'ils existent : `cardNameFr`, `setNameFr`, `setAbbrevia
 
 Les termes suivent une logique **AND** : chaque terme doit correspondre à au moins un champ, éventuellement différent des autres termes (`Pikachu Reverse ASC`, `Soleil Lune Pikachu`). Aucun score ni tri : l'ordre backend reste intact. Après ajout/retrait et actualisation existante, la requête courante filtre le nouveau tableau.
 
-La croix dans le champ efface la recherche, conserve le focus et restaure immédiatement la collection complète. La réorganisation est désactivée uniquement lorsque le filtre masque des cartes ; consultation, exemplaires et retrait personnel restent accessibles selon les droits existants.
+La croix dans le champ efface la recherche, conserve le focus et restaure immédiatement la collection complète. La réorganisation est désactivée uniquement lorsque la recherche textuelle masque des cartes ; consultation, exemplaires et retrait personnel restent accessibles selon les droits existants. Le filtre de masquage Phase 8 seul ne bloque pas le reorder.
 
 Cette recherche est strictement un filtre interne à la collection consultée. Elle ne constitue pas une recherche globale dans l'ensemble du catalogue Pokémon.
 
@@ -320,7 +363,7 @@ La vue cartes présente les cartes sous forme de grille ou de tuiles mettant leu
 
 Chaque tuile conserve image, nom, abréviation d'Extension, numéro et variante visible. URL et placeholder sont ceux de Liste. La grille adapte le nombre de colonnes, avec deux colonnes sur mobile ; les résultats de recherche se compactent selon l'ordre relatif backend. Les cartes manquantes restent désaturées et atténuées, avec état accessible masqué et contrôles utilisables.
 
-Le propriétaire réorganise depuis une zone haute invisible au repos, révélée uniquement au survol de cette zone ou au focus. Capteurs souris/tactile/clavier, primitives backend et relectures Phase 6 sont réutilisés ; une coche verte temporaire confirme les lectures autoritatives réussies. Filtre masquant des éléments et partage lecture seule : aucune poignée ni réorganisation. Détail, Exemplaires et retrait manuel gardent leurs droits existants.
+Le propriétaire réorganise depuis une zone haute invisible au repos, révélée uniquement au survol de cette zone ou au focus. Capteurs souris/tactile/clavier, primitives backend et relectures Phase 6 sont réutilisés ; une coche verte temporaire confirme les lectures autoritatives réussies. Recherche textuelle masquant des éléments et partage lecture seule : aucune poignée ni réorganisation. Détail, Exemplaires et retrait manuel gardent leurs droits existants. Les filtres de masquage Phase 8 seuls laisseront la réorganisation disponible.
 
 ### Vue classeur
 
@@ -344,6 +387,30 @@ La navigation entre les pages doit être simple. L'utilisateur doit pouvoir comp
 - le nombre total de pages de la collection.
 
 Desktop/tablette large : page 1 seule à droite, puis 2–3, 4–5 ; dernière page paire seule à gauche. Mobile/largeur insuffisante : une page exacte, sans modifier le format. Côtés, clavier contextualisé, swipe mobile et numéro de page naviguent sans boucle. Clic/tap sur carte : détail Variante existant, également en partage lecture seule. Aucun reorder, Exemplaires, menu ou mutation directement sur les pochettes.
+
+## Centre de notifications — décisions Phase 8
+
+**Planifié, non implémenté.** Centre interne à MY. uniquement : aucun push système, notification navigateur externe ou email. Cloche dans le header entre recherche globale et menu du compte, badge du nombre de non lues, panneau de consultation et navigation adaptée à chaque notification.
+
+Trois types initiaux : mise à jour disponible pour une collection automatique ; changelog ou nouvelle version de MY. ; annonce générale (maintenance, information importante, etc.). Le modèle reste extensible sans implémenter d'autres catégories maintenant.
+
+| État | Présence dans le centre | Badge |
+|---|---|---|
+| Non lue | Visible | Comptabilisée |
+| Lue, non traitée | Visible | Non comptabilisée |
+| Traitée | Retirée | Non comptabilisée |
+
+L'utilisateur peut marquer manuellement une notification comme lue sans la traiter. Les états sont persistants et propres à chaque utilisateur ; une notification obsolète disparaît.
+
+### Notifications de collections
+
+Une seule notification active par collection, destinée au propriétaire. De nouveaux changements avant actualisation mettent à jour la notification existante et la repassent en non lue. Son ouverture donne accès à la collection et à l'aperçu ; consulter l'aperçu la rend lue, sans jamais appliquer la mise à jour. Elle est traitée lorsque la mise à jour est effectivement appliquée. Les notifications devenues inutiles sont retirées.
+
+### Annonces et changelogs
+
+Une consultation suffit normalement à les rendre lus et traités. Une annonce nécessitant une action peut rester en attente. Les utilisateurs déjà inscrits reçoivent les nouvelles annonces même déconnectés ; les nouveaux inscrits ne reçoivent pas automatiquement les annonces/changelogs anciens. Exception possible : annonce importante encore d'actualité visible aux nouveaux utilisateurs.
+
+Stockage et suivi individuel via Supabase. Publication par commande ou script sécurisé, utilisable depuis le terminal ou par Codex ; aucune interface d'administration, aucun secret administratif frontend, aucun droit de publication administrative pour les utilisateurs ordinaires. Mécanisme précis à arrêter en 8A.3 et dans les sous-phases notifications. Les notifications de partage ne sont pas ajoutées au périmètre Phase 9.
 
 ## Partage d'une collection
 
@@ -512,12 +579,12 @@ Les collections automatiques sont accessibles normalement dans la V1, sans abonn
 Les sujets suivants devront être définis dans de futurs documents dédiés ou lors de l'implémentation concernée :
 
 - les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
-- l'algorithme exact de positionnement, d'insertion et d'ancrage des cartes manuelles, notamment lors d'une mise à jour automatique ;
+- en 8A.2, les cas complexes de l'[ordre relatif validé](#réordonnancement-relatif--décisions-phase-8), puis en 8A.3 sa persistance et ses contrats techniques ;
 - les vérifications historiques d'inclusion de certaines variantes rares et les éventuelles évolutions au-delà des règles V1 du pipeline ;
 - la classification des blocs et des ères ;
 - les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;
 - la fréquence de vérification des mises à jour ;
-- le contenu précis du résumé et le fonctionnement des notifications de mise à jour ;
+- les contrats et la présentation détaillée du résumé, ainsi que les mécanismes techniques du [centre de notifications validé](#centre-de-notifications--décisions-phase-8) ;
 - la liste définitive des champs utilisés par la recherche ;
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
 - le moyen de contact final pour modifier/remplacer l'Authenticator ;

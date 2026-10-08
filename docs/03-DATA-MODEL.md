@@ -234,7 +234,7 @@ Une collection par extension peut inclure toutes les catégories présentes dans
 
 Sa structure est **matérialisée** : les éléments générés sont enregistrés dans la collection. Elle n'est pas recalculée dynamiquement à chaque affichage à partir de l'état courant du catalogue.
 
-Cette matérialisation garantit le processus de mise à jour validé :
+Cette matérialisation rend possible le processus de mise à jour validé pour la Phase 8, encore non implémenté :
 
 1. la collection est générée avec l'état courant du catalogue ;
 2. ses éléments automatiques sont enregistrés ;
@@ -286,7 +286,13 @@ Le modèle doit représenter un ordre stable des éléments :
 
 `automatic_rank` est le rang canonique système ; `sort_position` est l'ordre réel affiché dans cette collection. Un déplacement automatique ne modifie que `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique ou `automatic_target_states`. Deux collections de même cible/version peuvent contenir les mêmes éléments automatiques avec des `sort_position` différents.
 
-La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. Les primitives 6A.3 et 6C.1 calculent les positions en PostgreSQL et sérialisent réorganisation, ajout et retrait par verrou de la collection. Un ajout manuel accepte `start` ou `end` (défaut), avec rééquilibrage si nécessaire ; le retrait ne compacte pas l'ordre. Le placement d'un nouvel élément automatique et la stratégie de préservation/ancrage de l'ordre personnalisé lors des mises à jour restent à cadrer en Phase 8.
+La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. Les primitives 6A.3 et 6C.1 calculent les positions en PostgreSQL et sérialisent réorganisation, ajout et retrait par verrou de la collection. Un ajout manuel accepte `start` ou `end` (défaut), avec rééquilibrage si nécessaire ; le retrait ne compacte pas l'ordre.
+
+**Modèle conceptuel Phase 8 validé, non persisté actuellement :** distinguer le nouvel ordre canonique des intentions personnelles de positionnement (« avant cet élément » ou fin explicite), y compris pour les ajouts manuels. Réappliquer les déplacements chronologiquement après reconstruction canonique. Les éléments masqués restent dans ce calcul. Le repli d'un ancrage disparu suit la prochaine carte encore présente dans l'ancien ordre, puis la fin à défaut. Les [règles et exemples](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) fixent le comportement ; 8A.2/8A.3 préciseront les cas complexes et la représentation, sans déduire les intentions depuis `sort_position`. Les collections historiques sont des tests recréables, sans récupération des anciens déplacements.
+
+### Masquage d'un élément — projet Phase 8
+
+Le masquage persistant appartient à l'élément de collection, uniquement automatique dans une collection automatique ; il n'appartient ni à la Variante du catalogue, ni à l'exemplaire, ni au viewer. Seul le propriétaire le modifie. Origine, positions, exemplaires et notes sont inchangés. Un automatique conservé garde son masquage ; un nouvel automatique ou un manuel converti est visible par défaut. Aucune colonne ou table de masquage n'existe dans le socle livré.
 
 ### Ordre canonique du catalogue
 
@@ -339,6 +345,12 @@ Après validation explicite de l'utilisateur :
 - les notes et autres informations personnelles restent inchangées.
 
 Une mise à jour du catalogue ou d'une collection ne doit jamais entraîner de perte silencieuse de données personnelles.
+
+## Notifications — modèle conceptuel Phase 8
+
+**Projet, non implémenté.** Distinguer le contenu publié ou l'événement de collection de son suivi individuel par utilisateur : non lu, lu non traité, traité. Le badge dérive des non lues actives ; le centre exclut les traitées et les obsolètes. Une collection possède au plus une notification active pour son propriétaire ; de nouveaux changements actualisent celle-ci et réinitialisent sa lecture.
+
+Les annonces/changelogs concernent les comptes déjà inscrits à leur publication, y compris déconnectés. Pas de réception automatique des contenus anciens à l'inscription, sauf annonce importante encore d'actualité. Aucun choix de tables, distribution, horodatages, rétention ou mécanisme d'obsolescence n'est arrêté ici. Le [cycle de vie métier](01-FEATURES.md#centre-de-notifications--décisions-phase-8) et les [frontières techniques](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) font référence.
 
 ## Exemplaires physiques
 
@@ -480,7 +492,7 @@ Ces valeurs sont dérivées du catalogue, sans nouvelle source de vérité persi
 
 ### Progression d'une collection
 
-Le modèle calcule la progression en comparant le nombre de variantes possédées au nombre total de variantes présentes dans la collection. Tous les éléments de collection, automatiques comme manuels, contribuent au total. Une variante compte comme possédée dès que le propriétaire de la collection possède au moins un exemplaire correspondant.
+Le modèle livré calcule la progression en comparant le nombre de variantes possédées au nombre total de variantes présentes, manuelles comprises. Une variante compte comme possédée dès que le propriétaire possède au moins un exemplaire correspondant. **En Phase 8**, les automatiques masqués seront exclus des deux comptes, même possédés ; les manuels resteront inclus. Même règle au Dashboard, dans Collection et en partage, quel que soit le filtre affiché. Le statut de possession reste dérivé des exemplaires ; le masquage ne l'efface pas.
 
 ## Relations conceptuelles principales
 
@@ -578,7 +590,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;
-- le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
+- les cas complexes du positionnement relatif en 8A.2, puis sa représentation persistante et les contrats d'actualisation, masquage et notifications en 8A.3 ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;

@@ -164,7 +164,7 @@ La [page Collection](../src/features/collections/CollectionPage.tsx) utilise la 
 
 ### Contenu, exemplaires et réorganisation — Phase 6
 
-Le contenu est chargé après overview autorisé via `getCollectionContent` et la RPC `get_collection_content`, avec `collectionContentKey(viewerId, collectionId)`. Son tableau complet, y compris items historiques, conserve l'ordre backend, les métadonnées et la possession du propriétaire. La recherche interne 6D.1 filtre uniquement ce tableau déjà chargé : normalisation, AND multi-termes sur carte, Extension, abréviations, série, numéro et variante, sans réseau, score ni tri. Un filtre masquant des items désactive le reorder.
+Le contenu est chargé après overview autorisé via `getCollectionContent` et la RPC `get_collection_content`, avec `collectionContentKey(viewerId, collectionId)`. Son tableau complet, y compris items historiques, conserve l'ordre backend, les métadonnées et la possession du propriétaire. La recherche interne 6D.1 filtre uniquement ce tableau déjà chargé : normalisation, AND multi-termes sur carte, Extension, abréviations, série, numéro et variante, sans réseau, score ni tri. Une recherche textuelle masquant des items désactive le reorder ; les futurs filtres de masquage Phase 8 seuls ne le désactiveront pas.
 
 Le service des exemplaires conserve les IDs BIGINT en chaînes décimales. `physical_copies` appartient au compte et à la variante, jamais à une collection : CRUD propriétaire, lecture partagée, nom facultatif, fallback dynamique `Exemplaire N`, note libre nullable limitée à 750 caractères et aucun grading structuré actif. Le cache distingue lecteur, propriétaire réel et variante ; ajout/suppression invalident les lectures de possession concernées, modification du nom/note sans recalcul indépendant de possession.
 
@@ -522,11 +522,23 @@ Après création, le propriétaire peut réordonner tous les éléments automati
 
 ### Mise à jour autoritative et contrôlée
 
+**Phase 8 planifiée / en cadrage : aperçu et application non implémentés.**
+
 Le frontend demande ou reçoit le résumé des changements, l'affiche puis recueille la validation explicite de l'utilisateur.
 
-La base ou le backend applique ensuite la mise à jour de manière cohérente et transactionnelle : ajout des nouveaux automatiques, retrait des non-éligibles, conversion sans doublon des manuels devenus automatiques et actualisation des `automatic_rank`. La conversion conserve le même `collection_item`, passe `origin` à `automatic` et préserve autant que possible `sort_position`. Les autres éléments manuels, les exemplaires et les données personnelles sont préservés. L'ordre personnalisé de tous les éléments est conservé autant que possible, sans réinitialisation arbitraire vers l'ordre canonique. Le placement des nouveaux automatiques et la stratégie de préservation/ancrage restent ouverts pour la Phase 8, sans algorithme exact d'insertion/fusion décidé. Le frontend ne décide pas seul quels éléments automatiques insérer.
+**Contrat projeté Phase 8, non implémenté.** La base ou le backend applique la mise à jour de manière atomique : ajout des nouveaux automatiques, retrait des non-éligibles, conversion sans doublon sur le même `collection_item` et actualisation des rangs. Exemplaires, notes, autres manuels et personnalisations sont préservés. Le nouvel ordre canonique est reconstruit, puis les personnalisations relatives réappliquées chronologiquement selon les [règles métier](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8). Le frontend ne décide pas seul quels éléments insérer ni leur ordre permanent. La version présentée et la concurrence doivent être contrôlées côté backend ; un aperçu obsolète n'est pas appliqué silencieusement.
 
 La synchronisation du catalogue ne modifie jamais silencieusement une collection utilisateur.
+
+### Responsabilités Phase 8 — projet non implémenté
+
+Les lecteurs actuels sont `dashboard_collections`, l'overview Collection, `get_collection_content` et la lecture d'ordre ; Liste/Cartes/Classeur consomment leur contenu autoritatif. Les écritures d'ordre et d'éléments passent par les primitives 6A.3/6C.1, avec verrou du parent. Le pipeline possède le catalogue et ses états canoniques, pas les intentions personnelles. Ce socle doit être réutilisé et faire évoluer ses contrats de manière coordonnée, sans vérité concurrente frontend.
+
+Le masquage appartient à l'élément automatique de la collection automatique. Autorisation propriétaire côté backend ; consultation partagée en lecture seule. Les agrégations Dashboard/Collection/partage excluront les masqués des deux comptes ; les vues filtreront la séquence sans écrire l'ordre ni toucher aux exemplaires. Aucun élargissement des droits d'édition des destinataires.
+
+Les notifications auront leur stockage et leurs états individuels dans Supabase, sous les restrictions d'identité, MFA et droits applicables. Lecture et changements d'état limités à l'utilisateur concerné ; notifications de collection pour le propriétaire. La publication administrative passera par une commande ou un script sécurisé terminal/Codex, hors frontend, sans interface d'administration ni droit de publication pour les utilisateurs ordinaires. Aucun secret administratif dans le client. Transport, distribution, déclenchement et signatures restent ouverts ; aucune nouvelle catégorie ni notification externe.
+
+8A.2 formalise l'algorithme ; 8A.3 définit persistance, contrats, concurrence et chemin de déploiement/retour arrière. Les décodeurs stricts existants imposent d'examiner la compatibilité des lecteurs lors d'une évolution de payload. Les collections historiques sont des tests recréables, sans récupération d'intentions passées ; cela n'autorise aucune destruction maintenant. Aucun schéma, RPC, script ou composant Phase 8 n'est livré par 8A.1.
 
 ## Catalogue local et synchronisation TCGdex
 

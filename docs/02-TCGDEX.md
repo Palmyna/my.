@@ -283,7 +283,7 @@ Dans les deux cas, le catalogue local MY., et non un appel direct à TCGdex lors
 
 ### Ordre stable et reproductible
 
-L'ordre canonique de génération doit rester stable et reproductible. Une synchronisation ne doit pas produire un ordre canonique différent de manière arbitraire lorsque la cible et l'état du catalogue n'ont pas changé. Cet ordre initialise la collection et fournit les `automatic_rank` ; après création, tous les éléments sont librement réordonnables par le propriétaire via `sort_position`, sans modifier le hash/version canonique ni `automatic_target_states`. Les futures mises à jour préservent autant que possible l'ordre personnalisé sans le réinitialiser arbitrairement ; leur insertion/fusion reste à cadrer en Phase 8.
+L'ordre canonique de génération doit rester stable et reproductible. Une synchronisation ne doit pas produire un ordre canonique différent de manière arbitraire lorsque la cible et l'état du catalogue n'ont pas changé. Cet ordre initialise la collection et fournit les `automatic_rank` ; après création, tous les éléments sont librement réordonnables par le propriétaire via `sort_position`, sans modifier le hash/version canonique ni `automatic_target_states`. Pour les actualisations futures, le principe Phase 8 validé reconstruit le nouvel ordre canonique puis réapplique chronologiquement les personnalisations relatives, sans replacer arbitrairement les cartes déjà présentes. Les [règles métier](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) priment ; algorithme détaillé et persistance restent à formaliser en 8A.2/8A.3.
 
 Pour une collection par Pokémon, les priorités sont :
 

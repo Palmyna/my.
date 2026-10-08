@@ -576,7 +576,7 @@ Dans une collection personnalisée, tous les éléments sont manuels. Dans une c
 
 #### Ordre
 
-`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 6A.3 fournit le déplacement contrôlé par midpoint, avec rééquilibrage de la collection et sérialisation des déplacements, décrits ci-dessous. Aucun calcul de position en flottant JavaScript. L'insertion/fusion lors des futures mises à jour reste à cadrer en Phase 8.
+`sort_position NUMERIC(40,20)` représente l'ordre réel affiché dans cette collection pour tous les éléments, avec une arithmétique décimale exacte. Les positions négatives sont possibles, `NaN` est interdit et les égalités de position sont départagées par l'UUID de l'élément : `ORDER BY sort_position, id`. L'index suit ce même ordre. La Phase 6A.3 fournit le déplacement contrôlé par midpoint, avec rééquilibrage de la collection et sérialisation des déplacements, décrits ci-dessous. Aucun calcul de position en flottant JavaScript. Le principe futur d'ordre relatif est validé ; sa représentation et ses contrats restent à arrêter en 8A.2/8A.3, voir les [contrats projetés](#contrats-projetés-phase-8--non-implémentés).
 
 `automatic_rank BIGINT` conserve l'ordre canonique des éléments automatiques à la dernière génération ou mise à jour appliquée. Il est obligatoire et strictement positif pour un élément automatique, absent pour un élément manuel. Un trigger interdit l'origine automatique dans une collection personnalisée, y compris lors d'un changement de parent.
 
@@ -811,7 +811,7 @@ Le [rapport local](reports/2026-09-14-PHASE4B3-ACCOUNT-DELETION.md) consigne les
 
 ## Progression
 
-La progression utilise **tous les éléments présents dans la collection**, qu'ils soient automatiques ou manuels.
+**Contrat livré jusqu'à Phase 7 :** la progression utilise tous les éléments présents, automatiques ou manuels. **Décision Phase 8, non implémentée :** exclure les automatiques masqués du numérateur et du dénominateur, même possédés ; conserver les manuels. Même règle au Dashboard, dans Collection et en partage, indépendamment des filtres d'affichage ou de recherche. Les formules et la vue ci-dessous décrivent encore le socle livré.
 
 ```text
 total_count = nombre de collection_items
@@ -937,6 +937,8 @@ Les arguments, contraintes de nom, cible inexistante et refus d'autorisation uti
 
 ### Preview de mise à jour
 
+**Contrat conceptuel futur, non implémenté ; nom et signature illustratifs, à arrêter en 8A.3.**
+
 Une opération conceptuelle telle que `preview_collection_update(collection_id)` compare les éléments automatiques matérialisés à la structure actuelle de la cible sans modifier aucune donnée.
 
 Elle doit pouvoir retourner :
@@ -969,6 +971,8 @@ Aucun `physical_copy` n'est supprimé. Les exemplaires restent globaux au compte
 
 ### Application transactionnelle
 
+**Contrat conceptuel futur, non implémenté ; nom et signature illustratifs, à arrêter en 8A.3.**
+
 Une opération conceptuelle telle que `apply_collection_update(collection_id, expected_target_version)` doit :
 
 1. vérifier l'identité du propriétaire ;
@@ -979,10 +983,12 @@ Une opération conceptuelle telle que `apply_collection_update(collection_id, ex
 6. ajouter les nouveaux éléments ;
 7. retirer les éléments automatiques devenus non éligibles ;
 8. mettre à jour les rangs automatiques ;
-9. préserver autant que possible l'ordre personnalisé de tous les éléments, automatiques et manuels, sans réinitialiser arbitrairement `sort_position` vers l'ordre canonique ;
+9. reconstruire le nouvel ordre canonique puis réappliquer chronologiquement les personnalisations relatives, sans replacer arbitrairement les éléments déjà présents ;
 10. enregistrer la nouvelle version appliquée.
 
 Toutes les étapes réussissent ou échouent ensemble.
+
+Le contrat doit aussi contrôler la concurrence avec les mutations de collection et le catalogue, préserver le masquage des automatiques conservés, rendre visibles les nouveaux automatiques et les manuels convertis. La notification de collection n'est traitée qu'après application effective. Mécanismes de contrôle et articulation des états à arrêter en 8A.3.
 
 Si la cible évolue entre la preview et la validation, l'opération ne doit pas appliquer silencieusement un résumé obsolète. Elle refuse l'application avec l'ancienne version et permet de demander une nouvelle preview.
 
@@ -1000,7 +1006,7 @@ L'ajout augmente immédiatement le total de progression. Une variante déjà pos
 
 Tous les éléments d'une collection personnalisée ou automatique sont librement réordonnables par le propriétaire. Un déplacement modifie `sort_position`, sans modifier `origin`, `automatic_rank`, le hash/version canonique, la version appliquée ou `automatic_target_states`. Les automatiques restent non supprimables manuellement ; les manuels peuvent être ajoutés, retirés et déplacés librement.
 
-Les mises à jour actualisent les rangs canoniques tout en préservant autant que possible l'ordre personnalisé. Le placement d'un nouvel élément automatique dans cet ordre et la stratégie de préservation/ancrage des positions restent explicitement ouverts pour la Phase 8, sans algorithme exact d'insertion/fusion fixé. La possibilité de déplacer un automatique est définitivement validée.
+Les mises à jour futures suivent le [principe relatif validé](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8). Les cas complexes et la traduction SQL restent à formaliser en 8A.2/8A.3 ; la possibilité de déplacer un automatique est déjà livrée. La primitive 6A.3 ci-dessous ne mémorise actuellement aucune intention relative.
 
 #### Réorganisation 6A.3 — migration et primitives
 
@@ -1020,6 +1026,23 @@ Le service `collection-items` expose la lecture des IDs et un déplacement méti
 `CollectionItemReorderList` reçoit les IDs/libellés ordonnés, `renderItem`, `availability`, `onMove` et le feedback du hook. Non monté en 6A.3, il est désormais composé par la liste propriétaire 6B.3 avec les IDs et lignes issus du contenu. Son ordre visuel temporaire 6F.3 ne dure que pendant la sauvegarde et les relectures autoritatives ; il ne modifie aucun cache ni `sort_position`. La dépendance épinglée `@hello-pangea/dnd@18.0.1`, compatible React 19, fournit les capteurs éprouvés pour listes : poignée dédiée de 44 px, souris, appui tactile prolongé avec annulation du geste si scroll avant activation, clavier Espace/flèches/Espace et Échap. Instructions et annonces sont en français. Les autres actions de ligne ne déclenchent pas le déplacement. Une disponibilité `{ enabled: false, reason }` couvre notamment les mutations structurelles, les actualisations et le filtre 6D.1 qui masque effectivement des items ; la raison reste accessible au focus. Le partage ne monte pas ce DnD. Aucun mode global d'édition, bouton de sauvegarde d'ordre ou reset.
 
 Les types ont été régénérés depuis le schéma local ; `PendingCollectionReorderDatabase` et le cast associé sont supprimés. Pour `start`/`end`, le service omet `p_anchor_id` : PostgreSQL applique son défaut `NULL`, conformément à la signature générée optionnelle. Pour `before`/`after`, l'ancre reste transmise. Aucun comportement métier modifié. Le test pgTAP `014_collection_reorder.test.sql` et `scripts/test-collection-reorder-concurrency.ts` ont été exécutés avec succès après application locale durable ; le second utilise des fixtures synthétiques et vérifie l'attente réelle de deux connexions, l'indépendance d'une autre collection, l'atomicité et le rollback. Il exige une base locale disposant des fonctions ; il n'applique aucune migration. Un rollback du déploiement peut supprimer les deux fonctions par une nouvelle migration ; les positions stockées restent valides. Ces preuves locales sont complétées par le checkpoint Cloud manuel du propriétaire consigné dans le rapport de clôture Phase 6.
+
+## Contrats projetés Phase 8 — non implémentés
+
+8A.1 valide des besoins, sans créer de table, colonne, RPC, script, type généré ou composant. Les signatures conceptuelles de preview/application ci-dessus ne sont pas des API livrées.
+
+| Domaine | Garanties attendues | Choix techniques ouverts |
+|---|---|---|
+| Ordre relatif | Intention « avant cet élément » ou fin explicite ; ajouts manuels relatifs ; réapplication chronologique ; ancrage disparu → prochaine carte présente dans l'ancien ordre, sinon fin ; masqués inclus structurellement | Représentation persistante, chronologie, résolution des cas complexes, adaptation des primitives actuelles |
+| Masquage | Persistant par élément automatique d'une collection automatique ; mutation propriétaire seulement ; partagé en lecture seule ; aucun changement d'origine, position, notes ou exemplaires | Champ/stockage, mutation et payloads de lecture, contraintes et policies précises |
+| Progression | Exclusion des masqués des deux comptes, même possédés ; manuels inclus ; Dashboard/Collection/partage cohérents et indépendants du filtre | Évolution coordonnée des lecteurs et agrégations existants |
+| Actualisation | Aperçu ajout/retrait/conversion/ordre ; validation propriétaire ; version présentée et concurrence contrôlées ; application atomique sans perte ni doublon | Payloads, erreurs, validation de preview, verrous et protocole de confirmation |
+| Notifications | États individuels persistants ; non lues seules dans le badge ; traitées/obsolètes retirées ; une active par collection, réactualisée et repassée non lue lors de nouveaux changements | Stockage, unicité, distribution, obsolescence, transitions et intégration avec application |
+| Publication | Annonces/changelogs aux comptes déjà inscrits même déconnectés ; pas de rétroactivité automatique sauf annonce importante actuelle ; commande/script sécurisé sans frontend administratif | Ciblage et exception nouveaux inscrits, mécanisme privilégié, authentification administrative, garanties de reprise |
+
+Les [règles métier complètes](01-FEATURES.md#centre-de-notifications--décisions-phase-8) fixent les trois catégories initiales ; aucune catégorie supplémentaire implémentée. Les droits doivent préserver RLS, MFA/profil, propriété et confidentialité du partage : aucun utilisateur ordinaire ne publie administrativement et aucun secret privilégié n'est exposé au frontend.
+
+**8A.2** formalise les cas complexes de déplacements relatifs et les invariants de reorder avec éléments masqués non affichés. **8A.3** arrête persistance, contrats de lecture/écriture, sécurité, concurrence, déploiement coordonné et retour arrière. Pas de récupération d'intentions historiques : collections existantes uniquement de test, recréation acceptée par le propriétaire. Aucune suppression/reset autorisée ici. Le maintien des données lors d'une future transition et la compatibilité avec les décodeurs stricts restent à traiter avant toute migration.
 
 ## Partage par identifiant public
 
@@ -1373,7 +1396,10 @@ Les tests de base devront notamment vérifier :
 - la réorganisation par le propriétaire des éléments automatiques et manuels via `sort_position`, sans changement d'origine, de rang canonique, de hash/version canonique, de version appliquée ni d'`automatic_target_states` ;
 - des collections de même cible/version avec les mêmes éléments automatiques et des positions différentes ;
 - l'interdiction de suppression manuelle d'un élément automatique ;
-- la mise à jour des `automatic_rank` et la préservation autant que possible de l'ordre personnalisé, sans réinitialisation arbitraire des positions ; les scénarios précis d'insertion/ancrage seront définis après le cadrage Phase 8.
+- la mise à jour des `automatic_rank` et la réapplication chronologique des personnalisations relatives selon les exemples A/B validés ; scénarios complexes à formaliser en 8A.2 ;
+- le masquage propriétaire uniquement, sa conservation à l'actualisation et son exclusion des deux comptes de progression, même possédé, dans tous les contextes ;
+- le reorder avec masqués non affichés sans déplacement implicite, et le compactage Classeur sans écriture d'ordre ;
+- le cycle de vie individuel des notifications, l'unicité active par collection, l'obsolescence et l'interdiction de publication administrative ordinaire.
 
 ### RLS
 
@@ -1407,7 +1433,7 @@ Le futur SQL et les opérations métier doivent garantir autant que possible que
 - un exemplaire appartient à un utilisateur et à une variante, jamais à une collection ;
 - chaque exemplaire physique est une ligne distincte ;
 - la possession est dérivée des exemplaires ;
-- la progression inclut tous les éléments, manuels compris ;
+- la progression livrée inclut tous les éléments, manuels compris ; en Phase 8, les automatiques masqués seront exclus des deux comptes quel que soit le filtre ;
 - un partage collection-destinataire est unique ;
 - le propriétaire ne se partage pas sa propre collection ;
 - le destinataire d'un partage reste en lecture seule ;
@@ -1422,7 +1448,7 @@ La V1 ne crée pas sans besoin démontré :
 - de tables d'abonnement, de plan, de paiement, de facture ou d'entitlement ;
 - de champ `is_premium` ;
 - d'historique complet des collections ou de journal de chaque action utilisateur ;
-- de système de notifications complexe ;
+- de système de notifications au-delà du centre interne Phase 8 cadré, ni push système, notification navigateur externe ou email de notifications ;
 - de commentaires, likes, messages, équipes ou rôles collaboratifs ;
 - de marketplace ou de données de prix ;
 - de pages de classeur persistées ;
@@ -1436,7 +1462,7 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
-- pour la Phase 8, le placement d'un nouvel élément automatique dans un ordre personnalisé et la stratégie de préservation/ancrage des positions de tous les éléments ;
+- pour la Phase 8, les cas complexes du modèle relatif validé (8A.2), puis la persistance et les contrats techniques d'ordre, masquage, actualisation et notifications (8A.3) ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
 - le code et les signatures finaux des RPC ;
@@ -1447,8 +1473,8 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 
 ## Synthèse
 
-Le schéma de MY. repose sur une variante définie une fois dans le catalogue, référencée indépendamment par les collections et par les exemplaires physiques. Les exemplaires sont globaux au compte ; la possession et la progression sont dérivées, et tous les éléments de collection, manuels compris, contribuent au total.
+Le schéma de MY. repose sur une variante définie une fois dans le catalogue, référencée indépendamment par les collections et par les exemplaires physiques. Les exemplaires sont globaux au compte ; possession et progression sont dérivées. Le socle livré compte tous les éléments ; Phase 8 exclura les automatiques masqués des deux comptes, en conservant les manuels.
 
-Les collections automatiques sont matérialisées et versionnées par cible. Une évolution descriptive du catalogue est visible immédiatement, tandis qu'un changement de structure produit un nouveau hash, une nouvelle version, une preview puis une application explicitement validée et transactionnelle. Une conversion manuel vers automatique évite les doublons, et tout retrait structurel préserve les exemplaires.
+Les collections automatiques sont matérialisées et versionnées par cible. Une évolution descriptive du catalogue est visible immédiatement, tandis qu'un changement de structure produit un nouveau hash et une nouvelle version. La preview et l'application explicitement validée et transactionnelle restent projetées en Phase 8. La conversion prévue manuel vers automatique évite les doublons, et tout retrait structurel préserve les exemplaires.
 
 La RLS protège les données utilisateur, les écritures du catalogue restent privilégiées, les migrations sont versionnées dans Git et le schéma reste compact pour la phase initiale. Aucun mécanisme Premium ou paiement n'est ajouté à la V1.
