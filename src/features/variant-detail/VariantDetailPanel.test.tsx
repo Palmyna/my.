@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
+import { MemoryRouter, useLocation } from 'react-router'
 import { getVariantDetail, VariantDetailError } from '../../services/variant-detail'
 import { createPhysicalCopy, deletePhysicalCopy, listPhysicalCopies, updatePhysicalCopy, type PhysicalCopy } from '../../services/physical-copies'
 import type { VariantDetail } from '../../types/variant-detail'
@@ -14,7 +15,7 @@ vi.mock('../../services/physical-copies', async original => ({ ...await original
   listPhysicalCopies: vi.fn(), createPhysicalCopy: vi.fn(), updatePhysicalCopy: vi.fn(), deletePhysicalCopy: vi.fn() }))
 
 const variantId = '9007199254740995'
-const detail: VariantDetail = { variantId, cardNameFr: 'Pikachu', imageUrl: 'https://example.test/card.webp', localId: '025',
+const detail: VariantDetail = { variantId, sourceCardId: '25', setId: '73', pokemon: [], cardNameFr: 'Pikachu', imageUrl: 'https://example.test/card.webp', localId: '025',
   setNameFr: 'Écarlate et Violet', setNameSource: 'Scarlet & Violet', setAbbreviationFr: 'EV', setAbbreviation: 'SV',
   seriesNameFr: 'Série FR', seriesNameSource: 'Source series', rarity: 'Rare', category: 'Pokémon',
   variantLabel: 'Holo spéciale', variantType: 'holo', variantSubtype: null, variantSize: 'standard', variantFoil: 'cosmos',
@@ -40,9 +41,10 @@ function Harness({ id = variantId, readOnly = false }: { id?: string; readOnly?:
   return <><button onClick={event => setOpener(event.currentTarget)}>Ouvrir</button>
     {opener && <VariantDetailPanel variantId={id} ownerId="owner" readOnly={readOnly} opener={opener} onClose={() => setOpener(null)} />}</>
 }
+function Path() { return <p data-testid="path">{useLocation().pathname}</p> }
 function setup(readOnly = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
-  const tree = (id = variantId) => <QueryClientProvider client={client}><Harness id={id} readOnly={readOnly} /></QueryClientProvider>
+  const tree = (id = variantId) => <QueryClientProvider client={client}><MemoryRouter><Harness id={id} readOnly={readOnly} /><Path /></MemoryRouter></QueryClientProvider>
   const view = render(tree())
   const opener = screen.getByRole('button', { name: 'Ouvrir' }); opener.focus(); fireEvent.click(opener)
   return { client, opener, rerender: (id?: string) => view.rerender(tree(id)) }
@@ -74,11 +76,12 @@ test('no visible generic header; initial focus and accessible name survive loadi
   focus.mockRestore()
 })
 
-test('type alone and empty additional values do not create characteristics', async () => {
+test('type alone creates characteristics; empty values and standard size are omitted', async () => {
   get.mockResolvedValue({ ...detail, variantSubtype: null, variantFoil: null, variantStamps: ['', '  '], variantSize: 'standard' })
   setup(); await screen.findByRole('heading', { name: 'Pikachu' })
-  expect(screen.queryByRole('region', { name: 'Caractéristiques' })).not.toBeInTheDocument()
-  for (const text of ['Caractéristiques', 'Type', 'holo', 'Sous-type', 'Finition', 'Stamps', 'Taille']) {
+  expect(screen.getByRole('region', { name: 'Caractéristiques' })).toBeVisible()
+  expect(screen.getByText('holo', { selector: 'dd' })).toBeVisible()
+  for (const text of ['Sous-type', 'Finition', 'Stamps', 'Taille']) {
     expect(screen.queryByText(text)).not.toBeInTheDocument()
   }
   expect(screen.getByText('Holo spéciale')).toBeVisible()
@@ -104,9 +107,16 @@ test.each([
 test('catalogue metadata, French date, omissions, image and safe unavailable fallback', async () => {
   setup(); await screen.findByRole('heading', { name: 'Pikachu' })
   expect(get).toHaveBeenCalledExactlyOnceWith(variantId)
-  for (const value of ['Écarlate et Violet (Scarlet & Violet)', 'EV (SV)', 'Série FR', '025', 'Rare', 'Pokémon', '1 janvier 2026', 'holo', 'cosmos', 'staff, promo']) {
+  for (const value of ['Série FR', 'Rare', 'Pokémon', 'holo', 'cosmos', 'staff, promo']) {
     expect(screen.getByText(value, { selector: 'dd' })).toBeVisible()
   }
+  expect(screen.getByText('1 janvier 2026', { selector: 'time' })).toHaveAttribute('datetime', '2026-01-01')
+  expect(screen.getByRole('link', { name: 'Écarlate et Violet' })).toHaveAttribute('href', '/catalog/extensions/73')
+  expect(screen.getByText('EV (SV) · 025')).toBeVisible()
+  const metadata = screen.getByRole('dialog').querySelector('.catalog-card-metadata')!
+  expect(Array.from(metadata.querySelectorAll('dt')).map(term => term.textContent)).toEqual(['Extension', 'Rareté', 'Catégorie', 'Série', 'Date de sortie'])
+  expect(screen.queryByText('Abréviation')).not.toBeInTheDocument()
+  expect(screen.queryByText('Numéro')).not.toBeInTheDocument()
   expect(screen.getByRole('img', { name: 'Pikachu' })).toHaveAttribute('src', detail.imageUrl)
   fireEvent.error(screen.getByRole('img', { name: 'Pikachu' }))
   expect(screen.getByRole('img', { name: 'Image indisponible' })).toBeVisible()
@@ -120,10 +130,68 @@ test('null fields, equal and source-only values are rendered without invented fa
     category: null, variantLabel: null, variantType: null, variantFoil: null, variantSize: 'jumbo', variantStamps: [], effectiveReleaseDate: null })
   setup(); await screen.findByRole('heading', { name: 'Nom indisponible' })
   expect(screen.getByRole('dialog')).toHaveAccessibleName('Informations de la carte')
-  expect(screen.getByText('Source', { selector: 'dd' })).toBeVisible()
-  expect(screen.getByText('SV', { selector: 'dd' })).toBeVisible()
+  expect(screen.getByRole('link', { name: 'Source' })).toBeVisible()
+  expect(screen.getByText('SV')).toBeVisible()
   expect(screen.getByText('Source series')).toBeVisible(); expect(screen.getByText('jumbo')).toBeVisible()
   for (const text of ['Numéro', 'Rareté', 'Catégorie', 'Date de sortie', 'Version', 'Type', 'Finition', 'Stamps']) expect(screen.queryByText(text)).not.toBeInTheDocument()
+})
+
+test('empty specific fields omit Characteristics and Pokemon without placeholder', async () => {
+  get.mockResolvedValue({ ...detail, variantType: null, variantSubtype: null, variantFoil: null, variantStamps: [], variantSize: 'standard' })
+  setup(); await screen.findByRole('heading', { name: 'Pikachu' })
+  expect(screen.queryByRole('region', { name: 'Caractéristiques' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: 'Pokémon' })).not.toBeInTheDocument()
+})
+
+test.each([
+  ['Carte', '/catalog/cards/9007199254740997'], ['Extension', '/catalog/extensions/73'], ['Pikachu', '/catalog/pokemon/25'],
+])('dialog link %s navigates and cleans up even when its parent remains mounted', async (name, path) => {
+  get.mockResolvedValue({ ...detail, cardNameFr: 'Pikachu-ex', sourceCardId: '9007199254740997', pokemon: [{ pokemonId: '25', dexNumber: 25, nameFr: 'Pikachu', primaryType: 'electric', secondaryType: null }] })
+  document.body.style.overflow = 'auto'
+  setup(); await screen.findByRole('heading', { name: 'Pikachu-ex' })
+  const dialog = screen.getByRole('dialog')
+  const link = name === 'Carte' ? within(dialog).getByRole('link', { name: 'Pikachu-ex' })
+    : name === 'Extension' ? within(dialog).getByRole('link', { name: 'Écarlate et Violet' })
+    : within(within(dialog).getByRole('group', { name: 'Pokémon' })).getByRole('link', { name: 'Pikachu' })
+  expect(link).toHaveAttribute('href', path)
+  fireEvent.click(link, { ctrlKey: true })
+  expect(dialog).toBeInTheDocument(); expect(screen.getByTestId('path')).toHaveTextContent(/^\/$/)
+  fireEvent.click(link)
+  expect(screen.getByTestId('path')).toHaveTextContent(path)
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(dialog).not.toHaveAttribute('open')
+  expect(document.body.style.overflow).toBe('auto')
+  document.body.style.overflow = ''
+})
+
+test.each(['Carte', 'Extension', 'Pokémon'])('navigation %s cannot bypass copy write/reread lock and never remounts an active form', async name => {
+  get.mockResolvedValue({ ...detail, cardNameFr: 'Pikachu-ex', pokemon: [{ pokemonId: '26', dexNumber: 26, nameFr: 'Raichu', primaryType: 'electric', secondaryType: null }] })
+  let saved!: () => void
+  create.mockReturnValueOnce(new Promise(resolve => { saved = resolve }))
+  const { client } = setup(); await screen.findByText('Aucun exemplaire.')
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter un exemplaire' }))
+  const input = screen.getByRole('textbox', { name: 'État / note (facultatif)' })
+  fireEvent.change(input, { target: { value: 'Note en cours' } })
+  await act(async () => { await client.refetchQueries({ queryKey: ['variant-detail', 'owner', variantId] }) })
+  expect(screen.getByRole('textbox', { name: 'État / note (facultatif)' })).toBe(input)
+  expect(input).toHaveValue('Note en cours')
+  let reread!: (copies: PhysicalCopy[]) => void
+  list.mockReturnValueOnce(new Promise(resolve => { reread = resolve }))
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }))
+  await waitFor(() => expect(create).toHaveBeenCalledOnce())
+  const extension = screen.getByRole('link', { name: name === 'Carte' ? 'Pikachu-ex' : name === 'Extension' ? 'Écarlate et Violet' : 'Raichu' })
+  fireEvent.click(extension)
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  expect(screen.getByTestId('path')).toHaveTextContent(/^\/$/)
+  await act(async () => { saved(); await Promise.resolve() })
+  fireEvent.click(extension)
+  expect(screen.getByRole('dialog')).toBeInTheDocument()
+  expect(input).toHaveValue('Note en cours')
+  await act(async () => { reread([]); await Promise.resolve() })
+  await screen.findByRole('button', { name: 'Ajouter un exemplaire' })
+  fireEvent.click(extension)
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(screen.getByTestId('path')).toHaveTextContent(name === 'Carte' ? '/catalog/cards/25' : name === 'Extension' ? '/catalog/extensions/73' : '/catalog/pokemon/26')
 })
 
 test('loading can close, errors retry explicitly; variant_unavailable has no invented cause', async () => {
@@ -156,6 +224,20 @@ test('Escape, focus trap and body scroll restoration', async () => {
   fireEvent.keyDown(first, { key: 'Tab', shiftKey: true }); expect(last).toHaveFocus()
   cancel(); expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(opener).toHaveFocus()
   expect(document.body.style.overflow).toBe('auto'); document.body.style.overflow = ''
+})
+
+test('catalogue links remain in the native Tab sequence inside the focus trap', async () => {
+  get.mockResolvedValue({ ...detail, pokemon: [{ pokemonId: '25', dexNumber: 25, nameFr: 'Pikachu', primaryType: 'electric', secondaryType: null }] })
+  setup(); await screen.findByText('Aucun exemplaire.')
+  const dialog = screen.getByRole('dialog')
+  for (const link of within(dialog).getAllByRole('link')) {
+    link.focus()
+    // JSDOM does not move focus natively: verify both directions are left to the browser.
+    expect(fireEvent.keyDown(link, { key: 'Tab' })).toBe(true)
+    expect(link).toHaveFocus()
+    expect(fireEvent.keyDown(link, { key: 'Tab', shiftKey: true })).toBe(true)
+    expect(link).toHaveFocus()
+  }
 })
 
 test('changing variant or reader never displays old catalogue or copies; auth loss hides panel', async () => {

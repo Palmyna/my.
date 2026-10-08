@@ -187,21 +187,15 @@ Les données `dexId` peuvent être absentes ou incomplètes. MY. doit pouvoir re
 
 En V1, le complément de rattachement est un override Git explicite d'inclusion/exclusion. `cameoDexIds` n'alimente pas les cibles automatiques. Aucun fallback textuel ne déduit un rattachement.
 
-### Noms français des espèces
+### Référentiel des espèces : noms FR et types
 
-PokéAPI est la source secondaire autorisée uniquement pour `dex_number → nom français d'espèce`. Le générateur manuel utilise la liste `pokemon-species` et les réponses `pokemon-species/{id}` : ID de l'espèce et entrée `names` de langue `fr`, sans ressource de forme ni fallback anglais.
+PokéAPI est la source secondaire autorisée pour le nom français et les types de l'espèce Pokédex. Le générateur manuel conserve `pokemon-species` et le nom de langue `fr`, identifie exactement une variété `is_default`, puis lit les types de sa ressource `pokemon`, ordonnés par `slot`. Il vérifie les IDs, noms et URLs liés ; aucune forme alternative ni fallback anglais n'est utilisée.
 
-Le résultat complet est versionné dans [`data/pokemon/pokemon-fr.json`](../data/pokemon/pokemon-fr.json). La synchronisation lit ce fichier validé, sans appel PokéAPI ; TCGdex demeure la source des cartes et rattachements. Le [guide du référentiel](../data/pokemon/README.md) précise la génération et la traçabilité. Un dex absent conserve le Pokémon avec `name_fr=NULL` et un diagnostic explicite. Une correction de nom reste descriptive et ne change pas la structure des cibles.
+Le résultat complet est versionné dans [`data/pokemon/pokemon-reference.json`](../data/pokemon/pokemon-reference.json). La synchronisation lit ce fichier validé, sans appel PokéAPI ; TCGdex demeure la source des cartes et rattachements. Le [guide du référentiel](../data/pokemon/README.md) précise la génération et la traçabilité. Un dex absent conserve le Pokémon avec nom et types `NULL` et un diagnostic explicite. Une correction de nom ou de type reste descriptive et ne change pas la structure des cibles. Seuls les 18 identifiants PokéAPI sont persistés ; les couleurs appartiennent exclusivement au frontend.
 
 ## Séries, sets et blocs
 
-MY. conserve la hiérarchie utile fournie par TCGdex entre séries, sets et cartes. Elle alimente notamment :
-
-- l'affichage ;
-- la recherche ;
-- l'ordre des collections ;
-- la vue classeur ;
-- l'organisation par blocs ou ères.
+MY. conserve la hiérarchie utile fournie par TCGdex entre séries, sets et cartes. Elle alimente notamment l'affichage et les recherches qui utilisent les noms de série ou d'Extension. L'ordre canonique reste celui défini ci-dessous ; la hiérarchie ne crée aucun regroupement dans le Classeur V1, continu uniquement. Aucun mode par bloc ou ère n'est prévu dans cette V1.
 
 Des groupes tels que *Base*, *EX*, *Diamond & Pearl*, *Black & White*, *XY*, *Sun & Moon*, *Sword & Shield* ou *Scarlet & Violet* illustrent les blocs et séries concernés. La nomenclature affichée peut être adaptée en français lorsque nécessaire.
 

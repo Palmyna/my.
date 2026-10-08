@@ -4,11 +4,12 @@ import type { Database } from '../types/database.generated'
 import type { VariantIdInput } from '../lib/variant-id'
 import { createVariantDetailService, getVariantDetail } from './variant-detail'
 import { getSupabaseClient } from './supabase'
+import { POKEMON_TYPES } from '../types/pokemon'
 
 vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
 const id = '9007199254740995'
 const row = {
-  variant_id: id, image_url: 'https://example.test/reverse.webp', card_name_fr: 'Pikachu', local_id: '28',
+  variant_id: id, source_card_id: id, set_id: id, pokemon: [], image_url: 'https://example.test/reverse.webp', card_name_fr: 'Pikachu', local_id: '28',
   rarity: 'Rare', category: 'Pokemon', set_name_fr: 'Légendes Brillantes', set_name_source: 'Shining Legends',
   set_abbreviation_fr: 'SL3.5', set_abbreviation: 'SLG', series_name_fr: 'Soleil et Lune', series_name_source: 'Sun & Moon',
   variant_label: 'Reverse', variant_type: 'reverse', variant_subtype: 'special', variant_size: 'standard',
@@ -27,7 +28,7 @@ describe('independent variant detail', () => {
   it('calls only the detail RPC with lossless BIGINT and maps exactly the catalogue payload', async () => {
     const { rpc, get } = setup()
     expect(await get(id)).toEqual({
-      variantId: id, imageUrl: row.image_url, cardNameFr: 'Pikachu', localId: '28', rarity: 'Rare', category: 'Pokemon',
+      variantId: id, sourceCardId: id, setId: id, pokemon: [], imageUrl: row.image_url, cardNameFr: 'Pikachu', localId: '28', rarity: 'Rare', category: 'Pokemon',
       setNameFr: 'Légendes Brillantes', setNameSource: 'Shining Legends', setAbbreviationFr: 'SL3.5', setAbbreviation: 'SLG',
       seriesNameFr: 'Soleil et Lune', seriesNameSource: 'Sun & Moon', variantLabel: 'Reverse', variantType: 'reverse',
       variantSubtype: 'special', variantSize: 'standard', variantFoil: 'holo', variantStamps: ['Z stamp', 'A stamp', 'Z stamp'],
@@ -56,6 +57,43 @@ describe('independent variant detail', () => {
   })
   it('maps SQL null to unavailable', async () => {
     await expect(setup(null).get(id)).rejects.toMatchObject({ code: 'variant_unavailable' })
+  })
+  it('maps complete ordered source Card Pokemon, including BIGINT and dual/missing types', async () => {
+    const pokemon = [
+      { pokemon_id: id, dex_number: 25, name_fr: 'Pikachu', primary_type: 'electric', secondary_type: 'flying' },
+      { pokemon_id: '-42', dex_number: 26, name_fr: null, primary_type: null, secondary_type: null },
+    ]
+    const { get, rpc } = setup({ ...row, pokemon })
+    expect(await get(id)).toMatchObject({ sourceCardId: id, setId: id, pokemon: [
+      { pokemonId: id, dexNumber: 25, nameFr: 'Pikachu', primaryType: 'electric', secondaryType: 'flying' },
+      { pokemonId: '-42', dexNumber: 26, nameFr: null, primaryType: null, secondaryType: null },
+    ] })
+    expect(rpc).toHaveBeenCalledTimes(1)
+  })
+  it.each(POKEMON_TYPES)('accepts source Card Pokemon type %s', async primary_type => {
+    expect(await setup({ ...row, pokemon: [{ pokemon_id: id, dex_number: 25, name_fr: null, primary_type, secondary_type: null }] }).get(id))
+      .toMatchObject({ pokemon: [{ primaryType: primary_type }] })
+  })
+  it('rejects malformed/duplicate source Card Pokemon and navigation BIGINTs', async () => {
+    const metadata = { pokemon_id: id, dex_number: 25, name_fr: null, primary_type: 'electric', secondary_type: null }
+    const invalid = [null, {}, '[]', [null], [metadata, metadata],
+      ...Object.keys(metadata).map(key => [Object.fromEntries(Object.entries(metadata).filter(([field]) => field !== key))]),
+      ...[{ pokemon_id: Number(id) }, { pokemon_id: '01' }, { pokemon_id: '9223372036854775808' },
+        { dex_number: 0 }, { dex_number: 1.5 }, { name_fr: [] }, { primary_type: 'stellar' },
+        { secondary_type: 'stellar' }, { primary_type: null, secondary_type: 'fire' },
+        { secondary_type: 'electric' }, { owned: true },
+      ].map(patch => [{ ...metadata, ...patch }]),
+    ]
+    for (const pokemon of invalid) await expect(setup({ ...row, pokemon }).get(id))
+      .rejects.toMatchObject({ code: 'unexpected', message: 'unexpected' })
+    for (const key of ['source_card_id', 'set_id']) {
+      for (const value of [42, Number(id), '01', '-0', '1\n', '9223372036854775808', null]) {
+        await expect(setup({ ...row, [key]: value }).get(id)).rejects.toMatchObject({ code: 'unexpected' })
+      }
+      for (const value of ['-9223372036854775808', '9223372036854775807', '0']) {
+        expect(await setup({ ...row, [key]: value }).get(id)).toMatchObject({ [key === 'set_id' ? 'setId' : 'sourceCardId']: value })
+      }
+    }
   })
   it.each(['', '01', '-0', '1.0', '1e3', ' 1', '1\n', '9223372036854775808', '-9223372036854775809',
     9007199254740996, NaN, Infinity, 1.5, null, undefined, {}, 1n])('rejects invalid ID %# before any Supabase call', async value => {

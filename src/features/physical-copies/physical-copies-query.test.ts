@@ -5,7 +5,7 @@ import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } f
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { invalidateCopyPossession, physicalCopiesKey } from './physical-copies-query'
 
-const item = (variantId: string): CollectionContentItem => ({ collectionItemId: 'item', variantId, origin: 'manual',
+const item = (variantId: string): CollectionContentItem => ({ collectionItemId: 'item', variantId, sourceCardId: '25', setId: '73', origin: 'manual',
   cardNameFr: null, localId: null, setNameFr: null, setAbbreviationFr: null, setAbbreviation: null, seriesNameFr: null, seriesNameSource: null, imageUrl: null, variantLabel: null, owned: false })
 
 test('copy key normalizes safe legacy IDs and preserves lossless BIGINT and identity scope', () => {

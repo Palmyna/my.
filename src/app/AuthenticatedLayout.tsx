@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router'
 import { AuthenticatedHeader } from './AuthenticatedHeader'
+import { SiteFooter } from './SiteFooter'
 
 export function AuthenticatedLayout() {
   return <div className="authenticated-shell">
@@ -7,6 +8,6 @@ export function AuthenticatedLayout() {
     <main className="authenticated-content">
       <Outlet />
     </main>
-    <footer className="site-footer">Conditions d’utilisation</footer>
+    <SiteFooter />
   </div>
 }

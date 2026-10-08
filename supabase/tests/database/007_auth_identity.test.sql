@@ -14,7 +14,7 @@ select is((select count(*) from user_preferences where user_id::text like '70000
 select ok((select prosecdef and proconfig @> array['search_path=""'] from pg_proc where oid = 'private.create_profile_for_auth_user()'::regprocedure), 'Signup trigger has narrowly scoped definer privileges and empty search_path');
 select ok(not has_function_privilege(role_name, 'private.create_profile_for_auth_user()', 'EXECUTE'), role_name || ' cannot invoke signup helper')
   from unnest(array['anon', 'authenticated', 'service_role', 'supabase_auth_admin']) role_name;
-select is((select count(*) from pg_policies where schemaname = 'public' and policyname = 'require_mfa' and permissive = 'RESTRICTIVE' and cmd = 'ALL' and roles = array['authenticated']::name[] and qual is not null and with_check is not null), 13::bigint, 'All 13 application tables restrict reads AND writes to aal2');
+select is((select count(*) from pg_policies where schemaname = 'public' and policyname = 'require_mfa' and permissive = 'RESTRICTIVE' and cmd = 'ALL' and roles = array['authenticated']::name[] and qual is not null and with_check is not null), 14::bigint, 'All 14 application tables restrict reads AND writes to aal2');
 
 insert into pokemon(id, dex_number) overriding system value values (-703, 900703);
 insert into tcg_series(id, tcgdex_id) overriding system value values (-703, 'auth-test-series');

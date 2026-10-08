@@ -9,6 +9,9 @@ import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } f
 import { CollectionContentLoader } from './CollectionContentLoader'
 import { CollectionActions } from './CollectionActions'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
+import type { CollectionOverview } from '../../types/collections'
+import { useCollectionView } from './useCollectionView'
+import { PageBackButton } from '../../app/PageBackButton'
 
 export function CollectionPage() {
   const { collectionId = '' } = useParams()
@@ -55,8 +58,8 @@ export function CollectionPage() {
     void client.invalidateQueries({ queryKey: dashboardCollectionsKey(user?.id), exact: true })
   }
 
-  return <section className={`authenticated-page collection-page ${presentation?.colorClassName ?? ''}`} style={presentation?.style} aria-labelledby="page-title">
-    <Link className="collection-back" to="/dashboard">← Collections</Link>
+  return <section className="authenticated-page collection-page" style={presentation?.style} aria-labelledby="page-title">
+    <PageBackButton />
     <div className="collection-overview">
       <header className="collection-heading">
         <h1 ref={heading} id="page-title" tabIndex={-1}>{title}</h1>
@@ -65,7 +68,9 @@ export function CollectionPage() {
       {collection && <>
         <div className="collection-overview-meta">
           <p className="collection-type">{presentation?.typeLabel}</p>
-          {collection.collectionType === 'automatic' && collection.targetName && <p className="collection-target">{collection.targetName}</p>}
+          {collection.collectionType === 'automatic' && collection.targetName && collection.targetId && <p className="collection-target">
+            <Link to={`/catalog/${collection.targetType === 'pokemon' ? 'pokemon' : 'extensions'}/${collection.targetId}`}>{collection.targetName}</Link>
+          </p>}
           {collection.access === 'shared' && <p className="collection-access">Partagée · Lecture seule</p>}
         </div>
         <CollectionProgress collection={collection} />
@@ -83,6 +88,14 @@ export function CollectionPage() {
           </button>
         </div>)}
     </div>
-    {collection && user && <CollectionContentLoader key={resource} collection={collection} viewerId={user.id} />}
+    {collection && user && <CollectionWorkspace key={resource} collection={collection} viewerId={user.id} />}
   </section>
+}
+
+// Page state survives renderer changes, but resets with viewer/collection.
+function CollectionWorkspace({ collection, viewerId }: { collection: CollectionOverview; viewerId: string }) {
+  const { currentView, setCurrentView } = useCollectionView(collection.collectionId)
+  const [query, setQuery] = useState('')
+  return <CollectionContentLoader collection={collection} viewerId={viewerId}
+    currentView={currentView} setCurrentView={setCurrentView} query={query} setQuery={setQuery} />
 }

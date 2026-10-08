@@ -24,6 +24,7 @@ Ce document définit le cadre général applicable à tout agent intervenant sur
 
 - Respecter la structure du dépôt ainsi que les conventions définies dans les documents du projet.
 - Privilégier des solutions simples, lisibles, maintenables et proportionnées au besoin.
+- Avant de créer un composant, un pattern visuel ou un bloc CSS, rechercher un équivalent dans le projet. Lorsque plusieurs écrans présentent le même concept ou la même information, réutiliser ou factoriser l'existant plutôt que créer une variante parallèle. Une divergence visuelle doit répondre à une différence fonctionnelle ou UX réelle, pas au contexte du fichier.
 - Éviter les dépendances, abstractions et complexités inutiles.
 - Vérifier et tester les changements réalisés avant de considérer une tâche comme terminée.
 - Ne pas commencer de développement ni élargir le périmètre d'une tâche sans demande explicite.

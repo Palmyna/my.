@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router'
 import logo from '../assets/brand/my-logo.svg'
 import { useAuth } from '../features/auth/auth-context'
 import { useAuthTask } from '../features/auth/auth-ui'
+import { GlobalSearch } from '../features/global-search/GlobalSearch'
 
 function UserMenu() {
   const { actions, user } = useAuth()
@@ -89,17 +90,13 @@ function UserMenu() {
 }
 
 export function AuthenticatedHeader() {
-  const searchId = useId()
+  const { user } = useAuth()
   const location = useLocation()
   return <header className="site-header authenticated-header">
     <div className="header-identity">
       <Link className="brand" to="/dashboard" aria-label="MY. — Dashboard"><img src={logo} alt="" /></Link>
     </div>
-    <div className="header-search" role="search" aria-label="Recherche MY.">
-      <label className="visually-hidden" htmlFor={searchId}>Rechercher sur MY.</label>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
-      <input id={searchId} type="search" placeholder="Rechercher une carte, une extension…" autoComplete="off" spellCheck={false} />
-    </div>
+    <GlobalSearch key={`${user?.id}:${location.key}`} viewerId={user?.id ?? ''} />
     <UserMenu key={location.key} />
   </header>
 }

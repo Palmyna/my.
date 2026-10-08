@@ -1,0 +1,2 @@
+.binder-format-grid { display: grid; grid-template-columns: repeat(var(--binder-columns), 1fr); gap: 2px; width: 22px; flex-shrink: 0; }
+.binder-format-grid i { aspect-ratio: 1; border: 1px solid currentColor; border-radius: 1px; opacity: .75; }

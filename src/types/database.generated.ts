@@ -136,6 +136,37 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"collection_view_preferences": {
+                  Row: {
+                    "binder_format": string,"collection_id": string,"created_at": string,"updated_at": string,"user_id": string
+                  }
+                  Insert: {
+                    "binder_format": string,"collection_id": string,"created_at"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Update: {
+                    "binder_format"?: string,"collection_id"?: string,"created_at"?: string,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "collection_view_preferences_collection_id_fkey"
+      columns: ["collection_id"]
+isOneToOne: false
+      referencedRelation: "collections"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "collection_view_preferences_collection_id_fkey"
+      columns: ["collection_id"]
+isOneToOne: false
+      referencedRelation: "dashboard_collections"
+      referencedColumns: ["collection_id"]
+    },{
+      foreignKeyName: "collection_view_preferences_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"collections": {
                   Row: {
                     "applied_target_version": number | null,"automatic_target_type": string | null,"collection_type": string,"created_at": string,"id": string,"name": string,"owner_id": string,"target_pokemon_id": number | null,"target_set_id": number | null,"updated_at": string
@@ -194,13 +225,13 @@ isOneToOne: false
                   ]
                 },"pokemon": {
                   Row: {
-                    "created_at": string,"dex_number": number,"id": number,"is_active": boolean,"name_fr": string | null,"updated_at": string
+                    "created_at": string,"dex_number": number,"id": number,"is_active": boolean,"name_fr": string | null,"primary_type": string | null,"secondary_type": string | null,"updated_at": string
                   }
                   Insert: {
-                    "created_at"?: string,"dex_number": number,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"dex_number": number,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"primary_type"?: string | null,"secondary_type"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"dex_number"?: number,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"updated_at"?: string
+                    "created_at"?: string,"dex_number"?: number,"id"?: never,"is_active"?: boolean,"name_fr"?: string | null,"primary_type"?: string | null,"secondary_type"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
 
@@ -271,13 +302,13 @@ isOneToOne: false
                   ]
                 },"user_preferences": {
                   Row: {
-                    "catalog_default_view": string,"collection_default_view": string,"created_at": string,"last_catalog_view": string,"last_collection_view": string,"updated_at": string,"user_id": string
+                    "binder_default_format": string,"catalog_default_view": string,"collection_default_view": string,"created_at": string,"last_catalog_view": string,"last_collection_view": string,"updated_at": string,"user_id": string
                   }
                   Insert: {
-                    "catalog_default_view"?: string,"collection_default_view"?: string,"created_at"?: string,"last_catalog_view"?: string,"last_collection_view"?: string,"updated_at"?: string,"user_id"?: string
+                    "binder_default_format"?: string,"catalog_default_view"?: string,"collection_default_view"?: string,"created_at"?: string,"last_catalog_view"?: string,"last_collection_view"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Update: {
-                    "catalog_default_view"?: string,"collection_default_view"?: string,"created_at"?: string,"last_catalog_view"?: string,"last_collection_view"?: string,"updated_at"?: string,"user_id"?: string
+                    "binder_default_format"?: string,"catalog_default_view"?: string,"collection_default_view"?: string,"created_at"?: string,"last_catalog_view"?: string,"last_collection_view"?: string,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -293,7 +324,7 @@ isOneToOne: true
           Views: {
             "dashboard_collections": {
                   Row: {
-                    "access": string | null,"collection_id": string | null,"collection_type": string | null,"name": string | null,"owned_count": number | null,"target_name": string | null,"target_type": string | null,"total_count": number | null
+                    "access": string | null,"collection_id": string | null,"collection_type": string | null,"name": string | null,"owned_count": number | null,"target_id": string | null,"target_name": string | null,"target_primary_type": string | null,"target_secondary_type": string | null,"target_type": string | null,"total_count": number | null
                   }
                   Relationships: [
 
@@ -308,6 +339,15 @@ isOneToOne: true
 { Args: { "p_name": string,"p_target_id": number,"p_target_type": string }; Returns: {
               "collection_id": string,"created": boolean
             }[]
+                           },
+"get_catalog_card":
+{ Args: { "p_card_id": number }; Returns: Json
+                           },
+"get_catalog_pokemon":
+{ Args: { "p_pokemon_id": number }; Returns: Json
+                           },
+"get_catalog_set":
+{ Args: { "p_set_id": number }; Returns: Json
                            },
 "get_collection_content":
 { Args: { "p_collection_id": string }; Returns: Json
@@ -326,6 +366,9 @@ isOneToOne: true
                            },
 "search_catalog_variants_for_add":
 { Args: { "p_limit"?: number,"p_offset"?: number,"p_query": string }; Returns: Json
+                           },
+"search_global_navigation":
+{ Args: { "p_query": string }; Returns: Json
                            }
           }
           Enums: {

@@ -1,14 +1,18 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, type MouseEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getVariantDetail, VariantDetailError } from '../../services/variant-detail'
 import type { VariantDetail } from '../../types/variant-detail'
 import { variantIdString, type VariantIdInput } from '../../lib/variant-id'
+import { formatFrSource } from '../../lib/format-fr-source'
 import { useAuth } from '../auth/auth-context'
 import { CardImage } from '../collections/CardImage'
+import { CatalogCardMetadata } from '../catalog/CatalogCardMetadata'
 import { PhysicalCopiesContent, type PhysicalCopiesContentHandle } from '../physical-copies/PhysicalCopiesContent'
 import { trapDialogFocus } from '../physical-copies/trap-dialog-focus'
 import '../collections/collection-content.css'
 import './variant-detail.css'
+import { Link } from 'react-router'
+import { isPlainLinkClick } from '../../lib/is-plain-link-click'
 
 type Props = {
   variantId: VariantIdInput; ownerId: string; readOnly?: boolean; opener: HTMLElement | null; onClose: () => void
@@ -58,7 +62,10 @@ function DetailPanel({ variantId, ownerId, readOnly, opener, onClose, viewerId }
           ? 'Cette version n’est pas disponible.' : 'Impossible de charger les informations de cette version.'}</p>
         <button type="button" className="button" disabled={detail.isFetching} onClick={() => void detail.refetch()}>Réessayer</button>
       </div>}
-      {detail.isSuccess && <CatalogDetail detail={detail.data} />}
+      {detail.isSuccess && <CatalogDetail detail={detail.data} onNavigate={event => {
+        if (copies.current) { if (!copies.current.close()) event.preventDefault() }
+        else onClose()
+      }} />}
       {/* Independent reads: a catalogue refresh must never unmount an in-flight copy form. */}
       <PhysicalCopiesContent ref={copies} titleId={`${id}-copies`} ownerId={ownerId} variantId={variantId}
         viewerId={viewerId} readOnly={readOnly} onClose={onClose} showPossession />
@@ -66,26 +73,11 @@ function DetailPanel({ variantId, ownerId, readOnly, opener, onClose, viewerId }
   </dialog>
 }
 
-function paired(fr: string | null, source: string | null) {
-  return fr && source && fr !== source ? `${fr} (${source})` : fr || source
-}
-
-function releaseDate(value: string | null) {
-  if (!value) return null
-  const date = new Date(`${value}T00:00:00Z`)
-  if (Number.isNaN(date.getTime())) return null
-  return new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date)
-}
-
-function CatalogDetail({ detail }: { detail: VariantDetail }) {
+function CatalogDetail({ detail, onNavigate }: { detail: VariantDetail; onNavigate: (event: MouseEvent<HTMLAnchorElement>) => void }) {
   const name = detail.cardNameFr || 'Nom indisponible'
-  const extension = paired(detail.setNameFr, detail.setNameSource)
-  const fields = [
-    ['Extension', extension], ['Abréviation', paired(detail.setAbbreviationFr, detail.setAbbreviation)],
-    ['Série', detail.seriesNameFr || detail.seriesNameSource], ['Numéro', detail.localId],
-    ['Rareté', detail.rarity], ['Catégorie', detail.category], ['Date de sortie', releaseDate(detail.effectiveReleaseDate)],
-  ].filter(([, value]) => value?.trim())
+  const context = [formatFrSource(detail.setAbbreviationFr, detail.setAbbreviation), detail.localId].filter(Boolean).join(' · ')
   const characteristics = [
+    ['Type', detail.variantType],
     ['Sous-type', detail.variantSubtype],
     ['Finition', detail.variantFoil], ['Stamps', detail.variantStamps.filter(value => value.trim()).join(', ')],
     ['Taille', detail.variantSize === 'standard' ? null : detail.variantSize],
@@ -93,16 +85,17 @@ function CatalogDetail({ detail }: { detail: VariantDetail }) {
   return <>
     <div className="variant-detail-intro">
       <CardImage key={detail.imageUrl} url={detail.imageUrl} name={name} size="detail" />
-      <div><h3>{name}</h3>{detail.variantLabel && <p className="variant-detail-version">{detail.variantLabel}</p>}
-        {(extension || detail.localId) && <p>{[extension, detail.localId].filter(Boolean).join(' · ')}</p>}</div>
+      <div><h3><Link to={`/catalog/cards/${detail.sourceCardId}`} onClick={event => {
+        if (isPlainLinkClick(event)) onNavigate(event)
+      }}>{name}</Link></h3>{detail.variantLabel && <p className="variant-detail-version">{detail.variantLabel}</p>}
+        {context && <p>{context}</p>}</div>
     </div>
-    {fields.length > 0 && <dl className="variant-detail-metadata">
-      {fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
-    </dl>}
+    <CatalogCardMetadata set={{ setId: detail.setId, nameFr: detail.setNameFr, nameSource: detail.setNameSource }}
+      rarity={detail.rarity} category={detail.category} series={{ nameFr: detail.seriesNameFr, nameSource: detail.seriesNameSource }}
+      effectiveReleaseDate={detail.effectiveReleaseDate} pokemon={detail.pokemon} onNavigate={onNavigate} />
     {characteristics.length > 0 && <section className="variant-detail-characteristics" aria-label="Caractéristiques">
       <h3>Caractéristiques</h3>
-      <dl className="variant-detail-metadata">
-        {detail.variantType?.trim() && <div><dt>Type</dt><dd>{detail.variantType}</dd></div>}
+      <dl className="catalog-card-metadata variant-detail-metadata">
         {characteristics.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
     </section>}

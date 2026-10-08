@@ -6,9 +6,9 @@ import { CollectionProgress } from '../collections/CollectionProgress'
 
 export function CollectionTile({ collection }: { collection: DashboardCollection }) {
   const titleId = useId()
-  const { typeLabel, colorClassName, style } = collectionPresentation(collection)
+  const { typeLabel, style } = collectionPresentation(collection)
 
-  return <article className={`collection-card ${colorClassName}`} style={style} aria-labelledby={titleId}>
+  return <article className="collection-card" style={style} aria-labelledby={titleId}>
     <Link className="collection-tile" to={`/collections/${encodeURIComponent(collection.collectionId)}`} aria-labelledby={titleId}>
       <h2 id={titleId}>{collection.name}</h2>
       <div className="collection-tile-meta">

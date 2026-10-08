@@ -1,3 +1,4 @@
+import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Link, MemoryRouter, Route, Routes } from 'react-router'
@@ -10,13 +11,14 @@ import { CollectionPage } from './CollectionPage'
 import { collectionOverviewKey } from './collection-query'
 
 vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
+vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES), saveUserPreferences: vi.fn() }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => ({ user: { id: 'owner' }, isAuthorized: true }) }))
 vi.mock('../../services/collections', async original => ({ ...await original<typeof import('../../services/collections')>(),
   renameCollection: vi.fn(), deleteCollection: vi.fn(), getCollectionOverview: vi.fn(), listDashboardCollections: vi.fn(),
 }))
 const rename = vi.mocked(renameCollection), remove = vi.mocked(deleteCollection), get = vi.mocked(getCollectionOverview)
 const id = 'c1200000-0000-0000-0000-000000000001'
-const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
+const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
 let row: CollectionOverview | null
 const detail = collectionOverviewKey('owner', id), dashboard = dashboardCollectionsKey('owner')
 beforeAll(() => {
@@ -60,14 +62,14 @@ test('menu propriétaire compact : ouverture, focus, Échap, extérieur et absen
   expect(trigger).toHaveFocus(); expect(trigger).toHaveAttribute('aria-expanded', 'false')
   fireEvent.click(trigger); fireEvent.pointerDown(document.body)
   expect(trigger).toHaveFocus(); expect(screen.queryByRole('group')).not.toBeInTheDocument()
-  fireEvent.click(trigger); screen.getByRole('link', { name: '← Collections' }).focus()
+  fireEvent.click(trigger); screen.getByRole('button', { name: '← Retour' }).focus()
   await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'false'))
 })
 
 test('shared reste sans action propriétaire', async () => {
   row = { ...base, access: 'shared' }; setup()
   await screen.findByText('Partagée · Lecture seule')
-  expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Actions|Réessayer|Ajouter/ })).not.toBeInTheDocument()
 })
 
 test.each(['rename', 'delete'] as const)('dialog %s : ouverture, focus, tabulation, annulation et Échap', async action => {
@@ -94,7 +96,7 @@ test.each(['', '   ', ' ab '])('renommage invalide %j sans mutation', async name
 })
 
 test.each(['free', 'pokemon', 'set'] as const)('renommage %s confirmé, caches exacts, titre et Dashboard', async kind => {
-  if (kind !== 'free') row = { ...base, collectionType: 'automatic', targetType: kind, targetName: 'Cible' }
+  if (kind !== 'free') row = { ...base, collectionType: 'automatic', targetType: kind, targetId: '25', targetName: 'Cible' }
   const { client } = setup(); const trigger = await open('rename')
   const newName = '  Mes nouvelles cartes  '
   changeName(newName); submit()
@@ -108,7 +110,7 @@ test.each(['free', 'pokemon', 'set'] as const)('renommage %s confirmé, caches e
   expect(client.getQueryState(dashboard)?.isInvalidated).toBe(true)
   expect(client.getQueryState(dashboardCollectionsKey('someone-else'))?.isInvalidated).toBe(false)
   expect(client.getQueryData(collectionOverviewKey('someone-else', id))).toEqual(base)
-  fireEvent.click(screen.getByRole('link', { name: '← Collections' }))
+  fireEvent.click(screen.getByRole('button', { name: '← Retour' }))
   expect(await screen.findByRole('link', { name: newName.trim() })).toBeVisible()
 })
 
@@ -140,10 +142,11 @@ test.each(['rename', 'delete'] as const)('%s indisponible : fermeture, cache ret
   (action === 'rename' ? rename : remove).mockRejectedValue(new CollectionsError('collection_unavailable'))
   const { client } = setup(); await open(action); submit()
   const heading = await screen.findByRole('heading', { name: 'Collection indisponible' })
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(heading).toHaveFocus()
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  await waitFor(() => expect(heading).toHaveFocus())
   expect(screen.getByRole('alert')).toHaveTextContent('Cette collection n’existe pas ou vous n’y avez plus accès.')
   expect(client.getQueryData(detail)).toBeUndefined()
-  expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Actions|Réessayer|Ajouter/ })).not.toBeInTheDocument()
 })
 
 test.each([

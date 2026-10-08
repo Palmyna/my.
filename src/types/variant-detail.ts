@@ -1,8 +1,12 @@
 import type { Database } from './database.generated'
+import type { CatalogPokemonMetadata } from './catalog'
 
 /** Catalogue data only, including historical variants. No collection or ownership context. */
 export interface VariantDetail {
   variantId: string
+  sourceCardId: string
+  setId: string
+  pokemon: CatalogPokemonMetadata[]
   imageUrl: string | null
   cardNameFr: string | null
   localId: string | null

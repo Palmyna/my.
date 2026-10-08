@@ -24,7 +24,9 @@ La V1 permet principalement de :
 
 Ces fonctionnalités doivent rester simples à comprendre et rapides à utiliser.
 
-**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres reste minimal. Le backend de création automatique est livré ; son parcours catalogue, les vues et préférences et la recherche globale restent en Phase 7, prochaine phase planifiée non commencée. Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
+**État livré à la clôture de Phase 6 :** Dashboard en grille unifiée personnelle/partagée, FAB de création personnalisée, overview et contenu Collection autoritatif, renommage/suppression propriétaire, exemplaires physiques, possession/progression, réorganisation, recherche interne locale, recherche catalogue d'ajout et ajout/retrait manuel, détail Variante contextuel avec exemplaires intégrés. Les collections réellement partagées permettent la consultation du contenu, la recherche interne, le détail et les exemplaires du propriétaire en lecture seule, sans actions de mutation. La modernisation UI harmonise graphite, accent rouge MY., actions et icônes ; le Profil conserve MY.ID/copie, email, mot de passe, Authenticator et suppression du compte. Paramètres était minimal à la clôture de Phase 6 ; le backend de création automatique était déjà livré.
+
+**État courant après 7F.2 (`0.7.19`) :** préférences, trois vues Collection, trois réglages Affichage, pages Catalogue Pokémon/Extension/Carte et parcours Créer/Ouvrir automatique personnel livrés. Identité sémantique commune : Partagée indigo prioritaire, Personnalisée rouge MY., Extension teal, Pokémon par types, fallback neutre ; Carte à identité Pokémon/fallback ambre `#C9A34A` depuis 7E.3.2. Contrat serveur et service TypeScript livrés en 7E.1 ; recherche globale du header fonctionnelle en 7E.2, contrats de présentation recherche/Détail Variante enrichis en 7E.3.1 ; harmonisation visuelle 7E.3.2 et correction de densité/hover des listes 7E.3.3 livrées, Navigation simplifiée livrée en 7F.2 (`0.7.19`) : `← Retour` partagé et liens Carte/Extension/Pokémon par IDs. **7F terminée.** Mise à jour automatique et gestion utilisateur des partages restent en Phases 8 et 9. Voir la [roadmap](08-ROADMAP.md) et le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md).
 
 ## Comptes utilisateurs
 
@@ -88,7 +90,7 @@ Le Dashboard livré présente une grille unifiée, avec statut explicite `Person
 Deux types de collections existent, avec des points d'entrée distincts :
 
 - une collection personnalisée se crée depuis le Dashboard : `Créer une collection personnalisée` → Nom → Création ;
-- une collection automatique se crée depuis la page catalogue d'un Pokémon ou d'une Extension précise : `Créer ma collection…` → Nom → création automatique. Ce parcours sera livré avec les pages catalogue.
+- une collection automatique se crée depuis la page catalogue d'un Pokémon ou d'une Extension précise : `Créer ma collection…` → Nom → création automatique. Parcours Pokémon livré en 7D.2 et Extension en 7D.3, via les mêmes composants.
 
 Le Dashboard crée uniquement des collections personnalisées, sans wizard ni sélecteur de cible automatique. Pour une cible automatique déjà possédée, la page catalogue propose `Ouvrir ma collection…`. Une collection reçue en partage ne remplace jamais la collection automatique personnelle de cette cible.
 
@@ -112,7 +114,7 @@ Elle ne dépend d'aucune logique automatique liée à un Pokémon. Elle peut not
 
 La wishlist est seulement un exemple d'usage d'une collection personnalisée et ne constitue pas une fonctionnalité supplémentaire de la V1.
 
-L'ajout manuel, dans une collection personnalisée ou automatique, sélectionne une variante exacte active et confirmée française, dont la carte source et le set sont actifs. Une variante locale MY. reste admissible sans présence dans la source. Le backend 6C.1 permet l'ajout en début ou fin (fin par défaut), puis le déplacement précis par la réorganisation existante. Un doublon est refusé sans conversion ni déplacement. Le retrait manuel conserve les exemplaires physiques et refuse les éléments automatiques. Une perte ultérieure d'éligibilité ne retire ni ne masque les éléments existants. Les interfaces d'ajout et de retrait sont livrées en 6C.3 : action propriétaire disponible même à vide, recherche → sélection → position → confirmation dans une modal unique, puis retrait confirmé des seuls éléments manuels. Les collections automatiques affichent les repères secondaires `Auto` / `Perso` ; les collections personnalisées n'affichent aucun repère d'origine. Le partage reste en lecture seule, sans ces actions de mutation.
+L'ajout manuel, dans une collection personnalisée ou automatique, sélectionne une variante exacte active et confirmée française, dont la carte source et le set sont actifs. Une variante locale MY. reste admissible sans présence dans la source. Le backend 6C.1 permet l'ajout en début ou fin (fin par défaut), puis le déplacement précis par la réorganisation existante. Un doublon est refusé sans conversion ni déplacement. Le retrait manuel conserve les exemplaires physiques et refuse les éléments automatiques. Une perte ultérieure d'éligibilité ne retire ni ne masque les éléments existants. Les interfaces d'ajout et de retrait sont livrées en 6C.3 : action propriétaire disponible même à vide, recherche → sélection → position → confirmation dans une modal unique, puis retrait confirmé des seuls éléments manuels. Depuis la micro-correction après 7F (`0.7.20`), la Liste n'affiche aucun badge d'origine `Auto` / `Perso`, sans remplacement visuel. `item.origin` reste une donnée métier : seuls les éléments manuels du propriétaire proposent le retrait. Le partage reste en lecture seule, sans ces actions de mutation.
 
 La Phase 6C.2 livre la recherche catalogue serveur et son service applicatif pour sélectionner cette Variante exacte : plusieurs variantes d'une carte donnent plusieurs résultats. La recherche reste indépendante de la collection, y compris pour les variantes déjà présentes ; `already_present` reste autoritatif à l'écriture 6C.1. Elle couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants pertinents et variante, avec normalisation de casse, accents, ligatures et ponctuation et AND multi-termes. **Le nom de série n'est pas recherché.** Elle est distincte de la recherche globale et du filtre interne. L'interface 6C.3 temporise la saisie de 300 ms, sans seuil de trois caractères, et propose `Afficher plus` par pages de 20 variantes. Voir le [contrat 6C.2](06-DATABASE.md#recherche-catalogue-pour-ajout--contrat-6c2).
 
@@ -229,7 +231,7 @@ La note est limitée à 750 caractères Unicode. Un texte vide ou uniquement com
 
 ## Recherche globale et consultation du catalogue
 
-**Phase 7 planifiée, non commencée :** les parcours globaux et pages catalogue ci-dessous restent futurs. Les recherches d'ajout et interne Phase 6 sont déjà livrées.
+**Phase 7 terminée et validée (`0.7.21`) :** Pokémon (7D.2), Extension (7D.3) et Carte (7D.4) livrés sur le socle UI Catalogue commun et les contrats 7D.1, avec identité sémantique finalisée en 7D.5. Socle serveur de recherche globale livré en 7E.1 : RPC autoritative et service TypeScript strict. Recherche globale du header fonctionnelle en 7E.2 : debounce, suggestions, états, identité 7D.5 et navigation explicite. Contrats de présentation enrichis en 7E.3.1 (`0.7.14`) : logo Extension, image représentative et Pokémon Carte dans la recherche ; IDs Carte/Extension et Pokémon dans le Détail Variante. Harmonisation frontend livrée en 7E.3.2 (`0.7.15`) : liens sans soulignement au repos, hover textuel souligné, identité Carte Pokémon/fallback ambre `#C9A34A`, miniatures Carte/logos Extension, trois vues Cartes Catalogue alignées sur Collection, libellé `Pokémon` et métadonnées communes fiche Carte/Détail Variante. Cohérence visuelle et vocabulaire Catalogue finalisés en 7E.3.4 (`0.7.17`) : métadonnées communes sans divergence, listes et progression harmonisées, compteurs Pokémon/Extension en cartes et fiche Carte en versions. Navigation simplifiée livrée en 7F.2 (`0.7.19`) : `← Retour` partagé et liens Carte/Extension/Pokémon par IDs. **7F terminée.** Les recherches d'ajout et interne Phase 6 sont déjà livrées.
 
 La recherche globale est une navigation par suggestions dynamiques, disponible partout après connexion à partir de **3 caractères**. Il n'existe ni bouton de lancement requis, ni page générale de résultats. Valider le champ ne sélectionne aucun résultat et ne navigue pas ; l'utilisateur choisit explicitement une suggestion. Sur mobile, cette validation ferme seulement le clavier et conserve les suggestions.
 
@@ -237,22 +239,48 @@ La recherche globale est une navigation par suggestions dynamiques, disponible p
 |---|---|---:|
 | Pokémon | Nom français ; numéro Pokédex informatif | 2 |
 | Extensions | Nom de l'Extension uniquement | 2 |
-| Collections | Nom uniquement, parmi ses collections et celles partagées avec lui | 2 |
+| Collections | Nom uniquement, parmi toutes les collections actuellement accessibles au viewer : personnelles ou reçues en partage | 2 |
 | Cartes | Nom, Pokémon liés, numéro, Extension, abréviations, identifiants pertinents et métadonnées textuelles prises en charge par le moteur portable | Places restantes |
 
 Le total ne dépasse jamais **10 suggestions**. Chaque catégorie est triée par pertinence ; les trois premières ne dépassent pas leur quota pour remplir la liste. Le contenu d'une Extension ou d'une collection ne la fait pas correspondre à une recherche sur son nom. Une Carte apparaît une seule fois, indépendamment de ses variantes ; aucune suggestion globale ne cible directement une Variante ou une série/bloc. La recherche Carte conserve normalisation de casse/accents, préfixes, numéros, correspondances multi-champs et classement déterministe du moteur portable existant, détaillé dans [l'architecture](05-ARCHITECTURE.md#recherche-et-requêtes).
 
+La recherche globale Phase 7 inclut les collections personnelles et les partages déjà actifs, sous les droits actuels du viewer. Phase 9 reste responsable de la création, de la gestion et du retrait des partages ; elle ne conditionne pas la lecture ou la recherche d’une collection déjà accessible.
+
 Les pages catalogue Pokémon, Extension et Carte sont des pages de consultation. Elles utilisent **Liste / Cartes** ; Classeur reste réservé aux collections.
 
-- **Pokémon** : identité française et Pokédex, nombres de Cartes distinctes et de Variantes, illustration tirée d'une Carte spéciale, puis Cartes uniques classées chronologiquement au niveau Carte.
-- **Extension** : identité, série/bloc, date et informations génériques utiles, nombres de Cartes et Variantes, illustration tirée d'une Carte Pokémon spéciale, puis Cartes uniques par numéro naturel croissant.
-- **Carte** : informations de Carte, liens vers l'Extension et chacun des Pokémon associés, puis liste de ses Variantes. Une date spécifique de Variante ne remplace pas la date de Carte.
+- **Pokémon (livré)** : identité française et Pokédex, types et gradient contextuel, nombre de cartes, aucune illustration d'espèce ; Variantes en ordre canonique RPC, filtre local AND, Liste/Cartes, Détail Variante existant et création/ouverture automatique personnelle.
+- **Extension (livrée)** : identité teal/turquoise, nom FR/source distinct, abréviation commune, série/date disponibles, nombre de cartes et logo/symbole optionnels ; Variantes en ordre canonique, recherche locale incluant les Pokémon rattachés, Liste/Cartes et Détail communs, liens indépendants vers chaque Pokémon et création/ouverture automatique personnelle.
+- **Carte (livrée)** : fiche de carte source à identité Pokémon/fallback ambre depuis 7E.3.2, image représentative fournie par le contrat et placeholder commun, nom/contexte FR/source/numéro, métadonnées disponibles et liens Extension/Pokémon par IDs internes. Section Versions, ordre backend, Liste/Cartes avec préférence globale, sans recherche locale ni CTA Collection. Liste : image et label, date seulement si distincte de la Carte. Cartes : `Nom · Abrév · N°` puis Variante, sans date supplémentaire ; les caractéristiques détaillées restent dans le Détail Variante.
 
 Les pages catalogue n'affichent pas de progression ou statistiques personnelles. Les compteurs reflètent le catalogue réellement affiché et son périmètre français ; le nombre officiel du set demeure une information distincte. Pokémon et Extension proposent **Créer ma collection** en l'absence de collection automatique personnelle correspondante, sinon **Ouvrir ma collection**. Une collection partagée ne remplace pas celle du propriétaire courant.
 
-Cliquer une Carte ouvre sa fiche ; cliquer une Variante ouvre le détail contextuel commun au catalogue et aux collections. Les actions rapides `…` et celles du détail s'adaptent au contexte et aux droits. Retour restaure autant que possible la consultation précédente ; Précédente / Suivante suit la liste d'origine, sans inventer de séquence depuis une simple suggestion. Les interactions précises relèvent de [04-UX-UI.md](04-UX-UI.md).
+Le clic principal sur une Version ouvre le Détail Variante commun, avec exemplaires personnels uniquement dans ce panneau. Les liens indépendants du nom de Carte depuis Pokémon/Extension ouvrent `/catalog/cards/:cardId` ; le contexte Extension depuis Pokémon ouvre `/catalog/extensions/:setId`. Aucun contrôle interactif imbriqué ni double ouverture. Retour partagé via l’historique réel React Router ; fallback Dashboard sans entrée MY. précédente exploitable. Les interactions précises relèvent de [04-UX-UI.md](04-UX-UI.md).
 
 Cette recherche complète deux outils distincts : la recherche interne filtre la collection actuelle ; la recherche d'ajout permet de sélectionner la **Variante exacte** à ajouter à une collection.
+
+### Identité Carte et harmonisation livrées — 7E.3.2
+
+7E.3.4 (`0.7.17`) finalise la cohérence visuelle : métadonnées Carte/Variante et Caractéristiques sur le même pattern label semibold / valeur normale ; Liste Catalogue sans séparateurs, première ligne entièrement semibold ; progression Dashboard/header Collection sur le fond commun graphite `--app-bg`. Le contrat conserve `variant_count` : Pokémon/Extension affichent `carte(s)`, la fiche Carte conserve `version(s)`. Navigation simplifiée livrée en 7F.2 (`0.7.19`) : `← Retour` partagé et liens Carte/Extension/Pokémon par IDs. **7F terminée.** Précédente / Suivante, swipe entre cartes, séquence de cartes et navigation rapide contextuelle sont abandonnés pour la V1 actuelle. [Rapport 7E.3.4](reports/2026-10-06-PHASE7E3-4-UI-CONSISTENCY.md).
+
+Un Pokémon lié avec métadonnées suffisantes → identité complète, type principal + secondaire éventuel. Plusieurs Pokémon avec exactement le même couple principal/secondaire → identité complète commune ; sinon exactement un type exploitable commun à tous → identité simple de ce type ; sinon fallback Carte. Aucun Pokémon, ambiguïté ou métadonnées insuffisantes → fallback Carte, sans sélectionner le premier Pokémon. Fallback Carte frontend **#C9A34A** (ambre/or doux), distinct du teal Extension, rouge MY. et indigo Partagé ; `resolveCardIdentity` livré en 7E.3.2 dans `catalog-identity.ts`, partagé par fiche Carte et suggestions Carte. Logique centralisée avec la palette Pokémon existante, aucune couleur SQL.
+
+7E.3.1 fournit les contrats, conservés inchangés ; [preuve des contrats](reports/2026-10-06-PHASE7E3-1-PRESENTATION-CONTRACTS.md). 7E.3.2 consomme ces données : petites images Carte avec placeholder commun, logos Extension décoratifs retirés si absents/échoués, liens sans soulignement permanent et hover autorisé. Sous chaque image des trois vues Cartes : `Nom · Abrév · N°`, puis Variante, sans troisième zone Pokémon/date. Détail : image/nom/Variante/contexte, Extension liée, rareté, catégorie, série, date, Pokémon liés, Caractéristiques (Type seul inclus, taille standard omise), puis exemplaires inchangés. Liens du dialog ferment/nettoient le panneau hors écriture/relecture d’exemplaires. [Rapport UI](reports/2026-10-06-PHASE7E3-2-UI-HARMONIZATION.md).
+
+### Liens par entité et Retour — 7F terminée
+
+`← Retour` est un bouton partagé par Collection et les trois pages Catalogue, présent avant leur contenu, y compris pendant chargement, erreur et indisponibilité. Il revient à l’entrée MY. précédente de l’historique réel, également après refresh quand cette entrée reste exploitable ; sans historique interne, il remplace la page par `/dashboard`. Aucune restauration métier du scroll ou des filtres, ni pile de navigation spécifique.
+
+La destination dépend toujours de l’ID et du type d’entité, jamais du texte visible :
+
+- nom de Carte → `/catalog/cards/:sourceCardId` ; `Pikachu-ex` reste une Carte, sans extraire de Pokémon depuis son nom ;
+- nom ou contexte Extension → `/catalog/extensions/:setId` ;
+- Pokémon explicitement fourni comme entité (bloc, liste ou métadonnée Pokémon) → `/catalog/pokemon/:pokemonId`.
+
+Une cible automatique utilise `targetType + targetId + targetName` : `pokemon` → `/catalog/pokemon/:targetId`, `set` → `/catalog/extensions/:targetId`. Collection libre : les trois valeurs sont nulles.
+
+IDs fournis en 7F.1, liens livrés en 7F.2 dans les vues Liste/Cartes Collection (propriétaire et partage), la cible automatique du header et le nom Carte du Détail Variante. Numéro et Variante restent du texte. Tuile Dashboard entière liée à la Collection ; suggestions globales chacune liées par catégorie, sans lien imbriqué. Titres de pages courantes et workflows d’action (ajout, confirmation, choix de Variante, boutons) ne reçoivent aucun lien supplémentaire. Classeur conserve son clic Détail, sans nouveaux textes. **7F terminée.**
+
+`← Retour` apparaît avant le contenu de Collection et des trois Catalogues, y compris chargement, erreur et indisponibilité. Il revient via l’historique réel React Router/navigateur, également après refresh. Sans entrée MY. précédente exploitable, il remplace l’entrée courante par `/dashboard`. Aucune sauvegarde métier du scroll, filtre ou séquence. Les préférences de vues persistées restent inchangées.
 
 ## Recherche interne
 
@@ -266,11 +294,11 @@ La croix dans le champ efface la recherche, conserve le focus et restaure imméd
 
 Cette recherche est strictement un filtre interne à la collection consultée. Elle ne constitue pas une recherche globale dans l'ensemble du catalogue Pokémon.
 
-La recherche est livrée dans la liste Collection. Son intégration aux futures vues Cartes et Classeur relève de Phase 7 : Liste et Cartes n'afficheront que les résultats correspondants ; dans Classeur, le traitement visuel des emplacements non correspondants reste à définir.
+La recherche fonctionne dans les trois vues Collection depuis 7B.3. Liste/Cartes affichent seulement les correspondances. Classeur garde toutes les positions/pages : correspondances visibles, autres variantes fortement atténuées, pochettes vides inchangées. Nouvelle recherche effective avec résultat : saut unique à la première occurrence dans l'ordre réel, puis navigation libre. Compteur et flèches parcourent les occurrences sans boucle, avec halo bref sur la pochette courante. Aucun résultat ou effacement : page conservée ; effacement retire compteur et halo.
 
 ## Vues d'une collection
 
-Les vues supplémentaires et préférences ci-dessous restent planifiées en Phase 7 ; seule la liste fonctionnelle Phase 6 est livrée.
+Liste, Cartes et Classeur sont fonctionnelles depuis 7B.3. Le sélecteur compact propose les trois vues dans la toolbar.
 
 Les trois vues de la V1 présentent la même collection et les mêmes données :
 
@@ -278,7 +306,7 @@ Les trois vues de la V1 présentent la même collection et les mêmes données :
 - vue cartes ;
 - vue classeur.
 
-Changer de vue ne modifie jamais la structure de la collection. La préférence personnelle persistante définit la vue à l'ouverture, selon les règles de la page Paramètres ci-dessous.
+Changer de vue conserve route, recherche et contenu chargé, sans refetch lié au renderer. Les trois vues partagent ordre backend, possession, droits et détail Variante Phase 6. Le dernier choix explicite est enregistré dans `last_collection_view` du viewer connecté, y compris en partage ; `collection_default_view` reste inchangée. `binder` ouvre le Classeur.
 
 ### Vue liste
 
@@ -290,39 +318,32 @@ La composition exacte des colonnes et des informations affichées relève du cad
 
 La vue cartes présente les cartes sous forme de grille ou de tuiles mettant leur image en avant. Elle permet d'identifier facilement la carte, son état de possession et les informations essentielles liées à la collection.
 
-Le niveau de détail visible directement sur chaque carte relève du cadrage UX.
+Chaque tuile conserve image, nom, abréviation d'Extension, numéro et variante visible. URL et placeholder sont ceux de Liste. La grille adapte le nombre de colonnes, avec deux colonnes sur mobile ; les résultats de recherche se compactent selon l'ordre relatif backend. Les cartes manquantes restent désaturées et atténuées, avec état accessible masqué et contrôles utilisables.
+
+Le propriétaire réorganise depuis une zone haute invisible au repos, révélée uniquement au survol de cette zone ou au focus. Capteurs souris/tactile/clavier, primitives backend et relectures Phase 6 sont réutilisés ; une coche verte temporaire confirme les lectures autoritatives réussies. Filtre masquant des éléments et partage lecture seule : aucune poignée ni réorganisation. Détail, Exemplaires et retrait manuel gardent leurs droits existants.
 
 ### Vue classeur
 
 La vue classeur représente la collection comme un classeur physique. Elle affiche toujours l'intégralité de sa structure, que les cartes soient possédées ou manquantes.
 
-Une carte manquante conserve son emplacement et doit rester identifiable. La vue ne compacte jamais automatiquement la collection pour ne montrer que les cartes possédées. La représentation visuelle exacte d'un emplacement manquant reste à définir.
+Carte possédée : rendu normal. Carte manquante : image identifiable, désaturée et atténuée, état accessible. Pochette réellement vide : aucune carte ni placeholder. Les cartes sans image ou après erreur de chargement utilisent `card-placeholder.webp`, comme Liste, Cartes, détail Variante et ajout.
 
 #### Formats de pages
 
-L'utilisateur choisit un format qui détermine le nombre d'emplacements disponibles sur chaque page. Les formats `2 × 2`, `3 × 3` et `4 × 3` sont envisagés à titre d'exemples ; la liste définitive reste ouverte.
+Les formats V1 fonctionnels sont exactement `2x2`, `3x3`, `4x3` (4, 9, 12 emplacements), défaut initial `3x3`. Le popover de la barre Classeur résout override viewer + collection → défaut global → `3x3`. « Utiliser le format par défaut » supprime l'override. Un changement effectif confirmé reconstruit les pages depuis le contenu chargé, revient page 1 et efface recherche, occurrence et halo, sans refetch du contenu.
 
 #### Organisation continue
 
-En mode continu, les cartes sont présentées successivement selon l'ordre de la collection. Les pages se remplissent sans rupture volontaire entre les groupes, dans la limite du nombre d'emplacements du format choisi.
-
-#### Organisation par blocs ou ères
-
-La collection peut également être organisée par blocs ou ères du Pokémon TCG, par exemple *Soleil et Lune*, *Épée et Bouclier* ou *Écarlate et Violet*.
-
-Dans ce mode, chaque bloc commence obligatoirement sur une nouvelle page. Si la dernière page du bloc précédent n'est pas pleine, ses emplacements restants demeurent libres et le bloc suivant commence tout de même sur la page suivante.
-
-La classification exacte des blocs et des ères dépendra des données disponibles et sera cadrée avec l'intégration de TCGdex.
+Le Classeur V1 est **continu uniquement** : les variantes suivent l'ordre autoritatif de la collection et remplissent successivement les pages. Aucun regroupement par série, bloc, ère, Extension, Pokémon ou catégorie. La pagination est calculée frontend ; aucune table `binder_pages`, aucun mode d'organisation persisté.
 
 #### Navigation
 
 La navigation entre les pages doit être simple. L'utilisateur doit pouvoir comprendre rapidement :
 
 - la page actuellement affichée ;
-- le nombre total de pages de la collection ;
-- le bloc ou le groupe affiché lorsque l'organisation par blocs est active.
+- le nombre total de pages de la collection.
 
-Le comportement détaillé de navigation relève du cadrage UX.
+Desktop/tablette large : page 1 seule à droite, puis 2–3, 4–5 ; dernière page paire seule à gauche. Mobile/largeur insuffisante : une page exacte, sans modifier le format. Côtés, clavier contextualisé, swipe mobile et numéro de page naviguent sans boucle. Clic/tap sur carte : détail Variante existant, également en partage lecture seule. Aucun reorder, Exemplaires, menu ou mutation directement sur les pochettes.
 
 ## Partage d'une collection
 
@@ -420,20 +441,25 @@ L'action reste discrète en bas de Profil, selon l'UX documentée. Les éventuel
 
 ## Paramètres et préférences d'affichage
 
-`/settings` reste volontairement minimal à la clôture de Phase 6. Les préférences décrites ci-dessous sont planifiées en Phase 7.
+`/settings` livre la section **Affichage** depuis 7C.1 (version `0.7.6`), sur la persistance 7A.3 et les vues Collection/contrôles Classeur 7B.3. Les trois pages Catalogue utilisent cette préférence globale d'ouverture.
 
-La page Paramètres, accessible depuis le menu utilisateur, possède une section Affichage avec deux préférences persistantes et indépendantes :
+La page Paramètres, accessible depuis le menu utilisateur, propose ces trois préférences persistantes et indépendantes :
 
 | Préférence | Valeurs fonctionnelles |
 |---|---|
 | Vue catalogue par défaut | Liste, Cartes, Dernier choix utilisé |
 | Vue collection par défaut | Liste, Cartes, Classeur, Dernier choix utilisé |
+| Format Classeur par défaut | `2x2`, `3x3`, `4x3` ; initialement `3x3` |
 
 Une vue fixe s'applique à chaque ouverture du contexte concerné. `Dernier choix utilisé` reprend le dernier mode explicitement sélectionné par l'utilisateur : un choix global pour toutes les pages catalogue, et un autre pour toutes les collections, sans mémorisation par Pokémon, Extension, Carte ou collection. La navigation Retour conserve toutefois la vue de la consultation en cours.
 
-Le stockage initial utilise `Dernier choix utilisé`, avec Liste en l'absence de choix antérieur, conformément à [06-DATABASE.md](06-DATABASE.md). Les préférences sont privées au compte et ne se partagent pas avec une collection. La persistance du format et du mode d'organisation du classeur reste ouverte.
+Le stockage initial utilise `Dernier choix utilisé`, avec Liste en l'absence de choix antérieur, conformément à [06-DATABASE.md](06-DATABASE.md). `last_collection_view` mémorise uniquement le dernier mode explicitement choisi, global aux collections ; aucun mode de vue par collection.
 
-Seules ces préférences de vues sont validées. Thème clair/sombre/système, réglages Premium, pages globales de possession, doublons et statistiques personnelles globales restent hors de cette évolution.
+`binder_default_format` appartient au compte. Seul un override explicite du viewer pour une collection est enregistré dans `collection_view_preferences` (utilisateur + collection). Absence d'override = héritage dynamique du défaut global, sans le copier dans chaque collection. Revenir à « utiliser le format par défaut » supprime l'override. Résolution : **override → défaut global → `3x3`**. Propriétaire et lecteur autorisé ont des préférences indépendantes ; un partage métier en lecture seule permet de gérer sa propre préférence d'affichage sans modifier la collection ni accéder à celles du propriétaire.
+
+Seules ces préférences de vues et de format sont validées. Thème clair/sombre/système, réglages Premium, pages globales de possession, doublons et statistiques personnelles globales restent hors de cette évolution.
+
+Chaque changement est enregistré immédiatement, sans bouton global ni toast de succès. Modifier un défaut de vue ne modifie aucun dernier mode choisi, ni la vue d'une collection déjà ouverte. Le défaut Classeur s'applique immédiatement aux collections qui en héritent, sans toucher aux overrides. Pendant le chargement, les trois contrôles restent visibles, désactivés et sans sélection fictive ; une erreur propose Réessayer. Une sauvegarde désactive seulement son réglage, conserve la valeur confirmée jusqu'à la réponse serveur et présente une erreur locale si la modification n'est pas confirmée.
 
 ## Principes UX fonctionnels
 
@@ -493,7 +519,6 @@ Les sujets suivants devront être définis dans de futurs documents dédiés ou 
 - la fréquence de vérification des mises à jour ;
 - le contenu précis du résumé et le fonctionnement des notifications de mise à jour ;
 - la liste définitive des champs utilisés par la recherche ;
-- le comportement exact de la recherche dans la vue classeur ;
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
 - le moyen de contact final pour modifier/remplacer l'Authenticator ;
 - les éventuelles exigences légales ou rétentions particulières liées à la suppression, à cadrer spécifiquement ;

@@ -1,23 +1,31 @@
+import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
+import { getUserPreferences, saveUserPreferences } from '../../services/view-preferences'
+import { userPreferencesKey } from '../view-preferences/view-preferences-query'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { CollectionsError, getCollectionOverview } from '../../services/collections'
 import type { CollectionOverview } from '../../types/collections'
-import { collectionColor } from '../dashboard/collection-color'
+import { resolveCollectionIdentity } from '../dashboard/collection-color'
 import { CollectionPage } from './CollectionPage'
 import { collectionOverviewKey } from './collection-query'
 
 const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true }))
 vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
+vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES), saveUserPreferences: vi.fn(), getCollectionViewOverride: vi.fn().mockResolvedValue(null) }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
 vi.mock('../../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../../services/collections')>(), getCollectionOverview: vi.fn(),
 }))
 const get = vi.mocked(getCollectionOverview)
 const id = 'c1200000-0000-0000-0000-000000000001'
-const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, ownedCount: 0, totalCount: 0 }
-beforeEach(() => { auth.user = { id: 'owner' }; get.mockReset().mockResolvedValue(base) })
+const base: CollectionOverview = { collectionId: id, ownerId: 'owner', name: 'Mes favoris', collectionType: 'free', access: 'owned', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0 }
+beforeEach(() => {
+  auth.user = { id: 'owner' }; auth.isAuthorized = true; get.mockReset().mockResolvedValue(base)
+  vi.mocked(getUserPreferences).mockReset().mockResolvedValue(DEFAULT_USER_PREFERENCES)
+  vi.mocked(saveUserPreferences).mockReset()
+})
 function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { gcTime: 0 } } })
   const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={[`/collections/${id}`]}><Routes>
@@ -33,7 +41,7 @@ test('charge indépendamment du Dashboard et conserve un h1 stable sans voler le
   get.mockReturnValue(new Promise(resolve => { finish = resolve }))
   setup()
   const h1 = screen.getByRole('heading', { level: 1 })
-  const back = screen.getByRole('link', { name: '← Collections' })
+  const back = screen.getByRole('button', { name: '← Retour' })
   expect(screen.getByRole('status')).toHaveTextContent('Chargement de la collection')
   expect(get).toHaveBeenCalledExactlyOnceWith(id)
   back.focus()
@@ -46,16 +54,22 @@ test('charge indépendamment du Dashboard et conserve un h1 stable sans voler le
 
 test.each([
   { ...base },
-  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: 'Pikachu', ownedCount: 82, totalCount: 120 },
-  { ...base, collectionType: 'automatic' as const, targetType: 'set' as const, targetName: 'Légendes Brillantes', access: 'shared' as const, ownedCount: 3, totalCount: 4 },
-  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetName: null },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetId: '25', targetName: 'Pikachu', targetPrimaryType: 'electric' as const, ownedCount: 82, totalCount: 120 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetId: '25', targetName: 'Dracaufeu', targetPrimaryType: 'fire' as const, targetSecondaryType: 'flying' as const, ownedCount: 3, totalCount: 4 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'set' as const, targetId: '73', targetName: '151', ownedCount: 1, totalCount: 2 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetId: '25', targetName: 'Dracaufeu', targetPrimaryType: 'fire' as const, targetSecondaryType: 'flying' as const, access: 'shared' as const, ownedCount: 3, totalCount: 4 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'set' as const, targetId: '73', targetName: 'Légendes Brillantes', access: 'shared' as const, ownedCount: 3, totalCount: 4 },
+  { ...base, collectionType: 'automatic' as const, targetType: 'pokemon' as const, targetId: '25', targetName: null, targetPrimaryType: null, targetSecondaryType: null },
 ])('identité, progression et accès depuis le contrat $collectionType/$targetType/$access', async collection => {
   get.mockResolvedValue(collection)
   setup()
   const title = await screen.findByRole('heading', { name: collection.name })
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   expect(screen.getByText(collection.collectionType === 'free' ? 'Personnalisée' : collection.targetType === 'pokemon' ? 'Automatique · Pokémon' : 'Automatique · Extension')).toBeVisible()
-  if (collection.targetName) expect(screen.getByText(collection.targetName)).toBeVisible()
+  if (collection.targetName) expect(screen.getByRole('link', { name: collection.targetName })).toHaveAttribute('href',
+    `/catalog/${collection.targetType === 'pokemon' ? 'pokemon' : 'extensions'}/${collection.targetId}`)
+  else expect(title.closest('.collection-page')?.querySelector('.collection-target a')).toBeNull()
+  expect(title.querySelector('a')).toBeNull()
   expect(screen.getByText(`${collection.ownedCount} / ${collection.totalCount}`)).toBeVisible()
   expect(screen.queryByText('Votre collection')).not.toBeInTheDocument()
   if (collection.access === 'shared') expect(screen.getByText('Partagée · Lecture seule')).toBeVisible()
@@ -63,11 +77,13 @@ test.each([
   expect(screen.getByText(collection.totalCount ? `${Math.round(collection.ownedCount / collection.totalCount * 100)} %` : 'Collection vide')).toBeVisible()
   expect(screen.queryByText(/NaN|Infinity/)).not.toBeInTheDocument()
   if (!collection.totalCount) expect(screen.queryByText('0 %')).not.toBeInTheDocument()
-  expect(title.closest('.collection-page')).toHaveStyle({ '--collection-accent': collectionColor(collection).accent })
-  if (collection.access === 'shared') expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  expect(title.closest('.collection-page')).toHaveStyle({ '--collection-accent': resolveCollectionIdentity(collection).primaryAccent })
+  expect(title.closest('.collection-page')).toHaveStyle({ '--collection-secondary': resolveCollectionIdentity(collection).secondaryAccent,
+    '--collection-gradient': resolveCollectionIdentity(collection).gradient })
+  if (collection.access === 'shared') expect(screen.queryByRole('button', { name: /Actions|Réessayer|Ajouter/ })).not.toBeInTheDocument()
   else expect(screen.getByRole('button', { name: 'Actions de la collection' })).toBeVisible()
   for (const raw of ['free', 'pokemon', 'set', id]) expect(screen.queryByText(raw, { exact: true })).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('link', { name: '← Collections' }))
+  fireEvent.click(screen.getByRole('button', { name: '← Retour' }))
   expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 })
 
@@ -77,9 +93,23 @@ test.each(['collection_unavailable', 'not_authorized'] as const)('indisponibilit
   expect(await screen.findByRole('heading', { name: 'Collection indisponible' })).toBeVisible()
   expect(screen.getByRole('alert')).toHaveTextContent('Cette collection n’existe pas ou vous n’y avez plus accès.')
   expect(screen.queryByText(code)).not.toBeInTheDocument()
-  expect(screen.queryByRole('button')).not.toBeInTheDocument()
-  expect(screen.getByRole('link', { name: '← Collections' })).toHaveAttribute('href', '/dashboard')
+  expect(screen.queryByRole('button', { name: /Actions|Réessayer|Ajouter/ })).not.toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: '← Retour' })).toHaveLength(1)
   expect(get).toHaveBeenCalledOnce()
+})
+
+test.each([
+  { ...base,accent:'#E22B35' },
+  { ...base,collectionType:'automatic' as const,targetType:'pokemon' as const, targetId: '25',targetPrimaryType:'electric' as const,accent:'#E2C84A' },
+  { ...base,collectionType:'automatic' as const,targetType:'pokemon' as const, targetId: '25',targetPrimaryType:'fire' as const,targetSecondaryType:'flying' as const,accent:'#E58A4A' },
+  { ...base,collectionType:'automatic' as const,targetType:'set' as const, targetId: '73',accent:'#44C7B7' },
+])('owner FAB belongs to Collection context $accent and progress remains primary', async ({accent,...collection}) => {
+  get.mockResolvedValue(collection);setup()
+  const fab=await screen.findByRole('button',{name:'Ajouter une carte'},{timeout:5000})
+  expect(fab).toHaveClass('collection-fab')
+  const page=fab.closest('.collection-page')!
+  expect(page).toHaveStyle({'--collection-accent':accent})
+  expect(page.querySelector('.collection-progress-track span')).toHaveStyle({width:'0%'})
 })
 
 test('erreur temporaire assainie avec retry explicite', async () => {
@@ -111,4 +141,30 @@ test('le cache reste isolé par utilisateur', async () => {
   expect(screen.queryByText(base.name)).not.toBeInTheDocument()
   await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
   expect(screen.getByRole('status')).toBeVisible()
+})
+
+test('une collection partagée lit les préférences du viewer sans écriture', async () => {
+  auth.user = { id: 'recipient' }
+  get.mockResolvedValue({ ...base, access: 'shared', ownerId: 'real-owner' })
+  vi.mocked(getUserPreferences).mockResolvedValue({ ...DEFAULT_USER_PREFERENCES, collectionDefaultView: 'binder' })
+  const { client } = setup()
+  // The real deferred content chunk can take more than 1s to transform in the
+  // parallel full suite; keep the wait scoped to this loading boundary.
+  expect(await screen.findByText('Cette collection ne contient encore aucune carte.', {}, { timeout: 5000 })).toBeVisible()
+  expect(getUserPreferences).toHaveBeenCalledExactlyOnceWith('recipient')
+  expect(client.getQueryData(userPreferencesKey('real-owner'))).toBeUndefined()
+  expect(saveUserPreferences).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: 'Liste' })).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByRole('button', { name: 'Cartes' })).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByRole('button', { name: 'Classeur' })).toHaveAttribute('aria-pressed', 'true')
+})
+
+test.each(['pending', 'error'])('préférences %s : contenu rendu sans bloquer la page ni erreur visible', async mode => {
+  if (mode === 'pending') vi.mocked(getUserPreferences).mockReturnValue(new Promise(() => {}))
+  else vi.mocked(getUserPreferences).mockRejectedValue(new Error('private preferences error'))
+  setup()
+  expect(await screen.findByText('Cette collection ne contient encore aucune carte.', {}, { timeout: 5000 })).toBeVisible()
+  expect(screen.getByRole('heading', { name: base.name })).toBeVisible()
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(saveUserPreferences).not.toHaveBeenCalled()
 })

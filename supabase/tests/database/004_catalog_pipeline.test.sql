@@ -12,12 +12,19 @@ select has_table('private','catalog_overrides','Applied corrections are private'
 select has_table('private','catalog_entity_keys','Sparse identity aliases preserve corrected/local IDs');
 
 select ok(not has_schema_privilege(role_name,'private','USAGE'), role_name || ' has no private schema usage')
-from unnest(array['anon','authenticated','service_role']) role_name;
+from unnest(array['anon','service_role']) role_name;
+select ok(has_schema_privilege('authenticated','private','USAGE')
+  and has_column_privilege('authenticated','private.catalog_entity_keys','entity_key','SELECT')
+  and not has_column_privilege('authenticated','private.catalog_entity_keys','variant_id','SELECT'),
+  'Authenticated canonical reader has card-key columns only');
 select ok(not has_table_privilege(role_name,'private.' || table_name,privilege), role_name || ' cannot ' || privilege || ' ' || table_name)
 from unnest(array['anon','authenticated','service_role']) role_name
 cross join unnest(array['catalog_sync_runs','catalog_overrides','catalog_entity_keys']) table_name
 cross join unnest(array['SELECT','INSERT','UPDATE','DELETE']) privilege;
-select is((select count(*) from pg_policies where schemaname='private'),0::bigint,'No permissive private API policies');
+select is((select count(*) from pg_policies where schemaname='private'),1::bigint,'Only the card-key read policy exists');
+select ok(exists(select 1 from pg_policies where schemaname='private' and tablename='catalog_entity_keys'
+  and policyname='catalog_card_keys_read' and cmd='SELECT' and roles=array['authenticated']::name[]),
+  'Private policy is limited to authenticated SELECT of card keys');
 select throws_ok($$insert into private.catalog_sync_runs(started_at,status,repository,source_sha,source_committed_at,overrides_hash,pipeline_version)
  values(now(),'running','https://github.com/tcgdex/cards-database','latest',now(),repeat('a',64),'1')$$,'23514',null,'Mutable snapshot identifiers rejected');
 select throws_ok($$insert into private.catalog_entity_keys(entity_key) values('invalid')$$,'23514',null,'Alias requires exactly one entity');

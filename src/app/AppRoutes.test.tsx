@@ -11,20 +11,69 @@ import type { EmailCallback } from '../features/auth/auth-callback'
 import { AppRoutes } from './AppRoutes'
 import { CollectionsError, getCollectionOverview, listDashboardCollections } from '../services/collections'
 import type { CollectionOverview } from '../types/collections'
+import { getCatalogCard, getCatalogPokemon, getCatalogSet } from '../services/catalog'
+import { catalogCard, catalogPokemon, catalogSet } from '../test/catalog-fixtures'
+
+vi.mock('../services/catalog', async original => ({ ...await original<typeof import('../services/catalog')>(), getCatalogCard: vi.fn(), getCatalogPokemon: vi.fn(), getCatalogSet: vi.fn() }))
 
 vi.mock('../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../services/collections')>(),
-  listDashboardCollections: vi.fn(), getCollectionOverview: vi.fn(),
+  listDashboardCollections: vi.fn(), getCollectionOverview: vi.fn(), findOwnedAutomaticCollection: vi.fn().mockResolvedValue(null),
 }))
 vi.mock('../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
+vi.mock('../services/view-preferences', async () => ({
+  getUserPreferences: vi.fn().mockResolvedValue((await import('../lib/view-preferences')).DEFAULT_USER_PREFERENCES),
+  saveUserPreferences: vi.fn(),
+}))
 const collection: CollectionOverview = { ownerId: 'owner',
   collectionId: 'c1200000-0000-0000-0000-000000000001', name: 'Collection de test', collectionType: 'free', access: 'owned',
-  targetType: null, targetName: null, ownedCount: 0, totalCount: 0,
+  targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 0,
 }
 const collectionPath = `/collections/${collection.collectionId}`
 beforeEach(() => {
   vi.mocked(listDashboardCollections).mockReset().mockResolvedValue([])
   vi.mocked(getCollectionOverview).mockReset().mockResolvedValue(collection)
+  vi.mocked(getCatalogPokemon).mockReset().mockResolvedValue(catalogPokemon)
+  vi.mocked(getCatalogSet).mockReset().mockResolvedValue(catalogSet)
+  vi.mocked(getCatalogCard).mockReset().mockResolvedValue(catalogCard)
+})
+
+test.each(['out', 'aal1', 'aal2', 'enroll', 'email'] as const)('Card route authentication boundary %s', async mode => {
+  setup(`/catalog/cards/${catalogCard.sourceCardId}`, mode)
+  if (mode === 'aal2') {
+    await screen.findByRole('heading', { name: catalogCard.nameFr! })
+    expect(getCatalogCard).toHaveBeenCalledExactlyOnceWith(catalogCard.sourceCardId)
+    await waitFor(() => expect(document.title).toBe(`${catalogCard.nameFr} — MY.`))
+  } else {
+    const title = mode === 'out' ? 'Heureux de vous retrouver.' : mode === 'enroll' ? 'Sécurisez votre compte.'
+      : mode === 'email' ? 'Consultez votre boîte email.' : 'Confirmez que c’est vous.'
+    await heading(title)
+    expect(getCatalogCard).not.toHaveBeenCalled()
+  }
+})
+
+test.each(['out', 'aal1', 'aal2'] as const)('Pokemon route authentication boundary %s', async mode => {
+  setup(`/catalog/pokemon/${catalogPokemon.pokemonId}`, mode)
+  if (mode === 'aal2') {
+    await screen.findByRole('heading', { name: 'Pikachu' })
+    expect(getCatalogPokemon).toHaveBeenCalledExactlyOnceWith(catalogPokemon.pokemonId)
+    await waitFor(() => expect(document.title).toBe('Pikachu — MY.'))
+  } else {
+    await heading(mode === 'out' ? 'Heureux de vous retrouver.' : 'Confirmez que c’est vous.')
+    expect(getCatalogPokemon).not.toHaveBeenCalled()
+  }
+})
+
+test.each(['out', 'aal1', 'aal2'] as const)('Extension route authentication boundary %s', async mode => {
+  setup(`/catalog/extensions/${catalogSet.setId}`, mode)
+  if (mode === 'aal2') {
+    await screen.findByRole('heading', { name: catalogSet.nameFr! })
+    expect(getCatalogSet).toHaveBeenCalledExactlyOnceWith(catalogSet.setId)
+    await waitFor(() => expect(document.title).toBe(`${catalogSet.nameFr} — MY.`))
+  } else {
+    await heading(mode === 'out' ? 'Heureux de vous retrouver.' : 'Confirmez que c’est vous.')
+    expect(getCatalogSet).not.toHaveBeenCalled()
+  }
 })
 
 function Harness({ store, path }: { store: AuthStore; path: string }) {
@@ -65,7 +114,7 @@ test.each(['owned', 'shared'] as const)('le lien tuile %s ouvre la bonne route e
   expect(getCollectionOverview).toHaveBeenCalledExactlyOnceWith(collection.collectionId)
   expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
   expect(document.title).toBe(`${collection.name} — MY.`)
-  fireEvent.click(screen.getByRole('link', { name: '← Collections' }))
+  fireEvent.click(screen.getByRole('button', { name: '← Retour' }))
   await heading('Collections')
 })
 
@@ -77,7 +126,7 @@ test('chargement asynchrone : h1 focalisé une fois, titre mis à jour sans refo
   const title = screen.getByRole('heading', { level: 1 })
   expect(title).toHaveFocus()
   expect(screen.getByRole('status')).toHaveTextContent('Chargement de la collection')
-  const back = screen.getByRole('link', { name: '← Collections' })
+  const back = screen.getByRole('button', { name: '← Retour' })
   back.focus()
   await act(async () => { finish(collection); await Promise.resolve() })
   await heading(collection.name)
@@ -91,7 +140,7 @@ test.each(['missing', 'private', 'revoked', 'malformed'])('route indisponible un
   setup(reason === 'malformed' ? '/collections/not-an-id' : collectionPath, 'aal2')
   await heading('Collection indisponible')
   expect(screen.getByRole('alert')).toHaveTextContent('Cette collection n’existe pas ou vous n’y avez plus accès.')
-  expect(screen.getByRole('link', { name: '← Collections' })).toBeVisible()
+  expect(screen.getByRole('button', { name: '← Retour' })).toBeVisible()
   expect(document.title).toBe('Collection indisponible — MY.')
 })
 
@@ -102,7 +151,7 @@ test('naviguer entre deux collections ne réutilise pas la donnée de la premiè
   setup('/dashboard', 'aal2')
   fireEvent.click(await screen.findByRole('link', { name: collection.name }))
   await heading(collection.name)
-  fireEvent.click(screen.getByRole('link', { name: '← Collections' }))
+  fireEvent.click(screen.getByRole('button', { name: '← Retour' }))
   fireEvent.click(await screen.findByRole('link', { name: second.name }))
   await screen.findByText('Chargement de la collection…')
   expect(screen.queryByText(collection.name)).not.toBeInTheDocument()
@@ -170,13 +219,15 @@ test.each(protectedPages)('restaure directement %s en aal2 dans le shell authent
   expect(screen.queryByRole('link', { name: 'MY. — Accueil' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Mon compte' })).toHaveAttribute('aria-haspopup', 'menu')
   expect(within(screen.getByRole('main')).queryByRole('navigation')).not.toBeInTheDocument()
-  if (path === '/settings') expect(within(screen.getByRole('main')).queryByRole('button')).not.toBeInTheDocument()
+  if (path === '/settings') expect(screen.getByRole('region', { name: 'Affichage' })).toBeVisible()
   if (path === '/dashboard') expect(within(screen.getByRole('main')).getByRole('button', { name: 'Créer une collection personnalisée' })).toBeVisible()
   const page = screen.getByRole('region', { name: title })
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   expect(page).toContainElement(screen.getByRole('heading', { level: 1, name: title }))
   expect(screen.getByRole('main')).toContainElement(page)
   expect(screen.getByRole('contentinfo')).toHaveTextContent('Conditions d’utilisation')
+  expect(screen.getByRole('contentinfo')).toHaveTextContent(`© 2026 · MY. · v${__APP_VERSION__}`)
+  expect(screen.getByRole('contentinfo')).toBe(document.querySelector('.authenticated-shell > .site-footer'))
   if (path === '/dashboard') {
     expect(within(page).getByRole('heading', { name: 'Collections', level: 1 })).toBeVisible()
     expect(within(page).queryByRole('region', { name: 'Mes collections' })).not.toBeInTheDocument()

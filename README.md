@@ -2,19 +2,59 @@
 
 **MY.** est une webapp de gestion de collections de cartes Pokémon TCG.
 
-Le projet s'appuiera sur **TCGdex / cards-database** comme source de référence pour les données Pokémon TCG.
+Le projet s'appuie sur **TCGdex / cards-database** comme source de référence pour les données Pokémon TCG.
 
 Ce dépôt contient la documentation et le socle applicatif. La documentation reste la source de vérité du projet pour les agents et contributeurs.
 
 ## État du projet
 
-**Phases 0 à 6 terminées et validées.** Le Dashboard présente une grille unifiée de collections, avec les statuts `Personnelle` et `Partagée · Lecture seule`, et un FAB de création personnalisée. La Collection affiche son contenu réel autoritatif, la possession/progression, les items automatiques/manuels, la recherche interne locale, l'ajout/retrait manuel et la réorganisation propriétaire. Les exemplaires physiques sont globaux au compte, avec nom facultatif, note libre nullable de 750 caractères maximum et possession dérivée ; leur consultation est en lecture seule en partage. Le détail Variante est contextuel, en panneau desktop ou plein écran mobile, avec exemplaires intégrés. La fondation graphite et l'accent rouge MY. harmonisent public/Auth, Dashboard, Collection et Profil sans nouvelle fonctionnalité métier du compte ; Paramètres reste volontairement minimal.
+**Phases 0 à 7 terminées et validées.** Le Dashboard présente une grille unifiée de collections, avec les statuts `Personnelle` et `Partagée · Lecture seule`, et un FAB de création personnalisée. La Collection affiche son contenu réel autoritatif, la possession/progression, les items automatiques/manuels, la recherche interne locale, l'ajout/retrait manuel et la réorganisation propriétaire. Les exemplaires physiques sont globaux au compte, avec nom facultatif, note libre nullable de 750 caractères maximum et possession dérivée ; leur consultation est en lecture seule en partage. Le détail Variante est contextuel, en panneau desktop ou plein écran mobile, avec exemplaires intégrés. La fondation graphite et l'accent rouge MY. harmonisent public/Auth, Dashboard, Collection et Profil sans nouvelle fonctionnalité métier du compte ; Paramètres était encore minimal à la clôture de Phase 6.
 
-Le backend des collections automatiques est livré : calcul canonique PostgreSQL, état/version de cible, création atomique et concurrente via `create_automatic_collection(...)`, et service TypeScript. La prochaine phase planifiée, non commencée, est la **Phase 7 — Vues, catalogue, recherche globale et préférences**, dont la création/ouverture depuis les pages catalogue Pokémon/Extension. La création et la gestion utilisateur des partages restent prévues en Phase 9. Voir la [roadmap](docs/08-ROADMAP.md) et le [rapport de clôture Phase 6](docs/reports/2026-09-30-PHASE6-CLOSURE.md).
+Le backend des collections automatiques est livré : calcul canonique PostgreSQL, état/version de cible, création atomique et concurrente via `create_automatic_collection(...)`, et service TypeScript. La **Phase 7 — Vues, catalogue, recherche globale et préférences** est terminée et validée. Les trois vues Collection **Liste / Cartes / Classeur** sont livrées depuis 7B.3 : préférences du viewer, contenu et ordre autoritatifs communs. Classeur continu, livre desktop/tablette large, page unique mobile, formats `2x2`, `3x3`, `4x3`, recherche sans compactage avec occurrences et halo. Aucun reorder en Classeur ; Liste/Cartes conservent celui du propriétaire. Les trois réglages Affichage de Paramètres sont fonctionnels depuis 7C.1 : défaut catalogue, défaut collection et format Classeur global, sauvegardés indépendamment sans toucher aux derniers modes ni aux overrides. La page Pokémon authentifiée est livrée en 7D.2 : identité par types, recherche locale, vues neutres Liste/Cartes, Détail Variante et création/ouverture automatique personnelle. Extension est livrée en 7D.3 : header teal/turquoise à logo/symbole depuis 7D.5, socle Liste/Cartes/Détail partagé, liens Pokémon indépendants et CTA automatique factorisé. Carte est livrée en 7D.4 : fiche de carte source à identité Pokémon/fallback ambre depuis 7E.3.2, image représentative du contrat, métadonnées et liens Extension/Pokémon, Versions Liste/Cartes sans recherche ni CTA Collection. Les liens Carte/Extension depuis Pokémon et Carte depuis Extension sont désormais actifs. Socle serveur de recherche globale livré en 7E.1 : RPC autoritative et service TypeScript strict. Recherche globale du header fonctionnelle en 7E.2 : debounce, suggestions, états, identité 7D.5 et navigation explicite. Contrats de présentation enrichis en 7E.3.1 (`0.7.14`) : logo Extension, image représentative et Pokémon Carte dans la recherche ; IDs Carte/Extension et Pokémon dans le Détail Variante. Harmonisation frontend livrée en 7E.3.2 (`0.7.15`) : liens sans soulignement au repos, hover textuel souligné, identité Carte Pokémon/fallback ambre `#C9A34A`, miniatures Carte/logos Extension, trois vues Cartes Catalogue alignées sur Collection, libellé `Pokémon` et métadonnées communes fiche Carte/Détail Variante. Cohérence visuelle et vocabulaire Catalogue finalisés en 7E.3.4 (`0.7.17`) : métadonnées communes sans divergence, listes et progression harmonisées, compteurs Pokémon/Extension en cartes et fiche Carte en versions. Navigation simplifiée livrée en 7F.2 (`0.7.19`) : `← Retour` partagé et liens Carte/Extension/Pokémon par IDs. **7F terminée.** La recherche globale Phase 7 doit retourner toutes les collections actuellement accessibles au viewer, personnelles ou reçues en partage. Création, gestion et retrait des partages restent en Phase 9. Voir la [roadmap](docs/08-ROADMAP.md) et le [rapport de clôture Phase 6](docs/reports/2026-09-30-PHASE6-CLOSURE.md).
 
-**Supabase : 23 migrations Local et 23 migrations Cloud, dont 12 migrations Phase 6, alignées jusqu'à `20260928083830`.** Après l'audit technique exécuté précédemment par Codex, le propriétaire a exécuté manuellement le checkpoint Cloud : dry-run initial de 12 migrations, push des 12 sans erreur, état final 23/23 et dry-run final sans migration restante. Ces résultats fournis par le propriétaire sont consignés sans nouvel accès Cloud pendant cette clôture documentaire. Les IDs BIGINT restent des chaînes décimales ; le backend reste autoritatif, y compris après réorganisation. Voir le [contrat et l'intégration](docs/06-DATABASE.md#première-liste-fonctionnelle--phase-6b3).
+La version applicative est **0.7.21** après l’[audit technique 7G.1](docs/reports/2026-10-07-PHASE7G1-AUDIT.md). `package.json` est son unique source de vérité ; le lockfile est synchronisé. Vite injecte `version` dans `__APP_VERSION__`. Le footer public/Auth et authentifié conserve Conditions d’utilisation et récupère dynamiquement la version, sans constante dans le composant ni dépendance supplémentaire. Les badges Auto/Perso ont été retirés en `0.7.20`, sans changement de l’origine métier ni du retrait manuel. Phase 7 clôturée après audit 7G.1, checkpoint Cloud manuel confirmé par le propriétaire et validations locales 7G.2. Voir le [rapport de clôture Phase 7](docs/reports/2026-10-08-PHASE7-CLOSURE.md). Phase 8 — Mise à jour des collections automatiques est la prochaine phase, planifiée et non commencée.
 
-Les onze migrations des Phases 0 à 5 ci-dessous sont présentes dans le dépôt, validées localement et déployées dans Supabase Cloud. Les huit premières ont été confirmées au checkpoint 4D.3 ; le propriétaire a confirmé le déploiement manuel des trois migrations Phase 5. Les [douze migrations Phase 6](docs/reports/2026-09-30-PHASE6-CLOSURE.md#migrations) complètent désormais cet historique, soit 23 au total.
+Preuve 7F.2 frontend/Local : [rapport de navigation UI](docs/reports/2026-10-07-PHASE7F2-NAVIGATION-UI.md). `← Retour` commun Collection/Catalogues via historique réel, fallback Dashboard ; liens par IDs, interactions indépendantes et exceptions Dashboard/workflows d’action conservées. Précédente / Suivante, swipe entre cartes et navigation rapide abandonnés. **7F terminée**, aucun backend ni Cloud modifié.
+
+Preuve 7F.1 Local : [rapport des contrats de navigation](docs/reports/2026-10-07-PHASE7F1-NAVIGATION-CONTRACTS.md). Migration additive unique, services et types enrichis ; aucune UI 7F.2 ni action Cloud.
+
+Preuve frontend 7E.3.4 et limites de validation : [rapport 7E.3.4](docs/reports/2026-10-06-PHASE7E3-4-UI-CONSISTENCY.md). Aucun SQL/migration/Cloud modifié ; contrats 7E.3.1 conservés.
+
+Convention de versionnement validée pour les livraisons Phase 7 :
+
+| Étape | Version de livraison |
+|---|---|
+| 7A.1 | `0.7.1` |
+| 7A.2 | Cadrage uniquement, sans version |
+| 7A.3 | `0.7.2` |
+| 7B.1 | `0.7.3` |
+| 7B.2 | `0.7.4` |
+| 7B.3 | `0.7.5` |
+| 7C.1 | `0.7.6` |
+| 7D.1 | `0.7.7` |
+| 7D.2 | `0.7.8` |
+| 7D.3 | `0.7.9` |
+| 7D.4 | `0.7.10` |
+| 7D.5 | `0.7.11` |
+| 7E.1 | `0.7.12` |
+| 7E.2 | `0.7.13` |
+| 7E.3.1 | `0.7.14` |
+| 7E.3.2 | `0.7.15` |
+| 7E.3.3 | `0.7.16` |
+| 7E.3.4 | `0.7.17` |
+| 7F.1 | `0.7.18` |
+| 7F.2 | `0.7.19` |
+| Retrait des badges d’origine | `0.7.20` |
+| 7G.1 — audit technique | `0.7.21` |
+| 7G.2 — outillage et clôture | `0.7.21` (conservée) |
+
+Cette convention ne réécrit pas les versions historiques : les commits initiaux 7A.1, 7A.3, 7B.1 et 7B.2 conservent `0.7.0` dans leur package. Le rapport 7A.3 en garde la preuve. 7A.2 n'est pas une livraison manquante. Voir le [checkpoint documentaire Phase 7](docs/reports/2026-10-06-PHASE7-DOC-CHECKPOINT.md).
+
+**Checkpoint historique Phase 6 : 23 migrations Local/Cloud, dont 12 Phase 6, alignées jusqu'à `20260928083830`.** Après l'audit technique exécuté précédemment par Codex, le propriétaire a exécuté manuellement le checkpoint Cloud : dry-run initial de 12 migrations, push des 12 sans erreur, état final 23/23 et dry-run final sans migration restante. Ces résultats fournis par le propriétaire sont consignés sans nouvel accès Cloud pendant cette clôture documentaire. Les IDs BIGINT restent des chaînes décimales ; le backend reste autoritatif, y compris après réorganisation. Voir le [contrat et l'intégration](docs/06-DATABASE.md#première-liste-fonctionnelle--phase-6b3).
+
+État migrations courant : **29 Local / 29 Cloud**, alignés jusqu’à `20261007085921`. Six migrations Phase 7 déployées : 7A.3, 7D.1, 7D.5, 7E.1, [7E.3.1](supabase/migrations/20261006120339_phase7e31_presentation_contracts.sql) et [7F.1](supabase/migrations/20261007085921_phase7f1_navigation_contracts.sql). Checkpoint manuel communiqué par le propriétaire : push réussi puis dry-run final `Remote database is up to date.` Aucun accès Cloud par Codex en 7G.2 ; détails dans le [rapport de clôture Phase 7](docs/reports/2026-10-08-PHASE7-CLOSURE.md). 7B.3 réutilise ce socle : override viewer + collection → `binder_default_format` → `3x3`. Absence = héritage dynamique ; retour au défaut = suppression de l’override. Propriétaire et lecteur restent indépendants. Pagination frontend, sans table `binder_pages`. La [recherche Classeur](docs/04-UX-UI.md#recherche-classeur) garde toutes les positions. `src/assets/placeholders/card-placeholder.webp` est le placeholder commun des cartes sans image ou après erreur de chargement, y compris détail et ajout ; une pochette vide ne contient aucune image.
+
+Les onze migrations des Phases 0 à 5 ci-dessous sont présentes dans le dépôt, validées localement et déployées dans Supabase Cloud. Les huit premières ont été confirmées au checkpoint 4D.3 ; le propriétaire a confirmé le déploiement manuel des trois migrations Phase 5. Les [douze migrations Phase 6](docs/reports/2026-09-30-PHASE6-CLOSURE.md#migrations) complètent cet historique Cloud confirmé, soit 23 au total à ce checkpoint historique.
 
 - `20260906082312_phase1_schema` ;
 - `20260906082313_phase1_security` ;
@@ -42,7 +82,7 @@ La huitième migration, [20260914102414_phase4b3_account_deletion.sql](supabase/
 
 Aucun nom français Pokémon ne manque et aucune date de Variante n'est NULL dans ce catalogue validé. `sm3.5-28` possède cinq variantes après override. Les tables utilisateur étaient encore vides à ce moment. Ces constats historiques proviennent du propriétaire. Le checkpoint 4D.3 confirme les volumes ci-dessus et la préservation des empreintes des lignes du catalogue et du pipeline après nettoyage des fixtures, sans nouveau déploiement.
 
-Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. **Le pipeline reste local/protégé ; le catalogue résultant existe également dans le cloud.** La [Phase 3B](docs/reports/2026-09-10-PHASE3B-AUTH-UI.md) a livré les écrans Auth et le routing public/protégé ; la [Phase 3C](docs/reports/2026-09-12-PHASE3C-SHELL.md), le shell authentifié. Celui-ci accueille désormais `/dashboard`, `/collections/:collectionId`, `/profile` et `/settings`. La recherche du header reste visuelle ; les vues supplémentaires, pages catalogue, préférences et mises à jour automatiques restent planifiées selon la roadmap.
+Le pipeline TypeScript importe et synchronise un snapshot Git exact de TCGdex, applique des corrections JSON/Zod, préserve les IDs et calcule les hashes/versions des cibles. **Le pipeline reste local/protégé ; le catalogue résultant existe également dans le cloud.** La [Phase 3B](docs/reports/2026-09-10-PHASE3B-AUTH-UI.md) a livré les écrans Auth et le routing public/protégé ; la [Phase 3C](docs/reports/2026-09-12-PHASE3C-SHELL.md), le shell authentifié. Celui-ci accueille désormais `/dashboard`, `/collections/:collectionId`, `/catalog/pokemon/:pokemonId`, `/catalog/extensions/:setId`, `/catalog/cards/:cardId`, `/profile` et `/settings`. La recherche du header est fonctionnelle en 7E.2 sur le contrat 7E.1 ; navigation simplifiée 7F terminée, mises à jour des collections automatiques en Phase 8.
 
 Le cadrage Recherche globale / Catalogue / Navigation / Préférences est intégré dans les références produit, modèle, UX, architecture et SQL. La migration intermédiaire [20260909124950_pre_phase3_collection_preferences.sql](supabase/migrations/20260909124950_pre_phase3_collection_preferences.sql) assure l'unicité des collections automatiques par propriétaire/cible, le nom d'au moins 3 caractères utiles après trim et les préférences de vues privées. **Cette sixième migration est déjà déployée dans Supabase cloud**, selon le propriétaire ; l'ancien statut local était obsolète.
 
@@ -54,11 +94,13 @@ Routes 3B : `/`, `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/a
 
 Le complément Phase 2 fournit les noms français des espèces via un référentiel PokéAPI généré manuellement et destiné au versionnement. Les 1 025 Pokémon locaux ont désormais un nom français, sans changement des 1 213 états de cible ; la seconde application est un noop fonctionnel. La synchronisation du catalogue utilise uniquement ce fichier local et ne contacte jamais PokéAPI.
 
-La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue local en lecture seule. Son moteur `search-catalog.ts` est portable, sans Node, SQL, réseau ou terminal ; il doit être réutilisé autant que possible pour la future recherche Carte. L'adaptateur `search-catalog-db.ts` utilisant `pg` reste réservé à la maintenance et ne doit pas être importé dans React. La recherche catalogue d'ajout Phase 6 utilise une RPC Supabase/Auth/RLS ; elle couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants et variante, avec normalisation et AND multi-termes, mais **pas le nom de série**. La recherche globale reste prévue en Phase 7.
+La maintenance dispose aussi de `catalog:find`, une recherche libre du catalogue local en lecture seule. Son moteur `search-catalog.ts` est portable, sans Node, SQL, réseau ou terminal ; les helpers SQL déjà alignés sont réutilisés par la recherche Carte globale 7E.1. L'adaptateur `search-catalog-db.ts` utilisant `pg` reste réservé à la maintenance et ne doit pas être importé dans React. La recherche catalogue d'ajout Phase 6 utilise une RPC Supabase/Auth/RLS ; elle couvre carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants et variante, avec normalisation et AND multi-termes, mais **pas le nom de série**. La recherche globale livre son contrat DB/service en 7E.1 et son intégration header en 7E.2. Voir aussi le [rapport 7E.3.1](docs/reports/2026-10-06-PHASE7E3-1-PRESENTATION-CONTRACTS.md), puis les rapports [7E.1](docs/reports/2026-10-06-PHASE7E1-GLOBAL-SEARCH-CONTRACT.md) et [7E.2](docs/reports/2026-10-06-PHASE7E2-GLOBAL-SEARCH-UI.md).
 
 Chaque variante porte désormais sa date effective nullable et sa provenance persistée. Elle hérite de la date résolue de sa carte lorsqu'aucune date spécifique fiable n'est connue. Le classement Pokémon utilise cette date de variante ; le classement Set reste numéro puis variante. La [correction des dates de variantes](docs/reports/2026-09-08-PHASE2-VARIANT-DATES.md) conserve les preuves de migration du volume local, de stabilité des IDs et d'idempotence.
 
 **Vercel est l'hébergeur frontend retenu pour la V1**, avec Supabase comme backend principal. Vercel n'est pas encore configuré, le dépôt n'y est pas importé et aucun déploiement de production n'est en place. Le déploiement Vercel et ses URLs de production sont réservés à la phase finale de mise en production.
+
+Le socle Phase 7D.1 est livré localement : types Pokémon, RPC Catalogue authentifiées, services/décodeurs stricts, helper FR/source et palette frontend. Pokémon (7D.2), Extension (7D.3) et Carte (7D.4) partagent leur socle UI. La [Phase 7D.5](docs/reports/2026-10-05-PHASE7D5-COLOR-IDENTITY.md) finalise en **0.7.11** les identités Catalogue/Collections et ajoute les seuls types Pokémon au contrat Dashboard, via une migration appliquée localement. Palette frontend unique, partagées indigo prioritaire ; aucun hash ni couleur stockée en DB. Voir les [contrats](docs/09-CATALOG-CONTRACTS.md), le [rapport 7D.1](docs/reports/2026-10-04-PHASE7D1-CATALOG-FOUNDATION.md) et le [rapport 7D.2](docs/reports/2026-10-05-PHASE7D2-POKEMON-CATALOG-UI.md) et les rapports [7D.3](docs/reports/2026-10-05-PHASE7D3-SET-CATALOG-UI.md) / [7D.4](docs/reports/2026-10-05-PHASE7D4-CARD-CATALOG-UI.md).
 
 ## Workflow Git
 
@@ -66,7 +108,7 @@ Chaque variante porte désormais sa date effective nullable et sa provenance per
 
 ## Développement local
 
-Prérequis : Git, Node.js **24.20.0** (ou une version 24.x plus récente) et npm **11.19.0** (ou une version 11.x plus récente). Le fichier `.nvmrc` indique la version de référence de Node.
+Prérequis : Git, Node.js **24.20.0** (ou une version 24.x plus récente) et npm **12.1.0** (ou une version 12.x plus récente). Le fichier `.nvmrc` indique la version de référence de Node.
 
 ```sh
 npm ci
@@ -99,11 +141,11 @@ Le projet Vitest `functions` couvre le handler de suppression (`npm test -- --pr
 - `src/types/` : variables Vite et `database.generated.ts`, généré par la CLI Supabase ;
 - `src/test/` : configuration commune des tests ; les tests restent à côté du code testé.
 
-`src/features/auth/` contient le provider Auth, son état unique, `useAuth`, les callbacks email et les écrans Auth. `src/features/profile/` contient la page Profil et la gestion du compte ; `dashboard/` porte les tuiles et la création personnalisée ; `collections/` porte l'overview, la progression partagée avec les tuiles, la liste de contenu et les actions propriétaire ; `physical-copies/` porte la modal des exemplaires. `settings/` reste minimal. La présentation utilise le logo existant et Poppins 400/600 servis localement depuis `src/assets/fonts/`, avec leur licence OFL. `main.tsx` se limite au montage React ; le QueryClient reste stable pendant la vie des providers. Les changements Auth purgent son cache pour éviter de conserver des données privées après perte d'accès ou changement de compte.
+`src/features/auth/` contient le provider Auth, son état unique, `useAuth`, les callbacks email et les écrans Auth. `src/features/profile/` contient la page Profil et la gestion du compte ; `dashboard/` porte les tuiles et la création personnalisée ; `collections/` porte l'overview, la progression partagée avec les tuiles, la liste de contenu et les actions propriétaire ; `physical-copies/` porte la modal des exemplaires. `settings/` porte les trois réglages Affichage, branchés sur le service 7A.3 et le cache partagé des préférences. La présentation utilise le logo existant et Poppins 400/600 servis localement depuis `src/assets/fonts/`, avec leur licence OFL. `main.tsx` se limite au montage React ; le QueryClient reste stable pendant la vie des providers. Les changements Auth purgent son cache pour éviter de conserver des données privées après perte d'accès ou changement de compte.
 
 ## Supabase local et variables d'environnement
 
-La CLI Supabase est une dépendance de développement locale. `supabase/config.toml` est versionné et l'initialisation a déjà été effectuée : il n'est pas nécessaire de relancer `supabase init` après un clone. L'identifiant `my-local` distingue uniquement les conteneurs locaux. Le seed et Realtime restent désactivés. La configuration Auth locale applique la V1 : signup email, confirmation obligatoire, enrollment/vérification TOTP activés, téléphone et autres providers désactivés. Elle ne configure pas le cloud.
+La CLI Supabase est une dépendance de développement locale : `supabase` **2.120.0** dans le lockfile, avec la plage `^2.120.0` dans `package.json`. Après `npm ci`, les scripts npm et `npx supabase` utilisent cette CLI locale, référence reproductible du projet ; aucune installation globale n'est nécessaire. `supabase/config.toml` est versionné et l'initialisation a déjà été effectuée : il n'est pas nécessaire de relancer `supabase init` après un clone. L'identifiant `my-local` distingue uniquement les conteneurs locaux. Le seed et Realtime restent désactivés. La configuration Auth locale applique la V1 : signup email, confirmation obligatoire, enrollment/vérification TOTP activés, téléphone et autres providers désactivés. Elle ne configure pas le cloud.
 
 Pour utiliser les services locaux, démarrer Docker Desktop (avec WSL 2 sous Windows), puis :
 
@@ -124,7 +166,7 @@ Pour activer Auth localement, copier `.env.example` vers `.env.local`, puis rens
 
 Ces valeurs sont publiques dans le navigateur. N'y placer aucun secret, clé privilégiée, mot de passe PostgreSQL ou token. Redémarrer Vite après modification. Zod valide ces deux valeurs au premier appel à `getSupabaseClient()` depuis le provider Auth ; sans configuration, cette fonction retourne `null` et le bootstrap reste utilisable sans réseau. Avec configuration, le client unique restaure/persiste les sessions, renouvelle les tokens et traite les liens de confirmation/reset. Le provider commence en `initializing` et ne charge le profil qu'après email confirmé et TOTP `aal2`.
 
-La Site URL locale est `http://localhost:5173`, avec `http://127.0.0.1:5173` également autorisée. Les retours exacts `/auth/confirm-email` et `/reset-password` sont autorisés pour ces deux origines ; le frontend construit les liens depuis son origine courante. Les emails sont capturés par Mailpit sur `55324`. `max_enrolled_factors = 1` aligne le local sur la V1. La CLI 2.116.0 n'expose pas la durée propre à `aal1` dans `config.toml` : les 15 minutes restent un réglage cloud. Après modification de `config.toml`, redémarrer Supabase avec `supabase:stop` puis `supabase:start`, en conservant les volumes.
+La Site URL locale est `http://localhost:5173`, avec `http://127.0.0.1:5173` également autorisée. Les retours exacts `/auth/confirm-email` et `/reset-password` sont autorisés pour ces deux origines ; le frontend construit les liens depuis son origine courante. Les emails sont capturés par Mailpit sur `55324`. `max_enrolled_factors = 1` aligne le local sur la V1. Le [schéma sessions de la CLI 2.120.0](https://github.com/supabase/cli/blob/v2.120.0/packages/config/src/auth/sessions.ts) expose `timebox` et `inactivity_timeout`, sans durée spécifique `aal1` : les 15 minutes restent un réglage cloud. L'[architecture](docs/05-ARCHITECTURE.md#profil-et-gestion-du-compte--cible-phase-4) distingue les limites Auth historiques des schémas CLI courants ; les sources Auth 2.119.0/2.120.0 sont identiques sur ces points, vérifiées en 7G.2 ; le comportement serveur local du mot de passe actuel n’est pas revalidé pendant cette clôture. Après modification de `config.toml`, redémarrer Supabase avec `supabase:stop` puis `supabase:start`, en conservant les volumes.
 
 Les fichiers `.env` réels, `node_modules/`, `dist/`, les caches et l'état local Supabase sont ignorés par Git. `.env.example`, `supabase/config.toml`, `package-lock.json`, les migrations, les tests SQL et les types générés sont versionnés. Aucun seed applicatif n'est présent. L'Edge Function `delete-account` assure la suppression du compte ; la création automatique des collections repose directement sur PostgreSQL/RPC, sans Edge Function intermédiaire.
 
@@ -132,7 +174,7 @@ Les fichiers `.env` réels, `node_modules/`, `dist/`, les caches et l'état loca
 
 Après `npm ci`, démarrer Docker Desktop. Pour appliquer les migrations en attente au volume local existant puis vérifier le schéma :
 
-Toute migration validée est appliquée à **Supabase local** au fil du développement. Le checkpoint Cloud Phase 6 a été exécuté manuellement par le propriétaire ; Local et Cloud comptent désormais 23 migrations alignées. `migration list --local` compare les fichiers à l'historique de la base locale : sa colonne `Remote` désigne ici cette base locale, pas Supabase Cloud. Aucun reset requis pour appliquer les migrations manquantes.
+Toute migration validée est appliquée à **Supabase local** au fil du développement. État courant : **29 Local / 29 Cloud**, dont six migrations Phase 7 déployées au checkpoint manuel confirmé par le propriétaire après 7G.1. Aucun accès Cloud en 7G.2. `migration list --local` compare les fichiers à l’historique de la base locale : sa colonne `Remote` désigne ici cette base locale, pas Supabase Cloud. Aucun reset requis pour appliquer les migrations manquantes.
 
 ```sh
 npm run supabase:start
@@ -149,12 +191,12 @@ npm test
 | Commande ajoutée | Usage |
 |---|---|
 | `npm run db:reset` | Reconstruit entièrement la base **locale**, en supprimant ses données, depuis les migrations |
-| `npm run db:test` | Exécute les 18 fichiers pgTAP via `supabase test db --local` ; accepte un chemin pour cibler une suite |
+| `npm run db:test` | Exécute les 22 fichiers pgTAP via `supabase test db --local` ; accepte un chemin pour cibler une suite |
 | `npm run db:test:concurrency` | Vérifie la création automatique concurrente et le verrou catalogue avec plusieurs connexions locales ; nettoie ses fixtures dédiées |
 | `npm run db:lint` | Vérifie `public` et `private`, avec échec dès un avertissement SQL |
 | `npm run db:types` | Régénère `src/types/database.generated.ts` depuis `public` local ; le fichier existant est conservé si la CLI échoue |
 
-Les assertions PostgreSQL couvrent le schéma, les grants/RLS métier, le pipeline, les dates, les préférences, la création des profils, le backfill Auth, les restrictions `aal1`/`aal2`, la suppression du compte, le calcul canonique, la création automatique, la lecture Dashboard owned/shared et les contrats Phase 6. **Audit technique final Phase 6 exécuté précédemment par Codex : DB/pgTAP PASS, 18 fichiers et 977 assertions ; Frontend/Vitest PASS, 40 fichiers et 1 202 tests.** `db:lint`, `typecheck`, `lint`, `build` et `diff-check` : PASS ; `db:types` : PASS sans diff. Ces résultats validés sont consignés dans le [rapport de clôture Phase 6](docs/reports/2026-09-30-PHASE6-CLOSURE.md), sans réexécution pendant cette clôture. Le bundle principal d'environ 680,01 kB reste un point non bloquant, avec optimisation reportée à la finalisation V1. Les fixtures DB sont annulées à la fin de chaque fichier. Le lanceur prépare temporairement les migrations Automatic RLS et Auth nécessaires aux tests de régression, puis supprime ces copies ignorées ; aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif.
+Les assertions PostgreSQL couvrent le schéma, les grants/RLS, le pipeline, les dates, les préférences, Auth/MFA, la suppression du compte, le calcul canonique, la création automatique, Dashboard owned/shared et les contrats Collection/Catalogue/Recherche/navigation. **Audit 7G.1 acquis : 1 438 assertions DB / 22 fichiers, 13 contrôles de concurrence, 1 213 cibles canoniques sans divergence, 1 846 tests Vitest / 62 fichiers ; Catalogue, typecheck, build, lint, migrations et navigateur validés.** Le [rapport de clôture Phase 7](docs/reports/2026-10-08-PHASE7-CLOSURE.md) distingue cet audit, le checkpoint Cloud manuel et les validations locales après mise à jour de l’outillage. Le warning Vite du bundle >500 kB reste non bloquant ; optimisation reportée à la finalisation V1. Les fixtures DB sont annulées à la fin de chaque fichier. Le lanceur prépare temporairement les migrations Automatic RLS et Auth nécessaires aux tests de régression, puis supprime ces copies ignorées ; aucun utilisateur ou catalogue synthétique ne constitue un seed applicatif.
 
 Adapter les contrôles aux changements : tests ciblés pendant le développement, puis une seule passe globale pertinente. `build` inclut déjà `typecheck`. Régénérer les types une seule fois après stabilisation du schéma. Pour vérifier une reconstruction sans détruire le volume importé, `supabase db diff --local --schema public,private` compare le schéma à une base shadow reconstruite depuis les migrations. `db:reset` reste réservé à un besoin explicite de base locale vide ; `supabase:stop` conserve les données.
 
@@ -175,7 +217,7 @@ Le catalogue local vérifié contient 19 907 cartes, 31 904 variantes, 1 025 Pok
 | `npm run catalog:validate` | Valide snapshot, corrections et rapprochement en lecture sur Supabase local |
 | `npm run catalog:find -- "Pikachu Légendes Brillantes"` | Recherche locale en lecture seule ; affiche la cible d'override directement copiable |
 | `npm run catalog:find -- "Pikachu" --export` | CSV local de toutes les cartes trouvées, une ligne par variante standard, avec dates et sélecteurs |
-| `npm run pokemon:update` | Régénère manuellement le référentiel complet des noms d'espèces français depuis PokéAPI, sans accès DB |
+| `npm run pokemon:update` | Régénère manuellement le référentiel complet noms FR + types des espèces depuis PokéAPI, sans accès DB |
 | `npm run catalog:sync` | Dry-run complet par défaut, zéro écriture DB, aucun ID consommé |
 | `npm run catalog:sync -- --snapshot <SHA> --dry-run` | Rejoue un SHA exact et produit le plan |
 | `npm run catalog:sync -- --snapshot <SHA> --apply` | Applique le plan transactionnellement sur la base locale |
@@ -183,7 +225,7 @@ Le catalogue local vérifié contient 19 907 cartes, 31 904 variantes, 1 025 Pok
 
 Sans SHA, le HEAD TCGdex est résolu une fois. Le premier clone/fetch nécessite GitHub ; un SHA déjà en cache peut être rejoué hors ligne. La connexion locale provient du statut Supabase sans afficher les secrets. `CATALOG_DATABASE_URL`, privée et facultative, accepte seulement le loopback sur `55322/postgres`. Aucun mode distant n'est disponible. `--apply` est obligatoire pour écrire.
 
-Le [référentiel Pokémon](data/pokemon/README.md) précise la provenance, la validation, les erreurs et la mise à jour de `data/pokemon/pokemon-fr.json`. Une synchronisation reproductible fixe également ce fichier, les overrides et le code. Les résultats du complément noms sont consignés dans le [rapport du 7 septembre](docs/reports/2026-09-07-PHASE2-POKEMON-NAMES.md).
+Le [référentiel Pokémon](data/pokemon/README.md) précise la provenance, la validation, les erreurs et la mise à jour de `data/pokemon/pokemon-reference.json`. Une synchronisation reproductible fixe également ce fichier, les overrides et le code. Les résultats du complément noms sont consignés dans le [rapport du 7 septembre](docs/reports/2026-09-07-PHASE2-POKEMON-NAMES.md).
 
 Pour retrouver une cible, démarrer Supabase local puis utiliser une seule chaîne entre guillemets :
 

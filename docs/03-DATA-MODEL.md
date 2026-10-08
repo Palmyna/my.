@@ -52,9 +52,9 @@ Cette représentation relie un Pokémon :
 - aux cartes qui le représentent ;
 - aux collections automatiques dont il est la cible.
 
-La Phase 2 crée les Pokémon à partir des `dexId` effectifs après corrections. Leur nom français provient du référentiel local versionné des noms d'espèces, généré manuellement depuis PokéAPI `pokemon-species` (ID et nom de langue `fr`). Le pipeline n'appelle jamais cette API et n'extrait aucun nom de carte, suffixe ou forme. Un dex absent du référentiel conserve le Pokémon avec `name_fr=NULL` et un diagnostic.
+La Phase 2 crée les Pokémon à partir des `dexId` effectifs après corrections. Leur nom français et leurs types proviennent du référentiel local versionné `pokemon-reference.json`, généré manuellement depuis PokéAPI : `pokemon-species` pour l'ID et le nom de langue `fr`, puis la ressource Pokémon de l'unique variété `is_default` pour les types ordonnés par `slot`. MY. représente l'espèce Pokédex, sans appliquer les types d'une forme alternative visible sur une carte. Le pipeline n'appelle jamais cette API et n'extrait aucun nom de carte, suffixe ou forme. Un dex absent du référentiel conserve le Pokémon avec `name_fr`, `primary_type` et `secondary_type` à `NULL` et un diagnostic. Les deux types TEXT nullables sont limités aux 18 identifiants PokéAPI ; le secondaire requiert un primaire différent. Aucune couleur n'est persistée.
 
-Le rapprochement par `dex_number` conserve l'ID interne. Le nom versionné fait autorité sur le nom précédent, y compris pour une ligne inactive ; une correction de nom ne change ni les rattachements ni les IDs ordonnés, hashes ou versions des cibles automatiques. La [procédure de maintenance](../data/pokemon/README.md) distingue génération manuelle du fichier et synchronisation du catalogue.
+Le rapprochement par `dex_number` conserve l'ID interne. Le nom versionné fait autorité sur le nom précédent, y compris pour une ligne inactive ; une correction de nom ou de type ne change ni les rattachements ni les IDs ordonnés, hashes ou versions des cibles automatiques. La [procédure de maintenance](../data/pokemon/README.md) distingue génération manuelle du fichier et synchronisation du catalogue.
 
 ### Séries ou blocs
 
@@ -408,25 +408,25 @@ L'existence d'un partage représente directement un accès actif dès confirmati
 
 ## Paramètres de vue et classeur
 
-Une entité **Préférences utilisateur**, liée à exactement un profil, conserve deux préférences : la vue catalogue par défaut (Liste, Cartes, Dernier choix utilisé) et la vue collection par défaut (Liste, Cartes, Classeur, Dernier choix utilisé). Un profil possède au maximum une ligne de préférences ; une ligne absente équivaut aux valeurs initiales documentées dans [06-DATABASE.md](06-DATABASE.md).
+Une entité **Préférences utilisateur**, liée à exactement un profil, conserve la vue catalogue par défaut (Liste, Cartes, Dernier choix utilisé), la vue collection par défaut (Liste, Cartes, Classeur, Dernier choix utilisé) et `binder_default_format`. Formats V1 exactement `2x2`, `3x3`, `4x3` ; défaut `3x3`. Un profil possède au maximum une ligne de préférences ; une ligne absente équivaut aux valeurs initiales documentées dans [06-DATABASE.md](06-DATABASE.md), sans création au signup.
 
 Chaque préférence distingue le choix d'ouverture du dernier mode réellement sélectionné. Ces deux derniers modes sont persistants et indépendants, globaux respectivement au catalogue et aux collections, sans relation avec une page ou une cible particulière. Une vue fixe s'applique à l'ouverture ; `Dernier choix utilisé` reprend le mode mémorisé. Le stockage initial choisit ce dernier comportement, avec Liste comme mode initial.
 
-Seul le propriétaire lit et modifie ses préférences. Un partage de collection n'y donne aucun accès. Aucun réglage de thème ou Premium n'est ajouté. Le format du classeur et son organisation continue/par blocs restent des choix d'affichage dont la persistance est ouverte. Modifier l'affichage ne change aucun élément de collection.
+Seul l'utilisateur concerné lit et modifie ses préférences. Un partage de collection n'y donne aucun accès. L'entité dédiée `collection_view_preferences` conserve seulement les overrides explicites de format, uniques par **utilisateur + collection**. Le viewer doit être propriétaire ou destinataire actuellement autorisé ; les préférences du lecteur et du propriétaire restent indépendantes. Ces données référencent le profil et la collection et disparaissent par cascade avec eux. Aucun réglage de thème ou Premium n'est ajouté. Modifier l'affichage ne change aucun élément de collection.
 
-La pagination du classeur est dérivée de l'ordre des éléments, du format de page et du mode d'organisation. Il n'est pas nécessaire de persister une entité pour chaque page tant qu'aucun besoin ne le justifie.
+Le format effectif suit **override utilisateur + collection → `binder_default_format` global → `3x3`**. Absence d'override = héritage dynamique ; aucune copie du défaut dans chaque collection. Retour au défaut = suppression de l'override.
 
-En mode par blocs, le calcul doit forcer chaque série ou bloc à commencer sur une nouvelle page.
+Le Classeur V1 est **continu uniquement**, selon l'ordre autoritatif des éléments, sans regroupement par série, bloc, ère, Extension, Pokémon ou catégorie. Nombre d'emplacements dérivé du format, pagination calculée frontend : aucune entité/table `binder_pages`, aucun champ d'organisation.
 
 ## Recherche
 
 La recherche interne à une collection utilise les informations du catalogue liées aux variantes présentes dans cette collection. Ces informations peuvent provenir de la carte, de la variante, du set, de la série, de la rareté, du numéro, des noms français et d'autres métadonnées utiles.
 
-La recherche globale de navigation utilise quatre entités existantes : Pokémon par nom français, Set par nom, collections accessibles par nom et Cartes sources par les champs pris en charge par le moteur portable. Elle retourne une Carte source unique, jamais directement une Variante. Les variantes restent l'unité collectible des collections et des exemplaires ; la recherche d'ajout sélectionne une variante exacte. Aucun nouvel objet persistant de résultat de recherche n'est nécessaire. L'accès aux collections recherchées respecte propriété et partages.
+La recherche globale de navigation, livrée en 7E.1/7E.2, utilise quatre entités existantes : Pokémon par nom français, Set par nom, collections accessibles par nom et Cartes sources par les champs pris en charge par le moteur portable. Elle retourne une Carte source unique, jamais directement une Variante. Les variantes restent l'unité collectible des collections et des exemplaires ; la recherche d'ajout sélectionne une variante exacte. Aucun nouvel objet persistant de résultat de recherche n'est nécessaire. Toutes les collections actuellement accessibles au viewer sont candidates : personnelles ou reçues en partage. La Phase 9 crée, gère et retire les accès ; elle n'est pas requise pour lire ou rechercher un partage déjà actif.
 
-La projection et l'indexation de la future recherche Supabase restent à définir ; les règles portables de normalisation, tokenisation, matching, score et tri de `scripts/catalog/search-catalog.ts` servent de socle pour les Cartes.
+La RPC `search_global_navigation(text)` fournit une projection limitée à dix suggestions sous Auth/MFA/RLS ; les règles portables de normalisation, tokenisation, matching, score et tri de `scripts/catalog/search-catalog.ts` servent de socle pour les Cartes. Contrat, quotas et grants : [schéma PostgreSQL / Supabase](06-DATABASE.md#recherche-globale-de-navigation--contrat-7e1).
 
-Les pages Pokémon et Extension regroupent leurs variantes sous des Cartes uniques. L'ordre Pokémon se base sur la date pertinente de **Carte**, contrairement à l'ordre variant-par-variant des collections automatiques ; l'ordre Extension suit le numéro naturel des Cartes. Ces consultations ne matérialisent aucune nouvelle collection ou structure automatique.
+Les pages Pokémon et Extension livrées présentent une entrée par **Variante**, sans regroupement sous des Cartes uniques. Elles réutilisent le même univers et le même ordre canonique backend que la génération automatique : date effective de Variante puis numéro naturel et ordre de Variante pour Pokémon ; numéro naturel puis Variante pour Extension. La fiche Carte source présente séparément ses Versions. Ces consultations ne matérialisent aucune nouvelle collection ou structure automatique.
 
 ## Suppression et cycle de vie
 
@@ -474,9 +474,9 @@ Des valeurs mises en cache peuvent être utilisées si nécessaire pour les perf
 
 ### Comptages catalogue Pokémon et Extension
 
-`card_count` compte les Cartes distinctes réellement concernées par le listing ; `variant_count` compte les Variantes correspondantes selon le même périmètre catalogue. Les rattachements multiples d'une Carte ne multiplient pas les comptages. Les règles d'activité et de disponibilité utilisées restent cohérentes avec le contenu présenté.
+`variant_count` compte les Variantes réellement retournées par les contrats Pokémon/Extension et s'affiche comme nombre de `carte(s)` depuis 7E.3.4. Il égale la longueur du tableau, sans multiplication par les rattachements Pokémon ni comptage de Cartes sources distinctes. Aucun `card_count` n'est fourni ni utilisé comme compteur principal dans ces listings. La fiche Carte compte ses `version(s)` depuis son tableau de Variantes.
 
-Ces valeurs sont dérivées du catalogue, sans nouvelle source de vérité persistée. `tcg_sets.official_card_count` conserve le total officiel, qui peut différer du nombre de Cartes affichées par MY. Ces compteurs ne mesurent aucune possession ou progression personnelle.
+Ces valeurs sont dérivées du catalogue, sans nouvelle source de vérité persistée. `tcg_sets.official_card_count` conserve le total officiel de Cartes du set, distinct du compteur du listing MY. Ces compteurs ne mesurent aucune possession ou progression personnelle.
 
 ### Progression d'une collection
 
@@ -579,7 +579,6 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - l'historique éventuel des corrections ;
 - la persistance ou non des résumés de mise à jour ;
 - le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
-- la persistance du format et du mode d'organisation du classeur ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;

@@ -1,7 +1,9 @@
+import { MemoryRouter } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
-import { CollectionContentList } from './CollectionContentList'
+import { useState } from 'react'
+import { CollectionContentView } from './CollectionContentView'
 import { AddCollectionItemDialog } from './AddCollectionItemDialog'
 import { getCollectionContent } from '../../services/collection-content'
 import { addManualCollectionItem, removeManualCollectionItem, listCollectionItemOrder, CollectionItemsError, type CollectionItemsErrorCode } from '../../services/collection-items'
@@ -21,8 +23,8 @@ vi.mock('../../services/catalog-search', async original => ({ ...await original<
 
 const bigId = '9007199254740995'
 const variant: CatalogVariantForAdd = { variantId: bigId, imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Set exemple', setAbbreviationFr: null, setAbbreviation: 'ASC', localId: '025', variantLabel: 'Reverse' }
-const item: CollectionContentItem = { ...variant, seriesNameFr: null, seriesNameSource: null, collectionItemId: 'c1900000-0000-0000-0000-000000000001', origin: 'manual', owned: true }
-const collection: CollectionOverview = { collectionId: 'collection', ownerId: 'owner', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetName: null, totalCount: 1, ownedCount: 1 }
+const item: CollectionContentItem = { sourceCardId: '25', setId: '73', ...variant, seriesNameFr: null, seriesNameSource: null, collectionItemId: 'c1900000-0000-0000-0000-000000000001', origin: 'manual', owned: true }
+const collection: CollectionOverview = { collectionId: 'collection', ownerId: 'owner', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, totalCount: 1, ownedCount: 1 }
 const content = vi.mocked(getCollectionContent), add = vi.mocked(addManualCollectionItem), remove = vi.mocked(removeManualCollectionItem)
 const search = vi.mocked(searchCatalogVariantsForAdd)
 beforeAll(() => {
@@ -37,9 +39,13 @@ beforeEach(() => {
   remove.mockReset().mockResolvedValue(undefined)
 })
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
+function CollectionContentList({ collection, viewerId }: { collection: CollectionOverview; viewerId: string }) {
+  const [query, setQuery] = useState('')
+  return <CollectionContentView collection={collection} viewerId={viewerId} currentView="list" setCurrentView={() => Promise.resolve(true)} query={query} setQuery={setQuery} />
+}
 function setup(overrides: Partial<CollectionOverview> = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const view = render(<QueryClientProvider client={client}><CollectionContentList collection={{ ...collection, ...overrides }} viewerId="owner" /></QueryClientProvider>)
+  const view = render(<QueryClientProvider client={client}><CollectionContentList collection={{ ...collection, ...overrides }} viewerId="owner" /></QueryClientProvider>, { wrapper: MemoryRouter })
   return { client, ...view }
 }
 const button = (name: string) => screen.getByRole('button', { name })
@@ -71,20 +77,30 @@ test.each(['free', 'automatic'] as const)('owner add remains available in empty 
   openAdd(); expect(screen.getByRole('searchbox', { name: 'Rechercher une carte' })).toHaveValue('')
   fireEvent.click(button('Annuler')); expect(trigger).toHaveFocus()
 })
-test('shared has no add, remove or reorder; auto/perso remain readable', async () => {
-  content.mockResolvedValue([item, { ...item, collectionItemId: 'auto', variantId: '2', origin: 'automatic' }])
+test('shared automatic list has no origin badges, add, remove or reorder; catalog links remain', async () => {
+  content.mockResolvedValue([item, { ...item, collectionItemId: 'auto', variantId: '2', origin: 'automatic', cardNameFr: 'Évoli' }])
   setup({ access: 'shared', collectionType: 'automatic', ownerId: 'real-owner' })
-  await screen.findByText('Perso'); expect(screen.getByText('Auto')).toBeVisible()
+  await screen.findByRole('link', { name: 'Pikachu' })
+  expect(screen.getByRole('link', { name: 'Évoli' })).toHaveAttribute('href', '/catalog/cards/25')
+  expect(screen.getAllByRole('link', { name: 'ASC' })).toHaveLength(2)
+  for (const link of screen.getAllByRole('link', { name: 'ASC' })) expect(link).toHaveAttribute('href', '/catalog/extensions/73')
+  expect(screen.queryByText('Auto')).not.toBeInTheDocument(); expect(screen.queryByText('Perso')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /Ajouter|Actions de|Déplacer|Retirer/ })).not.toBeInTheDocument()
   expect(screen.getAllByRole('button', { name: /Consulter les exemplaires/ })).toHaveLength(2)
 })
-test('only manual rows have menu; origin labels only in automatic collections', async () => {
+test.each(['free', 'automatic'] as const)('owner %s list has no origin badges; only manual rows retain removal', async collectionType => {
   content.mockResolvedValue([item, { ...item, collectionItemId: 'auto', variantId: '2', origin: 'automatic', cardNameFr: 'Évoli' }])
-  const view = setup({ collectionType: 'automatic' })
-  await screen.findByText('Perso'); expect(screen.getByText('Auto')).toBeVisible()
-  expect(screen.getAllByRole('button', { name: /Actions de/ })).toHaveLength(1)
-  view.unmount(); setup(); await screen.findByText('Pikachu · ASC · 025')
+  setup({ collectionType })
+  await screen.findByRole('link', { name: 'Pikachu' })
   expect(screen.queryByText('Auto')).not.toBeInTheDocument(); expect(screen.queryByText('Perso')).not.toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: /Actions de/ })).toHaveLength(1)
+  expect(screen.queryByRole('button', { name: 'Actions de Évoli' })).not.toBeInTheDocument()
+  fireEvent.click(button('Actions de Pikachu'))
+  expect(button('Retirer de la collection')).toBeVisible()
+  fireEvent.click(button('Retirer de la collection'))
+  expect(screen.getByRole('dialog', { name: 'Retirer cette carte de la collection ?' })).toBeVisible()
+  fireEvent.click(button('Annuler'))
+  expect(remove).not.toHaveBeenCalled()
 })
 test('300ms debounce, no request for empty/useless input, single character accepted', async () => {
   vi.useFakeTimers()
@@ -196,7 +212,7 @@ test('pending add blocks double submission, Escape, cancellation and reorder', a
   await act(async () => { finish(item.collectionItemId); await Promise.resolve() })
 })
 test('in-flight reorder blocks opening add/remove', async () => {
-  const { client } = setup(); await screen.findByText('Pikachu · ASC · 025')
+  const { client } = setup(); await screen.findByRole('link', { name: 'Pikachu' })
   let finish!: () => void
   const mutation = client.getMutationCache().build(client, { mutationKey: collectionStructureMutationKey('owner', 'collection'),
     mutationFn: () => new Promise<void>(resolve => { finish = resolve }) })

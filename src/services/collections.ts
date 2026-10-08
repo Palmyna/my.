@@ -1,8 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.generated'
 import { getSupabaseClient } from './supabase'
+import { variantIdString } from '../lib/variant-id'
+import { isPokemonType } from '../types/pokemon'
 import type {
-  AutomaticCollectionResult, CollectionMutationResult, CollectionOverview, CollectionsErrorCode,
+  AutomaticCollectionDatabase, AutomaticCollectionResult, CollectionMutationResult, CollectionOverview, CollectionsErrorCode,
   CreateAutomaticCollectionInput, CreateFreeCollectionInput, DashboardCollection,
 } from '../types/collections'
 
@@ -25,6 +27,18 @@ export async function createFree(input: CreateFreeCollectionInput): Promise<Coll
   const client = getSupabaseClient()
   if (!client) throw new CollectionsError('not_authorized')
   return createCollectionsService(client).createFree(input)
+}
+
+export async function createAutomatic(input: CreateAutomaticCollectionInput): Promise<AutomaticCollectionResult> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionsError('not_authorized')
+  return createCollectionsService(client).createAutomatic(input)
+}
+
+export async function findOwnedAutomaticCollection(viewerId: string, targetType: 'pokemon' | 'set', targetId: string): Promise<CollectionMutationResult | null> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionsError('not_authorized')
+  return createCollectionsService(client).findOwnedAutomaticCollection(viewerId, targetType, targetId)
 }
 
 export async function renameCollection(collectionId: string, name: string): Promise<CollectionMutationResult> {
@@ -82,6 +96,19 @@ function collectionResult(data: unknown, missing: 'unexpected' | 'collection_una
 
 export function createCollectionsService(client: SupabaseClient<Database>) {
   return {
+    findOwnedAutomaticCollection(viewerId: string, targetType: 'pokemon' | 'set', targetId: string): Promise<CollectionMutationResult | null> {
+      return request(async () => {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(viewerId)) throw new CollectionsError('not_authorized')
+        try { variantIdString(targetId) } catch { throw new CollectionsError('invalid_target') }
+        if (targetType !== 'pokemon' && targetType !== 'set') throw new CollectionsError('invalid_target')
+        // RLS remains authoritative; explicit owner filter excludes received shares.
+        const { data, error } = await client.from('collections').select('id')
+          .eq('owner_id', viewerId).eq('collection_type', 'automatic').eq('automatic_target_type', targetType)
+          .filter(targetType === 'pokemon' ? 'target_pokemon_id' : 'target_set_id', 'eq', targetId).maybeSingle()
+        if (error) throw error
+        return data === null ? null : collectionResult(data, 'unexpected')
+      })
+    },
     getCollectionOverview(collectionId: string): Promise<CollectionOverview> {
       return request(async () => {
         // Invalid route IDs have the same public outcome as any invisible collection.
@@ -89,7 +116,7 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
           throw new CollectionsError('collection_unavailable')
         }
         const { data, error } = await client.from('dashboard_collections')
-          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count')
+          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type,target_id')
           .eq('collection_id', collectionId).maybeSingle()
         if (error) throw error
         if (data === null) throw new CollectionsError('collection_unavailable')
@@ -109,7 +136,7 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
     listDashboardCollections(): Promise<DashboardCollection[]> {
       return request(async () => {
         const { data, error } = await client.from('dashboard_collections')
-          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count')
+          .select('collection_id,name,collection_type,access,target_type,target_name,owned_count,total_count,target_primary_type,target_secondary_type,target_id')
         if (error) throw error
         if (!Array.isArray(data)) throw new CollectionsError('unexpected')
         return data.map(dashboardCollection)
@@ -126,9 +153,13 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
     },
     createAutomatic(input: CreateAutomaticCollectionInput): Promise<AutomaticCollectionResult> {
       return request(async () => {
+        // Preserve exact strings and safe legacy numbers; reject precision loss
+        // before PostgreSQL can interpret an already rounded target ID.
+        try { variantIdString(input.targetId) } catch { throw new CollectionsError('invalid_target') }
         // Do not prevalidate the name: an existing collection bypasses that validation in SQL.
         // The generated Database type infers the RPC arguments and its table return type.
-        const { data, error } = await client.rpc('create_automatic_collection', {
+        const writer = client as unknown as SupabaseClient<AutomaticCollectionDatabase>
+        const { data, error } = await writer.rpc('create_automatic_collection', {
           p_name: input.name, p_target_type: input.targetType, p_target_id: input.targetId,
         })
         if (error) throw error
@@ -164,19 +195,29 @@ export function createCollectionsService(client: SupabaseClient<Database>) {
 function dashboardCollection(row: Database['public']['Views']['dashboard_collections']['Row']): DashboardCollection {
   // Generated view columns are nullable. Fail closed on malformed or contradictory
   // responses instead of inventing target names, access modes or progress values.
-  if (!row || typeof row.collection_id !== 'string' || !row.collection_id || typeof row.name !== 'string'
+  if (!row || Object.keys(row).length !== 11
+    || typeof row.collection_id !== 'string' || !row.collection_id || typeof row.name !== 'string'
     || (row.collection_type !== 'free' && row.collection_type !== 'automatic')
     || (row.access !== 'owned' && row.access !== 'shared')
     || (row.target_type !== null && row.target_type !== 'pokemon' && row.target_type !== 'set')
+    || (row.target_type === null ? row.target_id !== null : typeof row.target_id !== 'string')
     || (row.target_name !== null && typeof row.target_name !== 'string')
+    || (row.target_primary_type !== null && !isPokemonType(row.target_primary_type))
+    || (row.target_secondary_type !== null && !isPokemonType(row.target_secondary_type))
+    || (row.target_type !== 'pokemon' && (row.target_primary_type !== null || row.target_secondary_type !== null))
+    || (row.target_secondary_type !== null && (row.target_primary_type === null || row.target_primary_type === row.target_secondary_type))
     || (row.collection_type === 'free' && (row.target_type !== null || row.target_name !== null))
     || (row.collection_type === 'automatic' && row.target_type === null)
     || typeof row.owned_count !== 'number' || !Number.isSafeInteger(row.owned_count) || row.owned_count < 0
     || typeof row.total_count !== 'number' || !Number.isSafeInteger(row.total_count) || row.total_count < row.owned_count) {
     throw new CollectionsError('unexpected')
   }
+  if (row.target_id !== null) {
+    try { variantIdString(row.target_id) } catch { throw new CollectionsError('unexpected') }
+  }
   return {
     collectionId: row.collection_id, name: row.name, collectionType: row.collection_type, access: row.access,
-    targetType: row.target_type, targetName: row.target_name, ownedCount: row.owned_count, totalCount: row.total_count,
+    targetType: row.target_type, targetId: row.target_id, targetName: row.target_name, ownedCount: row.owned_count, totalCount: row.total_count,
+    targetPrimaryType: row.target_primary_type, targetSecondaryType: row.target_secondary_type,
   }
 }

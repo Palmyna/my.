@@ -6,7 +6,7 @@ import './physical-copies.css'
 
 type Action = { type: 'create' } | { type: 'edit' | 'delete'; copyId: string; label: string }
 
-export type PhysicalCopiesContentHandle = { dismiss: () => void; close: () => void }
+export type PhysicalCopiesContentHandle = { dismiss: () => void; close: () => boolean }
 
 export function PhysicalCopiesContent({ ownerId, variantId, onClose, viewerId, readOnly: forcedReadOnly, titleId, ref, showPossession = false }: {
   ownerId: string; variantId: string; viewerId: string; readOnly?: boolean | undefined; onClose: () => void
@@ -99,7 +99,11 @@ export function PhysicalCopiesContent({ ownerId, variantId, onClose, viewerId, r
           ? 'L’état / note ne peut pas dépasser 750 caractères.'
           : 'L’opération n’a pas pu être confirmée. Vérifiez vos exemplaires puis réessayez.'
 
-  useImperativeHandle(ref, () => ({ dismiss, close: () => { if (!running.current) onClose() } }))
+  useImperativeHandle(ref, () => ({ dismiss, close: () => {
+    if (running.current) return false
+    onClose()
+    return true
+  } }))
 
   return <section className="physical-copies-content" aria-labelledby={titleId}>
     {showPossession && copies.isSuccess && <p className="variant-detail-possession" role="status">{copies.data.length ? 'Possédée' : 'Manquante'}</p>}

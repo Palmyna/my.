@@ -1,8 +1,10 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
+import appPackage from './package.json' with { type: 'json' }
 
 export default defineConfig({
   plugins: [react()],
+  define: { __APP_VERSION__: JSON.stringify(appPackage.version) },
   test: {
     projects: [
       { extends: true, test: { name: 'frontend', include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', css: { include: [/(physical-copies|collection-item-reorder)\.css$/] }, setupFiles: ['./src/test/setup.ts'] } },

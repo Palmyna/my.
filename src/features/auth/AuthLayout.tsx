@@ -1,6 +1,7 @@
 import { type FormEvent, type PropsWithChildren } from 'react'
 import { Link } from 'react-router'
 import logo from '../../assets/brand/my-logo.svg'
+import { SiteFooter } from '../../app/SiteFooter'
 
 export function AuthLayout({ title, intro, home = false, children }: PropsWithChildren<{ title: string; intro?: string; home?: boolean }>) {
   return <div className="public-shell">
@@ -16,7 +17,7 @@ export function AuthLayout({ title, intro, home = false, children }: PropsWithCh
       </section>
       <div className="welcome-art" aria-hidden="true" />
     </main>
-    <footer className="site-footer">Conditions d’utilisation</footer>
+    <SiteFooter />
   </div>
 }
 

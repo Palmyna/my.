@@ -46,7 +46,9 @@ select lives_ok($$update collections set name=E'\t Été \n'$$,
 
 select ok((select relrowsecurity from pg_class where oid='public.user_preferences'::regclass),'Preferences explicitly enable RLS');
 select fk_ok('public','user_preferences','user_id','public','profiles','id','Preferences belong to an existing profile');
-select is((select count(*) from user_preferences),0::bigint,'Profile creation does not eagerly create preferences');
+select is((select count(*) from user_preferences where user_id in (
+  '60000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002','60000000-0000-0000-0000-000000000003')),
+  0::bigint,'Fixture profile creation does not eagerly create preferences, regardless of existing local users');
 select throws_ok($$insert into user_preferences(user_id) values('60000000-0000-0000-0000-000000000099')$$,
   '23503',null,'Preferences cannot exist without a profile');
 

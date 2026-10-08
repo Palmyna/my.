@@ -9,7 +9,7 @@ const collectionId = 'c1600000-0000-0000-0000-000000000001'
 const firstId = 'd1600000-0000-0000-0000-000000000002'
 const secondId = 'd1600000-0000-0000-0000-000000000001'
 const row = () => ({
-  collection_item_id: firstId, variant_id: '9007199254740995', origin: 'manual',
+  collection_item_id: firstId, variant_id: '9007199254740995', source_card_id: '9007199254740996', set_id: '9223372036854775807', origin: 'manual',
   card_name_fr: 'Évoli', local_id: 'TG01', set_name_fr: 'Extension précise', set_abbreviation_fr: 'FR', set_abbreviation: 'EXT', series_name_fr: 'Soleil et Lune', series_name_source: 'Sun & Moon',
   image_url: 'https://example.invalid/variant/original.png', variant_label: 'Holo Cosmos Stamp corrigé', owned: true,
 })
@@ -23,7 +23,7 @@ test('one RPC maps the complete row, preserving the BIGINT string, exact labels 
   const mock = setup()
   const content = await mock.service.getCollectionContent(collectionId)
   expect(content).toEqual([{
-    collectionItemId: firstId, variantId: '9007199254740995', origin: 'manual',
+    collectionItemId: firstId, variantId: '9007199254740995', sourceCardId: '9007199254740996', setId: '9223372036854775807', origin: 'manual',
     cardNameFr: 'Évoli', localId: 'TG01', setNameFr: 'Extension précise', setAbbreviationFr: 'FR', setAbbreviation: 'EXT', seriesNameFr: 'Soleil et Lune', seriesNameSource: 'Sun & Moon',
     imageUrl: 'https://example.invalid/variant/original.png', variantLabel: 'Holo Cosmos Stamp corrigé', owned: true,
   }])
@@ -35,12 +35,12 @@ test('empty content is valid without claiming collection availability', async ()
   await expect(setup([]).service.getCollectionContent(collectionId)).resolves.toEqual([])
 })
 test('preserves received order, both origins, owned=false and every nullable field', async () => {
-  const data = [row(), { collection_item_id: secondId, variant_id: '42', origin: 'automatic',
+  const data = [row(), { collection_item_id: secondId, variant_id: '42', source_card_id: '456', set_id: '78', origin: 'automatic',
     card_name_fr: null, local_id: null, set_name_fr: null, set_abbreviation_fr: null, set_abbreviation: null, series_name_fr: null, series_name_source: null, image_url: null, variant_label: null, owned: false }]
   const before = structuredClone(data)
   await expect(setup(data).service.getCollectionContent(collectionId)).resolves.toEqual([
     expect.objectContaining({ collectionItemId: firstId, origin: 'manual', owned: true }),
-    { collectionItemId: secondId, variantId: '42', origin: 'automatic', cardNameFr: null,
+    { collectionItemId: secondId, variantId: '42', sourceCardId: '456', setId: '78', origin: 'automatic', cardNameFr: null,
       localId: null, setNameFr: null, setAbbreviationFr: null, setAbbreviation: null, seriesNameFr: null, seriesNameSource: null, imageUrl: null, variantLabel: null, owned: false },
   ])
   expect(data).toEqual(before)
@@ -117,4 +117,16 @@ test('invalid collection argument fails safely without a backend request', async
   const mock = setup()
   await expect(mock.service.getCollectionContent('invalid')).rejects.toHaveProperty('code', 'unexpected')
   expect(mock.rpc).not.toHaveBeenCalled()
+})
+
+test.each(['source_card_id', 'set_id'] as const)('navigation ID %s is required canonical BIGINT text', async field => {
+  for (const value of ['0', '-42', '9007199254740995', '-9223372036854775808', '9223372036854775807']) {
+    const content = await setup([{ ...row(), [field]: value }]).service.getCollectionContent(collectionId)
+    expect(content[0]?.[field === 'source_card_id' ? 'sourceCardId' : 'setId']).toBe(value)
+  }
+  for (const value of [42, Number.MAX_SAFE_INTEGER + 2, null, undefined, '', 'abc', '01', '-0', '+42', '1.5', '1e3', '42\n', ' 42', '9223372036854775808', '-9223372036854775809']) {
+    await expect(setup([{ ...row(), [field]: value }]).service.getCollectionContent(collectionId)).rejects.toHaveProperty('code', 'unexpected')
+  }
+  const missing: Record<string, unknown> = row(); delete missing[field]; missing.extra = 'replacement'
+  await expect(setup([missing]).service.getCollectionContent(collectionId)).rejects.toHaveProperty('code', 'unexpected')
 })

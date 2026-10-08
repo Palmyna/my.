@@ -55,7 +55,8 @@ try {
   const cardId = first.rows.source_cards.find((row) => row.tcgdex_id === 'fixture-set-10')!.id
   const variantId = first.rows.catalog_variants.find((row) => row.source_card_id === cardId && row.variant_type === 'normal')!.id
   await client.query('insert into auth.users(id) values($1)', [user])
-  await client.query('insert into public.profiles(id) values($1)', [user])
+  // The Phase 3 Auth trigger creates the MY. profile; use that real lifecycle.
+  check((await client.query('select id from public.profiles where id=$1', [user])).rows, [{ id: user }])
   await client.query("insert into public.collections(id,owner_id,name,collection_type) values($1,$2,'Synthetic','free')", [collection, user])
   await client.query("insert into public.collection_items(collection_id,variant_id,origin,sort_position) values($1,$2,'manual',1)", [collection, variantId])
   await client.query("insert into public.physical_copies(user_id,variant_id,note) values($1,$2,'Protected note')", [user, variantId])

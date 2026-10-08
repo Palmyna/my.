@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import type { CollectionContentItem } from '../../types/collection-content'
 import { filterCollectionContent } from './filter-collection-content'
 
-const pikachu: CollectionContentItem = {
+const pikachu: CollectionContentItem = { sourceCardId: '25', setId: '73',
   collectionItemId: 'b', variantId: '9007199254740995', origin: 'manual', owned: false,
   cardNameFr: 'Pikachu', setNameFr: 'Légendes Brillantes', setAbbreviationFr: 'ASC', setAbbreviation: 'SL3.5',
   seriesNameFr: 'Soleil et Lune', seriesNameSource: 'Sun & Moon', localId: '28/73', variantLabel: 'Reverse', imageUrl: null,

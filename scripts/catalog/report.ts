@@ -22,6 +22,9 @@ export function report(catalogue: Catalogue, plan: Plan, source: Snapshot, overr
     catalogue: { pokemon: plan.rows.pokemon.length, series: plan.rows.tcg_series.length, sets: plan.rows.tcg_sets.length,
       cards: plan.rows.source_cards.length, variants: plan.rows.catalog_variants.length, mappings: plan.mappings.length,
       pokemon_without_name: plan.rows.pokemon.filter((row) => row.name_fr === null).length,
+      pokemon_without_type: plan.rows.pokemon.filter((row) => row.primary_type === null).length,
+      pokemon_mono_type: plan.rows.pokemon.filter((row) => row.primary_type !== null && row.secondary_type === null).length,
+      pokemon_dual_type: plan.rows.pokemon.filter((row) => row.secondary_type !== null).length,
       variants_without_date: plan.rows.catalog_variants.filter((row) => row.effective_release_date === null).length },
     variant_dates: variantDates,
     french_availability: fr, dates, diff: plan.diffs, mappings: { added: plan.mappingAdds.length, removed: plan.mappingRemoves.length },
@@ -35,7 +38,7 @@ export function report(catalogue: Catalogue, plan: Plan, source: Snapshot, overr
 export type Report = ReturnType<typeof report>
 export function printReport(value: Report, file: string): void {
   console.log(`Catalogue ${value.mode} LOCAL — ${value.source.sha} (${value.source.committed_at})`)
-  console.log(`Noms Pokémon : référence SHA-256 ${value.pokemon_reference.hash} (${value.pokemon_reference.count} entrées), ${value.catalogue.pokemon_without_name} nom(s) manquant(s).`)
+  console.log(`Pokémon : référence SHA-256 ${value.pokemon_reference.hash} (${value.pokemon_reference.count} entrées), ${value.catalogue.pokemon_without_name} nom(s) et ${value.catalogue.pokemon_without_type} type(s) manquant(s) ; ${value.catalogue.pokemon_mono_type} mono-types, ${value.catalogue.pokemon_dual_type} doubles types.`)
   console.log(`Catalogue : ${value.catalogue.pokemon} Pokémon, ${value.catalogue.series} séries, ${value.catalogue.sets} sets, ${value.catalogue.cards} cartes, ${value.catalogue.variants} variantes, ${value.catalogue.mappings} rattachements.`)
   console.log(`FR : ${value.french_availability.confirmed} confirmed, ${value.french_availability.unknown} unknown, ${value.french_availability.unavailable} unavailable. Jumbo exclues : ${value.source_counts.jumbo_ignored ?? 0}.`)
   console.table(value.diff)

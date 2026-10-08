@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 6 terminées et validées.** Le cœur fonctionnel des collections est livré : contenu, exemplaires, réorganisation, ajout/retrait manuel, recherches d'ajout et interne, détail Variante et modernisation UI. Les collections réellement partagées restent consultables en lecture seule ; le parcours utilisateur de partage reste futur. Le [rapport de clôture Phase 6](reports/2026-09-30-PHASE6-CLOSURE.md) consigne les acquis, l'audit technique de Codex et le checkpoint Cloud manuel du propriétaire. La prochaine phase planifiée est la **Phase 7 — Vues, catalogue, recherche globale et préférences** ; elle n'est pas commencée.
+**Phases 0 à 7 terminées et validées. Version applicative `0.7.21`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Prochaine phase : Phase 8 — Mise à jour des collections automatiques, planifiée et non commencée.**
 
 | Grandes phases | Statut |
 |---|---|
@@ -26,12 +26,12 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 | 4 — Profil et gestion du compte | Terminée |
 | 5 — Dashboard, création et gestion des collections | Terminée |
 | 6 — Cœur fonctionnel des collections | Terminée |
-| 7 — Vues, catalogue, recherche globale et préférences | Planifiée |
+| 7 — Vues, catalogue, recherche globale et préférences | Terminée |
 | 8 — Mise à jour des collections automatiques | Planifiée |
 | 9 — Partage des collections | Planifiée |
 | 10 — Finalisation V1 et mise en production | Planifiée |
 
-Le socle SQL, le catalogue, Auth et les contrats Phase 6 sont déployés dans Supabase Cloud. Après l'audit technique validé, le propriétaire a exécuté manuellement le checkpoint Cloud : 12 migrations Phase 6 appliquées sans erreur, 23 migrations Local/Remote alignées jusqu'à `20260928083830`, puis dry-run final sans migration restante. Aucun nouvel accès Cloud pendant la clôture documentaire. Le détail des migrations et des validations reste dans le README et les rapports.
+Le socle SQL, le catalogue, Auth et les contrats jusqu’à la Phase 7 sont déployés dans Supabase Cloud. Après l’audit 7G.1 validé, le propriétaire a exécuté manuellement le checkpoint Cloud : six migrations Phase 7 appliquées avec succès, **29 Local / 29 Remote** alignées jusqu’à `20261007085921`, puis dry-run final `Remote database is up to date.` Confirmations du propriétaire ; aucun accès Cloud par Codex en 7G.2. Le détail reste dans le README et le [rapport de clôture](reports/2026-10-08-PHASE7-CLOSURE.md).
 
 **Le développement et les tests courants utilisent Supabase local ; les checkpoints Cloud ponctuels exigent une autorisation explicite et des fixtures temporaires. Supabase cloud reste réservé à la future production avec Vercel.** Aucun déploiement Vercel n'est en place. Les URLs de production seront configurées lors de la mise en production ; aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud.
 
@@ -87,7 +87,7 @@ Transformer `/profile` en page légère de Profil / gestion du compte :
 
 Les [fonctionnalités](01-FEATURES.md#profil-utilisateur), l'[UX](04-UX-UI.md#profil-utilisateur), le [modèle](03-DATA-MODEL.md#utilisateur-et-profil-my), l'[architecture](05-ARCHITECTURE.md#profil-et-gestion-du-compte--cible-phase-4) et la [base de données](06-DATABASE.md#suppression-dun-compte) portent le cadrage validé et ses contraintes. Les parcours Auth et la récupération administrative MFA déjà livrés restent acquis.
 
-Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. L'interface des préférences de vues reste prévue en Phase 7. Aucun profil social n'est ajouté.
+Profil et Paramètres restent deux destinations distinctes de `Mon compte`, sans raccourci vers Paramètres dans Profil. À la clôture de Phase 4, l’interface des préférences de vues relevait de la Phase 7 ; elle est désormais livrée. Aucun profil social n'est ajouté.
 
 Le moyen de contact final et les éventuelles exigences légales/rétentions particulières restent ouverts dans leurs références. Les parcours Profil et leurs protections sont livrés et validés, avec leurs preuves locales et Cloud consignées dans le [rapport de clôture](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md).
 
@@ -122,8 +122,8 @@ Les collections permettent désormais de suivre les variantes et les exemplaires
 - contenu réel autoritatif, éléments automatiques/manuels, ordre backend, possession/progression, manquantes atténuées et images avec fallback, en accès propriétaire ou partage lecture seule ;
 - recherche catalogue, sélection d'une variante exacte, confirmation, ajout début/fin sans doublon et retrait manuel conservant les exemplaires ; recherche normalisée en AND sur carte/Pokémon, numéro/fraction, Extension, abréviations, identifiants et variante, **sans recherche du nom de série** ;
 - recherche interne côté client sur le contenu déjà chargé : carte, Extension, abréviations, série, numéro et variante, avec normalisation et AND multi-termes ; ordre conservé, reorder désactivé seulement si le filtre masque des éléments ;
-- détail Variante autonome via `get_variant_detail`, y compris historique/inactif, métadonnées/dates/stamps et fallback image ; panneau latéral desktop ou plein écran mobile sans route dédiée, exemplaires intégrés et droits propriétaire/partage ; croix seule en haut à droite, aucun header générique visible et aucun bloc `Caractéristiques` pour le type seul ;
-- modernisation UI : fondation graphite globale, accent rouge MY., public/Auth harmonisés, Dashboard en grille unifiée et FAB de création, Collection et FAB contextuel, reorder plus fluide, détail Variante et Profil modernisés, actions/icônes harmonisées. Le contrat métier du Profil reste inchangé ; Paramètres reste volontairement minimal.
+- détail Variante autonome via `get_variant_detail`, y compris historique/inactif, métadonnées/dates/stamps et fallback image ; panneau latéral desktop ou plein écran mobile sans route dédiée, exemplaires intégrés et droits propriétaire/partage ; croix seule en haut à droite, aucun header générique visible ; depuis 7E.3.2, `Caractéristiques` affiche aussi le Type seul ;
+- modernisation UI : fondation graphite globale, accent rouge MY., public/Auth harmonisés, Dashboard en grille unifiée et FAB de création, Collection et FAB contextuel, reorder plus fluide, détail Variante et Profil modernisés, actions/icônes harmonisées. Le contrat métier du Profil reste inchangé ; Paramètres était volontairement minimal à la clôture de Phase 6.
 
 Les éléments automatiques restent non supprimables manuellement ; leur déplacement ne modifie ni origine ni rang canonique. Les exemplaires ne sont jamais dupliqués entre collections.
 
@@ -131,51 +131,56 @@ Phase 6 terminée et validée après l'audit technique exécuté par Codex et le
 
 ### Phase 7 — Vues, catalogue, recherche globale et préférences
 
-**Statut : PLANIFIÉE**
+**Statut : TERMINÉE ET VALIDÉE**
 
-Compléter les modes de consultation et la navigation dans les collections et le catalogue authentifié.
+Le socle Phase 7 comprend version applicative/footer et préférences 7A.3. Depuis 7B.3, Liste, Cartes et Classeur Collection sont fonctionnels avec sélecteur, préférences du viewer, dernier choix explicite sauvegardé, recherche conservée et contenu/ordre autoritatifs communs. Liste/Cartes conservent le reorder propriétaire ; Classeur est continu et consultatif. Paramètres livre désormais les trois réglages Affichage : défaut catalogue, défaut collection et format Classeur global, avec sauvegardes indépendantes et overrides conservés. Version **0.7.21**, conservée pendant la clôture. Le socle Catalogue dispose désormais des types Pokémon, de trois contrats de lecture authentifiée, de services/décodeurs stricts et de son identité couleur frontend. La page Pokémon authentifiée est livrée avec identité par types, recherche locale, vues neutres Liste/Cartes, Détail Variante et création/ouverture automatique personnelle. La page Extension est livrée avec identité teal/turquoise, logo/symbole, socle Catalogue partagé, liens Pokémon et CTA automatique factorisé. Carte est livrée avec fiche à identité Pokémon/fallback ambre depuis 7E.3.2, image représentative, liens Extension/Pokémon et Versions Liste/Cartes sans recherche ni CTA Collection. Les liens internes des trois niveaux sont actifs. Identité couleur Catalogue/Collections finalisée : palette Pokémon unique, Extensions teal, personnalisées rouge MY., partagées indigo prioritaire ; métadonnées types disponibles dans Dashboard sous RLS. Socle serveur de recherche globale livré en 7E.1 : RPC autoritative et service TypeScript strict. Recherche globale du header fonctionnelle en 7E.2 : debounce, suggestions, états, identité 7D.5 et navigation explicite. Contrats de présentation enrichis en 7E.3.1 (`0.7.14`) : logo Extension, image représentative et Pokémon Carte dans la recherche ; IDs Carte/Extension et Pokémon dans le Détail Variante. Harmonisation frontend livrée en 7E.3.2 (`0.7.15`) : liens sans soulignement au repos, hover textuel souligné, identité Carte Pokémon/fallback ambre `#C9A34A`, miniatures Carte/logos Extension, trois vues Cartes Catalogue alignées sur Collection, libellé `Pokémon` et métadonnées communes fiche Carte/Détail Variante. Cohérence visuelle et vocabulaire Catalogue finalisés en 7E.3.4 (`0.7.17`) : métadonnées communes sans divergence, listes et progression harmonisées, compteurs Pokémon/Extension en cartes et fiche Carte en versions. Navigation simplifiée livrée en 7F.2 (`0.7.19`) : `← Retour` partagé et liens Carte/Extension/Pokémon par IDs. **7F terminée.**
+
+Modes de consultation et navigation livrés dans les collections et le catalogue authentifié. Audit technique, checkpoint Cloud manuel et clôture validés. Outillage courant : Node.js 24.20.0, npm 12.1.0, Supabase CLI 2.120.0. Badges Auto/Perso supprimés en `0.7.20` ; `item.origin` et retrait réservé aux éléments manuels autorisés conservés.
 
 #### Collections
 
 - vues Liste, Cartes et Classeur ;
-- formats de pages et organisation du classeur selon le cadrage à compléter ;
+- formats de pages `2x2`, `3x3`, `4x3` et organisation continue uniquement ;
 - représentation des variantes possédées et manquantes, sans supprimer les emplacements manquants du classeur.
 
-Classeur reste réservé aux collections. La liste définitive des formats et la persistance du format et de l'organisation restent ouvertes.
+Classeur livré, réservé aux collections, **continu uniquement**. Formats `2x2`, `3x3`, `4x3`, défaut `3x3` ; global du compte et override viewer + collection, retour au défaut par suppression. Livre desktop/tablette large, page unique mobile, pagination frontend sans table `binder_pages`. Recherche non destructive avec occurrences et halo ; absence de résultat/effacement conserve la page. Placeholder commun des cartes `card-placeholder.webp`. Aucun regroupement série/bloc/ère, reorder ou action métier sur les pochettes. Aucun changement DB ni accès Cloud en 7B.3.
 
 #### Catalogue
 
 - pages Pokémon, Extension et Carte, en vues Liste / Cartes ;
-- consultation des Cartes distinctes puis de leurs Variantes, selon les ordres définis dans les références ;
+- trois pages livrées : Variantes dans leur ordre canonique, socle partagé et liens internes Pokémon / Extension / Carte ; Carte présente une fiche de référence et toutes ses Versions sans recherche locale ;
 - depuis les pages Pokémon ou Extension, actions `Créer ma collection…` / `Ouvrir ma collection…` pour la collection automatique personnelle correspondante.
 
 Ces pages présentent le catalogue sans progression ni statistiques personnelles. Une collection partagée ne remplace pas la collection personnelle correspondant à une cible.
 
 #### Recherche globale
 
-Rendre fonctionnel le champ permanent du header selon le cadrage validé :
+Contrat DB autoritatif et service TypeScript livrés localement en 7E.1. Intégration du champ permanent livrée en 7E.2 (`0.7.13`) :
 
 - suggestions à partir de 3 caractères, avec un maximum de 10 résultats ;
 - catégories Pokémon, Extensions, Collections et Cartes, avec les quotas et critères documentés ;
 - sélection explicite d'une suggestion pour naviguer ;
 - aucune page générale de résultats ni sélection automatique à la validation du champ.
 
-La recherche globale reste distincte du filtre interne à une collection et de la recherche d'ajout d'une variante exacte. Les collections partagées accessibles seront intégrées à ses résultats lors de la Phase 9.
+La recherche globale reste distincte du filtre interne à une collection et de la recherche d'ajout d'une variante exacte. Dès la Phase 7, elle doit pouvoir retourner toutes les collections actuellement accessibles au viewer, personnelles ou reçues en partage. La Phase 9 est responsable du parcours utilisateur de création, gestion et retrait des partages ; elle n’est pas nécessaire pour lire ou rechercher un partage déjà existant.
+
+Un Pokémon lié avec métadonnées suffisantes → identité complète, type principal + secondaire éventuel. Plusieurs Pokémon avec exactement le même couple principal/secondaire → identité complète commune ; sinon exactement un type exploitable commun à tous → identité simple de ce type ; sinon fallback Carte. Aucun Pokémon, ambiguïté ou métadonnées insuffisantes → fallback Carte, sans sélectionner le premier Pokémon. Fallback Carte frontend **#C9A34A** (ambre/or doux), distinct du teal Extension, rouge MY. et indigo Partagé ; `resolveCardIdentity` livré en 7E.3.2 dans `catalog-identity.ts`, partagé par fiche Carte et suggestions Carte. Logique centralisée avec la palette Pokémon existante, aucune couleur SQL. Liens, miniatures/logo, vues Cartes Catalogue et structure du Détail Variante harmonisés en 7E.3.2, frontend uniquement. [Rapport UI](reports/2026-10-06-PHASE7E3-2-UI-HARMONIZATION.md). [Preuve des contrats 7E.3.1](reports/2026-10-06-PHASE7E3-1-PRESENTATION-CONTRACTS.md).
 
 #### Navigation
 
-- détail Variante commun au catalogue et aux collections, avec actions adaptées au contexte ;
-- retour conservant autant que possible la consultation précédente ;
-- navigation Précédente / Suivante suivant l'ordre réel de la liste d'origine ;
-- interactions adaptées au mobile, sans inventer de séquence pour une arrivée sans liste d'origine.
+Le Détail Variante commun est livré. Contrats nécessaires aux liens Collection livrés localement en 7F.1 (`0.7.18`) : IDs Carte/Extension et cible automatique, sans changement visuel.
+
+7F terminée en `0.7.19` : bouton partagé `← Retour` sur Collection et les trois Catalogues via historique réel, exploitable après refresh, fallback Dashboard sans entrée MY. précédente ; liens Carte/Extension/Pokémon déterminés par type d’entité et ID du contrat. Aucune restauration métier personnalisée. Collection Liste/Cartes et partage lecture seule autorisé : surface Détail et contrôles indépendants ; cible automatique liée selon son type. La tuile Dashboard reste son lien entier vers la Collection, sans interaction imbriquée.
+
+Précédente / Suivante, swipe entre cartes, séquence de navigation et navigation rapide contextuelle sont abandonnés pour la V1 actuelle. Aucun ordre contextuel de navigation n’est préparé ; la pagination Classeur existante reste indépendante.
 
 #### Paramètres
 
-Transformer `/settings` en page fonctionnelle pour les **deux préférences de vues persistantes déjà définies** : vue catalogue par défaut et vue collection par défaut, avec leur dernier mode utilisé indépendant. Aucun autre réglage n'est validé par cette phase ; la persistance des choix propres au classeur reste à cadrer.
+`/settings` est fonctionnelle : section Affichage cohérente avec Profil, vue catalogue/collection par défaut et format Classeur global. Sauvegarde immédiate par réglage, chargement/erreur/retry et contrôles accessibles responsive. Les derniers modes restent indépendants, la vue d'une collection ouverte reste conservée et le format global s'applique aux héritiers sans toucher aux overrides viewer + collection. Aucun autre réglage validé par cette phase.
 
 ### Phase 8 — Mise à jour des collections automatiques
 
-**Statut : PLANIFIÉE**
+**Statut : PLANIFIÉE — PROCHAINE PHASE, NON COMMENCÉE**
 
 Permettre au propriétaire d'actualiser une collection lorsque la structure de sa cible évolue dans le catalogue :
 
@@ -199,7 +204,7 @@ Compléter le socle DB/RLS et la consultation Dashboard/overview en lecture seul
 - recherche limitée d'un destinataire par son identifiant public MY., sans annuaire de profils ;
 - identification du destinataire et confirmation par le propriétaire ;
 - création et retrait des accès, sans doublon ni partage à soi-même ;
-- intégration des collections reçues aux résultats de recherche accessibles, en complément de leur présence déjà livrée dans le Dashboard ;
+- gestion des accès reçus, dont le retrait par le destinataire, en complément de la consultation déjà livrée ;
 - consultation des variantes, de la progression et des exemplaires du propriétaire, avec les vues et outils de lecture ;
 - restrictions cohérentes dans l'interface et via RLS.
 
