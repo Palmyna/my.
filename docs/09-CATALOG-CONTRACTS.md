@@ -2,6 +2,8 @@
 
 Contrats de lecture livrés en `0.7.7` (7D.1). Pokémon (`0.7.8`, 7D.2) et Extension (`0.7.9`, 7D.3) consomment ces contrats avec un socle UI Liste/Cartes commun, sans changement SQL. Carte (`0.7.10`, 7D.4) consomme son contrat minimal. Le panneau Détail Variante garde ses 20 champs historiques et reçoit en 7E.3.1 trois champs de navigation/identité : `source_card_id`, `set_id`, `pokemon`. Rendu harmonisé en 7E.3.2, sans nouveau contrat.
 
+Phase 7 terminée et validée en `0.7.21`. Six migrations Phase 7 appliquées Local et déployées Cloud selon le checkpoint manuel communiqué par le propriétaire : **29 Local / 29 Cloud**, jusqu’à `20261007085921`. Aucun accès Cloud en 7G.2. Voir le [rapport de clôture](reports/2026-10-08-PHASE7-CLOSURE.md).
+
 ## Règles communes
 
 `get_catalog_pokemon(p_pokemon_id bigint)`, `get_catalog_set(p_set_id bigint)`, `get_catalog_card(p_card_id bigint)` : scalaire JSONB, STABLE, lecture seule, SECURITY INVOKER, `SET search_path = ''`. EXECUTE réservé à `authenticated`, révoqué de PUBLIC/anon/service_role ; RLS MFA/profil existantes autoritatives. Aucune possession, exemplaire, progression, collection ou partage.
@@ -96,7 +98,7 @@ Liens Carte depuis les résultats Pokémon/Extension et Extension depuis Pokémo
 
 ## Migration et validation du socle 7D.1
 
-[Migration CLI 7D.1](../supabase/migrations/20261004161759_phase7d1_catalog_foundation.sql), local uniquement. Colonnes additives/nullables : anciens lecteurs/écrivains compatibles ; nouveau pipeline exige nouveau référentiel. Déployer schéma avant pipeline/consommateurs. Synchronisation transactionnelle/idempotente ; publication atomique du fichier Pokémon séparée.
+[Migration CLI 7D.1](../supabase/migrations/20261004161759_phase7d1_catalog_foundation.sql), désormais Local et Cloud au checkpoint manuel confirmé par le propriétaire. Colonnes additives/nullables : anciens lecteurs/écrivains compatibles ; nouveau pipeline exige nouveau référentiel. Déployer schéma avant pipeline/consommateurs. Synchronisation transactionnelle/idempotente ; publication atomique du fichier Pokémon séparée.
 
 Retour arrière en **nouvelle migration** : retirer consommateurs, supprimer trois RPC, policy/grants de clés de cartes et EXECUTE/USAGE ajoutés. Conserver colonnes types/données jusqu'à autorisation de suppression. Ne jamais éditer l'historique appliqué. Aucun rollback ni contraction implicitement prévu ensuite.
 
@@ -104,11 +106,11 @@ Retour arrière en **nouvelle migration** : retirer consommateurs, supprimer tro
 
 ## Identité Catalogue ↔ Collections — 7D.5
 
-Version locale **0.7.11**. Palette de départ retenue sans modification des 18 paires HEX ; accents Extension **#44C7B7**, Personnalisée **#E22B35**, Partagée **#6366F1**. Ces tokens MY. ne constituent pas une spécification Pokémon officielle. Priorité Collection : **shared → free → automatic set → automatic pokemon → neutre**. Partagée masque entièrement les couleurs de cible, avec libellé Lecture seule conservé. Textes colorés : compagnon 75 % accent / 25 % texte ; FAB rouge : libellé blanc, autres FAB propriétaires : graphite.
+Version de la livraison 7D.5 : **0.7.11**. Palette de départ retenue sans modification des 18 paires HEX ; accents Extension **#44C7B7**, Personnalisée **#E22B35**, Partagée **#6366F1**. Ces tokens MY. ne constituent pas une spécification Pokémon officielle. Priorité Collection : **shared → free → automatic set → automatic pokemon → neutre**. Partagée masque entièrement les couleurs de cible, avec libellé Lecture seule conservé. Textes colorés : compagnon 75 % accent / 25 % texte ; FAB rouge : libellé blanc, autres FAB propriétaires : graphite.
 
 La [migration 7D.5](../supabase/migrations/20261005181925_phase7d5_collection_identity.sql) ajoute en fin de `dashboard_collections` deux métadonnées nullable TEXT, `target_primary_type` et `target_secondary_type`, issues de la jointure Pokémon existante ; Extension/libre : NULL. `security_invoker`, RLS, grants SELECT et compteurs inchangés. Les deux lecteurs Collections sélectionnent/décodent ces champs via `isPokemonType` ; valeur inconnue ou contradiction : `CollectionsError('unexpected')`. Aucun fetch supplémentaire ni stockage redondant.
 
-Appliquer le schéma avant le frontend 7D.5. Anciens lecteurs compatibles avec ces colonnes additives ; retry de migration sans étape destructrice. Retour arrière : restaurer le frontend précédent et conserver le schéma additif/données ; aucune contraction implicite. Application Cloud réservée au checkpoint final Phase 7. [Rapport 7D.5](reports/2026-10-05-PHASE7D5-COLOR-IDENTITY.md).
+Appliquer le schéma avant le frontend 7D.5. Anciens lecteurs compatibles avec ces colonnes additives ; retry de migration sans étape destructrice. Retour arrière : restaurer le frontend précédent et conserver le schéma additif/données ; aucune contraction implicite. Application Cloud confirmée au checkpoint final Phase 7 exécuté manuellement par le propriétaire. [Rapport 7D.5](reports/2026-10-05-PHASE7D5-COLOR-IDENTITY.md).
 
 ## Présentation et identité Carte — contrats 7E.3.1, rendu livré 7E.3.2
 
