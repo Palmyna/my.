@@ -35,8 +35,12 @@ update public.collections set personal_revision=9223372036854775807,order_contra
   where id='c1700000-0000-0000-0000-000000000001';
 update public.collection_items set introduced_revision=9223372036854775807
   where id='d1700000-0000-0000-0000-000000000002';
+insert into private.collection_order_intents(collection_id,sequence,operation_id,subject_item_id,kind,destination,fallback_item_ids)
+  values('c1700000-0000-0000-0000-000000000001',9223372036854775807,gen_random_uuid(),
+    'd1700000-0000-0000-0000-000000000002','manual_add','end','{}');
 select is((select introduced_revision from public.collection_items where id='d1700000-0000-0000-0000-000000000002'),
-  9223372036854775807::bigint, 'Positive BIGINT introductions supported without premature v2 journal invariant');
+  9223372036854775807::bigint, 'Positive BIGINT introduction supported with legitimate initial placement');
+select lives_ok('set constraints all immediate','Complete maximum BIGINT fixture satisfies initial-placement invariant');
 rollback to positive_values;
 
 select col_type_is('private', t, c, typ, t || '.' || c || ' type') from (values

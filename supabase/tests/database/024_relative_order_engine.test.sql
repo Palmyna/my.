@@ -324,7 +324,7 @@ select throws_ok($$select private.merge_collection_relative_order('80000000-0000
 reset role;
 select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname in ('merge_collection_relative_order','preview_collection_update',
-    'apply_collection_update','add_manual_collection_item_v2','remove_manual_collection_item_v2')),'No public engine/preview/apply/future manual v2 writer');
+    'apply_collection_update','remove_manual_collection_item_v2')),'No public engine/preview/apply/future removal v2 writer');
 select ok((select bool_and(order_contract_version=1 and personal_revision=0) from public.collections),
   'Real collections remain contract 1 / revision zero');
 select is((select count(*) from private.collection_order_intents),0::bigint,'Real journal remains empty');

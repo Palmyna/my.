@@ -350,6 +350,9 @@ isOneToOne: true
             "add_manual_collection_item":
 { Args: { "p_collection_id": string,"p_placement"?: string,"p_variant_id": number }; Returns: string
                            },
+"add_manual_collection_item_v2":
+{ Args: { "p_collection_id": string,"p_expected_revision": number,"p_operation_id": string,"p_placement": string,"p_variant_id": number }; Returns: Json
+                           },
 "create_automatic_collection":
 { Args: { "p_name": string,"p_target_id": number,"p_target_type": string }; Returns: {
               "collection_id": string,"created": boolean
