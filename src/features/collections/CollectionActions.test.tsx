@@ -1,3 +1,4 @@
+import { contentFixture } from '../../test/collection-content'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -10,7 +11,7 @@ import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { CollectionPage } from './CollectionPage'
 import { collectionOverviewKey } from './collection-query'
 
-vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
+vi.mock('../../services/collection-content', () => ({ getCollectionContentV2: vi.fn().mockResolvedValue(contentFixture([])) }))
 vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES), saveUserPreferences: vi.fn() }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => ({ user: { id: 'owner' }, isAuthorized: true }) }))
 vi.mock('../../services/collections', async original => ({ ...await original<typeof import('../../services/collections')>(),

@@ -1,10 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { z } from 'zod'
 import type { Database } from '../types/database.generated'
-import type { CollectionContentItem } from '../types/collection-content'
+import type { CollectionContent, CollectionContentItem } from '../types/collection-content'
+import { collectionBigint, collectionUuid, personalRevision } from '../lib/collection-contract'
 import { getSupabaseClient } from './supabase'
 import { variantIdString } from '../lib/variant-id'
 
-export type CollectionContentErrorCode = 'not_authorized' | 'unexpected'
+export type CollectionContentErrorCode = 'not_authorized' | 'collection_unavailable' | 'unexpected'
 export class CollectionContentError extends Error {
   constructor(readonly code: CollectionContentErrorCode) { super(code); this.name = 'CollectionContentError' }
 }
@@ -40,8 +42,47 @@ function contentItem(value: unknown): CollectionContentItem {
   }
 }
 
+const text = z.string().nullable()
+const v2Item = z.strictObject({
+  collection_item_id: collectionUuid, variant_id: collectionBigint, source_card_id: collectionBigint, set_id: collectionBigint,
+  origin: z.enum(['manual', 'automatic']), card_name_fr: text, local_id: text, set_name_fr: text,
+  set_abbreviation_fr: text, set_abbreviation: text, series_name_fr: text, series_name_source: text,
+  image_url: text, variant_label: text, owned: z.boolean(), is_hidden: z.literal(false),
+})
+const v2Content = z.strictObject({
+  order_contract_version: z.union([z.literal(1), z.literal(2)]), personal_revision: personalRevision,
+  items: z.array(v2Item).refine(items =>
+    new Set(items.map(item => item.collection_item_id.toLowerCase())).size === items.length
+    && new Set(items.map(item => item.variant_id)).size === items.length),
+})
+
+export function decodeCollectionContentV2(value: unknown): CollectionContent {
+  const parsed = v2Content.safeParse(value)
+  if (!parsed.success) throw new CollectionContentError('unexpected')
+  return {
+    orderContractVersion: parsed.data.order_contract_version, personalRevision: parsed.data.personal_revision,
+    items: parsed.data.items.map(({ is_hidden, ...legacy }) => ({ ...contentItem(legacy), isHidden: is_hidden })),
+  }
+}
+
+function readError(error: unknown): CollectionContentError {
+  if (error instanceof CollectionContentError) return error
+  if (error && typeof error === 'object' && 'code' in error
+    && ['42501', 'PGRST301', 'PGRST302', 'PGRST303'].includes(String(error.code))) return new CollectionContentError('not_authorized')
+  return new CollectionContentError('unexpected')
+}
+
 export function createCollectionContentService(client: SupabaseClient<Database>) {
   return {
+    async getCollectionContentV2(collectionId: string): Promise<CollectionContent> {
+      try {
+        if (!collectionUuid.safeParse(collectionId).success) throw new CollectionContentError('unexpected')
+        const { data, error } = await client.rpc('get_collection_content_v2', { p_collection_id: collectionId })
+        if (error) throw error
+        if (data === null) throw new CollectionContentError('collection_unavailable')
+        return decodeCollectionContentV2(data)
+      } catch (error) { throw readError(error) }
+    },
     async getCollectionContent(collectionId: string): Promise<CollectionContentItem[]> {
       try {
         if (collectionId.length !== 36 || !uuid.test(collectionId)) throw new CollectionContentError('unexpected')
@@ -63,6 +104,12 @@ export function createCollectionContentService(client: SupabaseClient<Database>)
       }
     },
   }
+}
+
+export async function getCollectionContentV2(collectionId: string): Promise<CollectionContent> {
+  const client = getSupabaseClient()
+  if (!client) throw new CollectionContentError('not_authorized')
+  return createCollectionContentService(client).getCollectionContentV2(collectionId)
 }
 
 export async function getCollectionContent(collectionId: string): Promise<CollectionContentItem[]> {

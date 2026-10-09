@@ -1,9 +1,10 @@
+import { contentFixture } from '../../test/collection-content'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, expect, test, vi } from 'vitest'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
-import { getCollectionContent } from '../../services/collection-content'
+import { getCollectionContentV2 } from '../../services/collection-content'
 import { saveUserPreferences } from '../../services/view-preferences'
 import type { CollectionView } from '../../types/view-preferences'
 import type { CollectionContentItem } from '../../types/collection-content'
@@ -15,7 +16,7 @@ vi.mock('../../services/collections', () => ({
   getCollectionOverview: vi.fn().mockResolvedValue({ collectionId: 'collection', ownerId: 'real-owner', name: 'Favoris',
     collectionType: 'free', access: 'shared', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 2 }),
 }))
-vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn() }))
+vi.mock('../../services/collection-content', () => ({ getCollectionContentV2: vi.fn() }))
 vi.mock('../../services/view-preferences', () => ({
   getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES),
   saveUserPreferences: vi.fn().mockImplementation((_viewer, patch: { lastCollectionView: CollectionView }) =>
@@ -28,7 +29,7 @@ test('selector changes both renderers immediately, preserves search and content 
   const first: CollectionContentItem = { sourceCardId: '25', setId: '73', collectionItemId: 'first', variantId: '42', cardNameFr: 'Pikachu',
     setNameFr: 'Extension', setAbbreviationFr: null, setAbbreviation: 'EXT', seriesNameFr: null, seriesNameSource: null,
     localId: '025', variantLabel: null, imageUrl: null, origin: 'manual', owned: false }
-  vi.mocked(getCollectionContent).mockResolvedValue([first, { ...first, collectionItemId: 'second', variantId: '43', cardNameFr: 'Évoli' }])
+  vi.mocked(getCollectionContentV2).mockResolvedValue(contentFixture([first, { ...first, collectionItemId: 'second', variantId: '43', cardNameFr: 'Évoli' }]))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/collections/collection']}><Routes>
     <Route path="/collections/:collectionId" element={<CollectionPage />} />
@@ -65,7 +66,7 @@ test('selector changes both renderers immediately, preserves search and content 
   fireEvent.click(screen.getByRole('button', { name: 'Effacer la recherche' }))
   expect(screen.getAllByRole('listitem').map(row => row.querySelector('.collection-content-name')?.textContent))
     .toEqual(['Pikachu · EXT · 025', 'Évoli · EXT · 025'])
-  expect(getCollectionContent).toHaveBeenCalledExactlyOnceWith('collection')
+  expect(getCollectionContentV2).toHaveBeenCalledExactlyOnceWith('collection')
   await waitFor(() => expect(saveUserPreferences).toHaveBeenCalledTimes(4))
   expect(saveUserPreferences).toHaveBeenNthCalledWith(1, 'recipient', { lastCollectionView: 'cards' })
   expect(saveUserPreferences).toHaveBeenNthCalledWith(2, 'recipient', { lastCollectionView: 'list' })

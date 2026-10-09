@@ -1,3 +1,4 @@
+import { contentFixture } from '../test/collection-content'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
@@ -20,7 +21,7 @@ vi.mock('../services/collections', async importOriginal => ({
   ...await importOriginal<typeof import('../services/collections')>(),
   listDashboardCollections: vi.fn(), getCollectionOverview: vi.fn(), findOwnedAutomaticCollection: vi.fn().mockResolvedValue(null),
 }))
-vi.mock('../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
+vi.mock('../services/collection-content', () => ({ getCollectionContentV2: vi.fn().mockResolvedValue(contentFixture([])) }))
 vi.mock('../services/view-preferences', async () => ({
   getUserPreferences: vi.fn().mockResolvedValue((await import('../lib/view-preferences')).DEFAULT_USER_PREFERENCES),
   saveUserPreferences: vi.fn(),

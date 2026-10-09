@@ -370,6 +370,9 @@ isOneToOne: true
 "get_collection_content":
 { Args: { "p_collection_id": string }; Returns: Json
                            },
+"get_collection_content_v2":
+{ Args: { "p_collection_id": string }; Returns: Json
+                           },
 "get_collection_item_order":
 { Args: { "p_collection_id": string }; Returns: (string)[]
                            },

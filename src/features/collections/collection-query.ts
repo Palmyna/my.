@@ -3,4 +3,4 @@ export const collectionStructureMutationKey = (userId: string | undefined, colle
 export const collectionItemOrderKey = (userId: string | undefined, collectionId: string) => ['collections', 'item-order', userId, collectionId] as const
 // Exact key for reorder/item mutations; viewer prefix for possession changes.
 export const collectionContentKeys = (userId: string | undefined) => ['collections', 'content', userId] as const
-export const collectionContentKey = (userId: string | undefined, collectionId: string) => [...collectionContentKeys(userId), collectionId] as const
+export const collectionContentKey = (userId: string | undefined, collectionId: string) => [...collectionContentKeys(userId), collectionId, 'v2'] as const

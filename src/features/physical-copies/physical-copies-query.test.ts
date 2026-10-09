@@ -4,6 +4,7 @@ import type { CollectionContentItem } from '../../types/collection-content'
 import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } from '../collections/collection-query'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { invalidateCopyPossession, physicalCopiesKey } from './physical-copies-query'
+import { contentFixture } from '../../test/collection-content'
 
 const item = (variantId: string): CollectionContentItem => ({ collectionItemId: 'item', variantId, sourceCardId: '25', setId: '73', origin: 'manual',
   cardNameFr: null, localId: null, setNameFr: null, setAbbreviationFr: null, setAbbreviation: null, seriesNameFr: null, seriesNameSource: null, imageUrl: null, variantLabel: null, owned: false })
@@ -17,21 +18,21 @@ test('copy key normalizes safe legacy IDs and preserves lossless BIGINT and iden
 test('possession invalidation targets matching variant content and viewer summaries only', async () => {
   const client = new QueryClient()
   const affected = [collectionContentKey('owner', 'one'), collectionContentKey('owner', 'two')]
-  for (const key of affected) client.setQueryData(key, [item('9007199254740995')])
+  for (const key of affected) client.setQueryData(key, contentFixture([item('9007199254740995')]))
   const summaries = [dashboardCollectionsKey('owner'), collectionOverviewKey('owner', 'one'), collectionOverviewKey('owner', 'three')]
   for (const key of summaries) client.setQueryData(key, { cached: true })
   const untouched = [collectionContentKey('owner', 'empty'), collectionContentKey('owner', 'other-variant'),
     collectionContentKey('other-user', 'one'), dashboardCollectionsKey('other-user'),
     collectionOverviewKey('other-user', 'one'), collectionItemOrderKey('owner', 'one'),
     physicalCopiesKey('owner', 'owner', 42)]
-  for (const key of untouched) client.setQueryData(key, [item('9007199254740995')])
-  client.setQueryData(collectionContentKey('owner', 'empty'), [])
-  client.setQueryData(collectionContentKey('owner', 'other-variant'), [item('9007199254740994')])
+  for (const key of untouched) client.setQueryData(key, contentFixture([item('9007199254740995')]))
+  client.setQueryData(collectionContentKey('owner', 'empty'), contentFixture([]))
+  client.setQueryData(collectionContentKey('owner', 'other-variant'), contentFixture([item('9007199254740994')]))
   await invalidateCopyPossession(client, 'owner', '9007199254740995')
   for (const key of [...affected, ...summaries]) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
   for (const key of untouched) expect(client.getQueryState(key)?.isInvalidated).toBe(false)
   // No optimistic possession update.
-  expect(client.getQueryData(affected[0]!)).toEqual([item('9007199254740995')])
+  expect(client.getQueryData(affected[0]!)).toEqual(contentFixture([item('9007199254740995')]))
   client.clear()
 })
 test('content with no data is invalidated conservatively', async () => {
@@ -47,8 +48,8 @@ test.each(['content', 'overview', 'dashboard'] as const)('%s initial read cannot
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const key = kind === 'content' ? collectionContentKey('owner', 'unloaded')
     : kind === 'overview' ? collectionOverviewKey('owner', 'unloaded') : dashboardCollectionsKey('owner')
-  const oldValue = kind === 'content' ? [item('42')] : { owned: false }
-  const newValue = kind === 'content' ? [{ ...item('42'), owned: true }] : { owned: true }
+  const oldValue = kind === 'content' ? contentFixture([item('42')]) : { owned: false }
+  const newValue = kind === 'content' ? contentFixture([{ ...item('42'), owned: true }]) : { owned: true }
   let finishOld!: (value: typeof oldValue) => void
   const read = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve }))
     .mockResolvedValue(newValue)

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { expect, test, vi } from 'vitest'
 import type { Database } from '../types/database.generated'
-import { CollectionContentError, createCollectionContentService, getCollectionContent } from './collection-content'
+import { CollectionContentError, createCollectionContentService, decodeCollectionContentV2, getCollectionContent, getCollectionContentV2 } from './collection-content'
 import { getSupabaseClient } from './supabase'
 
 vi.mock('./supabase', () => ({ getSupabaseClient: vi.fn() }))
@@ -13,11 +13,69 @@ const row = () => ({
   card_name_fr: 'Évoli', local_id: 'TG01', set_name_fr: 'Extension précise', set_abbreviation_fr: 'FR', set_abbreviation: 'EXT', series_name_fr: 'Soleil et Lune', series_name_source: 'Sun & Moon',
   image_url: 'https://example.invalid/variant/original.png', variant_label: 'Holo Cosmos Stamp corrigé', owned: true,
 })
+const envelope = () => ({ order_contract_version: 2, personal_revision: '9007199254740995', items: [{ ...row(), is_hidden: false }] })
 function setup(data: unknown = [row()], error: unknown = null) {
   const rpc = vi.fn().mockResolvedValue({ data, error }), from = vi.fn()
   const client = { rpc, from } as unknown as SupabaseClient<Database>
   return { rpc, from, client, service: createCollectionContentService(client) }
 }
+
+test.each([1, 2])('v2 reader transports actual contract %s and complete authoritative rows', async version => {
+  const mock = setup({ ...envelope(), order_contract_version: version })
+  const content = await mock.service.getCollectionContentV2(collectionId)
+  expect(content).toEqual({ orderContractVersion: version, personalRevision: '9007199254740995',
+    items: [expect.objectContaining({ variantId: '9007199254740995', isHidden: false, owned: true })] })
+  expect(mock.rpc).toHaveBeenCalledExactlyOnceWith('get_collection_content_v2', { p_collection_id: collectionId })
+  expect(mock.from).not.toHaveBeenCalled()
+})
+test('v2 visible empty is an envelope; SQL NULL is unavailable', async () => {
+  await expect(setup({ ...envelope(), items: [] }).service.getCollectionContentV2(collectionId)).resolves.toHaveProperty('items', [])
+  await expect(setup(null).service.getCollectionContentV2(collectionId)).rejects.toHaveProperty('code', 'collection_unavailable')
+})
+test.each(['0', '9007199254740994', '9223372036854775807'])('exact personal revision %s', revision => {
+  expect(decodeCollectionContentV2({ ...envelope(), personal_revision: revision }).personalRevision).toBe(revision)
+})
+test.each([-1, 12, null, undefined, '-1', '01', '+1', '1.0', '1e3', ' 1', '9223372036854775808'])('rejects revision %j', revision => {
+  expect(() => decodeCollectionContentV2({ ...envelope(), personal_revision: revision })).toThrow(CollectionContentError)
+})
+test.each([0, 3, '2', null, undefined])('rejects unknown order contract %j', version => {
+  expect(() => decodeCollectionContentV2({ ...envelope(), order_contract_version: version })).toThrow(CollectionContentError)
+})
+test.each(Object.keys(envelope()))('rejects missing envelope field %s', field => {
+  const payload: Record<string, unknown> = envelope(); delete payload[field]
+  expect(() => decodeCollectionContentV2(payload)).toThrow(CollectionContentError)
+})
+test.each(Object.keys({ ...row(), is_hidden: false }))('rejects missing v2 item field %s', field => {
+  const item: Record<string, unknown> = { ...row(), is_hidden: false }; delete item[field]
+  expect(() => decodeCollectionContentV2({ ...envelope(), items: [item] })).toThrow(CollectionContentError)
+})
+test.each([true, null, undefined, 0, 'false'])('rejects unsupported hidden state %j before 8C', is_hidden => {
+  expect(() => decodeCollectionContentV2({ ...envelope(), items: [{ ...row(), is_hidden }] })).toThrow(CollectionContentError)
+})
+test('rejects extra keys, numeric identifiers, malformed UUID, unknown origin and both duplicate identities', () => {
+  for (const payload of [[], { ...envelope(), extra: true }, { ...envelope(), items: [{ ...row(), is_hidden: false, extra: true }] },
+    ...['variant_id', 'source_card_id', 'set_id'].map(key => ({ ...envelope(), items: [{ ...row(), is_hidden: false, [key]: 42 }] })),
+    { ...envelope(), items: [{ ...row(), collection_item_id: 'bad', is_hidden: false }] },
+    { ...envelope(), items: [{ ...row(), origin: 'future', is_hidden: false }] },
+    { ...envelope(), items: [envelope().items[0], { ...envelope().items[0], variant_id: '42', collection_item_id: firstId.toUpperCase() }] },
+    { ...envelope(), items: [envelope().items[0], { ...envelope().items[0], collection_item_id: secondId }] }]) {
+    expect(() => decodeCollectionContentV2(payload)).toThrow(CollectionContentError)
+  }
+})
+test('old decoder stays strict and rejects v2 envelopes/items', async () => {
+  await expect(setup(envelope()).service.getCollectionContent(collectionId)).rejects.toHaveProperty('code', 'unexpected')
+  await expect(setup(envelope().items).service.getCollectionContent(collectionId)).rejects.toHaveProperty('code', 'unexpected')
+})
+test('public v2 wrapper uses generated RPC and safe auth/errors', async () => {
+  const mock = setup(envelope()); vi.mocked(getSupabaseClient).mockReturnValue(mock.client)
+  await expect(getCollectionContentV2(collectionId)).resolves.toHaveProperty('orderContractVersion', 2)
+  await expect(setup(null, { code: '42501', message: 'private SQL' }).service.getCollectionContentV2(collectionId)).rejects.toMatchObject({ code: 'not_authorized', message: 'not_authorized' })
+  vi.mocked(getSupabaseClient).mockReturnValue(null)
+  await expect(getCollectionContentV2(collectionId)).rejects.toHaveProperty('code', 'not_authorized')
+  const invalid = setup(envelope())
+  await expect(invalid.service.getCollectionContentV2('bad')).rejects.toHaveProperty('code', 'unexpected')
+  expect(invalid.rpc).not.toHaveBeenCalled()
+})
 
 test('one RPC maps the complete row, preserving the BIGINT string, exact labels and image', async () => {
   const mock = setup()

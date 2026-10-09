@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getCollectionContent } from '../../services/collection-content'
+import { getCollectionContentV2 } from '../../services/collection-content'
 import type { CollectionOverview } from '../../types/collections'
 import type { CollectionView } from '../../types/view-preferences'
 import { CollectionContentRenderer } from './CollectionContentRenderer'
@@ -29,7 +29,7 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
   setCurrentView: (view: CollectionView) => Promise<boolean>
 }) {
   const content = useQuery({ queryKey: collectionContentKey(viewerId, collection.collectionId),
-    queryFn: () => getCollectionContent(collection.collectionId), retry: false })
+    queryFn: () => getCollectionContentV2(collection.collectionId), retry: false })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<{ variantId: string; opener: HTMLElement } | null>(null)
   const searchInput = useRef<HTMLInputElement>(null)
@@ -54,7 +54,7 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
   useEffect(() => {
     if (!manual.busy && focusAfterWrite.current) { focusAfterWrite.current = false; addTrigger.current?.focus({ preventScroll: true }) }
   }, [manual.busy, notice])
-  const items = content.isSuccess ? content.data : []
+  const items = content.isSuccess ? content.data.items : []
   const visibleItems = filterCollectionContent(items, query)
   const partialView = visibleItems.length < items.length
   const selected = items.find(item => item.collectionItemId === selectedId)

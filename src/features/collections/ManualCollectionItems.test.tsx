@@ -1,3 +1,4 @@
+import { contentFixture } from '../../test/collection-content'
 import { MemoryRouter } from 'react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -5,7 +6,7 @@ import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { useState } from 'react'
 import { CollectionContentView } from './CollectionContentView'
 import { AddCollectionItemDialog } from './AddCollectionItemDialog'
-import { getCollectionContent } from '../../services/collection-content'
+import { getCollectionContentV2 } from '../../services/collection-content'
 import { addManualCollectionItem, removeManualCollectionItem, listCollectionItemOrder, CollectionItemsError, type CollectionItemsErrorCode } from '../../services/collection-items'
 import { searchCatalogVariantsForAdd, CatalogSearchError } from '../../services/catalog-search'
 import type { CollectionOverview } from '../../types/collections'
@@ -16,7 +17,7 @@ import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { physicalCopiesKey } from '../physical-copies/physical-copies-query'
 
 vi.mock('../auth/auth-context', () => ({ useAuth: () => ({ user: { id: 'owner' }, isAuthorized: true }) }))
-vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn() }))
+vi.mock('../../services/collection-content', () => ({ getCollectionContentV2: vi.fn() }))
 vi.mock('../../services/collection-items', async original => ({ ...await original<typeof import('../../services/collection-items')>(),
   addManualCollectionItem: vi.fn(), removeManualCollectionItem: vi.fn(), listCollectionItemOrder: vi.fn() }))
 vi.mock('../../services/catalog-search', async original => ({ ...await original<typeof import('../../services/catalog-search')>(), searchCatalogVariantsForAdd: vi.fn() }))
@@ -25,14 +26,15 @@ const bigId = '9007199254740995'
 const variant: CatalogVariantForAdd = { variantId: bigId, imageUrl: null, cardNameFr: 'Pikachu', setNameFr: 'Set exemple', setAbbreviationFr: null, setAbbreviation: 'ASC', localId: '025', variantLabel: 'Reverse' }
 const item: CollectionContentItem = { sourceCardId: '25', setId: '73', ...variant, seriesNameFr: null, seriesNameSource: null, collectionItemId: 'c1900000-0000-0000-0000-000000000001', origin: 'manual', owned: true }
 const collection: CollectionOverview = { collectionId: 'collection', ownerId: 'owner', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, totalCount: 1, ownedCount: 1 }
-const content = vi.mocked(getCollectionContent), add = vi.mocked(addManualCollectionItem), remove = vi.mocked(removeManualCollectionItem)
+const content = vi.mocked(getCollectionContentV2), add = vi.mocked(addManualCollectionItem), remove = vi.mocked(removeManualCollectionItem)
 const search = vi.mocked(searchCatalogVariantsForAdd)
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
 })
 beforeEach(() => {
-  content.mockReset().mockResolvedValue([item])
+  sessionStorage.clear()
+  content.mockReset().mockResolvedValue(contentFixture([item]))
   vi.mocked(listCollectionItemOrder).mockReset().mockResolvedValue([item.collectionItemId])
   search.mockReset().mockResolvedValue([variant])
   add.mockReset().mockResolvedValue(item.collectionItemId)
@@ -64,7 +66,7 @@ async function openRemove() {
 }
 
 test.each(['free', 'automatic'] as const)('owner add remains available in empty %s collection; fresh modal and focus', async collectionType => {
-  content.mockResolvedValue([])
+  content.mockResolvedValue(contentFixture([]))
   setup({ collectionType })
   await screen.findByText('Cette collection ne contient encore aucune carte.')
   const trigger = openAdd()
@@ -77,8 +79,8 @@ test.each(['free', 'automatic'] as const)('owner add remains available in empty 
   openAdd(); expect(screen.getByRole('searchbox', { name: 'Rechercher une carte' })).toHaveValue('')
   fireEvent.click(button('Annuler')); expect(trigger).toHaveFocus()
 })
-test('shared automatic list has no origin badges, add, remove or reorder; catalog links remain', async () => {
-  content.mockResolvedValue([item, { ...item, collectionItemId: 'auto', variantId: '2', origin: 'automatic', cardNameFr: 'Évoli' }])
+test.each([1, 2] as const)('shared automatic contract %s has no origin badges, add, remove or reorder; catalog links remain', async version => {
+  content.mockResolvedValue(contentFixture([item, { ...item, collectionItemId: 'auto', variantId: '2', origin: 'automatic', cardNameFr: 'Évoli' }], version))
   setup({ access: 'shared', collectionType: 'automatic', ownerId: 'real-owner' })
   await screen.findByRole('link', { name: 'Pikachu' })
   expect(screen.getByRole('link', { name: 'Évoli' })).toHaveAttribute('href', '/catalog/cards/25')
@@ -88,8 +90,70 @@ test('shared automatic list has no origin badges, add, remove or reorder; catalo
   expect(screen.queryByRole('button', { name: /Ajouter|Actions de|Déplacer|Retirer/ })).not.toBeInTheDocument()
   expect(screen.getAllByRole('button', { name: /Consulter les exemplaires/ })).toHaveLength(2)
 })
+
+test.each(['start', 'end'] as const)('existing add dialog routes v2 %s, exact revision and new UUID per confirmed action', async placement => {
+  const id = 'c2900000-0000-0000-0000-000000000001'
+  content.mockResolvedValue(contentFixture([item], 2, '9007199254740994'))
+  setup({ collectionId: id })
+  await selectVariant()
+  if (placement === 'start') fireEvent.click(screen.getByRole('radio', { name: 'Début' }))
+  fireEvent.click(button('Ajouter à la collection'))
+  await screen.findByText('Carte ajoutée.')
+  expect(add).toHaveBeenCalledExactlyOnceWith(id, bigId, placement,
+    { orderContractVersion: 2, expectedRevision: '9007199254740994', operationId: expect.any(String) as unknown })
+  const firstOperation = add.mock.calls[0]![3]
+  content.mockResolvedValue(contentFixture([item], 2, '9007199254740995'))
+  await selectVariant(); fireEvent.click(button('Ajouter à la collection'))
+  await waitFor(() => expect(add).toHaveBeenCalledTimes(2))
+  expect(add.mock.calls[1]![3]).not.toEqual(firstOperation)
+})
+
+test('existing removal confirmation routes v2 and keeps physical-copy cache', async () => {
+  const id = 'c2900000-0000-0000-0000-000000000001'
+  content.mockResolvedValue(contentFixture([item], 2, '9007199254740994'))
+  const { client } = setup({ collectionId: id })
+  const key = physicalCopiesKey('owner', 'owner', bigId)
+  client.setQueryData(key, [{ id: 'copy', note: 'Conservée' }])
+  await openRemove()
+  expect(remove).not.toHaveBeenCalled()
+  content.mockResolvedValue(contentFixture([], 2, '9007199254740995'))
+  fireEvent.click(button('Retirer'))
+  await screen.findByText('Carte retirée. Vos exemplaires sont conservés.')
+  expect(remove).toHaveBeenCalledExactlyOnceWith(id, item.collectionItemId,
+    { orderContractVersion: 2, expectedRevision: '9007199254740994', operationId: expect.any(String) as unknown })
+  expect(client.getQueryData(key)).toEqual([{ id: 'copy', note: 'Conservée' }])
+  expect(client.getQueryState(key)?.isInvalidated).toBe(false)
+})
+
+test('uncertain v2 add keeps selection and original UUID/revision for technical retry', async () => {
+  const id = 'c2900000-0000-0000-0000-000000000001'
+  content.mockResolvedValue(contentFixture([item], 2, '9007199254740994'))
+  add.mockRejectedValueOnce(new CollectionItemsError('operation_uncertain'))
+  setup({ collectionId: id }); await selectVariant()
+  fireEvent.click(button('Ajouter à la collection'))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Résultat incertain')
+  const original = structuredClone(add.mock.calls[0])
+  content.mockResolvedValue(contentFixture([item], 2, '9007199254741000'))
+  fireEvent.click(button('Ajouter à la collection'))
+  await screen.findByText('Carte ajoutée.')
+  expect(add.mock.calls[1]).toEqual(original)
+})
+
+test('successful v2 add waits for readable content before closing dialog or showing success', async () => {
+  content.mockResolvedValue(contentFixture([item], 2, '9007199254740994'))
+  setup({ collectionId: 'c2900000-0000-0000-0000-000000000001' }); await selectVariant()
+  content.mockRejectedValueOnce(new Error('read offline'))
+  fireEvent.click(button('Ajouter à la collection'))
+  expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent('Impossible d’actualiser')
+  expect(screen.getByRole('dialog')).toBeVisible()
+  expect(screen.queryByText('Carte ajoutée.')).not.toBeInTheDocument()
+  content.mockResolvedValue(contentFixture([item], 2, '9007199254740995'))
+  fireEvent.click(button('Ajouter à la collection'))
+  await screen.findByText('Carte ajoutée.')
+  expect(add).toHaveBeenCalledOnce()
+})
 test.each(['free', 'automatic'] as const)('owner %s list has no origin badges; only manual rows retain removal', async collectionType => {
-  content.mockResolvedValue([item, { ...item, collectionItemId: 'auto', variantId: '2', origin: 'automatic', cardNameFr: 'Évoli' }])
+  content.mockResolvedValue(contentFixture([item, { ...item, collectionItemId: 'auto', variantId: '2', origin: 'automatic', cardNameFr: 'Évoli' }]))
   setup({ collectionType })
   await screen.findByRole('link', { name: 'Pikachu' })
   expect(screen.queryByText('Auto')).not.toBeInTheDocument(); expect(screen.queryByText('Perso')).not.toBeInTheDocument()
@@ -158,7 +222,7 @@ test.each(['end', 'start'] as const)('selection only, default Fin, %s add exact 
   const invalidate = vi.spyOn(client, 'invalidateQueries')
   const copiesKey = physicalCopiesKey('owner', 'owner', bigId)
   client.setQueryData(copiesKey, [{ id: 'copy', name: 'Conservé' }])
-  client.setQueryData(collectionContentKey('someone-else', 'collection'), [item])
+  client.setQueryData(collectionContentKey('someone-else', 'collection'), contentFixture([item]))
   await selectVariant()
   expect(add).not.toHaveBeenCalled()
   expect(screen.getByRole('radio', { name: 'Fin' })).toBeChecked()
@@ -295,7 +359,7 @@ test('remove confirmation protects physical copies; exact item id, invalidations
   expect(screen.getByRole('dialog', { name: 'Retirer cette carte de la collection ?' })).toBeVisible()
   expect(screen.getByText('Cette carte sera retirée de la collection. Vos exemplaires seront conservés.')).toBeVisible()
   expect(button('Annuler')).toHaveFocus()
-  content.mockResolvedValue([])
+  content.mockResolvedValue(contentFixture([]))
   fireEvent.click(button('Retirer'))
   await screen.findByText('Cette collection ne contient encore aucune carte.')
   await waitFor(() => expect(button('Ajouter une carte')).toHaveFocus())

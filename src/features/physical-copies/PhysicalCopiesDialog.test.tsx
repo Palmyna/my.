@@ -199,11 +199,11 @@ test.each(['create', 'delete', 'edit'] as const)('%s refreshes content possessio
   const content = [{ collectionItemId: 'item', variantId: '42', origin: 'manual', cardNameFr: null,
     localId: null, setNameFr: null, setAbbreviationFr: null, setAbbreviation: null, seriesNameFr: null, seriesNameSource: null, imageUrl: null, variantLabel: null, owned: true }]
   const affected = collectionContentKey('owner', 'collection')
-  client.setQueryData(affected, content)
+  client.setQueryData(affected, { items: content })
   const untouched = [collectionContentKey('other-user', 'collection'), collectionItemOrderKey('owner', 'collection')]
-  for (const key of untouched) client.setQueryData(key, content)
+  for (const key of untouched) client.setQueryData(key, { items: content })
   const differentVariant = collectionContentKey('owner', 'different-variant')
-  client.setQueryData(differentVariant, [{ ...content[0], variantId: '43' }])
+  client.setQueryData(differentVariant, { items: [{ ...content[0], variantId: '43' }] })
   await screen.findByText('Cadeau')
   if (action === 'create') await add()
   else await menu('Cadeau', action === 'edit' ? 'Modifier' : 'Supprimer')
@@ -212,7 +212,7 @@ test.each(['create', 'delete', 'edit'] as const)('%s refreshes content possessio
   await waitFor(() => expect(screen.getByRole('button', { name: 'Ajouter un exemplaire' })).toBeVisible())
   expect(client.getQueryState(affected)?.isInvalidated).toBe(action !== 'edit')
   for (const key of [...untouched, differentVariant]) expect(client.getQueryState(key)?.isInvalidated).toBe(false)
-  expect(client.getQueryData(affected)).toEqual(content)
+  expect(client.getQueryData(affected)).toEqual({ items: content })
 })
 
 test('pending blocks double submit, dismiss and Escape until listing is refreshed', async () => {
@@ -324,7 +324,7 @@ test('safe mutation error, focus and refreshed listing on Escape', async () => {
 test.each(['create', 'delete'] as const)('uncertain %s rereads copies and invalidates possession without retrying the write', async action => {
   const { client } = setup()
   const affected = collectionContentKey('owner', 'collection')
-  client.setQueryData(affected, [{ variantId: '42' }])
+  client.setQueryData(affected, { items: [{ variantId: '42' }] })
   client.setQueryData(dashboardCollectionsKey('owner'), [])
   await screen.findByText('Cadeau')
   if (action === 'create') {

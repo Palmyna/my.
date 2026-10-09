@@ -8,6 +8,7 @@ test('content keys isolate collection and viewer without colliding with existing
   const client = new QueryClient()
   const target = collectionContentKey('viewer', 'collection')
   const others = [collectionContentKey('viewer', 'other'), collectionContentKey('other', 'collection'),
+    ['collections', 'content', 'viewer', 'collection'],
     collectionOverviewKey('viewer', 'collection'), collectionItemOrderKey('viewer', 'collection'),
     dashboardCollectionsKey('viewer'), physicalCopiesKey('viewer', 'viewer', 42)]
   for (const key of [target, ...others]) client.setQueryData(key, [])

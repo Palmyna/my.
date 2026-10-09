@@ -1,10 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { CollectionItemsError, listCollectionItemOrder, moveCollectionItem } from '../../services/collection-items'
 import type { ReorderAvailability } from '../../types/collection-items'
-import { collectionItemOrderKey, collectionOverviewKey } from './collection-query'
+import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } from './collection-query'
+import { contentFixture } from '../../test/collection-content'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { useCollectionItemReorder } from './useCollectionItemReorder'
 
@@ -22,8 +23,13 @@ beforeEach(() => {
 })
 function setup(access: 'owned' | 'shared' = 'owned', availability: ReorderAvailability = { enabled: true }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  client.setQueryData(collectionContentKey('owner', 'collection'), contentFixture([]))
+  client.setQueryDefaults(collectionContentKey('owner', 'collection'), { queryFn: () => Promise.resolve(contentFixture([])) })
   const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
-  return { client, ...renderHook(() => useCollectionItemReorder({ collectionId: 'collection', access, availability }), { wrapper }) }
+  return { client, ...renderHook(() => {
+    useQuery({ queryKey: collectionContentKey('owner', 'collection'), staleTime: Infinity })
+    return useCollectionItemReorder({ collectionId: 'collection', access, availability })
+  }, { wrapper }) }
 }
 
 test('one write; retain confirmed order until authoritative refetch; exact cache scope', async () => {
@@ -85,9 +91,15 @@ test.each(['shared', 'filter', 'unauthorized'] as const)('%s prevents mutation',
 
 test('navigation during a write invalidates its original collection only', async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
+  for (const id of ['first', 'second']) {
+    client.setQueryData(collectionContentKey('owner', id), contentFixture([]))
+    client.setQueryDefaults(collectionContentKey('owner', id), { queryFn: () => Promise.resolve(contentFixture([])) })
+  }
   const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
-  const { result, rerender } = renderHook(({ collectionId }) => useCollectionItemReorder({ collectionId,
-    access: 'owned', availability: { enabled: true } }), { wrapper, initialProps: { collectionId: 'first' } })
+  const { result, rerender } = renderHook(({ collectionId }) => {
+    useQuery({ queryKey: collectionContentKey('owner', collectionId), staleTime: Infinity })
+    return useCollectionItemReorder({ collectionId, access: 'owned', availability: { enabled: true } })
+  }, { wrapper, initialProps: { collectionId: 'first' } })
   await waitFor(() => expect(result.current.availability.enabled).toBe(true))
   let finish!: () => void
   move.mockImplementation(() => new Promise<void>(resolve => { finish = resolve }))

@@ -1,10 +1,11 @@
+import { contentFixture } from '../../test/collection-content'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
-import { getCollectionContent } from '../../services/collection-content'
+import { getCollectionContentV2 } from '../../services/collection-content'
 import { deleteCollectionViewOverride, getCollectionViewOverride, getUserPreferences, saveCollectionViewOverride } from '../../services/view-preferences'
 import { getVariantDetail } from '../../services/variant-detail'
 import { listPhysicalCopies } from '../../services/physical-copies'
@@ -18,7 +19,7 @@ import { collectionContentKey } from './collection-query'
 
 const auth = vi.hoisted(() => ({ user: { id: 'recipient' }, isAuthorized: true }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
-vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn() }))
+vi.mock('../../services/collection-content', () => ({ getCollectionContentV2: vi.fn() }))
 vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn(), getCollectionViewOverride: vi.fn(),
   saveCollectionViewOverride: vi.fn(), deleteCollectionViewOverride: vi.fn() }))
 vi.mock('../../services/variant-detail', () => ({ getVariantDetail: vi.fn() }))
@@ -41,7 +42,7 @@ beforeEach(() => {
   wide = true; listeners = new Set(); auth.user = { id: 'recipient' }
   vi.stubGlobal('matchMedia', () => ({ matches: wide, addEventListener: (_event: string, fn: () => void) => listeners.add(fn),
     removeEventListener: (_event: string, fn: () => void) => listeners.delete(fn) }))
-  vi.mocked(getCollectionContent).mockReset().mockResolvedValue(items)
+  vi.mocked(getCollectionContentV2).mockReset().mockResolvedValue(contentFixture(items))
   vi.mocked(getUserPreferences).mockReset().mockResolvedValue(DEFAULT_USER_PREFERENCES)
   vi.mocked(getCollectionViewOverride).mockReset().mockResolvedValue(null)
   vi.mocked(saveCollectionViewOverride).mockReset().mockImplementation((_viewer, _collection, format) => Promise.resolve(format))
@@ -234,7 +235,7 @@ test('search keeps pages/slots, jumps once, navigates occurrences without loop a
   expect(pages()).toEqual(['Page 6']); expect(book().querySelector('.has-search-halo')).toBeNull()
   expect(book().querySelector('.is-search-muted')).toBeNull()
   expect(screen.queryByLabelText('Occurrence courante')).not.toBeInTheDocument()
-  expect(getCollectionContent).toHaveBeenCalledOnce()
+  expect(getCollectionContentV2).toHaveBeenCalledOnce()
 })
 
 test('override is lazy, viewer-specific and authoritative; format change resets page/search/occurrence/halo; reset deletes', async () => {
@@ -268,7 +269,7 @@ test('override is lazy, viewer-specific and authoritative; format change resets 
   await screen.findByRole('region', { name: 'Classeur' })
   expect(screen.getByRole('button', { name: 'Format du classeur : 4×3' })).toBeVisible()
   expect(getCollectionViewOverride).toHaveBeenLastCalledWith('other', 'collection')
-  expect(getCollectionContent).toHaveBeenCalledTimes(2) // one read per viewer, never per renderer/format
+  expect(getCollectionContentV2).toHaveBeenCalledTimes(2) // one read per viewer, never per renderer/format
 })
 
 test('reset to a different global format resets search; failed write retains confirmed format', async () => {
@@ -290,7 +291,7 @@ test('reset to a different global format resets search; failed write retains con
 })
 
 test('empty collection uses existing empty state with no synthetic pages or page input', async () => {
-  vi.mocked(getCollectionContent).mockResolvedValue([])
+  vi.mocked(getCollectionContentV2).mockResolvedValue(contentFixture([]))
   setup(); await screen.findByText('Cette collection ne contient encore aucune carte.')
   expect(screen.queryByRole('region', { name: 'Classeur' })).not.toBeInTheDocument()
   expect(screen.queryByRole('textbox', { name: 'Numéro de page' })).not.toBeInTheDocument()
@@ -331,7 +332,7 @@ test('override read error retries safely; an ambiguous committed write reconcile
   expect(pages()).toEqual(['Page 1'])
   expect(screen.queryByLabelText('Occurrence courante')).not.toBeInTheDocument()
   expect(book().querySelector('.has-search-halo')).toBeNull()
-  expect(getCollectionContent).toHaveBeenCalledOnce()
+  expect(getCollectionContentV2).toHaveBeenCalledOnce()
 })
 
 test('authoritative removal keeps free navigation and repairs the current occurrence without a new search jump', async () => {
@@ -340,7 +341,7 @@ test('authoritative removal keeps free navigation and repairs the current occurr
   fireEvent.click(screen.getByRole('button', { name: 'Occurrence suivante' }))
   direct('6')
   await act(async () => {
-    client.setQueryData(collectionContentKey('recipient', 'collection'), items.filter(item => item.collectionItemId !== 'item-12'))
+    client.setQueryData(collectionContentKey('recipient', 'collection'), contentFixture(items.filter(item => item.collectionItemId !== 'item-12')))
     await Promise.resolve()
   })
   expect(pages()).toEqual(['Page 6'])

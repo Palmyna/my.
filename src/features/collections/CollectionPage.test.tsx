@@ -1,3 +1,4 @@
+import { contentFixture } from '../../test/collection-content'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
 import { getUserPreferences, saveUserPreferences } from '../../services/view-preferences'
 import { userPreferencesKey } from '../view-preferences/view-preferences-query'
@@ -12,7 +13,7 @@ import { CollectionPage } from './CollectionPage'
 import { collectionOverviewKey } from './collection-query'
 
 const auth = vi.hoisted(() => ({ user: { id: 'owner' }, isAuthorized: true }))
-vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn().mockResolvedValue([]) }))
+vi.mock('../../services/collection-content', () => ({ getCollectionContentV2: vi.fn().mockResolvedValue(contentFixture([])) }))
 vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES), saveUserPreferences: vi.fn(), getCollectionViewOverride: vi.fn().mockResolvedValue(null) }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
 vi.mock('../../services/collections', async importOriginal => ({

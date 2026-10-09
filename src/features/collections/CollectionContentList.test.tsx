@@ -1,3 +1,4 @@
+import { contentFixture } from '../../test/collection-content'
 import { DEFAULT_USER_PREFERENCES } from '../../lib/view-preferences'
 import { getUserPreferences } from '../../services/view-preferences'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -5,7 +6,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { getCollectionOverview, CollectionsError } from '../../services/collections'
-import { getCollectionContent } from '../../services/collection-content'
+import { getCollectionContentV2 } from '../../services/collection-content'
 import { getVariantDetail } from '../../services/variant-detail'
 import { listCollectionItemOrder, moveCollectionItem } from '../../services/collection-items'
 import { createPhysicalCopy, deletePhysicalCopy, listPhysicalCopies, updatePhysicalCopy, type PhysicalCopy } from '../../services/physical-copies'
@@ -20,7 +21,7 @@ const auth = vi.hoisted(() => ({ user: { id: 'viewer' }, isAuthorized: true }))
 vi.mock('../../services/view-preferences', () => ({ getUserPreferences: vi.fn().mockResolvedValue(DEFAULT_USER_PREFERENCES), saveUserPreferences: vi.fn() }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
 vi.mock('../../services/collections', async original => ({ ...await original<typeof import('../../services/collections')>(), getCollectionOverview: vi.fn() }))
-vi.mock('../../services/collection-content', () => ({ getCollectionContent: vi.fn() }))
+vi.mock('../../services/collection-content', () => ({ getCollectionContentV2: vi.fn() }))
 vi.mock('../../services/variant-detail', () => ({ getVariantDetail: vi.fn() }))
 vi.mock('../../services/collection-items', async original => ({ ...await original<typeof import('../../services/collection-items')>(), listCollectionItemOrder: vi.fn(), moveCollectionItem: vi.fn() }))
 vi.mock('../../services/physical-copies', async original => ({ ...await original<typeof import('../../services/physical-copies')>(), listPhysicalCopies: vi.fn(), createPhysicalCopy: vi.fn(), updatePhysicalCopy: vi.fn(), deletePhysicalCopy: vi.fn() }))
@@ -30,7 +31,7 @@ const bigId = '9007199254740995'
 const overview: CollectionOverview = { collectionId: id, ownerId: 'viewer', name: 'Favoris', collectionType: 'free', access: 'owned', targetType: null, targetId: null, targetName: null, targetPrimaryType: null, targetSecondaryType: null, ownedCount: 0, totalCount: 2 }
 const first: CollectionContentItem = { sourceCardId: '25', setId: '73', collectionItemId: 'first', variantId: bigId, cardNameFr: 'Pikachu', setNameFr: 'Extension', setAbbreviationFr: null, setAbbreviation: 'EXT', seriesNameFr: 'Soleil et Lune', seriesNameSource: 'Sun & Moon', localId: '025', variantLabel: 'Holo', imageUrl: 'https://images.pokemontcg.io/base1/58.png', origin: 'automatic', owned: false }
 const second: CollectionContentItem = { ...first, collectionItemId: 'second', variantId: '42', cardNameFr: 'Évoli', imageUrl: null, owned: true }
-const get = vi.mocked(getCollectionOverview), content = vi.mocked(getCollectionContent)
+const get = vi.mocked(getCollectionOverview), content = vi.mocked(getCollectionContentV2)
 const order = vi.mocked(listCollectionItemOrder), move = vi.mocked(moveCollectionItem)
 const copies = vi.mocked(listPhysicalCopies), create = vi.mocked(createPhysicalCopy), remove = vi.mocked(deletePhysicalCopy)
 let rows: PhysicalCopy[]
@@ -42,7 +43,7 @@ beforeEach(() => {
   vi.mocked(getUserPreferences).mockResolvedValue(DEFAULT_USER_PREFERENCES)
   auth.user = { id: 'viewer' }; auth.isAuthorized = true; rows = []
   get.mockReset().mockResolvedValue(overview)
-  content.mockReset().mockResolvedValue([first, second])
+  content.mockReset().mockResolvedValue(contentFixture([first, second]))
   order.mockReset().mockResolvedValue(['second', 'first']) // Must not reorder the visible content.
   move.mockReset().mockResolvedValue(undefined)
   copies.mockReset().mockImplementation(() => Promise.resolve([...rows]))
@@ -70,7 +71,7 @@ const contentRows = () => within(region()).getAllByRole('listitem')
 
 test.each([['owned', 'list'], ['shared', 'list'], ['owned', 'cards'], ['shared', 'cards']] as const)('Pikachu-ex is a Card; independent links, number, variant and reorder: %s/%s', async (access, view) => {
   get.mockResolvedValue({ ...overview, collectionType: 'automatic', access })
-  content.mockResolvedValue([{ ...first, cardNameFr: 'Pikachu-ex', sourceCardId: '9007199254740997', setId: '9007199254740998' }])
+  content.mockResolvedValue(contentFixture([{ ...first, cardNameFr: 'Pikachu-ex', sourceCardId: '9007199254740997', setId: '9007199254740998' }]))
   setup(view)
   await waitFor(() => expect(screen.getByRole('button', { name: view === 'cards' ? 'Cartes' : 'Liste' })).toHaveAttribute('aria-pressed', 'true'))
   const card = await screen.findByRole('link', { name: 'Pikachu-ex' }, { timeout: 5000 })
@@ -106,7 +107,7 @@ test.each(['list', 'cards'] as const)('Extension link navigates independently in
 
 test.each([['owned', 'list'], ['shared', 'list'], ['owned', 'cards'], ['shared', 'cards']] as const)('main trigger preserves context and route, separate copies shortcut: %s/%s', async (access, view) => {
   get.mockResolvedValue({ ...overview, collectionType: 'automatic', access, ownerId: access === 'owned' ? 'viewer' : 'real-owner' })
-  content.mockResolvedValue([first, { ...second, origin: 'manual' }])
+  content.mockResolvedValue(contentFixture([first, { ...second, origin: 'manual' }]))
   // Wait for the real lazy chunk as well as the content query under suite load.
   setup(view); await screen.findByRole('link', { name: 'Pikachu' }, { timeout: 5000 })
   expect(within(region()).queryByText('Auto')).not.toBeInTheDocument()
@@ -173,17 +174,17 @@ test('matching all cards keeps reorder; current query applies to authoritative a
   expect(screen.getByRole('button', { name: 'Déplacer Pikachu' })).toHaveAttribute('aria-disabled', 'false')
   fireEvent.change(input, { target: { value: 'Pikachu' } })
   const added = { ...first, collectionItemId: 'added', variantId: '43', cardNameFr: 'Pikachu ex' }
-  content.mockResolvedValue([second, added, first])
+  content.mockResolvedValue(contentFixture([second, added, first]))
   await act(async () => { await client.invalidateQueries({ queryKey: collectionContentKey('viewer', id), exact: true }) })
   await waitFor(() => expect(contentRows().map(row => row.querySelector('.collection-content-name')?.textContent)).toEqual(['Pikachu ex · EXT · 025', 'Pikachu · EXT · 025']))
-  content.mockResolvedValue([second, added])
+  content.mockResolvedValue(contentFixture([second, added]))
   await act(async () => { await client.invalidateQueries({ queryKey: collectionContentKey('viewer', id), exact: true }) })
   await waitFor(() => expect(contentRows()).toHaveLength(1)); expect(contentRows()[0]).toHaveTextContent('Pikachu ex')
   expect(input).toHaveValue('Pikachu')
 })
 
 test('query on an actually empty collection retains the empty-collection message', async () => {
-  content.mockResolvedValue([])
+  content.mockResolvedValue(contentFixture([]))
   setup(); await screen.findByText('Cette collection ne contient encore aucune carte.')
   fireEvent.change(within(region()).getByRole('searchbox'), { target: { value: 'Pikachu' } })
   expect(screen.getByText('Cette collection ne contient encore aucune carte.')).toBeVisible()
@@ -191,7 +192,7 @@ test('query on an actually empty collection retains the empty-collection message
 })
 
 test('content waits for authorized overview, then loading and exact content key', async () => {
-  let finishOverview!: (value: CollectionOverview) => void, finishContent!: (value: CollectionContentItem[]) => void
+  let finishOverview!: (value: CollectionOverview) => void, finishContent!: (value: import('../../types/collection-content').CollectionContent) => void
   get.mockReturnValue(new Promise(resolve => { finishOverview = resolve }))
   content.mockReturnValue(new Promise(resolve => { finishContent = resolve }))
   const { client } = setup()
@@ -199,9 +200,9 @@ test('content waits for authorized overview, then loading and exact content key'
   await act(() => { finishOverview(overview); return Promise.resolve() })
   expect(await screen.findByText('Chargement des cartes…')).toBeVisible()
   await waitFor(() => expect(content).toHaveBeenCalledExactlyOnceWith(id))
-  await act(() => { finishContent([first]); return Promise.resolve() })
+  await act(() => { finishContent(contentFixture([first])); return Promise.resolve() })
   expect(await screen.findByRole('link', { name: 'Pikachu' })).toBeVisible()
-  expect(client.getQueryData(collectionContentKey('viewer', id))).toEqual([first])
+  expect(client.getQueryData(collectionContentKey('viewer', id))).toEqual(contentFixture([first]))
 })
 
 test.each(['unauthorized', 'unavailable'] as const)('%s overview never starts content', async mode => {
@@ -214,7 +215,7 @@ test.each(['unauthorized', 'unavailable'] as const)('%s overview never starts co
 })
 
 test('content failure is sanitized, retry accepts [] without declaring collection unavailable', async () => {
-  content.mockRejectedValueOnce(new Error('private backend')).mockResolvedValueOnce([])
+  content.mockRejectedValueOnce(new Error('private backend')).mockResolvedValueOnce(contentFixture([]))
   setup()
   expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de charger les cartes')
   expect(screen.queryByText(/private backend/)).not.toBeInTheDocument()
@@ -318,9 +319,9 @@ test.each([false, true])('shared copies (present=%s) use real owner; no DnD or w
 })
 
 test('BIGINT line -> full dialog -> first/second copy -> delete to zero; owned comes from refetch', async () => {
-  content.mockImplementation(() => Promise.resolve([{ ...first, owned: rows.length > 0 }]))
+  content.mockImplementation(() => Promise.resolve(contentFixture([{ ...first, owned: rows.length > 0 }])))
   const { client } = setup(); await screen.findByRole('link', { name: 'Pikachu' })
-  expect(client.getQueryData<CollectionContentItem[]>(collectionContentKey('viewer', id))?.[0]?.variantId).toBe(bigId)
+  expect(client.getQueryData<import('../../types/collection-content').CollectionContent>(collectionContentKey('viewer', id))?.items[0]?.variantId).toBe(bigId)
   const opener = screen.getByRole('button', { name: /^Gérer les exemplaires de Pikachu/  })
   opener.focus(); fireEvent.click(opener)
   await screen.findByText('Aucun exemplaire.')
@@ -350,7 +351,9 @@ test('BIGINT line -> full dialog -> first/second copy -> delete to zero; owned c
   expect(opener).toHaveFocus()
 })
 
-test.each([[false, 'list'], [true, 'list'], [false, 'cards'], [true, 'cards']] as const)('real keyboard reorder refetches content on uncertainty=%s / %s', async (fail, view) => {
+test.each([[false, 'list', 1], [true, 'list', 1], [false, 'cards', 1], [true, 'cards', 1],
+  [false, 'list', 2], [false, 'cards', 2]] as const)('real keyboard reorder refetches content on uncertainty=%s / %s / contract %s', async (fail, view, version) => {
+  content.mockResolvedValue(contentFixture([first, second], version, '9007199254740994'))
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     const row = this.closest('li'), index = row ? Array.from(row.parentElement!.children).indexOf(row) : 0
     return DOMRect.fromRect(view === 'list' ? { x: 0, y: index * 80, width: 300, height: row ? 80 : 160 }
@@ -363,8 +366,8 @@ test.each([[false, 'list'], [true, 'list'], [false, 'cards'], [true, 'cards']] a
   const handle = screen.getByRole('button', { name: 'Déplacer Pikachu' })
   await waitFor(() => expect(handle).toHaveAttribute('aria-disabled', 'false'))
   const other = collectionContentKey('other-viewer', id)
-  client.setQueryData(other, [first, second])
-  content.mockResolvedValue([second, first])
+  client.setQueryData(other, contentFixture([first, second]))
+  content.mockResolvedValue(contentFixture([second, first], version, '9007199254740995'))
   if (fail) move.mockRejectedValue(new Error('uncertain private error'))
   const transitions: { order: string[]; state: string | undefined }[] = []
   const observer = new MutationObserver(() => transitions.push({
@@ -377,7 +380,10 @@ test.each([[false, 'list'], [true, 'list'], [false, 'cards'], [true, 'cards']] a
   await screen.findByText(/Pikachu : carte sélectionnée/)
   key(view === 'list' ? 'ArrowDown' : 'ArrowRight', view === 'list' ? 40 : 39); await screen.findByText(/Pikachu, position 2/)
   key(' ', 32); fireEvent.transitionEnd(handle.closest('li')!, { propertyName: 'transform' })
-  await waitFor(() => expect(move).toHaveBeenCalledExactlyOnceWith(id, { itemId: 'first', destination: { placement: 'after', anchorId: 'second' } }))
+  await waitFor(() => version === 1
+    ? expect(move).toHaveBeenCalledExactlyOnceWith(id, { itemId: 'first', destination: { placement: 'after', anchorId: 'second' } })
+    : expect(move).toHaveBeenCalledExactlyOnceWith(id, { itemId: 'first', destination: { placement: 'after', anchorId: 'second' } },
+      { orderContractVersion: 2, expectedRevision: '9007199254740994', operationId: expect.any(String) as unknown }))
   await waitFor(() => expect(contentRows()[0]).toHaveTextContent('Évoli'))
   expect(content).toHaveBeenCalledTimes(2); expect(order).toHaveBeenCalledTimes(2)
   expect(client.getQueryState(other)?.isInvalidated).toBe(false)

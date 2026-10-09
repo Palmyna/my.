@@ -15,3 +15,14 @@ export interface CollectionContentItem {
   variantLabel: string | null
   owned: boolean
 }
+
+export interface CollectionContentItemV2 extends CollectionContentItem {
+  isHidden: false
+}
+
+export type PersonalRevision = string
+export interface CollectionContent {
+  orderContractVersion: 1 | 2
+  personalRevision: PersonalRevision
+  items: CollectionContentItemV2[]
+}
