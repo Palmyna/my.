@@ -379,6 +379,9 @@ isOneToOne: true
 "remove_manual_collection_item":
 { Args: { "p_collection_id": string,"p_collection_item_id": string }; Returns: undefined
                            },
+"remove_manual_collection_item_v2":
+{ Args: { "p_collection_id": string,"p_collection_item_id": string,"p_expected_revision": number,"p_operation_id": string }; Returns: Json
+                           },
 "reorder_collection_item":
 { Args: { "p_anchor_id"?: string,"p_collection_id": string,"p_item_id": string,"p_placement": string }; Returns: undefined
                            },
