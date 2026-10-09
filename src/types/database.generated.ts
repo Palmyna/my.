@@ -373,6 +373,9 @@ isOneToOne: true
 "get_collection_item_order":
 { Args: { "p_collection_id": string }; Returns: (string)[]
                            },
+"get_collection_operation_result":
+{ Args: { "p_collection_id": string,"p_operation_id": string }; Returns: Json
+                           },
 "get_variant_detail":
 { Args: { "p_variant_id": number }; Returns: Json
                            },
