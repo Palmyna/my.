@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getCollectionContentV2 } from '../../services/collection-content'
 import type { CollectionOverview } from '../../types/collections'
@@ -20,6 +20,7 @@ import { useBinderFormat } from './useBinderFormat'
 import { useBinderNavigation } from './useBinderNavigation'
 import { BinderOccurrences, BinderToolbar } from './BinderToolbar'
 import { CollectionContentBinder } from './CollectionContentBinder'
+import { useCollectionStructureMutation } from './useCollectionStructureMutation'
 
 // Mounted only after an authorized, available overview. Page keys this boundary
 // by viewer + collection, so selection and dialogs cannot survive navigation.
@@ -33,6 +34,17 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<{ variantId: string; opener: HTMLElement } | null>(null)
   const searchInput = useRef<HTMLInputElement>(null)
+  const visibilityControl = useRef<HTMLSelectElement>(null)
+  const [visibility, setVisibility] = useState<'visible' | 'all'>('visible')
+  const hiding = useCollectionStructureMutation(viewerId, collection.collectionId)
+  const [hideAction, setHideAction] = useState<{ collectionItemId: string; isHidden: boolean; name: string } | null>(null)
+  const hideOpener = useRef<HTMLElement | null>(null)
+  const [hideSuccess, setHideSuccess] = useState<string | null>(null)
+  useEffect(() => {
+    if (!hideSuccess) return
+    const timer = window.setTimeout(() => setHideSuccess(null), 2000)
+    return () => window.clearTimeout(timer)
+  }, [hideSuccess])
   const addTrigger = useRef<HTMLButtonElement>(null)
   useFooterAwareFab(addTrigger)
   const [addSuccess, setAddSuccess] = useState(false)
@@ -55,17 +67,42 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
     if (!manual.busy && focusAfterWrite.current) { focusAfterWrite.current = false; addTrigger.current?.focus({ preventScroll: true }) }
   }, [manual.busy, notice])
   const items = content.isSuccess ? content.data.items : []
-  const visibleItems = filterCollectionContent(items, query)
-  const partialView = visibleItems.length < items.length
+  const consultationItems = visibility === 'all' ? items : items.filter(item => item.origin === 'manual' || !item.isHidden)
+  const visibleItems = filterCollectionContent(consultationItems, query)
+  const partialView = visibleItems.length < consultationItems.length
+  // A reread can remove the opener even when the writer's response was lost.
+  // Restore only abandoned focus; do not steal it from another active control.
+  useLayoutEffect(() => {
+    if (hideOpener.current && !hideOpener.current.isConnected) {
+      if (document.activeElement === document.body) visibilityControl.current?.focus({ preventScroll: true })
+      hideOpener.current = null
+    }
+  }, [content.data, visibility, query, hideAction])
   const selected = items.find(item => item.collectionItemId === selectedId)
   const readOnly = collection.access !== 'owned'
   const view = currentView
   const binder = view === 'binder'
   const binderPreferences = useBinderFormat(viewerId, collection.collectionId, binder, () => setQuery(''))
-  const binderNavigation = useBinderNavigation(items, visibleItems, binderPreferences.format, query, binder && binderPreferences.ready && content.isSuccess)
+  const binderNavigation = useBinderNavigation(consultationItems, visibleItems, binderPreferences.format, query, binder && binderPreferences.ready && content.isSuccess, visibility)
+  const canHide = !readOnly && collection.collectionType === 'automatic' && content.data?.orderContractVersion === 2
+  async function submitHidden(action: NonNullable<typeof hideAction>) {
+    setHideSuccess(null); setNotice(''); hiding.reset(); setHideAction(action)
+    if (await hiding.submit({ type: 'hide', collectionItemId: action.collectionItemId, isHidden: action.isHidden })) {
+      setHideAction(null); setHideSuccess(action.collectionItemId)
+      setNotice(action.isHidden ? 'Carte masquée.' : 'Carte réaffichée.')
+    }
+  }
   const row = (item: CollectionContentItem) => <CollectionContentRow item={item} readOnly={readOnly}
     view={view === 'cards' ? 'cards' : 'list'}
-    busy={manual.busy}
+    busy={manual.busy || content.isFetching}
+    hidden={'isHidden' in item && item.isHidden === true}
+    hiding={hiding.pending && hideAction?.collectionItemId === item.collectionItemId}
+    hideSuccess={hideSuccess === item.collectionItemId}
+    onHidden={canHide && item.origin === 'automatic' ? opener => {
+      if (manual.busy || content.isFetching) return
+      hideOpener.current = opener
+      void submitHidden({ collectionItemId: item.collectionItemId, isHidden: !('isHidden' in item && item.isHidden === true), name: item.cardNameFr || 'cette carte' })
+    } : undefined}
     onDetail={opener => setDetail({ variantId: item.variantId, opener })}
     onCopies={() => setSelectedId(item.collectionItemId)} onRemove={opener => {
       manual.reset(); setNotice(''); setAddSuccess(false); setAction({ type: 'remove', item, opener })
@@ -86,6 +123,10 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
       </div>
       {binder && binderPreferences.ready && items.length > 0 && <BinderOccurrences navigation={binderNavigation} />}
       <div className="collection-view-controls">
+        <select ref={visibilityControl} className="collection-visibility-select" aria-label="Afficher les cartes"
+          value={visibility} onChange={event => setVisibility(event.target.value === 'all' ? 'all' : 'visible')}>
+          <option value="visible">Non masquées</option><option value="all">Toutes</option>
+        </select>
         <CollectionViewSelector currentView={view} onChange={setCurrentView} />
         {binder && <BinderToolbar preferences={binderPreferences} navigation={binderNavigation} />}
       </div>
@@ -96,12 +137,22 @@ export function CollectionContentView({ collection, viewerId, currentView, setCu
       <span aria-hidden="true">{addSuccess ? '✓' : '+'}</span>
     </button>}
     <p className="visually-hidden" role="status" aria-live="polite">{notice}</p>
+    {hiding.pending && <p className="visually-hidden" role="status">{hideAction?.isHidden ? 'Masquage en cours…' : 'Réaffichage en cours…'}</p>}
+    {hideAction && hiding.error && <div className="collection-page-error">
+      <p role="alert">{manualItemErrorMessage(hiding.error)}</p>
+      <button type="button" className="button" disabled={manual.busy || content.isFetching}
+        onClick={event => { hideOpener.current = event.currentTarget; void submitHidden(hideAction) }}>Vérifier / réessayer {hideAction.isHidden ? 'le masquage' : 'le réaffichage'} de {hideAction.name}</button>
+    </div>}
     {content.isPending && <p role="status">Chargement des cartes…</p>}
     {content.isError && <div className="collection-page-error">
       <p role="alert">Impossible de charger les cartes. Veuillez réessayer.</p>
       <button className="button" disabled={content.isFetching} onClick={() => void content.refetch()}>Réessayer</button>
     </div>}
     {content.isSuccess && (items.length === 0 ? <p>Cette collection ne contient encore aucune carte.</p>
+      : consultationItems.length === 0 ? <div className="collection-hidden-empty">
+        <p role="status">Les cartes de cette collection sont masquées.</p>
+        <button type="button" className="button" onClick={() => { setVisibility('all'); visibilityControl.current?.focus({ preventScroll: true }) }}>Afficher toutes les cartes</button>
+      </div>
       : <>
         {binder ? binderPreferences.ready
           ? <CollectionContentBinder navigation={binderNavigation} format={binderPreferences.format}

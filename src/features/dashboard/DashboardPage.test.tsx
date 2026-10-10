@@ -111,7 +111,7 @@ test('rend 0 / 0 neutre et tolère une cible absente sans inventer de valeur', a
   setup()
   const tile = within(await screen.findByRole('article'))
   expect(tile.getByText('0 / 0')).toBeVisible()
-  expect(tile.getByText('Collection vide')).toBeVisible()
+  expect(tile.getByText('Aucune carte comptabilisée')).toBeVisible()
   expect(tile.queryByText(/NaN|Infinity|0 %|null|undefined|Pikachu/)).not.toBeInTheDocument()
   expect(tile.getByText('Automatique · Pokémon')).toBeVisible()
 })

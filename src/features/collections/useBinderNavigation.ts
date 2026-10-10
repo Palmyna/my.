@@ -13,20 +13,28 @@ function subscribeWide(listener: () => void) {
 }
 function isWide() { return window.matchMedia?.(wideQuery).matches ?? false }
 
-type State = { format: BinderFormat; searchKey: string; page: number; occurrenceId: string | null;
+type State = { format: BinderFormat; consultationKey: string; searchKey: string; page: number; occurrenceId: string | null;
   halo: { id: string; serial: number } | null; serial: number; direction: -1 | 1 }
 
-export function useBinderNavigation(items: CollectionContentItem[], matches: CollectionContentItem[], format: BinderFormat, query: string, active: boolean) {
+export function useBinderNavigation(items: CollectionContentItem[], matches: CollectionContentItem[], format: BinderFormat, query: string, active: boolean, consultationKey = '') {
   const spread = useSyncExternalStore(subscribeWide, isWide, () => false)
   const pages = useMemo(() => binderPages(items, format), [items, format])
   const searchKey = collectionSearchKey(query)
   const matchingIds = new Set(matches.map(item => item.collectionItemId))
-  const [state, setState] = useState<State>({ format, searchKey: '', page: 1, occurrenceId: null,
+  const [state, setState] = useState<State>({ format, consultationKey, searchKey: '', page: 1, occurrenceId: null,
     halo: null, serial: 0, direction: 1 })
   // Guarded render adjustment: no effect recentering after free navigation.
   // Keep the exact requested page internally so a resize to mobile keeps it.
   if (state.format !== format) {
     setState({ ...state, format, page: 1, occurrenceId: null, halo: null })
+  } else if (state.consultationKey !== consultationKey) {
+    const match = searchKey ? matches.find(item => item.collectionItemId === state.occurrenceId) ?? matches[0] : undefined
+    const serial = state.serial + 1
+    setState({ ...state, consultationKey, searchKey, serial, occurrenceId: match?.collectionItemId ?? null,
+      halo: match ? { id: match.collectionItemId, serial } : null,
+      page: match ? binderOccurrencePage(items.indexOf(match), format) : Math.max(1, Math.min(state.page, pages.length || 1)) })
+  } else if (state.page > (pages.length || 1)) {
+    setState({ ...state, page: pages.length || 1 })
   } else if (active && state.searchKey !== searchKey) {
     const first = searchKey ? matches[0] : undefined
     const serial = state.serial + 1

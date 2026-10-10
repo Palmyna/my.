@@ -75,7 +75,7 @@ test.each([
   expect(screen.queryByText('Votre collection')).not.toBeInTheDocument()
   if (collection.access === 'shared') expect(screen.getByText('Partagée · Lecture seule')).toBeVisible()
   else expect(screen.queryByText('Partagée · Lecture seule')).not.toBeInTheDocument()
-  expect(screen.getByText(collection.totalCount ? `${Math.round(collection.ownedCount / collection.totalCount * 100)} %` : 'Collection vide')).toBeVisible()
+  expect(screen.getByText(collection.totalCount ? `${Math.round(collection.ownedCount / collection.totalCount * 100)} %` : 'Aucune carte comptabilisée')).toBeVisible()
   expect(screen.queryByText(/NaN|Infinity/)).not.toBeInTheDocument()
   if (!collection.totalCount) expect(screen.queryByText('0 %')).not.toBeInTheDocument()
   expect(title.closest('.collection-page')).toHaveStyle({ '--collection-accent': resolveCollectionIdentity(collection).primaryAccent })

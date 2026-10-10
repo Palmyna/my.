@@ -171,7 +171,7 @@ Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. To
 
 ### Mise à jour contrôlée — décisions Phase 8
 
-**Actualisation non implémentée.** Conception 8A.3 validée ; Phase 8 reste en développement. **Phase 8B terminée et validée Local en `0.8.7`.** Moteur PostgreSQL de fusion/rejeu, journal chronologique, trois writers v2, reçus idempotents, lecteur et services/hooks communs livrés. Contrat 2 actif exclusivement pour les nouvelles créations libres et automatiques ; contrat 1 conservé pour les collections existantes, sans conversion. `sort_position` reste l’unique ordre affiché. Masquage persistant, progression et services/hooks livrés Local en 8C (`0.8.8`). **Prochaine étape : 8D**, interface/filtres non commencés. Actualisation automatique (8E/8F) et notifications restent futures. Aucun déploiement Cloud Phase 8. [Rapport de clôture](reports/2026-10-10-PHASE8B8-CLOSURE.md).
+**Actualisation non implémentée.** Conception 8A.3 validée ; Phase 8 reste en développement. **Phase 8B terminée et validée Local en `0.8.7`.** Moteur PostgreSQL de fusion/rejeu, journal chronologique, trois writers v2, reçus idempotents, lecteur et services/hooks communs livrés. Contrat 2 actif exclusivement pour les nouvelles créations libres et automatiques ; contrat 1 conservé pour les collections existantes, sans conversion. `sort_position` reste l’unique ordre affiché. Masquage persistant, progression et services/hooks livrés Local en 8C (`0.8.8`). **Interface/filtres livrés Local en 8D (`0.8.9`). Prochaine étape : 8E**, détection et aperçu des actualisations. Actualisation automatique (8E/8F) et notifications restent futures. Aucun déploiement Cloud Phase 8. [Rapport de clôture](reports/2026-10-10-PHASE8B8-CLOSURE.md).
 
 Une collection automatique peut évoluer lorsque le catalogue change pour sa cible Pokémon ou Extension. Elle ne doit jamais être modifiée silencieusement.
 
@@ -219,17 +219,17 @@ L'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) con
 
 Compatibilité historique : les collections existantes sont uniquement des données de test. Aucune récupération des intentions de déplacement passées n'est nécessaire ; le propriétaire accepte de recréer ses collections de test. Cette décision n'autorise aucun reset ni suppression pendant 8A. Les trois anciens writers sont désormais refusés sur contrat 2 en Local ; contrat 1 conserve strictement ses règles. Les nouveaux parents utilisent désormais contrat 2 ; les parents historiques conservent contrat 1 et leurs writers legacy.
 
-### Masquage des cartes automatiques — décisions Phase 8
+### Masquage des cartes automatiques — livré en 8C/8D
 
-**Backend livré et validé Local en 8C (`0.8.8`) ; interface prévue en 8D.** Seul le propriétaire peut masquer/réafficher un élément automatique d'une collection automatique en contrat 2. Le masquage est persistant et propre à cet élément de collection ; les cartes manuelles ne sont pas masquables. Il ne supprime rien et ne modifie ni exemplaires, ni notes, ni origine, ni positions enregistrées. Mutation, révision/reçu et services/hooks sont disponibles ; aucune action de masquage n'apparaît encore dans l'interface. Voir le [rapport 8C](reports/2026-10-10-PHASE8C-CLOSURE.md).
+**Backend livré Local en 8C (`0.8.8`), interface livrée Local en 8D (`0.8.9`).** Seul le propriétaire peut masquer/réafficher un élément automatique d'une collection automatique en contrat 2. Le masquage est persistant et propre à cet élément de collection ; les cartes manuelles ne sont pas masquables. Il ne supprime rien et ne modifie ni exemplaires, ni notes, ni origine, ni positions enregistrées. Liste et Cartes exposent maintenant les actions Masquer/Réafficher via le service et le hook structurel 8C, après relecture autoritative. Voir le [rapport 8C](reports/2026-10-10-PHASE8C-CLOSURE.md).
 
-Les filtres `Non masquées` (actif par défaut) et `Toutes` sont prévus en 8D en Liste, Cartes et Classeur. Le propriétaire disposera d'un petit bouton œil en Liste et Cartes uniquement : aucun dans le Classeur ou les modales de détail/variantes. La réorganisation restera disponible en Liste et Cartes avec les deux filtres de masquage ; seul le sujet sera déplacé, l'ordre relatif des autres éléments masqués ou visibles restera identique, sans gel de leurs indices absolus. La restriction existante liée à une recherche textuelle partielle reste distincte.
+Les filtres `Non masquées` (actif par défaut) et `Toutes` sont livrés en Liste, Cartes et Classeur. Choix commun conservé entre vues, indépendant de la recherche et du format, sans persistance ; autre collection/utilisateur revient à `Non masquées`. Le propriétaire dispose d'un petit bouton œil en Liste et Cartes uniquement : aucun dans le Classeur ou les modales de détail/variantes. La réorganisation reste disponible en Liste et Cartes avec les deux filtres de masquage ; seul le sujet est déplacé, l'ordre relatif des autres éléments masqués ou visibles reste identique, sans gel de leurs indices absolus. La restriction existante liée à une recherche textuelle partielle reste distincte.
 
 En Classeur, les cartes masquées sont retirées de la séquence affichée sous `Non masquées` ; les suivantes occupent les emplacements libérés et la pagination est recalculée pour `2x2`, `3x3`, `4x3`. `Toutes` réintègre les éléments masqués dans la séquence. Ce compactage ne modifie jamais l'ordre enregistré ni les exemplaires. La recherche textuelle navigue vers les occurrences dans la séquence du filtre choisi, sans compactage supplémentaire des cartes non masquées.
 
 Lors d'une actualisation, un automatique masqué encore présent conserve son masquage. Un nouvel automatique et un manuel converti en automatique sont visibles par défaut.
 
-En partage, les choix de masquage et la progression restent ceux du propriétaire ; les filtres de consultation prévus en 8D resteront disponibles, sans droit de modifier le masquage ni la collection.
+En partage, les choix de masquage et la progression restent ceux du propriétaire ; les filtres de consultation sont disponibles, sans droit de modifier le masquage ni la collection.
 
 ## Cartes de référence et exemplaires physiques
 
@@ -258,7 +258,7 @@ L'interface doit distinguer clairement ces deux états sans exposer la structure
 
 **Livré jusqu'à Phase 7 :** tous les éléments, automatiques comme manuels, contribuent au total ; une variante compte comme possédée si le propriétaire en possède au moins un exemplaire. Plusieurs exemplaires ne la font compter qu'une fois.
 
-**Règle livrée Local en 8C :** une carte automatique masquée est exclue du numérateur **et** du dénominateur, même possédée. Les cartes manuelles restent comptabilisées. Cette règle s'applique au Dashboard, à la page Collection et aux collections partagées, indépendamment du filtre futur (`Non masquées`, `Toutes`) ou de la recherche. Aucun élément comptabilisé → `0/0` ; possession conservée dans le contenu complet.
+**Règle livrée Local en 8C :** une carte automatique masquée est exclue du numérateur **et** du dénominateur, même possédée. Les cartes manuelles restent comptabilisées. Cette règle s'applique au Dashboard, à la page Collection et aux collections partagées, indépendamment du filtre de consultation (`Non masquées`, `Toutes`) ou de la recherche. Aucun élément comptabilisé → `0 / 0`, texte neutre `Aucune carte comptabilisée`, aucun pourcentage ; possession conservée dans le contenu complet.
 
 Une collection partagée affiche la progression de son propriétaire.
 
@@ -332,6 +332,8 @@ IDs fournis en 7F.1, liens livrés en 7F.2 dans les vues Liste/Cartes Collection
 
 `← Retour` apparaît avant le contenu de Collection et des trois Catalogues, y compris chargement, erreur et indisponibilité. Il revient via l’historique réel React Router/navigateur, également après refresh. Sans entrée MY. précédente exploitable, il remplace l’entrée courante par `/dashboard`. Aucune sauvegarde métier du scroll, filtre ou séquence. Les préférences de vues persistées restent inchangées.
 
+La [clôture 8D](reports/2026-10-10-PHASE8D-CLOSURE.md) détaille les preuves Local et navigateur. Sous `Toutes`, le badge `Masquée` reste indépendant de la possession. Après disparition du contrôle, focus rendu au sélecteur stable sans scroll imposé. Une issue incertaine propose de vérifier/réessayer l’action exacte ; aucun succès avant relecture. États collection vide, toutes masquées et recherche sans résultat distincts.
+
 ## Recherche interne
 
 Livrée en 6D.1 dans la liste Collection, la recherche filtre immédiatement le tableau déjà chargé par `get_collection_content`, pour le propriétaire comme en partage lecture seule. Aucun appel réseau, pagination ou délai de saisie n'est ajouté.
@@ -340,7 +342,7 @@ Champs recherchés lorsqu'ils existent : `cardNameFr`, `setNameFr`, `setAbbrevia
 
 Les termes suivent une logique **AND** : chaque terme doit correspondre à au moins un champ, éventuellement différent des autres termes (`Pikachu Reverse ASC`, `Soleil Lune Pikachu`). Aucun score ni tri : l'ordre backend reste intact. Après ajout/retrait et actualisation existante, la requête courante filtre le nouveau tableau.
 
-La croix dans le champ efface la recherche, conserve le focus et restaure immédiatement la collection complète. La réorganisation est désactivée uniquement lorsque la recherche textuelle masque des cartes ; consultation, exemplaires et retrait personnel restent accessibles selon les droits existants. Le filtre de masquage Phase 8 seul ne bloque pas le reorder.
+La croix dans le champ efface la recherche, conserve le focus et restaure immédiatement la séquence du filtre de masquage choisi. La réorganisation est désactivée uniquement lorsque la recherche textuelle masque des cartes ; consultation, exemplaires et retrait personnel restent accessibles selon les droits existants. Le filtre de masquage Phase 8 seul ne bloque pas le reorder.
 
 Cette recherche est strictement un filtre interne à la collection consultée. Elle ne constitue pas une recherche globale dans l'ensemble du catalogue Pokémon.
 
@@ -356,7 +358,7 @@ Les trois vues de la V1 présentent la même collection et les mêmes données :
 - vue cartes ;
 - vue classeur.
 
-Changer de vue conserve route, recherche et contenu chargé, sans refetch lié au renderer. Les trois vues partagent ordre backend, possession, droits et détail Variante Phase 6. Le dernier choix explicite est enregistré dans `last_collection_view` du viewer connecté, y compris en partage ; `collection_default_view` reste inchangée. `binder` ouvre le Classeur.
+Changer de vue conserve route, recherche, filtre de masquage et contenu chargé, sans refetch lié au renderer. Les trois vues partagent ordre backend, possession, droits et détail Variante Phase 6. Le dernier choix explicite est enregistré dans `last_collection_view` du viewer connecté, y compris en partage ; `collection_default_view` reste inchangée. `binder` ouvre le Classeur.
 
 ### Vue liste
 
@@ -370,11 +372,11 @@ La vue cartes présente les cartes sous forme de grille ou de tuiles mettant leu
 
 Chaque tuile conserve image, nom, abréviation d'Extension, numéro et variante visible. URL et placeholder sont ceux de Liste. La grille adapte le nombre de colonnes, avec deux colonnes sur mobile ; les résultats de recherche se compactent selon l'ordre relatif backend. Les cartes manquantes restent désaturées et atténuées, avec état accessible masqué et contrôles utilisables.
 
-Le propriétaire réorganise depuis une zone haute invisible au repos, révélée uniquement au survol de cette zone ou au focus. Capteurs souris/tactile/clavier, primitives backend et relectures Phase 6 sont réutilisés ; une coche verte temporaire confirme les lectures autoritatives réussies. Recherche textuelle masquant des éléments et partage lecture seule : aucune poignée ni réorganisation. Détail, Exemplaires et retrait manuel gardent leurs droits existants. Les filtres de masquage Phase 8 seuls laisseront la réorganisation disponible.
+Le propriétaire réorganise depuis une zone haute invisible au repos, révélée uniquement au survol de cette zone ou au focus. Capteurs souris/tactile/clavier, primitives backend et relectures Phase 6 sont réutilisés ; une coche verte temporaire confirme les lectures autoritatives réussies. Recherche textuelle masquant des éléments et partage lecture seule : aucune poignée ni réorganisation. Détail, Exemplaires et retrait manuel gardent leurs droits existants. Les filtres de masquage seuls laissent la réorganisation disponible ; la recherche partielle est évaluée sur leur séquence.
 
 ### Vue classeur
 
-La vue classeur représente la collection comme un classeur physique. Elle affiche toujours l'intégralité de sa structure, que les cartes soient possédées ou manquantes.
+La vue classeur représente la collection comme un classeur physique. Elle affiche la séquence du filtre de masquage choisi, que les cartes soient possédées ou manquantes.
 
 Carte possédée : rendu normal. Carte manquante : image identifiable, désaturée et atténuée, état accessible. Pochette réellement vide : aucune carte ni placeholder. Les cartes sans image ou après erreur de chargement utilisent `card-placeholder.webp`, comme Liste, Cartes, détail Variante et ajout.
 
@@ -586,7 +588,7 @@ Les collections automatiques sont accessibles normalement dans la V1, sans abonn
 Les sujets suivants devront être définis dans de futurs documents dédiés ou lors de l'implémentation concernée :
 
 - les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
-- les fonctionnalités futures de masquage, actualisation et notifications selon 8A.3 ; le socle d’[ordre relatif](#réordonnancement-relatif--décisions-phase-8) 8B est livré, activé pour les nouveaux parents et validé Local ;
+- les fonctionnalités futures d’actualisation et notifications selon 8A.3 ; le socle d’[ordre relatif](#réordonnancement-relatif--décisions-phase-8) 8B est livré, activé pour les nouveaux parents et validé Local ;
 - les vérifications historiques d'inclusion de certaines variantes rares et les éventuelles évolutions au-delà des règles V1 du pipeline ;
 - la classification des blocs et des ères ;
 - les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;

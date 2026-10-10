@@ -6,7 +6,7 @@ export function CollectionProgress({ collection }: { collection: Pick<DashboardC
     <p className="collection-progress-label">Progression</p>
     <div className="collection-progress-values">
       <span className="collection-count">{collection.ownedCount} / {collection.totalCount}</span>
-      <span className="collection-percentage">{percentage === null ? 'Collection vide' : `${percentage} %`}</span>
+      <span className="collection-percentage">{percentage === null ? 'Aucune carte comptabilisée' : `${percentage} %`}</span>
     </div>
     <div className="collection-progress-track" aria-hidden="true">
       <span style={{ width: `${percentage ?? 0}%` }} />
