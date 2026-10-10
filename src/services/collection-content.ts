@@ -47,8 +47,8 @@ const v2Item = z.strictObject({
   collection_item_id: collectionUuid, variant_id: collectionBigint, source_card_id: collectionBigint, set_id: collectionBigint,
   origin: z.enum(['manual', 'automatic']), card_name_fr: text, local_id: text, set_name_fr: text,
   set_abbreviation_fr: text, set_abbreviation: text, series_name_fr: text, series_name_source: text,
-  image_url: text, variant_label: text, owned: z.boolean(), is_hidden: z.literal(false),
-})
+  image_url: text, variant_label: text, owned: z.boolean(), is_hidden: z.boolean(),
+}).refine(item => !item.is_hidden || item.origin === 'automatic')
 const v2Content = z.strictObject({
   order_contract_version: z.union([z.literal(1), z.literal(2)]), personal_revision: personalRevision,
   items: z.array(v2Item).refine(items =>

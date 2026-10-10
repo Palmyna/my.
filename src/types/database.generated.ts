@@ -79,14 +79,14 @@ isOneToOne: false
                   ]
                 },"collection_items": {
                   Row: {
-                    "automatic_rank": number | null,"collection_id": string,"created_at": string,"id": string,"introduced_revision": number | null,"origin": string,"sort_position": number,"updated_at": string,"variant_id": number
+                    "automatic_rank": number | null,"collection_id": string,"created_at": string,"id": string,"introduced_revision": number | null,"is_hidden": boolean,"origin": string,"sort_position": number,"updated_at": string,"variant_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "automatic_rank"?: number | null,"collection_id": string,"created_at"?: string,"id"?: string,"introduced_revision"?: number | null,"origin": string,"sort_position": number,"updated_at"?: string,"variant_id": number
+                    "automatic_rank"?: number | null,"collection_id": string,"created_at"?: string,"id"?: string,"introduced_revision"?: number | null,"is_hidden"?: boolean,"origin": string,"sort_position": number,"updated_at"?: string,"variant_id": number
                   }
                   Update: {
-                    "automatic_rank"?: number | null,"collection_id"?: string,"created_at"?: string,"id"?: string,"introduced_revision"?: number | null,"origin"?: string,"sort_position"?: number,"updated_at"?: string,"variant_id"?: number
+                    "automatic_rank"?: number | null,"collection_id"?: string,"created_at"?: string,"id"?: string,"introduced_revision"?: number | null,"is_hidden"?: boolean,"origin"?: string,"sort_position"?: number,"updated_at"?: string,"variant_id"?: number
                   }
                   Relationships: [
                     {
@@ -399,6 +399,9 @@ isOneToOne: true
                            },
 "search_global_navigation":
 { Args: { "p_query": string }; Returns: Json
+                           },
+"set_collection_item_hidden":
+{ Args: { "p_collection_id": string,"p_collection_item_id": string,"p_expected_revision": number,"p_is_hidden": boolean,"p_operation_id": string }; Returns: Json
                            }
           }
           Enums: {

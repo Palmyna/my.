@@ -49,8 +49,16 @@ test.each(Object.keys({ ...row(), is_hidden: false }))('rejects missing v2 item 
   const item: Record<string, unknown> = { ...row(), is_hidden: false }; delete item[field]
   expect(() => decodeCollectionContentV2({ ...envelope(), items: [item] })).toThrow(CollectionContentError)
 })
-test.each([true, null, undefined, 0, 'false'])('rejects unsupported hidden state %j before 8C', is_hidden => {
+test.each([true, null, undefined, 0, 'false'])('rejects hidden manual or invalid hidden primitive %j', is_hidden => {
   expect(() => decodeCollectionContentV2({ ...envelope(), items: [{ ...row(), is_hidden }] })).toThrow(CollectionContentError)
+})
+test('v2 keeps hidden automatic owned and missing entries in authoritative order', () => {
+  const payload = { ...envelope(), items: [
+    { ...row(), origin: 'automatic', is_hidden: true },
+    { ...row(), collection_item_id: secondId, variant_id: '42', origin: 'automatic', is_hidden: true, owned: false },
+  ] }
+  expect(decodeCollectionContentV2(payload).items.map(item => [item.collectionItemId, item.isHidden, item.owned]))
+    .toEqual([[firstId, true, true], [secondId, true, false]])
 })
 test('rejects extra keys, numeric identifiers, malformed UUID, unknown origin and both duplicate identities', () => {
   for (const payload of [[], { ...envelope(), extra: true }, { ...envelope(), items: [{ ...row(), is_hidden: false, extra: true }] },

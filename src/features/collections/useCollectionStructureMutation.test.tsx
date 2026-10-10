@@ -3,22 +3,27 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { addManualCollectionItem, CollectionItemsError, getCollectionOperationResult, moveCollectionItem,
-  removeManualCollectionItem } from '../../services/collection-items'
+  removeManualCollectionItem, setCollectionItemHidden } from '../../services/collection-items'
 import { contentFixture } from '../../test/collection-content'
 import { collectionContentKey } from './collection-query'
+import { collectionOverviewKey, collectionItemOrderKey } from './collection-query'
+import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { useCollectionStructureMutation, type CollectionStructureAction } from './useCollectionStructureMutation'
 
 const auth = vi.hoisted(() => ({ user: { id: 'a2900000-0000-0000-0000-000000000001' }, isAuthorized: true }))
 vi.mock('../auth/auth-context', () => ({ useAuth: () => auth }))
 vi.mock('../../services/collection-items', async original => ({ ...await original<typeof import('../../services/collection-items')>(),
-  addManualCollectionItem: vi.fn(), removeManualCollectionItem: vi.fn(), moveCollectionItem: vi.fn(), getCollectionOperationResult: vi.fn() }))
+  addManualCollectionItem: vi.fn(), removeManualCollectionItem: vi.fn(), moveCollectionItem: vi.fn(), setCollectionItemHidden: vi.fn(), getCollectionOperationResult: vi.fn() }))
 const add = vi.mocked(addManualCollectionItem), remove = vi.mocked(removeManualCollectionItem), move = vi.mocked(moveCollectionItem), receipt = vi.mocked(getCollectionOperationResult)
+const hide = vi.mocked(setCollectionItemHidden)
 const actions: CollectionStructureAction[] = [{ type: 'move', move: { itemId: 'd2900000-0000-0000-0000-000000000001', destination: { placement: 'end' } } },
   { type: 'add', variantId: '9007199254740995', placement: 'end' }, { type: 'remove', collectionItemId: 'd2900000-0000-0000-0000-000000000001' }]
 beforeEach(() => {
   sessionStorage.clear(); auth.user.id = 'a2900000-0000-0000-0000-000000000001'; auth.isAuthorized = true
   add.mockReset().mockResolvedValue('d2900000-0000-0000-0000-000000000001'); remove.mockReset().mockResolvedValue(undefined); move.mockReset().mockResolvedValue(undefined)
   receipt.mockReset().mockResolvedValue(null)
+  hide.mockReset().mockResolvedValue({ operationId: 'e2900000-0000-0000-0000-000000000001', personalRevision: '9007199254740995',
+    outcome: 'changed', collectionItemId: 'd2900000-0000-0000-0000-000000000001' })
 })
 function setup(version: 1 | 2 = 2, client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })) {
   const read = vi.fn().mockResolvedValue(contentFixture([], version, '9007199254740994'))
@@ -177,4 +182,75 @@ test('corrupt saved request blocks a replacement UUID and writer', async () => {
   expect(await submit(hook, actions[1]!)).toBe(false)
   expect(add).not.toHaveBeenCalled()
   expect(sessionStorage.getItem(key)).toBe('{"unexpected":true}')
+})
+
+const hiddenAction = { type: 'hide', collectionItemId: 'd2900000-0000-0000-0000-000000000001', isHidden: true } as const
+test('hide shares targeted authoritative invalidations, leaves other viewers/parents/copies cached', async () => {
+  const hook = setup(); await waitFor(() => expect(hook.result.current.ready).toBe(true))
+  const viewer = auth.user.id, parent = 'c2900000-0000-0000-0000-000000000001'
+  const summaries = [collectionOverviewKey(viewer, parent), dashboardCollectionsKey(viewer), collectionItemOrderKey(viewer, parent)]
+  const untouched = [collectionContentKey(viewer, 'c2900000-0000-0000-0000-000000000002'),
+    dashboardCollectionsKey('a2900000-0000-0000-0000-000000000002'), ['physical-copies', viewer]]
+  for (const key of [...summaries, ...untouched]) hook.client.setQueryData(key, [])
+  expect(await submit(hook, hiddenAction)).toBe(true)
+  expect(hide).toHaveBeenCalledExactlyOnceWith(parent, hiddenAction.collectionItemId, true,
+    { orderContractVersion: 2, expectedRevision: '9007199254740994', operationId: expect.any(String) as unknown })
+  expect(hook.read).toHaveBeenCalledTimes(2)
+  for (const key of summaries) expect(hook.client.getQueryState(key)?.isInvalidated).toBe(true)
+  for (const key of untouched) expect(hook.client.getQueryState(key)?.isInvalidated).toBe(false)
+  expect(sessionStorage.length).toBe(0)
+})
+test('hide unavailable on legacy; no writer or persisted request', async () => {
+  const hook = setup(1); await waitFor(() => expect(hook.result.current.ready).toBe(true))
+  expect(await submit(hook, hiddenAction)).toBe(false)
+  expect(hide).not.toHaveBeenCalled(); expect(sessionStorage.length).toBe(0)
+  await waitFor(() => expect(hook.result.current.error).toHaveProperty('code', 'order_contract_upgrade_required'))
+})
+test('uncertain hide survives reload, blocks inverse/action, retains exact UUID and revision', async () => {
+  const hook = setup(); await waitFor(() => expect(hook.result.current.ready).toBe(true))
+  hide.mockRejectedValueOnce(new CollectionItemsError('operation_uncertain'))
+  expect(await submit(hook, hiddenAction)).toBe(false)
+  const original = structuredClone(hide.mock.calls[0])
+  expect(await submit(hook, { ...hiddenAction, isHidden: false })).toBe(false)
+  expect(await submit(hook, actions[0]!)).toBe(false); expect(move).not.toHaveBeenCalled()
+  hook.unmount(); hook.client.clear()
+  const reloaded = setup(); await waitFor(() => expect(reloaded.result.current.ready).toBe(true))
+  reloaded.read.mockResolvedValue(contentFixture([], 2, '9007199254741000'))
+  await act(async () => { await reloaded.result.current.refresh() })
+  expect(hide).toHaveBeenCalledOnce(); expect(sessionStorage.length).toBe(1)
+  expect(await submit(reloaded, hiddenAction)).toBe(true)
+  expect(hide.mock.calls[1]).toEqual(original)
+  expect(sessionStorage.length).toBe(0)
+})
+test.each(['changed', 'noop'] as const)('hide recovery accepts valid %s historical receipt after current revision advances', async outcome => {
+  const hook = setup(); await waitFor(() => expect(hook.result.current.ready).toBe(true))
+  hide.mockRejectedValueOnce(new CollectionItemsError('operation_uncertain'))
+  expect(await submit(hook, hiddenAction)).toBe(false)
+  const op = hide.mock.calls[0]![3]
+  receipt.mockResolvedValue({ operationId: op.operationId, collectionItemId: hiddenAction.collectionItemId, outcome,
+    personalRevision: outcome === 'changed' ? '9007199254740995' : '9007199254740994' })
+  hook.read.mockResolvedValue(contentFixture([], 2, '9007199254741000'))
+  await act(async () => { await hook.result.current.refresh() })
+  await waitFor(() => expect(hook.result.current.error).toBeNull())
+  expect(hide).toHaveBeenCalledOnce(); expect(sessionStorage.length).toBe(0)
+  expect(await submit(hook, { ...hiddenAction, isHidden: false })).toBe(true)
+  expect(hide.mock.calls[1]![3]).toMatchObject({ expectedRevision: '9007199254741000' })
+})
+test('hide success waits for authoritative content, accepted write not repeated after failed reread', async () => {
+  const hook = setup(); await waitFor(() => expect(hook.result.current.ready).toBe(true))
+  hook.read.mockRejectedValueOnce(new Error('offline'))
+  expect(await submit(hook, hiddenAction)).toBe(false)
+  expect(hide).toHaveBeenCalledOnce(); expect(sessionStorage.length).toBe(1)
+  expect(await submit(hook, hiddenAction)).toBe(true)
+  expect(hide).toHaveBeenCalledOnce(); expect(sessionStorage.length).toBe(0)
+})
+test('hide stale definitive conflict refreshes, next explicit action gets new operation', async () => {
+  const hook = setup(); await waitFor(() => expect(hook.result.current.ready).toBe(true))
+  hide.mockRejectedValueOnce(new CollectionItemsError('collection_structure_conflict'))
+  hook.read.mockResolvedValue(contentFixture([], 2, '9007199254741000'))
+  expect(await submit(hook, hiddenAction)).toBe(false)
+  expect(hide).toHaveBeenCalledOnce(); expect(receipt).not.toHaveBeenCalled(); expect(sessionStorage.length).toBe(0)
+  expect(await submit(hook, hiddenAction)).toBe(true)
+  expect(hide.mock.calls[1]![3]).toMatchObject({ expectedRevision: '9007199254741000' })
+  expect(hide.mock.calls[1]![3].operationId).not.toBe(hide.mock.calls[0]![3].operationId)
 })

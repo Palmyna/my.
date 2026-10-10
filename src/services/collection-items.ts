@@ -12,7 +12,7 @@ export type CollectionItemsErrorCode = 'not_authorized' | 'item_unavailable' | '
   | 'manual_item_unavailable' | 'automatic_item_removal_forbidden'
   | 'collection_operation_invalid' | 'collection_item_unavailable' | 'operation_id_conflict'
   | 'order_contract_upgrade_required' | 'phase8_operation_unexpected' | 'operation_uncertain' | 'content_refresh_failed'
-  | 'operation_storage_unavailable'
+  | 'operation_storage_unavailable' | 'collection_item_hidden_invalid'
 export class CollectionItemsError extends Error {
   constructor(readonly code: CollectionItemsErrorCode) { super(code); this.name = 'CollectionItemsError' }
 }
@@ -39,6 +39,7 @@ function v2Error(error: unknown): CollectionItemsError {
       collection_item_unavailable: 'P0002', manual_variant_unavailable: 'P0002', already_present: '23505',
       automatic_item_removal_forbidden: '23514', collection_structure_conflict: '40001',
       operation_id_conflict: '23505', order_contract_upgrade_required: '23514', phase8_operation_unexpected: 'XX000',
+      collection_item_hidden_invalid: '23514',
     }
     if (typeof message === 'string' && business[message] === code) return new CollectionItemsError(message as CollectionItemsErrorCode)
     if (['42501', 'PGRST301', 'PGRST302', 'PGRST303'].includes(code)) return new CollectionItemsError('not_authorized')
@@ -55,11 +56,11 @@ function validateOperation(collectionId: string, operation: Extract<CollectionOp
 }
 
 export function validateCollectionOperationResult(result: CollectionMutationResult,
-  operation: Extract<CollectionOperation, { orderContractVersion: 2 }>, kind: 'move' | 'add' | 'remove', itemId: string | null) {
+  operation: Extract<CollectionOperation, { orderContractVersion: 2 }>, kind: 'move' | 'add' | 'remove' | 'hide', itemId: string | null) {
   const revision = BigInt(operation.expectedRevision) + (result.outcome === 'changed' ? 1n : 0n)
   if (result.operationId.toLowerCase() !== operation.operationId.toLowerCase()
     || result.collectionItemId === null || (itemId && result.collectionItemId.toLowerCase() !== itemId.toLowerCase())
-    || (kind !== 'move' && result.outcome !== 'changed') || result.personalRevision !== revision.toString()) {
+    || ((kind === 'add' || kind === 'remove') && result.outcome !== 'changed') || result.personalRevision !== revision.toString()) {
     throw new CollectionItemsError('phase8_operation_unexpected')
   }
   return result
@@ -125,7 +126,7 @@ export function createCollectionItemsService(client: SupabaseClient<Database>) {
     } catch (error) { throw v2Error(error) }
   }
   async function v2Request(collectionId: string, operation: Extract<CollectionOperation, { orderContractVersion: 2 }>,
-    kind: 'move' | 'add' | 'remove', itemId: string | null, send: () => PromiseLike<{ data: unknown; error: unknown }>) {
+    kind: 'move' | 'add' | 'remove' | 'hide', itemId: string | null, send: () => PromiseLike<{ data: unknown; error: unknown }>) {
     validateOperation(collectionId, operation)
     function result(value: unknown) {
       const decoded = decodeCollectionMutationResult(value, operation.operationId)
@@ -149,6 +150,17 @@ export function createCollectionItemsService(client: SupabaseClient<Database>) {
   }
   return {
     operationResult,
+    async setHidden(collectionId: string, collectionItemId: string, isHidden: boolean,
+      operation: Extract<CollectionOperation, { orderContractVersion: 2 }>): Promise<CollectionMutationResult> {
+      if (operation?.orderContractVersion !== 2) throw new CollectionItemsError('order_contract_upgrade_required')
+      if (!collectionUuid.safeParse(collectionItemId).success || typeof isHidden !== 'boolean') {
+        throw new CollectionItemsError('collection_operation_invalid')
+      }
+      return v2Request(collectionId, operation, 'hide', collectionItemId, () => manualClient.rpc('set_collection_item_hidden', {
+        p_collection_id: collectionId, p_collection_item_id: collectionItemId, p_is_hidden: isHidden,
+        p_expected_revision: operation.expectedRevision, p_operation_id: operation.operationId,
+      }))
+    },
     async add(collectionId: string, variantId: string, placement: ManualItemPlacement = 'end', operation?: CollectionOperation): Promise<string> {
       if (operation?.orderContractVersion === 2) {
         let exactVariant: string
@@ -234,3 +246,5 @@ export async function moveCollectionItem(collectionId: string, move: ItemMove, o
 export async function addManualCollectionItem(collectionId: string, variantId: string, placement: ManualItemPlacement, operation?: CollectionOperation) { return service().add(collectionId, variantId, placement, operation) }
 export async function removeManualCollectionItem(collectionId: string, collectionItemId: string, operation?: CollectionOperation) { return service().remove(collectionId, collectionItemId, operation) }
 export async function getCollectionOperationResult(collectionId: string, operationId: string) { return service().operationResult(collectionId, operationId) }
+export async function setCollectionItemHidden(collectionId: string, collectionItemId: string, isHidden: boolean,
+  operation: Extract<CollectionOperation, { orderContractVersion: 2 }>) { return service().setHidden(collectionId, collectionItemId, isHidden, operation) }

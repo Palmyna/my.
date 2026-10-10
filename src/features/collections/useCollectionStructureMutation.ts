@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { z } from 'zod'
 import { notifyManager, QueryClient, useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { addManualCollectionItem, CollectionItemsError, getCollectionOperationResult,
-  moveCollectionItem, removeManualCollectionItem, validateCollectionOperationResult } from '../../services/collection-items'
+  moveCollectionItem, removeManualCollectionItem, setCollectionItemHidden, validateCollectionOperationResult } from '../../services/collection-items'
 import type { CollectionContent } from '../../types/collection-content'
 import type { CollectionOperation, ItemMove, ManualItemPlacement } from '../../types/collection-items'
 import { collectionBigint, collectionUuid, personalRevision } from '../../lib/collection-contract'
@@ -13,6 +13,7 @@ import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey, co
 export type CollectionStructureAction = { type: 'move'; move: ItemMove }
   | { type: 'add'; variantId: string; placement: ManualItemPlacement }
   | { type: 'remove'; collectionItemId: string }
+  | { type: 'hide'; collectionItemId: string; isHidden: boolean }
 type Request = { viewerId: string; collectionId: string; action: CollectionStructureAction;
   operation: CollectionOperation; confirmed: boolean }
 
@@ -34,6 +35,7 @@ const storedRequest = z.strictObject({
   action: z.discriminatedUnion('type', [
     z.strictObject({ type: z.literal('add'), variantId: collectionBigint, placement: z.enum(['start', 'end']) }),
     z.strictObject({ type: z.literal('remove'), collectionItemId: collectionUuid }),
+    z.strictObject({ type: z.literal('hide'), collectionItemId: collectionUuid, isHidden: z.boolean() }),
     z.strictObject({ type: z.literal('move'), move: z.strictObject({ itemId: collectionUuid,
       destination: z.union([z.strictObject({ placement: z.enum(['start', 'end']) }),
         z.strictObject({ placement: z.enum(['before', 'after']), anchorId: collectionUuid })]) }) }),
@@ -66,6 +68,7 @@ function forgetRequest(map: Map<string, Request>, key: string) {
 function sameAction(left: CollectionStructureAction, right: CollectionStructureAction) {
   if (left.type === 'add' && right.type === 'add') return left.variantId === right.variantId && left.placement === right.placement
   if (left.type === 'remove' && right.type === 'remove') return left.collectionItemId === right.collectionItemId
+  if (left.type === 'hide' && right.type === 'hide') return left.collectionItemId === right.collectionItemId && left.isHidden === right.isHidden
   if (left.type !== 'move' || right.type !== 'move') return false
   return left.move.itemId === right.move.itemId && left.move.destination.placement === right.move.destination.placement
     && ('anchorId' in left.move.destination ? left.move.destination.anchorId : null)
@@ -126,6 +129,7 @@ export function useCollectionStructureMutation(viewerId: string, collectionId: s
       if (!request) {
         if (!contentReady(client, viewerId, collectionId)) throw new CollectionItemsError('content_refresh_failed')
         const content = client.getQueryData<CollectionContent>(collectionContentKey(viewerId, collectionId))!
+        if (action.type === 'hide' && content.orderContractVersion !== 2) throw new CollectionItemsError('order_contract_upgrade_required')
         request = { viewerId, collectionId, action: structuredClone(action), confirmed: false,
           operation: content.orderContractVersion === 2
             ? { orderContractVersion: 2, expectedRevision: content.personalRevision, operationId: crypto.randomUUID() }
@@ -142,6 +146,9 @@ export function useCollectionStructureMutation(viewerId: string, collectionId: s
           } else if (request.action.type === 'add') {
             if (operation) await addManualCollectionItem(collectionId, request.action.variantId, request.action.placement, operation)
             else await addManualCollectionItem(collectionId, request.action.variantId, request.action.placement)
+          } else if (request.action.type === 'hide') {
+            if (!operation) throw new CollectionItemsError('order_contract_upgrade_required')
+            await setCollectionItemHidden(collectionId, request.action.collectionItemId, request.action.isHidden, operation)
           } else {
             if (operation) await removeManualCollectionItem(collectionId, request.action.collectionItemId, operation)
             else await removeManualCollectionItem(collectionId, request.action.collectionItemId)
@@ -190,7 +197,7 @@ export function useCollectionStructureMutation(viewerId: string, collectionId: s
             const receipt = await getCollectionOperationResult(collectionId, request.operation.operationId)
             if (receipt) {
               const itemId = request.action.type === 'move' ? request.action.move.itemId
-                : request.action.type === 'remove' ? request.action.collectionItemId : null
+                : request.action.type === 'remove' || request.action.type === 'hide' ? request.action.collectionItemId : null
               validateCollectionOperationResult(receipt, request.operation, request.action.type, itemId)
               request.confirmed = true
             }

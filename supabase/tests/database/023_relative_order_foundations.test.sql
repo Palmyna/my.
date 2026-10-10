@@ -14,7 +14,7 @@ select col_is_null('public', 'collection_items', 'introduced_revision', 'Introdu
 select col_default_is('public', 'collections', 'personal_revision', '0', 'Revision defaults zero');
 select col_default_is('public', 'collections', 'order_contract_version', '2', 'Contract defaults v2 after 8B.8 activation');
 select col_hasnt_default('public', 'collection_items', 'introduced_revision', 'No introduction backfill/default');
-select hasnt_column('public', 'collection_items', 'is_hidden', '8C field remains absent');
+select has_column('public', 'collection_items', 'is_hidden', '8C additive field present; ordering foundations unchanged');
 select ok((select bool_and(order_contract_version=1 and personal_revision=0) from public.collections where owner_id='a1700000-0000-0000-0000-000000000001'),
   'All historical and fixture parents remain legacy at revision zero');
 select ok((select bool_and(i.introduced_revision is null) from public.collection_items i join public.collections c on c.id=i.collection_id where c.owner_id='a1700000-0000-0000-0000-000000000001'),

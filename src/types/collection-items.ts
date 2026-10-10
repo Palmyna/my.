@@ -19,7 +19,7 @@ export type ManualItemPlacement = 'start' | 'end'
 // precision above MAX_SAFE_INTEGER; override only this transport boundary.
 type AddFunction = Database['public']['Functions']['add_manual_collection_item']
 type Functions = Database['public']['Functions']
-type V2Name = 'reorder_collection_item_v2' | 'add_manual_collection_item_v2' | 'remove_manual_collection_item_v2'
+type V2Name = 'reorder_collection_item_v2' | 'add_manual_collection_item_v2' | 'remove_manual_collection_item_v2' | 'set_collection_item_hidden'
 type V2Functions = { [Name in V2Name]: Omit<Functions[Name], 'Args'> & {
   Args: Omit<Functions[Name]['Args'], 'p_expected_revision' | 'p_variant_id' | 'p_anchor_id'> & {
     p_expected_revision: string

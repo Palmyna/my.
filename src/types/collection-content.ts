@@ -17,7 +17,7 @@ export interface CollectionContentItem {
 }
 
 export interface CollectionContentItemV2 extends CollectionContentItem {
-  isHidden: false
+  isHidden: boolean
 }
 
 export type PersonalRevision = string

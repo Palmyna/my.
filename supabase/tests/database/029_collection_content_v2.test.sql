@@ -15,8 +15,8 @@ select ok(not has_function_privilege(role_name,'public.get_collection_content_v2
   from unnest(array['anon','service_role']) role_name;
 select ok(not exists(select 1 from pg_proc p cross join lateral aclexplode(p.proacl) a
   where p.oid='public.get_collection_content_v2(uuid)'::regprocedure and a.grantee=0),'No PUBLIC execution');
-select ok(not exists(select 1 from information_schema.columns where table_schema='public'
-  and table_name='collection_items' and column_name='is_hidden'),'No masking column before 8C');
+select ok(exists(select 1 from information_schema.columns where table_schema='public'
+  and table_name='collection_items' and column_name='is_hidden'),'8C persisted masking column available');
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"a1600000-0000-0000-0000-000000000001","aal":"aal2"}';

@@ -171,7 +171,7 @@ Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. To
 
 ### Mise à jour contrôlée — décisions Phase 8
 
-**Actualisation non implémentée.** Conception 8A.3 validée ; Phase 8 reste en développement. **Phase 8B terminée et validée Local en `0.8.7`.** Moteur PostgreSQL de fusion/rejeu, journal chronologique, trois writers v2, reçus idempotents, lecteur et services/hooks communs livrés. Contrat 2 actif exclusivement pour les nouvelles créations libres et automatiques ; contrat 1 conservé pour les collections existantes, sans conversion. `sort_position` reste l’unique ordre affiché. Actualisation automatique (8E/8F), masquage et notifications restent futurs. **Prochaine étape : 8C**, non commencée. Aucun déploiement Cloud Phase 8. [Rapport de clôture](reports/2026-10-10-PHASE8B8-CLOSURE.md).
+**Actualisation non implémentée.** Conception 8A.3 validée ; Phase 8 reste en développement. **Phase 8B terminée et validée Local en `0.8.7`.** Moteur PostgreSQL de fusion/rejeu, journal chronologique, trois writers v2, reçus idempotents, lecteur et services/hooks communs livrés. Contrat 2 actif exclusivement pour les nouvelles créations libres et automatiques ; contrat 1 conservé pour les collections existantes, sans conversion. `sort_position` reste l’unique ordre affiché. Masquage persistant, progression et services/hooks livrés Local en 8C (`0.8.8`). **Prochaine étape : 8D**, interface/filtres non commencés. Actualisation automatique (8E/8F) et notifications restent futures. Aucun déploiement Cloud Phase 8. [Rapport de clôture](reports/2026-10-10-PHASE8B8-CLOSURE.md).
 
 Une collection automatique peut évoluer lorsque le catalogue change pour sa cible Pokémon ou Extension. Elle ne doit jamais être modifiée silencieusement.
 
@@ -221,15 +221,15 @@ Compatibilité historique : les collections existantes sont uniquement des donn�
 
 ### Masquage des cartes automatiques — décisions Phase 8
 
-**Planifié, non implémenté.** Seul le propriétaire peut masquer/réafficher un élément automatique d'une collection automatique. Le masquage est persistant et propre à cet élément de collection ; les cartes manuelles ne sont pas masquables. Il ne supprime rien et ne modifie ni exemplaires, ni notes, ni origine, ni positions enregistrées.
+**Backend livré et validé Local en 8C (`0.8.8`) ; interface prévue en 8D.** Seul le propriétaire peut masquer/réafficher un élément automatique d'une collection automatique en contrat 2. Le masquage est persistant et propre à cet élément de collection ; les cartes manuelles ne sont pas masquables. Il ne supprime rien et ne modifie ni exemplaires, ni notes, ni origine, ni positions enregistrées. Mutation, révision/reçu et services/hooks sont disponibles ; aucune action de masquage n'apparaît encore dans l'interface. Voir le [rapport 8C](reports/2026-10-10-PHASE8C-CLOSURE.md).
 
-Les filtres `Non masquées` (actif par défaut) et `Toutes` sont disponibles en Liste, Cartes et Classeur. Le propriétaire dispose d'un petit bouton œil en Liste et Cartes uniquement : aucun dans le Classeur ou les modales de détail/variantes. La réorganisation reste disponible en Liste et Cartes avec les deux filtres de masquage ; seul le sujet est déplacé, l'ordre relatif des autres éléments masqués ou visibles reste identique, sans gel de leurs indices absolus. La restriction existante liée à une recherche textuelle partielle reste distincte.
+Les filtres `Non masquées` (actif par défaut) et `Toutes` sont prévus en 8D en Liste, Cartes et Classeur. Le propriétaire disposera d'un petit bouton œil en Liste et Cartes uniquement : aucun dans le Classeur ou les modales de détail/variantes. La réorganisation restera disponible en Liste et Cartes avec les deux filtres de masquage ; seul le sujet sera déplacé, l'ordre relatif des autres éléments masqués ou visibles restera identique, sans gel de leurs indices absolus. La restriction existante liée à une recherche textuelle partielle reste distincte.
 
 En Classeur, les cartes masquées sont retirées de la séquence affichée sous `Non masquées` ; les suivantes occupent les emplacements libérés et la pagination est recalculée pour `2x2`, `3x3`, `4x3`. `Toutes` réintègre les éléments masqués dans la séquence. Ce compactage ne modifie jamais l'ordre enregistré ni les exemplaires. La recherche textuelle navigue vers les occurrences dans la séquence du filtre choisi, sans compactage supplémentaire des cartes non masquées.
 
 Lors d'une actualisation, un automatique masqué encore présent conserve son masquage. Un nouvel automatique et un manuel converti en automatique sont visibles par défaut.
 
-En partage, les choix de masquage et la progression restent ceux du propriétaire ; les filtres de consultation restent disponibles, sans droit de modifier le masquage ni la collection.
+En partage, les choix de masquage et la progression restent ceux du propriétaire ; les filtres de consultation prévus en 8D resteront disponibles, sans droit de modifier le masquage ni la collection.
 
 ## Cartes de référence et exemplaires physiques
 
@@ -258,7 +258,7 @@ L'interface doit distinguer clairement ces deux états sans exposer la structure
 
 **Livré jusqu'à Phase 7 :** tous les éléments, automatiques comme manuels, contribuent au total ; une variante compte comme possédée si le propriétaire en possède au moins un exemplaire. Plusieurs exemplaires ne la font compter qu'une fois.
 
-**Décision Phase 8, non implémentée :** une carte automatique masquée est exclue du numérateur **et** du dénominateur, même possédée. Les cartes manuelles restent comptabilisées. Cette règle s'applique au Dashboard, à la page Collection et aux collections partagées, indépendamment du filtre affiché (`Non masquées`, `Toutes` ou recherche).
+**Règle livrée Local en 8C :** une carte automatique masquée est exclue du numérateur **et** du dénominateur, même possédée. Les cartes manuelles restent comptabilisées. Cette règle s'applique au Dashboard, à la page Collection et aux collections partagées, indépendamment du filtre futur (`Non masquées`, `Toutes`) ou de la recherche. Aucun élément comptabilisé → `0/0` ; possession conservée dans le contenu complet.
 
 Une collection partagée affiche la progression de son propriétaire.
 

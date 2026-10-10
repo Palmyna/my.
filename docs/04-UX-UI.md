@@ -624,6 +624,8 @@ L'application effective traite la notification. Un aperçu obsolète exige une n
 
 ### Masquage et vues — projet Phase 8
 
+Le backend de masquage et la progression commune Dashboard/Collection/partages sont livrés Local en [8C](reports/2026-10-10-PHASE8C-CLOSURE.md). Les interactions décrites ci-dessous restent prévues en 8D : aucun bouton œil, filtre ou compactage supplémentaire livré en 8C. Cas sans élément comptabilisé : comptes autoritatifs `0/0` ; présentation UX à finaliser en 8D, rendu actuel conservé.
+
 Les trois vues proposent `Non masquées` par défaut et `Toutes`. Ces filtres sont distincts de la recherche textuelle. La progression est indépendante du filtre : les automatiques masqués sont toujours exclus de ses deux comptes, manuels inclus.
 
 En Liste et Cartes, un petit bouton œil permet au seul propriétaire de masquer/réafficher les éléments automatiques d'une collection automatique. Aucune action sur les cartes manuelles, dans le Classeur ou dans les modales de détail/variantes. L'icône reste un contrôle accessible au clavier, avec état et nom compréhensibles et cible tactile conforme aux 44 px existants ; ses interactions restent indépendantes du détail et du reorder.
