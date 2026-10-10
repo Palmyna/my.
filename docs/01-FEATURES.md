@@ -171,7 +171,7 @@ Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. To
 
 ### Mise à jour contrôlée — décisions Phase 8
 
-**Actualisation non implémentée.** Conception 8A.3 validée ; Phase 8 en développement depuis `0.8.0`. [8B.1](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md) livre le stockage PostgreSQL Local ; [8B.2](reports/2026-10-08-PHASE8B2-RELATIVE-ORDER-ENGINE.md) livre le moteur interne de fusion/rejeu. [8B.3](reports/2026-10-08-PHASE8B3-REORDER-WRITER-V2.md) livre le déplacement v2 backend, capture historique, révisions et reçus idempotents, avec refus des writers legacy sur contrat 2. [8B.4](reports/2026-10-09-PHASE8B4-MANUAL-ADD-V2.md) livre l’ajout manuel v2 côté backend, intention initiale obligatoire au début comme en fin, révision et reçu atomiques, invariant différé valable après conversion. [8B.5](reports/2026-10-09-PHASE8B5-MANUAL-REMOVAL-V2.md) livre le retrait manuel v2 backend : intentions propres supprimées, références historiques R1 des autres sujets et reçus conservés, positions/copies/notes intactes. Réintroduction via ajout v2 : nouvel UUID et nouveau placement, sans héritage. [Consultation sécurisée 8B.6](reports/2026-10-09-PHASE8B6-OPERATION-RESULT.md) livrée Local : `get_collection_operation_result` retourne le résultat historique enregistré après autorisation actuelle, sans mutation. Trois writers v2 et reprise backend complète ; NULL ne permet pas de changer l’UUID d’une requête incertaine. [Intégration 8B.7](reports/2026-10-09-PHASE8B7-APPLICATION-INTEGRATION.md) livrée Local en `0.8.6` : lecteur v2 et services/hooks communs aux contrats 1/2, routage des trois writers et récupération des opérations incertaines. Nouvelles créations toujours contrat 1 ; activation et validation finale prévues en 8B.8. Interfaces existantes compatibles avec les deux contrats ; collections réelles et créations restent contrat 1. Aucun masquage, actualisation ou notification ajouté.
+**Actualisation non implémentée.** Conception 8A.3 validée ; Phase 8 reste en développement. **Phase 8B terminée et validée Local en `0.8.7`.** Moteur PostgreSQL de fusion/rejeu, journal chronologique, trois writers v2, reçus idempotents, lecteur et services/hooks communs livrés. Contrat 2 actif exclusivement pour les nouvelles créations libres et automatiques ; contrat 1 conservé pour les collections existantes, sans conversion. `sort_position` reste l’unique ordre affiché. Actualisation automatique (8E/8F), masquage et notifications restent futurs. **Prochaine étape : 8C**, non commencée. Aucun déploiement Cloud Phase 8. [Rapport de clôture](reports/2026-10-10-PHASE8B8-CLOSURE.md).
 
 Une collection automatique peut évoluer lorsque le catalogue change pour sa cible Pokémon ou Extension. Elle ne doit jamais être modifiée silencieusement.
 
@@ -191,7 +191,7 @@ Après validation, les nouveaux automatiques sont ajoutés, ceux devenus non él
 
 ### Réordonnancement relatif — décisions Phase 8
 
-**Principe validé, non implémenté : reconstruire le nouvel ordre canonique, puis réappliquer les personnalisations du propriétaire.**
+**Principe validé : reconstruire le nouvel ordre canonique, puis réappliquer les personnalisations du propriétaire.** Moteur pur de fusion/rejeu livré et testé Local en 8B ; parcours d’actualisation automatique toujours futur en 8E/8F.
 
 - Un déplacement personnel mémorise « cette carte avant telle autre carte » ; un placement en fin est explicite.
 - Une carte ajoutée manuellement suit le même principe de positionnement relatif.
@@ -217,7 +217,7 @@ Exemples métier de référence :
 
 L'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) conserve l'analyse historique et ses 36 scénarios. La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) recommande journal chronologique, contextes immuables et reçus d'opération ; `sort_position` reste l'unique ordre affiché. Les [contrats projetés](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) précisent persistance, révisions et transition ; stockage, moteur et déplacement backend sont livrés Local, aucune fonctionnalité Phase 8 accessible dans l'interface.
 
-Compatibilité historique : les collections existantes sont uniquement des données de test. Aucune récupération des intentions de déplacement passées n'est nécessaire ; le propriétaire accepte de recréer ses collections de test. Cette décision n'autorise aucun reset ni suppression pendant 8A. Les trois anciens writers sont désormais refusés sur contrat 2 en Local ; contrat 1 conserve strictement ses règles. Le déplacement v2 exige contrat 2, encore inaccessible aux collections utilisateur.
+Compatibilité historique : les collections existantes sont uniquement des données de test. Aucune récupération des intentions de déplacement passées n'est nécessaire ; le propriétaire accepte de recréer ses collections de test. Cette décision n'autorise aucun reset ni suppression pendant 8A. Les trois anciens writers sont désormais refusés sur contrat 2 en Local ; contrat 1 conserve strictement ses règles. Les nouveaux parents utilisent désormais contrat 2 ; les parents historiques conservent contrat 1 et leurs writers legacy.
 
 ### Masquage des cartes automatiques — décisions Phase 8
 
@@ -586,7 +586,7 @@ Les collections automatiques sont accessibles normalement dans la V1, sans abonn
 Les sujets suivants devront être définis dans de futurs documents dédiés ou lors de l'implémentation concernée :
 
 - les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
-- l’implémentation des contrats techniques 8A.3 validés ; algorithme 8A.2 et R1–R4 acquis pour l’[ordre relatif](#réordonnancement-relatif--décisions-phase-8), stockage 8B.1, moteur interne 8B.2, déplacement 8B.3, ajout manuel 8B.4 avec invariant initial et retrait manuel 8B.5 avec cycle R3 et consultation sécurisée 8B.6 livrés Local ; lecteur/services/hooks et trois writers intégrés en 8B.7 ; activation des créations v2 et validation finale en 8B.8 ;
+- les fonctionnalités futures de masquage, actualisation et notifications selon 8A.3 ; le socle d’[ordre relatif](#réordonnancement-relatif--décisions-phase-8) 8B est livré, activé pour les nouveaux parents et validé Local ;
 - les vérifications historiques d'inclusion de certaines variantes rares et les éventuelles évolutions au-delà des règles V1 du pipeline ;
 - la classification des blocs et des ères ;
 - les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;

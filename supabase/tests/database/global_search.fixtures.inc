@@ -56,15 +56,16 @@ insert into public.card_pokemon(card_id,pokemon_id) values
   (-97018,-97003),(-97019,-97004),(-97014,-97005),(-97013,-97006),(-97020,-97007),(-97020,-97008);
 insert into public.card_pokemon(card_id,pokemon_id)
   select id,-97002 from public.source_cards where id between -97112 and -97101;
-insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_pokemon_id,target_set_id,applied_target_version) values
-  ('c7e10000-0000-0000-0000-000000000001','a7e10000-0000-0000-0000-000000000001','Fixture7e1','free',null,null,null,null),
-  ('c7e10000-0000-0000-0000-000000000002','a7e10000-0000-0000-0000-000000000002','Fixture7e1 Éclair','automatic','pokemon',-97002,null,1),
-  ('c7e10000-0000-0000-0000-000000000003','a7e10000-0000-0000-0000-000000000001','Fixture7e1extra','automatic','set',null,-97001,1),
-  ('c7e10000-0000-0000-0000-000000000004','a7e10000-0000-0000-0000-000000000002','SecretSeul7e1','free',null,null,null,null),
-  ('c7e10000-0000-0000-0000-000000000005','a7e10000-0000-0000-0000-000000000002','RetiréSeul7e1','free',null,null,null,null),
-  ('c7e10000-0000-0000-0000-000000000006','a7e10000-0000-0000-0000-000000000001','AliasNom7e1','automatic','pokemon',9007199254740995,null,1),
-  ('c7e10000-0000-0000-0000-000000000007','a7e10000-0000-0000-0000-000000000001','TieNom7e1','free',null,null,null,null),
-  ('c7e10000-0000-0000-0000-000000000008','a7e10000-0000-0000-0000-000000000001','TieNom7e1','free',null,null,null,null);
+-- Explicit historical contract: these fixtures exercise legacy behavior.
+insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_pokemon_id,target_set_id,applied_target_version,order_contract_version) values
+  ('c7e10000-0000-0000-0000-000000000001','a7e10000-0000-0000-0000-000000000001','Fixture7e1','free',null,null,null,null,1),
+  ('c7e10000-0000-0000-0000-000000000002','a7e10000-0000-0000-0000-000000000002','Fixture7e1 Éclair','automatic','pokemon',-97002,null,1,1),
+  ('c7e10000-0000-0000-0000-000000000003','a7e10000-0000-0000-0000-000000000001','Fixture7e1extra','automatic','set',null,-97001,1,1),
+  ('c7e10000-0000-0000-0000-000000000004','a7e10000-0000-0000-0000-000000000002','SecretSeul7e1','free',null,null,null,null,1),
+  ('c7e10000-0000-0000-0000-000000000005','a7e10000-0000-0000-0000-000000000002','RetiréSeul7e1','free',null,null,null,null,1),
+  ('c7e10000-0000-0000-0000-000000000006','a7e10000-0000-0000-0000-000000000001','AliasNom7e1','automatic','pokemon',9007199254740995,null,1,1),
+  ('c7e10000-0000-0000-0000-000000000007','a7e10000-0000-0000-0000-000000000001','TieNom7e1','free',null,null,null,null,1),
+  ('c7e10000-0000-0000-0000-000000000008','a7e10000-0000-0000-0000-000000000001','TieNom7e1','free',null,null,null,null,1);
 insert into public.collection_shares(collection_id,recipient_user_id) values
   ('c7e10000-0000-0000-0000-000000000002','a7e10000-0000-0000-0000-000000000001'),
   ('c7e10000-0000-0000-0000-000000000005','a7e10000-0000-0000-0000-000000000001');

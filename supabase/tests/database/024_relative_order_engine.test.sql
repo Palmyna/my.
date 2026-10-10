@@ -3,6 +3,11 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
 
+-- Compare actual installed storage, including legitimate v2 parents after activation.
+create temp table engine_parents_before as select id,order_contract_version,personal_revision from public.collections;
+create temp table engine_intents_before as select * from private.collection_order_intents;
+create temp table engine_receipts_before as select * from private.collection_operation_receipts;
+
 -- All fixtures live in temporary tables. No real collection or catalogue DML.
 create temp table order_scenarios (id text primary key, input jsonb not null, expected text not null);
 \ir relative_order_engine.fixtures.inc
@@ -325,9 +330,11 @@ reset role;
 select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
   where n.nspname='public' and p.proname in ('merge_collection_relative_order','preview_collection_update',
     'apply_collection_update','set_collection_item_hidden')),'No public engine/preview/apply/future hiding writer');
-select ok((select bool_and(order_contract_version=1 and personal_revision=0) from public.collections),
-  'Real collections remain contract 1 / revision zero');
-select is((select count(*) from private.collection_order_intents),0::bigint,'Real journal remains empty');
-select is((select count(*) from private.collection_operation_receipts),0::bigint,'Real receipts remain empty');
+select results_eq($$select id,order_contract_version,personal_revision from public.collections order by id$$,
+  $$select * from engine_parents_before order by id$$,'Pure engine preserves every actual parent contract/revision');
+select results_eq($$select * from private.collection_order_intents order by collection_id,sequence$$,
+  $$select * from engine_intents_before order by collection_id,sequence$$,'Pure engine preserves actual journal');
+select results_eq($$select * from private.collection_operation_receipts order by collection_id,operation_id$$,
+  $$select * from engine_receipts_before order by collection_id,operation_id$$,'Pure engine preserves actual receipts');
 select * from finish();
 rollback;

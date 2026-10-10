@@ -97,10 +97,14 @@ try {
   assert.ok(loser.result)
   check(loser.result, { collection_id: winner.result.collection_id, created: false }, 'Loser retrieves exact winning UUID')
   await clients[loserIndex + 1]!.query('commit')
-  const stored = (await observer.query<{ id: string; name: string; applied_target_version: string }>(`select id,name,applied_target_version from public.collections
+  const stored = (await observer.query<{ id: string; name: string; applied_target_version: string; order_contract_version: number; personal_revision: string }>(`select id,name,applied_target_version,order_contract_version,personal_revision from public.collections
     where owner_id=$1 and target_pokemon_id=-82001`, [users[0]])).rows
-  check(stored, [{ id: winner.result.collection_id, name: winner.index === 0 ? 'Concurrent A' : 'Concurrent B', applied_target_version: '8' }],
-    'Exactly one parent, unchanged winning name and final committed sync version')
+  check(stored, [{ id: winner.result.collection_id, name: winner.index === 0 ? 'Concurrent A' : 'Concurrent B', applied_target_version: '8', order_contract_version: 2, personal_revision: '0' }],
+    'Exactly one contract-2/0 parent, unchanged winning name and final committed sync version')
+  check((await observer.query<{ intents: number; receipts: number }>(`select
+    (select count(*)::int from private.collection_order_intents where collection_id=$1) intents,
+    (select count(*)::int from private.collection_operation_receipts where collection_id=$1) receipts`, [winner.result.collection_id])).rows[0],
+  { intents: 0, receipts: 0 }, 'Concurrent creation generates no personal gesture or receipt')
   const items = (await observer.query<{ variant_id: string; origin: string; automatic_rank: string; sort_position: string }>(`select variant_id,origin,automatic_rank,sort_position::text from public.collection_items
     where collection_id=$1 order by automatic_rank`, [winner.result.collection_id])).rows
   check(items, [
@@ -124,6 +128,23 @@ try {
   if (exclusiveError) throw exclusiveError
   checks++
   await writer.query('commit')
+
+  // Existing v1 lookup must be independent of the new-parent default, including
+  // two simultaneous callers. Only this synthetic parent's contract is selected.
+  await observer.query(`insert into public.collections(owner_id,name,collection_type,automatic_target_type,target_set_id,applied_target_version,order_contract_version)
+    values($1,'Historical concurrent fixture','automatic','set',-82001,13,1)`, [users[1]])
+  const historical = (await observer.query<{ parent: { id: string } }>(`select to_jsonb(c) parent from public.collections c where owner_id=$1 and target_set_id=-82001`, [users[1]])).rows[0]
+  await session(first, users[1]!)
+  await session(second, users[1]!)
+  const existing = await Promise.all([create(first, 'Ignored A', 'set'), create(second, 'Ignored B', 'set')])
+  for (const result of existing) {
+    if (result.error) throw result.error
+    check(result.result, { collection_id: historical!.parent.id, created: false }, 'Simultaneous existing-v1 lookup preserves identity')
+  }
+  await first.query('commit')
+  await second.query('commit')
+  check((await observer.query<{ parent: { id: string } }>(`select to_jsonb(c) parent from public.collections c where id=$1`, [historical!.parent.id])).rows[0], historical,
+    'Existing-v1 lookup does not convert, rename or change revision')
   console.log(`PASS: ${checks} concurrency/locking checks; same UUID, one created=true, one created=false; independent owner and catalogue locks verified.`)
 } finally {
   // Release any pending operations first (bounded by statement_timeout).

@@ -22,5 +22,5 @@
     "noUncheckedSideEffectImports": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["vite.config.ts", "scripts/catalog/**/*.ts", "scripts/test-automatic-collection-concurrency.ts", "scripts/test-collection-reorder-concurrency.ts", "scripts/test-relative-order-writer-concurrency.ts", "scripts/test-manual-collection-items-v2-concurrency.ts", "scripts/test-manual-collection-removal-v2-concurrency.ts", "scripts/test-collection-operation-result-concurrency.ts", "scripts/test-collection-content-v2-api.ts"]
+  "include": ["vite.config.ts", "scripts/catalog/**/*.ts", "scripts/test-automatic-collection-concurrency.ts", "scripts/test-collection-reorder-concurrency.ts", "scripts/test-relative-order-writer-concurrency.ts", "scripts/test-manual-collection-items-v2-concurrency.ts", "scripts/test-manual-collection-removal-v2-concurrency.ts", "scripts/test-collection-operation-result-concurrency.ts", "scripts/test-collection-content-v2-api.ts", "scripts/test-order-contract-activation-api.ts"]
 }

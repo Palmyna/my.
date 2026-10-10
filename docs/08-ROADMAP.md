@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 7 terminées et validées. Version applicative `0.8.6`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Phase 8 — Actualisation, masquage et notifications : en développement ; 8A.1, algorithme 8A.2 et conception 8A.3 validés, R1–R4 acquis. Fondations persistantes, moteur interne, déplacement v2, ajout manuel avec invariant initial et retrait avec cycle de vie R3, puis consultation sécurisée des reçus livrés Local ; lecteur et services/hooks compatibles avec les deux contrats, mutations applicatives routées ; créations et collections réelles restent contrat 1 ; activation des nouvelles créations et validation finale en 8B.8.**
+**Phases 0 à 7 terminées et validées. Version applicative `0.8.7`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Phase 8 — Actualisation, masquage et notifications : en développement ; 8A.1, algorithme 8A.2 et conception 8A.3 validés, R1–R4 acquis. Fondations persistantes, moteur interne, déplacement v2, ajout manuel avec invariant initial et retrait avec cycle de vie R3, puis consultation sécurisée des reçus livrés Local ; lecteur et services/hooks compatibles avec les deux contrats, mutations applicatives routées ; bloc 8B terminé et validé Local ; nouvelles créations contrat 2, collections historiques contrat 1 conservées ; suite 8C, aucun déploiement Cloud Phase 8.**
 
 | Grandes phases | Statut |
 |---|---|
@@ -180,9 +180,9 @@ Précédente / Suivante, swipe entre cartes, séquence de navigation et navigati
 
 ### Phase 8 — Actualisation, masquage et notifications
 
-**Statut : EN DÉVELOPPEMENT — FONDATIONS LOCAL, AUCUNE NOUVELLE FONCTIONNALITÉ UTILISATEUR ACTIVÉE**
+**Statut : EN DÉVELOPPEMENT — 8B VALIDÉ LOCAL ; ACTUALISATION, MASQUAGE ET NOTIFICATIONS FUTURS**
 
-8A.1 consigne les décisions métier ; l'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) et ses arbitrages R1–R4 sont validés. La [conception technique 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) est validée. Première livraison de développement en **`0.8.0`** : [stockage PostgreSQL additif Local](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md), sans activation du contrat 2 ni comportement utilisateur nouveau. Le [moteur interne de fusion/rejeu](reports/2026-10-08-PHASE8B2-RELATIVE-ORDER-ENGINE.md) est livré en `0.8.1`. [Déplacement v2 et protection legacy](reports/2026-10-08-PHASE8B3-REORDER-WRITER-V2.md) livrés en `0.8.2`. [Ajout manuel v2 et invariant initial](reports/2026-10-09-PHASE8B4-MANUAL-ADD-V2.md) livrés en `0.8.3`. [Retrait manuel v2 et cycle de vie R3](reports/2026-10-09-PHASE8B5-MANUAL-REMOVAL-V2.md) livrés en `0.8.4`. [Consultation sécurisée 8B.6](reports/2026-10-09-PHASE8B6-OPERATION-RESULT.md) livrée Local : `get_collection_operation_result` retourne le résultat historique enregistré après autorisation actuelle, sans mutation. Trois writers v2 et reprise backend complète ; NULL ne permet pas de changer l’UUID d’une requête incertaine. [Intégration 8B.7](reports/2026-10-09-PHASE8B7-APPLICATION-INTEGRATION.md) livrée Local en `0.8.6` : lecteur v2 et services/hooks communs aux contrats 1/2, routage des trois writers et récupération des opérations incertaines. Nouvelles créations toujours contrat 1 ; activation et validation finale prévues en 8B.8. Collections utilisateur toujours contrat 1. 36 migrations appliquées Local ; Cloud toujours au dernier checkpoint propriétaire 29, sans accès distant pendant cette livraison.
+8A.1 consigne les décisions métier ; l’[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) et ses arbitrages R1–R4, puis la [conception technique 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md), sont validés. **8B terminée et validée Local** : persistance, moteur PostgreSQL, journal, writers, reçus, lecteur et intégration applicative livrés ; contrat 2 actif pour les nouvelles créations, contrat 1 conservé pour les anciennes. [Clôture 8B](reports/2026-10-10-PHASE8B8-CLOSURE.md). **Prochaine étape : 8C.** Actualisation automatique, masquage et notifications restent futurs ; aucun déploiement Cloud Phase 8.
 
 Trois fonctionnalités prévues : actualisation contrôlée des collections automatiques, masquage des cartes automatiques et centre de notifications interne.
 
@@ -208,8 +208,8 @@ Découpage prévisionnel, affinable avant chaque développement :
 | Bloc | Contenu |
 |---|---|
 | 8A | Cadrage documentaire, algorithme relatif, contrats techniques |
-| 8B | Persistance et réordonnancement relatif |
-| 8C | Masquage : base de données, droits et progression |
+| 8B | Persistance et réordonnancement relatif — **terminé, validé Local** |
+| 8C | Masquage : base de données, droits et progression — **prochaine étape** |
 | 8D | Masquage : vues Liste, Cartes et Classeur |
 | 8E | Détection et aperçu des actualisations |
 | 8F | Application transactionnelle et confirmation UI |
@@ -217,7 +217,7 @@ Découpage prévisionnel, affinable avant chaque développement :
 | 8H | Notifications : header, panneau, indicateurs |
 | 8I | Tests, audit, clôture et checkpoint Cloud |
 
-**8A reste uniquement documentaire et sa conception 8A.3 est validée.** 8B livre progressivement persistance, contrats, sécurité, concurrence, compatibilité et retour arrière ; activation des nouvelles créations encore séparée et à valider. Premières dépendances : B fournit journal/révision/reçus, gardes des writers et intégration applicative, C complète masquage/progression, E/F réutilisent ces fondations pour aperçu/application, G/H ajoutent backend puis centre de notifications. [Dépendances détaillées](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#13-dépendances-8b-à-8h-et-première-intervention-8b) dans le rapport, sans les transformer en nouvelles grandes phases. Phase 9 conserve la gestion complète des partages, Phase 10 la finalisation V1 et la production ; lecture partagée déjà livrée acquise.
+**8A reste uniquement documentaire et sa conception 8A.3 est validée.** 8B a livré persistance, contrats, sécurité, concurrence, compatibilité et activation des seules nouvelles créations ; audit Local terminé, collections historiques préservées. Premières dépendances : B fournit journal/révision/reçus, gardes des writers et intégration applicative, C complète masquage/progression, E/F réutilisent ces fondations pour aperçu/application, G/H ajoutent backend puis centre de notifications. [Dépendances détaillées](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#13-dépendances-8b-à-8h-et-première-intervention-8b) dans le rapport, sans les transformer en nouvelles grandes phases. Phase 9 conserve la gestion complète des partages, Phase 10 la finalisation V1 et la production ; lecture partagée déjà livrée acquise.
 
 ### Phase 9 — Partage des collections
 

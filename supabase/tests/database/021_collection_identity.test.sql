@@ -25,13 +25,14 @@ insert into public.source_cards(id,tcgdex_id,set_id,source_present,origin) overr
   values(-84501,'identity-fixture',-84501,true,'tcgdex');
 insert into public.catalog_variants(id,source_card_id,variant_key,source_present,origin) overriding system value
   values(-84501,-84501,'normal',true,'tcgdex');
-insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_pokemon_id,target_set_id,applied_target_version) values
-  ('c7d50000-0000-0000-0000-000000000001','a7d50000-0000-0000-0000-000000000001','Mono','automatic','pokemon',-84501,null,1),
-  ('c7d50000-0000-0000-0000-000000000002','a7d50000-0000-0000-0000-000000000001','Double','automatic','pokemon',-84502,null,1),
-  ('c7d50000-0000-0000-0000-000000000003','a7d50000-0000-0000-0000-000000000001','Extension','automatic','set',null,-84501,1),
-  ('c7d50000-0000-0000-0000-000000000004','a7d50000-0000-0000-0000-000000000001','Libre','free',null,null,null,null),
-  ('c7d50000-0000-0000-0000-000000000005','a7d50000-0000-0000-0000-000000000001','Sans types','automatic','pokemon',-84503,null,1),
-  ('c7d50000-0000-0000-0000-000000000006','a7d50000-0000-0000-0000-000000000003','Privée tierce','free',null,null,null,null);
+-- Historical fixture with no v2 journal.
+insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_pokemon_id,target_set_id,applied_target_version,order_contract_version) values
+  ('c7d50000-0000-0000-0000-000000000001','a7d50000-0000-0000-0000-000000000001','Mono','automatic','pokemon',-84501,null,1,1),
+  ('c7d50000-0000-0000-0000-000000000002','a7d50000-0000-0000-0000-000000000001','Double','automatic','pokemon',-84502,null,1,1),
+  ('c7d50000-0000-0000-0000-000000000003','a7d50000-0000-0000-0000-000000000001','Extension','automatic','set',null,-84501,1,1),
+  ('c7d50000-0000-0000-0000-000000000004','a7d50000-0000-0000-0000-000000000001','Libre','free',null,null,null,null,1),
+  ('c7d50000-0000-0000-0000-000000000005','a7d50000-0000-0000-0000-000000000001','Sans types','automatic','pokemon',-84503,null,1,1),
+  ('c7d50000-0000-0000-0000-000000000006','a7d50000-0000-0000-0000-000000000003','Privée tierce','free',null,null,null,null,1);
 insert into public.collection_items(collection_id,variant_id,origin,sort_position,automatic_rank)
 select id,-84501,'manual',1,null from public.collections where id::text like 'c7d50000-%';
 insert into public.physical_copies(user_id,variant_id) values

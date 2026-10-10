@@ -12,12 +12,12 @@ select col_not_null('public', 'collections', 'personal_revision', 'Revision requ
 select col_not_null('public', 'collections', 'order_contract_version', 'Contract required');
 select col_is_null('public', 'collection_items', 'introduced_revision', 'Introduction nullable');
 select col_default_is('public', 'collections', 'personal_revision', '0', 'Revision defaults zero');
-select col_default_is('public', 'collections', 'order_contract_version', '1', 'Contract defaults legacy');
+select col_default_is('public', 'collections', 'order_contract_version', '2', 'Contract defaults v2 after 8B.8 activation');
 select col_hasnt_default('public', 'collection_items', 'introduced_revision', 'No introduction backfill/default');
 select hasnt_column('public', 'collection_items', 'is_hidden', '8C field remains absent');
-select ok((select bool_and(order_contract_version=1 and personal_revision=0) from public.collections),
+select ok((select bool_and(order_contract_version=1 and personal_revision=0) from public.collections where owner_id='a1700000-0000-0000-0000-000000000001'),
   'All historical and fixture parents remain legacy at revision zero');
-select ok((select bool_and(introduced_revision is null) from public.collection_items),
+select ok((select bool_and(i.introduced_revision is null) from public.collection_items i join public.collections c on c.id=i.collection_id where c.owner_id='a1700000-0000-0000-0000-000000000001'),
   'Historical manual and automatic items need no introduction or journal');
 
 select throws_ok(format('update public.collections set personal_revision=%s where id=%L', v,
@@ -270,7 +270,7 @@ delete from public.collection_items where id='d1700000-0000-0000-0000-0000000000
 select is((select count(*) from private.collection_order_intents where collection_id='c1700000-0000-0000-0000-000000000001'),
   0::bigint,'Real removal of automatic subject cascades all repeated intentions');
 
--- Creation RPC remains legacy even when creating a fresh automatic parent.
+-- Creation paths now activate v2; historical fixtures above still exercise legacy.
 update public.catalog_variants set size='standard' where source_card_id=-87001;
 update public.automatic_target_states set content_hash=(select encode(extensions.digest(convert_to(
   '[' || coalesce(string_agg(to_json(variant_id::text)::text,',' order by automatic_rank),'') || ']', 'UTF8'),'sha256'),'hex')
@@ -279,19 +279,19 @@ create temp table created(collection_id uuid,created boolean);
 grant select,insert on created to authenticated;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"a1700000-0000-0000-0000-000000000003","aal":"aal2"}';
-insert into created select * from public.create_automatic_collection('Legacy created auto','set',-87001);
+insert into created select * from public.create_automatic_collection('New created auto','set',-87001);
 select ok((select created from created),'Existing automatic creation still creates');
-select ok((select order_contract_version=1 and personal_revision=0 from public.collections where id=(select collection_id from created)),
-  'New automatic parent still contract 1 at revision zero');
+select ok((select order_contract_version=2 and personal_revision=0 from public.collections where id=(select collection_id from created)),
+  'New automatic parent contract 2 at revision zero');
 select ok((select bool_and(introduced_revision is null) from public.collection_items where collection_id=(select collection_id from created)),
-  'New automatic items remain compatible with legacy schema');
-select lives_ok($$insert into public.collections(name,collection_type) values ('Legacy free creation','free')$$,
+  'Native automatic items need no manual introduction');
+select lives_ok($$insert into public.collections(name,collection_type) values ('New free creation','free')$$,
   'Existing column-limited free creation remains usable');
-select ok((select order_contract_version=1 and personal_revision=0 from public.collections where name='Legacy free creation'),
-  'New free parent still contract 1 at revision zero');
+select ok((select order_contract_version=2 and personal_revision=0 from public.collections where name='New free creation'),
+  'New free parent contract 2 at revision zero');
 reset role;
-select ok((select bool_and(order_contract_version=1 and personal_revision=0) from public.collections),
-  'No creation or legacy mutation activates v2 or increments revisions');
+select ok((select bool_and(order_contract_version=1 and personal_revision=0) from public.collections where owner_id='a1700000-0000-0000-0000-000000000001'),
+  'Legacy mutations preserve their original contract and revisions');
 
 delete from public.collections where id='c1700000-0000-0000-0000-000000000002';
 select is((select count(*) from private.collection_order_intents where collection_id='c1700000-0000-0000-0000-000000000002'),

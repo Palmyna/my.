@@ -22,11 +22,12 @@ insert into public.catalog_variants (id, source_card_id, variant_key, origin, so
 insert into public.card_pokemon values (-1, -1);
 insert into public.automatic_target_states (target_type, pokemon_id, generation_version, content_hash)
   values ('pokemon', -1, 1, 'synthetic-structure');
-insert into public.collections (id, owner_id, name, collection_type) values
-  ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Shared test', 'free'),
-  ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Private test', 'free');
-insert into public.collections (id, owner_id, name, collection_type, automatic_target_type, target_pokemon_id, applied_target_version)
-  values ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', 'Automatic test', 'automatic', 'pokemon', -1, 1);
+-- Historical fixture with no v2 journal.
+insert into public.collections(id, owner_id, name, collection_type,order_contract_version) values
+  ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Shared test', 'free',1),
+  ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Private test', 'free',1);
+-- Historical fixture with no v2 journal.
+insert into public.collections(id, owner_id, name, collection_type, automatic_target_type, target_pokemon_id, applied_target_version,order_contract_version) values ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', 'Automatic test', 'automatic', 'pokemon', -1, 1,1);
 insert into public.collection_items (id, collection_id, variant_id, origin, sort_position, automatic_rank) values
   ('30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', -1, 'manual', 1, null),
   ('30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', -2, 'manual', 1, null),
