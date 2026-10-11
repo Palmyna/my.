@@ -610,9 +610,11 @@ En 6F.3, la disparition autoritative de la ligne suffit comme feedback visuel ap
 
 ## Mise à jour d'une collection automatique
 
-**Décisions Phase 8 validées, interface non implémentée.** Une mise à jour disponible est signalée au propriétaire par le centre de notifications. D'autres indicateurs éventuels restent à préciser, sans devenir intrusifs.
+**Décisions Phase 8 validées ; composant de consultation livré Local en 8E (`0.8.10`), entrée utilisateur définitive future en 8F/8H.** `CollectionUpdatePreview` présente ajouts, retraits, conversions, rangs pertinents et ordre complet backend, avec métadonnées catalogue partagées. Cartes existantes/nouvelles distinguées, masquées et manuels inclus ; cible vide, absence de changement, chargement, erreur et indisponibilité explicites. Disclosure clavier et focus du titre contrôlé par le futur parcours ; responsive MY. Aucun bouton d’application, accès Dashboard ou appel réseau interne. [Clôture 8E](reports/2026-10-11-PHASE8E-CLOSURE.md).
 
-Avant toute application, le propriétaire ouvre un aperçu des cartes/variantes ajoutées, retirées, converties de manuelles en automatiques et des changements d'ordre pertinents. Consulter cet aperçu marque la notification lue, jamais traitée ni appliquée.
+Une mise à jour disponible sera signalée au propriétaire par le futur centre de notifications. D'autres indicateurs éventuels restent à préciser, sans devenir intrusifs.
+
+Avant toute application, le propriétaire ouvre un aperçu des cartes/variantes ajoutées, retirées, converties de manuelles en automatiques et des changements d'ordre pertinents. Dans le futur parcours 8G/8H, consulter cet aperçu marquera la notification lue, jamais traitée ni appliquée. 8E n’effectue aucun acquittement.
 
 L'action finale est explicite :
 
@@ -620,7 +622,7 @@ L'action finale est explicite :
 
 La collection n'est jamais mise à jour silencieusement. L'utilisateur reste maître de l'application et ne doit pas subir plusieurs confirmations successives après qu'un résumé clair lui a été présenté.
 
-L'application effective traite la notification. Un aperçu obsolète exige une nouvelle consultation avant confirmation. L'ordre suit les [règles relatives Phase 8 et R1–R4 validées](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8). La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#6-détection-aperçu-et-application) lie le plan aux versions canonique/appliquée et à la révision personnelle ; aucune application silencieuse d'un plan plus récent. Affichage réussi de l'aperçu → acquitter seulement la version effectivement vue ; un préchargement ou aperçu échoué ne marque pas automatiquement lue.
+L'application effective traite la notification. Un aperçu obsolète exige une nouvelle consultation avant confirmation. L'ordre suit les [règles relatives Phase 8 et R1–R4 validées](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8). La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#6-détection-aperçu-et-application) lie le plan aux versions canonique/appliquée et à la révision personnelle ; aucune application silencieuse d'un plan plus récent. Règle future 8G/8H : affichage réussi de l’aperçu → acquitter seulement la version effectivement vue ; un préchargement ou aperçu échoué ne marque pas automatiquement lue.
 
 ### Masquage et vues — livré en 8D
 

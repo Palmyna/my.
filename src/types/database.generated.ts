@@ -379,8 +379,14 @@ isOneToOne: true
 "get_collection_operation_result":
 { Args: { "p_collection_id": string,"p_operation_id": string }; Returns: Json
                            },
+"get_collection_update_status":
+{ Args: { "p_collection_id": string }; Returns: Json
+                           },
 "get_variant_detail":
 { Args: { "p_variant_id": number }; Returns: Json
+                           },
+"preview_collection_update":
+{ Args: { "p_collection_id": string }; Returns: Json
                            },
 "remove_manual_collection_item":
 { Args: { "p_collection_id": string,"p_collection_item_id": string }; Returns: undefined

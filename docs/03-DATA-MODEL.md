@@ -331,7 +331,7 @@ La détection seule ne modifie jamais la collection.
 
 Le modèle doit permettre d'identifier précisément les changements proposés afin de présenter un résumé avant leur application.
 
-8A.3 recommande un résumé calculé à la demande, sans table de previews : ajouts, retraits, conversions, changements de rang et séquence finale complète. Un token lie version appliquée, version/hash cible, révision personnelle et empreinte du plan. Aperçu et application partagent le même calcul autoritatif ; changement pertinent depuis l'aperçu → refus et nouvel aperçu. Les nouveaux UUID sont alloués à l'application, les items nouveaux étant identifiés par variante dans le plan. [Formats projetés](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#6-détection-aperçu-et-application).
+8E livre Local un résumé calculé à la demande, sans table de previews : ajouts, retraits, conversions, changements de rang et séquence finale complète. Un token lie version appliquée, version/hash cible, révision personnelle et empreinte du plan. L’aperçu réutilise le moteur PostgreSQL 8B.2 ; la future application 8F devra recalculer le même plan pour vérifier le token. Changement pertinent depuis l’aperçu → refus et nouvel aperçu en 8F. Les nouveaux UUID sont alloués à l'application, les items nouveaux étant identifiés par variante dans le plan. [Contrats de détection/aperçu livrés 8E](06-DATABASE.md#phase-8e--détection-et-aperçu-local), [clôture 8E](reports/2026-10-11-PHASE8E-CLOSURE.md). La version appliquée n’est jamais avancée par une lecture, même si le catalogue revient à sa structure ancienne.
 
 ### Application d'une mise à jour
 
@@ -591,7 +591,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les éventuelles exigences légales/rétentions particulières liées à la suppression, sans remettre en question le périmètre fonctionnel validé ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
-- les APIs futures d’aperçu/application d’actualisation et de notifications selon 8A.3 ; le socle d’ordre relatif 8B et le masquage/progression 8C sont livrés Local, ainsi que l’interface et les filtres 8D ; contrat 2 activé pour les nouveaux parents ;
+- les APIs futures d’application d’actualisation et de notifications selon 8A.3 ; détection/aperçu livrés Local en 8E ; le socle d’ordre relatif 8B et le masquage/progression 8C sont livrés Local, ainsi que l’interface et les filtres 8D ; contrat 2 activé pour les nouveaux parents ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;

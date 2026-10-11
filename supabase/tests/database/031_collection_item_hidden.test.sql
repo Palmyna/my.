@@ -42,7 +42,7 @@ create temp table before_order as select array_agg(id order by sort_position,id)
 
 select col_not_null('public','collection_items','is_hidden','Hidden NOT NULL');
 select col_default_is('public','collection_items','is_hidden','false','New items default visible');
-select ok(not exists(select 1 from public.collection_items where is_hidden),'Historical and fixture items visible by default');
+select ok(not exists(select 1 from public.collection_items where collection_id::text like 'c250%' and is_hidden),'New fixture items visible by default; existing masks preserved');
 select ok(prosecdef and provolatile='v' and proconfig @> array['search_path=""']
   and pronargdefaults=0 and prorettype='jsonb'::regtype,'Hide volatile definer, empty path, JSONB, no defaults')
   from pg_proc where oid='public.set_collection_item_hidden(uuid,uuid,boolean,bigint,uuid)'::regprocedure;

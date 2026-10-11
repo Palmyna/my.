@@ -69,7 +69,7 @@ reset role;
 select results_eq($$select to_jsonb(i) from public.collection_items i where collection_id='c2500000-0000-0000-0000-000000000001' order by id$$,
   $$select to_jsonb(s) from seed_items s where collection_id='c2500000-0000-0000-0000-000000000001' order by id$$,'Legacy refusals write no item');
 select is((select personal_revision from public.collections where id='c2500000-0000-0000-0000-000000000003'),0::bigint,'Legacy revision remains zero');
-select is((select count(*) from private.collection_operation_receipts),0::bigint,'Legacy success/refusals create no receipt');
+select is((select count(*) from private.collection_operation_receipts where collection_id='c2500000-0000-0000-0000-000000000001'),0::bigint,'Legacy success/refusals create no receipt');
 
 -- One real authenticated v2 success, strict result and R1 mixed suffix.
 set local role authenticated;
@@ -97,16 +97,16 @@ begin
   return next is(response,jsonb_build_object('operation_id',pg_temp.operation(100),'outcome',case when changed then 'changed' else 'noop' end,
     'personal_revision',case when changed then '3' else '2' end,'collection_item_id',pg_temp.item(n)),label || ' strict response');
   return next is((select personal_revision from public.collections where id='c2500000-0000-0000-0000-000000000001'),case when changed then 3 else 2 end::bigint,label || ' one revision or R4 none');
-  return next is((select count(*) from private.collection_order_intents where kind='move'),case when changed then 1 else 0 end::bigint,label || ' one intent or R4 none');
-  return next is((select count(*) from private.collection_operation_receipts),1::bigint,label || ' one durable receipt');
+  return next is((select count(*) from private.collection_order_intents where collection_id='c2500000-0000-0000-0000-000000000001' and kind='move'),case when changed then 1 else 0 end::bigint,label || ' one intent or R4 none');
+  return next is((select count(*) from private.collection_operation_receipts where collection_id='c2500000-0000-0000-0000-000000000001'),1::bigint,label || ' one durable receipt');
   if changed then
-    return next is((select anchor_item_id from private.collection_order_intents where kind='move'),pg_temp.item(normalized),label || ' normalized anchor');
-    return next is((select destination from private.collection_order_intents where kind='move'),case when normalized is null then 'end' else 'before' end,label || ' normalized destination');
+    return next is((select anchor_item_id from private.collection_order_intents where collection_id='c2500000-0000-0000-0000-000000000001' and kind='move'),pg_temp.item(normalized),label || ' normalized anchor');
+    return next is((select destination from private.collection_order_intents where collection_id='c2500000-0000-0000-0000-000000000001' and kind='move'),case when normalized is null then 'end' else 'before' end,label || ' normalized destination');
     select coalesce(array_agg(pg_temp.item(f) order by ord),'{}'::uuid[]) into suffix from unnest(fallback) with ordinality u(f,ord);
-    return next is((select fallback_item_ids from private.collection_order_intents where kind='move'),suffix,label || ' exact R1 suffix');
+    return next is((select fallback_item_ids from private.collection_order_intents where collection_id='c2500000-0000-0000-0000-000000000001' and kind='move'),suffix,label || ' exact R1 suffix');
   end if;
   return next is(pg_temp.move(n,placement,anchor),response,label || ' identical retry');
-  return next is((select count(*) from private.collection_order_intents where kind='move'),case when changed then 1 else 0 end::bigint,label || ' retry has no double intent');
+  return next is((select count(*) from private.collection_order_intents where collection_id='c2500000-0000-0000-0000-000000000001' and kind='move'),case when changed then 1 else 0 end::bigint,label || ' retry has no double intent');
 end;
 $$;
 select pg_temp.check_move(n,p,a,expected,normalized,fallback) from (values
@@ -131,7 +131,7 @@ insert into result_store values ('epoch3',pg_temp.move(5,'end',null,4,103));
 select is(pg_temp.fixture_order(),array[1,3,2,4,5],'Repeated subject moves retain other gesture');
 select is((select fallback_item_ids from private.collection_order_intents where operation_id=pg_temp.operation(101)),array[pg_temp.item(2),pg_temp.item(3),pg_temp.item(4)],'Old context unchanged after later moves');
 select is((select fallback_item_ids from private.collection_order_intents where operation_id=pg_temp.operation(102)),array[pg_temp.item(4)],'R1 uses personalized pre-gesture order, not canonical ranks');
-select results_eq($$select sequence,subject_item_id from private.collection_order_intents where kind='move' order by sequence$$,
+select results_eq($$select sequence,subject_item_id from private.collection_order_intents where collection_id='c2500000-0000-0000-0000-000000000001' and kind='move' order by sequence$$,
   $$values (3::bigint,pg_temp.item(5)),(4::bigint,pg_temp.item(3)),(5::bigint,pg_temp.item(5))$$,'Chronology complete, same subject retained twice');
 select is(array(
   select (v->>'collection_item_id')::uuid from jsonb_array_elements(private.merge_collection_relative_order(
@@ -174,7 +174,7 @@ from (values
   (quote_literal(pg_temp.item(6)),quote_literal('start'),'null','2',quote_literal(pg_temp.operation(105)),'P0002','collection_item_unavailable','Foreign subject'),
   (quote_literal(pg_temp.item(1)),quote_literal('before'),quote_literal(pg_temp.item(99)),'2',quote_literal(pg_temp.operation(105)),'P0002','collection_item_unavailable','Absent anchor'),
   (quote_literal(pg_temp.item(1)),quote_literal('after'),quote_literal(pg_temp.item(6)),'2',quote_literal(pg_temp.operation(105)),'P0002','collection_item_unavailable','Foreign anchor')) v(subject,placement,anchor,revision,operation,code,message,label);
-select is((select count(*) from private.collection_operation_receipts),0::bigint,'Invalid operations leave no receipt');
+select is((select count(*) from private.collection_operation_receipts where collection_id='c2500000-0000-0000-0000-000000000001'),0::bigint,'Invalid operations leave no receipt');
 select is(pg_temp.fixture_order(),array[1,2,3,4,5],'Invalid operations leave full order unchanged');
 
 -- R4 ties are not a gesture or a reason to rewrite positions. Precision/edge
@@ -182,13 +182,13 @@ select is(pg_temp.fixture_order(),array[1,2,3,4,5],'Invalid operations leave ful
 update public.collection_items set sort_position=1 where collection_id='c2500000-0000-0000-0000-000000000001';
 select is(pg_temp.move(3,'after',2)->>'outcome','noop','Tied-order satisfied after is R4 noop');
 select is((select count(distinct sort_position) from public.collection_items where collection_id='c2500000-0000-0000-0000-000000000001'),1::bigint,'Noop performs no numerical repair');
-select is((select count(*) from private.collection_order_intents where kind='move'),0::bigint,'Tied noop creates no intent');
+select is((select count(*) from private.collection_order_intents where collection_id='c2500000-0000-0000-0000-000000000001' and kind='move'),0::bigint,'Tied noop creates no intent');
 select is(pg_temp.move(3,'after',2), (select result from private.collection_operation_receipts where operation_id=pg_temp.operation(100)),'Noop receipt retry persistent');
 insert into result_store values ('noop',pg_temp.move(3,'after',2));
 select is(pg_temp.move(5,'start',null,2,110)->>'personal_revision','3','Genuine move repairs ties with one revision');
 select is(pg_temp.fixture_order(),array[5,1,2,3,4],'Tie repair preserves R2 permutation');
 select is(pg_temp.move(3,'after',2),(select result from result_store where label='noop'),'Noop retry after another mutation returns old revision, no write');
-select is((select count(*) from private.collection_order_intents where kind='move'),1::bigint,'Noop retry never gains intent after numeric repair');
+select is((select count(*) from private.collection_order_intents where collection_id='c2500000-0000-0000-0000-000000000001' and kind='move'),1::bigint,'Noop retry never gains intent after numeric repair');
 select pg_temp.reset_fixture();
 update public.collection_items set sort_position=1.00000000000000000001 where id=pg_temp.item(2);
 select is(pg_temp.move(5,'before',2)->>'outcome','changed','Precision exhaustion changes permutation');
@@ -224,8 +224,8 @@ create trigger test_fail_receipt before insert on private.collection_operation_r
 select throws_ok($$select pg_temp.move(5,'start')$$,'XX000','phase8_operation_unexpected','Internal injected error sanitized');
 select is(pg_temp.fixture_order(),array[1,2,3,4,5],'Injected failure restores full order');
 select is((select personal_revision from public.collections where id='c2500000-0000-0000-0000-000000000001'),2::bigint,'Injected failure restores revision');
-select is((select count(*) from private.collection_order_intents where kind='move'),0::bigint,'Injected failure leaves no intent');
-select is((select count(*) from private.collection_operation_receipts),0::bigint,'Injected failure leaves no success receipt');
+select is((select count(*) from private.collection_order_intents where collection_id='c2500000-0000-0000-0000-000000000001' and kind='move'),0::bigint,'Injected failure leaves no intent');
+select is((select count(*) from private.collection_operation_receipts where collection_id='c2500000-0000-0000-0000-000000000001'),0::bigint,'Injected failure leaves no success receipt');
 drop trigger test_fail_receipt on private.collection_operation_receipts;
 
 -- Receipt authorization checked NOW, not the owner when acceptance occurred.

@@ -9,6 +9,7 @@ import { collectionBigint, collectionUuid, personalRevision } from '../../lib/co
 import { useAuth } from '../auth/auth-context'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey, collectionStructureMutationKey } from './collection-query'
+import { invalidateCollectionUpdateQueries } from './collection-update-query'
 
 export type CollectionStructureAction = { type: 'move'; move: ItemMove }
   | { type: 'add'; variantId: string; placement: ManualItemPlacement }
@@ -80,6 +81,7 @@ function keys(request: Request) {
     ...(request.action.type === 'move' ? [] : [collectionOverviewKey(viewerId, collectionId), dashboardCollectionsKey(viewerId)])]
 }
 async function reread(client: QueryClient, request: Request) {
+  await invalidateCollectionUpdateQueries(client, request.viewerId, request.collectionId)
   await rereadKeys(client, keys(request))
 }
 async function rereadKeys(client: QueryClient, queryKeys: readonly (readonly unknown[])[]) {

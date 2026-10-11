@@ -88,7 +88,8 @@ insert into private.collection_order_intents(collection_id,sequence,operation_id
    'd1700000-0000-0000-0000-000000000001','move','end',null,'{}');
 select is((select count(*) from private.collection_order_intents where subject_item_id='d1700000-0000-0000-0000-000000000001'),
   2::bigint, 'Repeated subjects and sequence gaps preserve full chronology');
-create temp table intent_seed as select to_jsonb(i) data from private.collection_order_intents i where sequence=1;
+create temp table intent_seed as select to_jsonb(i) data from private.collection_order_intents i
+  where collection_id='c1700000-0000-0000-0000-000000000001' and sequence=1;
 
 -- Each failed insert has a fresh identity unless deliberately testing uniqueness.
 select throws_ok(format('insert into private.collection_order_intents select * from jsonb_populate_record(null::private.collection_order_intents,%L::jsonb)',
@@ -116,7 +117,7 @@ from intent_seed cross join (values
 ) invalid(label,patch,code);
 select throws_ok($$insert into private.collection_order_intents select collection_id,30,gen_random_uuid(),subject_item_id,
   kind,destination,anchor_item_id,'[0:0]={d1700000-0000-0000-0000-000000000004}'::uuid[],accepted_at
-  from private.collection_order_intents where sequence=1$$, '23514', null, 'Noncanonical array bounds refused');
+  from private.collection_order_intents where collection_id='c1700000-0000-0000-0000-000000000001' and sequence=1$$, '23514', null, 'Noncanonical array bounds refused');
 insert into public.collection_items(id,collection_id,variant_id,origin,sort_position) values
   ('d1700000-0000-0000-0000-000000000005','c1700000-0000-0000-0000-000000000002',-87002,'manual',1);
 select lives_ok($$insert into private.collection_order_intents values
@@ -145,7 +146,8 @@ from (values
 insert into private.collection_operation_receipts(collection_id,operation_id,kind,request_hash,accepted_revision,result) values
   ('c1700000-0000-0000-0000-000000000001','e1700000-0000-0000-0000-000000000001','move',repeat('a',64),0,
    '{"outcome":"noop","personal_revision":"0"}');
-create temp table receipt_seed as select to_jsonb(r) data from private.collection_operation_receipts r;
+create temp table receipt_seed as select to_jsonb(r) data from private.collection_operation_receipts r
+  where collection_id='c1700000-0000-0000-0000-000000000001';
 select throws_ok(format('insert into private.collection_operation_receipts select * from jsonb_populate_record(null::private.collection_operation_receipts,%L::jsonb)',
   data || jsonb_build_object('operation_id',gen_random_uuid()) || patch), code, null, label)
 from receipt_seed cross join (values

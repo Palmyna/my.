@@ -6,7 +6,7 @@ Ce document constitue la source de vérité concernant le schéma PostgreSQL / S
 
 Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), la [politique TCGdex](02-TCGDEX.md), les [principes UX/UI](04-UX-UI.md) et l'[architecture technique](05-ARCHITECTURE.md).
 
-Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. **Phase 7 terminée et validée : 29 migrations Local / 29 Cloud**, alignées jusqu’à `20261007085921`. Les 29 fichiers sont présents et appliqués Local ; les six migrations Phase 7 sont déployées selon le checkpoint manuel communiqué par le propriétaire après 7G.1. Aucun accès Cloud en 7G.2. Le [rapport de clôture](reports/2026-10-08-PHASE7-CLOSURE.md) distingue preuves locales, audit acquis et confirmations Cloud. **Phase 8B terminée et validée Local en `0.8.7`.** Moteur PostgreSQL de fusion/rejeu, journal chronologique, trois writers v2, reçus idempotents, lecteur et services/hooks communs livrés. Contrat 2 actif exclusivement pour les nouvelles créations libres et automatiques ; contrat 1 conservé pour les collections existantes, sans conversion. `sort_position` reste l’unique ordre affiché. **Phase 8C terminée et validée Local en `0.8.8` : masquage persistant, progression autoritative et services/hooks de mutation livrés.** **Interface de masquage et filtres livrés Local en 8D (`0.8.9`). Prochaine étape : 8E**, détection et aperçu des actualisations. Actualisation automatique (8E/8F) et notifications restent futures. Aucun déploiement Cloud Phase 8. [Rapport de clôture 8C](reports/2026-10-10-PHASE8C-CLOSURE.md). Historique courant : **40 migrations appliquées Local**, dernier checkpoint Cloud propriétaire : **29**, sans accès distant pendant 8B/8C/8D. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
+Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase local. **Phase 7 terminée et validée : 29 migrations Local / 29 Cloud**, alignées jusqu’à `20261007085921`. Les 29 fichiers sont présents et appliqués Local ; les six migrations Phase 7 sont déployées selon le checkpoint manuel communiqué par le propriétaire après 7G.1. Aucun accès Cloud en 7G.2. Le [rapport de clôture](reports/2026-10-08-PHASE7-CLOSURE.md) distingue preuves locales, audit acquis et confirmations Cloud. **Phase 8B terminée et validée Local en `0.8.7`.** Moteur PostgreSQL de fusion/rejeu, journal chronologique, trois writers v2, reçus idempotents, lecteur et services/hooks communs livrés. Contrat 2 actif exclusivement pour les nouvelles créations libres et automatiques ; contrat 1 conservé pour les collections existantes, sans conversion. `sort_position` reste l’unique ordre affiché. **Phase 8C terminée et validée Local en `0.8.8` : masquage persistant, progression autoritative et services/hooks de mutation livrés.** **Interface de masquage et filtres livrés Local en 8D (`0.8.9`). Détection, aperçu pur et token de confirmation livrés Local en 8E (`0.8.10`).** Application transactionnelle future en 8F ; notifications et entrée utilisateur définitive futures en 8G/8H. Aucune collection modifiée automatiquement. Aucun déploiement Cloud Phase 8. [Rapport de clôture 8C](reports/2026-10-10-PHASE8C-CLOSURE.md). Historique courant : **42 migrations appliquées Local**, dernier checkpoint Cloud propriétaire : **29**, sans accès distant pendant 8B/8C/8D/8E. Ce document distingue les opérations livrées des opérations utilisateur futures. Les choix explicitement laissés ouverts à la fin du document ne doivent pas être inventés.
 
 ## Socle SQL de Phase 1
 
@@ -1171,7 +1171,51 @@ Rollback futur, non exécuté : migration additive désactivant les deux chemins
 
 [Rapport de clôture](reports/2026-10-10-PHASE8B8-CLOSURE.md) : coexistence, R1–R4, parcours UI, concurrence, sécurité et intégrité Local. Aucun masquage, aperçu/application d’actualisation ou notification livré.
 
-## Contrats projetés Phase 8 — non implémentés
+## Phase 8E — Détection et aperçu Local
+
+Version **0.8.10**, [clôture 8E](reports/2026-10-11-PHASE8E-CLOSURE.md). Deux migrations additives créées avec la CLI, appliquées uniquement Local sans reset : [lecteurs/plan](../supabase/migrations/20261011065009_phase8e_collection_update_preview.sql) et [garde terminale de conflit](../supabase/migrations/20261011070549_phase8e_context_conflict_guard.sql). Aucun nouveau stockage métier ni writer. Moteur 8B.2, writers d’ordre/ajout/retrait/masquage et données existantes conservés.
+
+`public.get_collection_update_status(p_collection_id uuid) returns jsonb` retourne exactement `{collection_id,order_contract_version,applied_target_version,target_version,target_hash,update_available}`. Propriétaire AAL2 avec profil, parent automatique, legacy consultable. Les versions BIGINT sont des chaînes décimales. Une version supérieure est seulement candidate : automatiques actuels triés par `automatic_rank` comparés au canonique courant ordonné et hashé. Égalité après retour du catalogue → false, sans avancer `applied_target_version`. Aucune comparaison de `sort_position`, aucun effet des libellés/images/raretés seuls. Cible/état absent, version régressée, hash incorrect, rangs appliqués non continus ou univers différent sous la même version → erreur assainie.
+
+`public.preview_collection_update(p_collection_id uuid) returns jsonb` retourne exactement `{collection_id,token,update_available,target_empty,added,removed,converted,rank_changes,final_order}`. Même propriétaire/AAL2/profil, automatique **contrat 2 seulement**. Les deux RPC sont VOLATILE SECURITY DEFINER (`search_path=''`), EXECUTE authenticated seul, READ COMMITTED. Le contexte privé prend le verrou partagé catalogue `771402` avant le parent FOR UPDATE, puis relit propriétaire/profil/versions après attente. Aucun privilège direct API sur les nouveaux helpers/types privés.
+
+`private.read_collection_update_context` matérialise une fois le canonique vérifié, tous les items (identités/origines/rangs/introductions/masques) et toutes les intentions vivantes ordonnées par séquence. Le canonique appliqué vient des automatiques présents/rangs, sans archives de catalogue. Le contexte vérifie également les introductions/séquences bornées par la révision personnelle ; le moteur contrôle leur cohérence complète. `private.collection_update_plan` appelle **une fois** le moteur 8B.2 inchangé, retire seulement la trace interne `replay`, puis produit enveloppe/token. Les intentions propres d’un automatique retiré n’agissent plus ; les autres références UUID historiques restent utilisables par R1. R2 conserve les masqués ; R3 conserve les UUID/introduction/intentions des conversions ; R4 conserve la chronologie intégrale sans geste artificiel.
+
+| Liste | Clés exactes par entrée |
+|---|---|
+| `added` | `variant_id:string, automatic_rank:string` ; aucune identité allouée |
+| `removed`, `converted` | `collection_item_id:uuid, variant_id:string, automatic_rank:string` |
+| `rank_changes` | `collection_item_id:uuid, variant_id:string, previous_rank:string, next_rank:string` |
+| `final_order` | `collection_item_id:uuid/null, variant_id:string, origin:manual/automatic, automatic_rank:string/null, is_hidden:boolean` |
+
+Retraits triés par ancien rang ; ajouts/conversions/changements par rang cible ; séquence finale exactement celle du moteur. Identités/variantes uniques, classifications disjointes. Automatique conservé masqué → masque conservé ; nouvel automatique ou conversion → visible. Les nouveaux UUID sont NULL dans l’ordre final, identifiés par variante. Cible vide : tous les retraits explicites, manuels survivants conservés, parent jamais supprimé. Nouvelle création sur cible vide toujours refusée. Sans delta canonique utile, `update_available=false` et toutes les listes de changement sont vides ; aucun parcours d’application ne doit être forcé.
+
+### Sérialisation du token de confirmation, format 1
+
+Token strict `{contract_version:1,applied_target_version:string,target_version:string,target_hash:string,personal_revision:string,plan_hash:string}`. **1 est la version du format de calcul**, distincte du contrat d’ordre 2 du parent. Pas d’expiration, timestamp décoratif, aléatoire ou table de previews. Le token ne remplace jamais l’autorisation.
+
+`private.collection_update_plan_hash` calcule SHA-256, hexadécimal minuscule, sur **UTF-8 du texte PostgreSQL JSONB** du tuple positionnel suivant. Les espaces produits par `jsonb::text` font partie du format 1 ; il ne s’agit pas du JSON compact du hash catalogue.
+
+```text
+["my.collection-update-plan", 1, collection_uuid,
+  added.map([variant_id, automatic_rank]),
+  removed.map([collection_item_id, variant_id, automatic_rank]),
+  converted.map([collection_item_id, variant_id, automatic_rank]),
+  rank_changes.map([collection_item_id, variant_id, previous_rank, next_rank]),
+  final_order.map([collection_item_id/null, variant_id, origin, automatic_rank/null, is_hidden])]
+```
+
+Toutes les valeurs BIGINT sont des chaînes canoniques exactes, UUID canoniques PostgreSQL, origines des chaînes, masque booléen. Seul le numéro de format est numérique. Aucun objet dans le tuple final : ordre des champs fixe ; ordre de chaque tableau préservé, vides représentés par `[]`, absence d’identité/rang par `null`. Identités existantes, ajouts par variante, conversions, retraits, rangs, masquages et permutation sont liés à l’empreinte. Libellés, métadonnées descriptives, exemplaires et notes exclus. Golden indépendant : tuple parent `c3500000-0000-0000-0000-000000000001` avec cinq tableaux vides → `d3b3d15061db8d6721b1ad5f7b33fcd96adb1105b96380c5e06696d2aa5cbef7`.
+
+Même structure → même plan/hash ; révision personnelle ou version/hash cible différents → token différent, même si le hash du plan reste identique. Nouvelle intention pertinente → calcul refait via le même moteur. **8F devra relire le même contexte et recalculer le même plan/hash, puis comparer exactement les six champs** avant toute application. 8E n’alloue aucun UUID, n’écrit aucun item/ordre/intention/révision/reçu/version appliquée, ne touche aucune copie/note et n’acquitte aucune notification.
+
+Erreurs sûres : `42501/collection_update_unavailable`, `23514/collection_update_ineligible`, `23514/order_contract_upgrade_required`, `23514/collection_update_state_invalid`, conflit/attente `40001/collection_structure_conflict` (helper 8B.8, HTTP 409), erreur interne `XX000/collection_update_unexpected`. Détails du moteur non exposés. Services `collection-update` et types générés Local : décodeurs stricts, BIGINT exacts, champs supplémentaires/doublons/rangs/classifications incohérents refusés. Clés statut/aperçu viewer/parent ; options désactivées par défaut, refetch explicite, sans polling/focus/reconnexion/prefetch. Mutations structurelles invalident ces deux clés sans refetch ; 8F réutilisera ces invalidations avec contenu/ordre/overview/Dashboard. Aucun cache notification introduit.
+
+Retour arrière logiciel : fermer les consommateurs ou révoquer EXECUTE des deux RPC dans une migration additive future, garder toutes les données et compatibilités. Aucune contraction exécutée. Application transactionnelle **8F**, notifications et suivi **8G/8H** restent futurs.
+
+<a id="contrats-projetés-phase-8--non-implémentés"></a>
+
+## Contrats Phase 8 — livraisons Local et développements futurs
 
 ### Livraison Local 8C — masquage et progression
 
@@ -1207,8 +1251,8 @@ Retour arrière logiciel futur : fermer seulement la nouvelle mutation par révo
 | API projetée | Paramètres / retour recommandés |
 |---|---|
 | `get_collection_content_v2` — livré 8B.7, adapté 8C Local | Parent → NULL invisible ou `{order_contract_version,personal_revision,items}` ; items = 15 clés 7F.1 + `is_hidden`, séquence complète autoritative. Depuis C, booléen persisté, sans filtre ni modification de la forme JSON. Lecture invoker sous RLS ; payload v1 conservé pour anciens décodeurs. |
-| `get_collection_update_status` | Parent automatique propriétaire → versions appliquée/cible, hash cible, mode et disponibilité. Écart de versions signale candidat ; égalité de listes canoniques après retour de structure rend le delta inutile/notification obsolète, sans avancer silencieusement version appliquée. |
-| `preview_collection_update` | Parent automatique v2 propriétaire → token, ajouts/retraits/conversions/changements de rang et ordre final complet. Aucun item/UUID nouveau persisté ; aucune lecture automatique par prefetch. |
+| `get_collection_update_status` — livré 8E Local | Parent automatique propriétaire → versions appliquée/cible, hash cible, mode et disponibilité. Écart de versions signale candidat ; égalité de listes canoniques après retour de structure rend le delta inutile/notification obsolète, sans avancer silencieusement version appliquée. |
+| `preview_collection_update` — livré 8E Local | Parent automatique v2 propriétaire → token, ajouts/retraits/conversions/changements de rang et ordre final complet. Aucun item/UUID nouveau persisté ; aucune lecture automatique par prefetch. |
 | `apply_collection_update` | Parent, token strict, UUID d'opération → version/révision acceptées et correspondances nouveaux UUID. Calcul identique à l'aperçu, contrôle de concurrence, application/reçu atomiques ; copies/notes intactes. |
 | `set_collection_item_hidden` — livré 8C Local | Parent/item, état booléen demandé, révision attendue, UUID d'opération → MutationResult changed/noop ; propriétaire automatique v2 seulement, manuel refusé. |
 
@@ -1646,10 +1690,10 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
-- les APIs futures d’aperçu/application d’actualisation et notifications selon 8A.3 ; le socle d’ordre relatif 8B, lecteur et writers compris, est livré et activé Local pour les nouveaux parents ;
+- les APIs futures d’application d’actualisation et notifications selon 8A.3 ; détection et aperçu livrés Local en 8E ; le socle d’ordre relatif 8B, lecteur et writers compris, est livré et activé Local pour les nouveaux parents ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
-- le code des RPC futures d’actualisation et notifications ; signatures recommandées dans les contrats projetés et le rapport 8A.3 ;
+- le code des RPC futures d’application d’actualisation et notifications ; signatures recommandées dans les contrats projetés et le rapport 8A.3 ;
 - les éventuelles exigences légales/rétentions particulières liées à la suppression ;
 - la politique opérationnelle de sauvegarde ;
 - les besoins futurs éventuels d'historique ;
@@ -1659,6 +1703,6 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 
 Le schéma de MY. repose sur une variante définie une fois dans le catalogue, référencée indépendamment par les collections et par les exemplaires physiques. Les exemplaires sont globaux au compte ; possession et progression sont dérivées. Depuis 8C, les automatiques masqués sont exclus des deux comptes, en conservant les manuels.
 
-Les collections automatiques sont matérialisées et versionnées par cible. Une évolution descriptive du catalogue est visible immédiatement, tandis qu'un changement de structure produit un nouveau hash et une nouvelle version. La preview et l'application explicitement validée et transactionnelle restent projetées en Phase 8. La conversion prévue manuel vers automatique évite les doublons, et tout retrait structurel préserve les exemplaires.
+Les collections automatiques sont matérialisées et versionnées par cible. Une évolution descriptive du catalogue est visible immédiatement, tandis qu'un changement de structure produit un nouveau hash et une nouvelle version. Détection et preview pures sont livrées Local en 8E. L’application explicitement validée et transactionnelle reste future en 8F. La conversion prévue manuel vers automatique évite les doublons, et tout retrait structurel préserve les exemplaires.
 
 La RLS protège les données utilisateur, les écritures du catalogue restent privilégiées, les migrations sont versionnées dans Git et le schéma reste compact pour la phase initiale. Aucun mécanisme Premium ou paiement n'est ajouté à la V1.

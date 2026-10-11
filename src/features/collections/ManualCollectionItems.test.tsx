@@ -238,7 +238,7 @@ test.each(['end', 'start'] as const)('selection only, default Fin, %s add exact 
   for (const key of [collectionContentKey('owner', 'collection'), collectionItemOrderKey('owner', 'collection'), collectionOverviewKey('owner', 'collection'), dashboardCollectionsKey('owner')]) {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: key, exact: true })
   }
-  expect(invalidate).toHaveBeenCalledTimes(4)
+  expect(invalidate).toHaveBeenCalledTimes(6)
   expect(client.getQueryData(copiesKey)).toEqual([{ id: 'copy', name: 'Conservé' }])
   expect(client.getQueryState(copiesKey)?.isInvalidated).toBe(false)
   expect(client.getQueryState(collectionContentKey('someone-else', 'collection'))?.isInvalidated).toBe(false)
@@ -256,7 +256,7 @@ test.each<[CollectionItemsErrorCode, string]>([
   expect(await screen.findByRole('alert')).toHaveTextContent(message)
   expect(screen.getByRole('dialog')).toBeVisible()
   expect(screen.getByRole('radio', { name: 'Fin' })).toBeChecked()
-  expect(invalidate).toHaveBeenCalledTimes(4)
+  expect(invalidate).toHaveBeenCalledTimes(6)
   fireEvent.click(button('Retour aux résultats'))
   expect(screen.getByRole('searchbox', { name: 'Rechercher une carte' })).toHaveFocus()
   await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
@@ -364,7 +364,7 @@ test('remove confirmation protects physical copies; exact item id, invalidations
   await screen.findByText('Cette collection ne contient encore aucune carte.')
   await waitFor(() => expect(button('Ajouter une carte')).toHaveFocus())
   expect(remove).toHaveBeenCalledExactlyOnceWith('collection', item.collectionItemId)
-  expect(invalidate).toHaveBeenCalledTimes(4)
+  expect(invalidate).toHaveBeenCalledTimes(6)
   expect(client.getQueryData(copiesKey)).toEqual(['unchanged'])
   expect(client.getQueryState(copiesKey)?.isInvalidated).toBe(false)
   expect(screen.getByText('Carte retirée. Vos exemplaires sont conservés.')).toHaveClass('visually-hidden')

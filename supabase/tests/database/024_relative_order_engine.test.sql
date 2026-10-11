@@ -328,8 +328,8 @@ select throws_ok($$select private.merge_collection_relative_order('80000000-0000
   '42501',null,'Actual service_role call refused');
 reset role;
 select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-  where n.nspname='public' and p.proname in ('merge_collection_relative_order','preview_collection_update',
-    'apply_collection_update')),'No public engine/preview/apply writer; hiding delivered separately in 8C');
+  where n.nspname='public' and p.proname in ('merge_collection_relative_order',
+    'apply_collection_update')),'No public engine/apply writer; pure preview delivered separately in 8E');
 select results_eq($$select id,order_contract_version,personal_revision from public.collections order by id$$,
   $$select * from engine_parents_before order by id$$,'Pure engine preserves every actual parent contract/revision');
 select results_eq($$select * from private.collection_order_intents order by collection_id,sequence$$,
