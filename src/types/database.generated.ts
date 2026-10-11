@@ -385,11 +385,26 @@ isOneToOne: true
 "get_collection_update_status":
 { Args: { "p_collection_id": string }; Returns: Json
                            },
+"get_notification_center":
+{ Args: { "p_cursor"?: Json,"p_limit"?: number }; Returns: Json
+                           },
+"get_notification_content":
+{ Args: { "p_announcement_id": string }; Returns: Json
+                           },
+"get_notification_unread_count":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "get_variant_detail":
 { Args: { "p_variant_id": number }; Returns: Json
                            },
+"mark_notification_read":
+{ Args: { "p_notification_key": string,"p_observed_revision": string }; Returns: Json
+                           },
 "preview_collection_update":
 { Args: { "p_collection_id": string }; Returns: Json
+                           },
+"process_announcement_notification":
+{ Args: { "p_announcement_id": string,"p_observed_hash": string }; Returns: Json
                            },
 "remove_manual_collection_item":
 { Args: { "p_collection_id": string,"p_collection_item_id": string }; Returns: undefined

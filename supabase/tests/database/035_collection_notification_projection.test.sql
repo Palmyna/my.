@@ -163,6 +163,6 @@ set local role authenticated;
 select throws_ok($q$select * from private.read_collection_update_notifications('a2500000-0000-0000-0000-000000000003')$q$,'42501',null,'Private function cannot be exploited with another owner');
 reset role;
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'
-  and p.proname in('get_notification_center','get_notification_unread_count','get_notification_content','mark_notification_read','process_announcement_notification')),0,'No 8G.2 API introduced');
+  and p.proname in('get_notification_center','get_notification_unread_count','get_notification_content','mark_notification_read','process_announcement_notification')),5,'8G.2 APIs now wrap the unchanged private projection');
 select * from finish();
 rollback;
