@@ -591,7 +591,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les éventuelles exigences légales/rétentions particulières liées à la suppression, sans remettre en question le périmètre fonctionnel validé ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
-- l’intégration applicative de l’actualisation et les APIs futures de notifications selon 8A.3 ; writer SQL d’application livré Local en 8F.1 ; détection/aperçu livrés Local en 8E ; le socle d’ordre relatif 8B et le masquage/progression 8C sont livrés Local, ainsi que l’interface et les filtres 8D ; contrat 2 activé pour les nouveaux parents ;
+- le parcours UI de confirmation de l’actualisation et les APIs futures de notifications selon 8A.3 ; writer SQL d’application livré Local en 8F.1 ; détection/aperçu livrés Local en 8E ; le socle d’ordre relatif 8B et le masquage/progression 8C sont livrés Local, ainsi que l’interface et les filtres 8D ; contrat 2 activé pour les nouveaux parents ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;

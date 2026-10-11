@@ -14,6 +14,19 @@ export interface CollectionUpdateToken {
   personalRevision: string
   planHash: string
 }
+// Original validation context, retained with the exact UUID/token until resolved.
+export interface CollectionUpdateApplyRequest {
+  operationId: string
+  token: CollectionUpdateToken
+  addedVariantIds: string[]
+}
+export interface CollectionUpdateApplyResult {
+  operationId: string
+  outcome: 'applied'
+  personalRevision: string
+  appliedTargetVersion: string
+  createdItems: { variantId: string; collectionItemId: string }[]
+}
 export interface CollectionUpdateAddition { variantId: string; automaticRank: string }
 export interface CollectionUpdateExisting extends CollectionUpdateAddition { collectionItemId: string }
 export interface CollectionUpdateRankChange {

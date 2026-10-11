@@ -5,6 +5,8 @@ import type { CollectionMutationResult, CollectionOperation, ItemMove, ManualCol
 import { collectionUuid, personalRevision } from '../lib/collection-contract'
 import { variantIdString } from '../lib/variant-id'
 import { getSupabaseClient } from './supabase'
+import { decodeCollectionUpdateApplyResult } from './collection-update'
+import type { CollectionUpdateApplyResult } from '../types/collection-update'
 
 export type CollectionItemsErrorCode = 'not_authorized' | 'item_unavailable' | 'order_conflict' | 'unexpected'
   | 'collection_action_unavailable' | 'manual_item_invalid_placement' | 'manual_variant_unavailable'
@@ -55,8 +57,9 @@ function validateOperation(collectionId: string, operation: Extract<CollectionOp
     || !personalRevision.safeParse(operation.expectedRevision).success) throw new CollectionItemsError('collection_operation_invalid')
 }
 
-export function validateCollectionOperationResult(result: CollectionMutationResult,
+export function validateCollectionOperationResult(result: CollectionMutationResult | CollectionUpdateApplyResult,
   operation: Extract<CollectionOperation, { orderContractVersion: 2 }>, kind: 'move' | 'add' | 'remove' | 'hide', itemId: string | null) {
+  if (result.outcome === 'applied') throw new CollectionItemsError('phase8_operation_unexpected')
   const revision = BigInt(operation.expectedRevision) + (result.outcome === 'changed' ? 1n : 0n)
   if (result.operationId.toLowerCase() !== operation.operationId.toLowerCase()
     || result.collectionItemId === null || (itemId && result.collectionItemId.toLowerCase() !== itemId.toLowerCase())
@@ -113,7 +116,7 @@ async function manualRequest<T>(operation: () => Promise<T>): Promise<T> {
 
 export function createCollectionItemsService(client: SupabaseClient<Database>) {
   const manualClient = client as unknown as SupabaseClient<ManualCollectionItemsDatabase>
-  async function operationResult(collectionId: string, operationId: string): Promise<CollectionMutationResult | null> {
+  async function operationResult(collectionId: string, operationId: string): Promise<CollectionMutationResult | CollectionUpdateApplyResult | null> {
     if (!collectionUuid.safeParse(collectionId).success || !collectionUuid.safeParse(operationId).success) {
       throw new CollectionItemsError('collection_operation_invalid')
     }
@@ -122,7 +125,12 @@ export function createCollectionItemsService(client: SupabaseClient<Database>) {
         p_collection_id: collectionId, p_operation_id: operationId,
       })
       if (error) throw error
-      return data === null ? null : decodeCollectionMutationResult(data, operationId)
+      if (data === null) return null
+      if (typeof data === 'object' && !Array.isArray(data) && data.outcome === 'applied') {
+        try { return decodeCollectionUpdateApplyResult(data, operationId) }
+        catch { throw new CollectionItemsError('phase8_operation_unexpected') }
+      }
+      return decodeCollectionMutationResult(data, operationId)
     } catch (error) { throw v2Error(error) }
   }
   async function v2Request(collectionId: string, operation: Extract<CollectionOperation, { orderContractVersion: 2 }>,
@@ -142,7 +150,7 @@ export function createCollectionItemsService(client: SupabaseClient<Database>) {
       if (mapped.code !== 'operation_uncertain') throw mapped
       try {
         const receipt = await operationResult(collectionId, operation.operationId)
-        if (receipt) return result({ operation_id: receipt.operationId, outcome: receipt.outcome,
+        if (receipt && receipt.outcome !== 'applied') return result({ operation_id: receipt.operationId, outcome: receipt.outcome,
           personal_revision: receipt.personalRevision, collection_item_id: receipt.collectionItemId })
       } catch { /* Preserve original request on unavailable/invalid receipt. */ }
       throw new CollectionItemsError('operation_uncertain')

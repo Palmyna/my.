@@ -14,7 +14,7 @@ export function collectionUpdatePreviewOptions(viewerId: string | undefined, col
   return queryOptions({ ...consultation, queryKey: collectionUpdatePreviewKey(viewerId,collectionId),
     queryFn: () => { if (!viewerId) throw new CollectionUpdateError('not_authorized'); return previewCollectionUpdate(collectionId) } })
 }
-// Reorder/add/remove/hide now; future application uses this same invalidation
+// Reorder/add/remove/hide/apply share this same invalidation
 // alongside existing content/order/overview/dashboard keys. No notifications.
 export async function invalidateCollectionUpdateQueries(client: QueryClient, viewerId: string, collectionId: string) {
   const filters = [collectionUpdateStatusKey(viewerId,collectionId),collectionUpdatePreviewKey(viewerId,collectionId)]
