@@ -1,0 +1,12 @@
+{
+  "publication_key": "example.announcement.1",
+  "category": "announcement",
+  "title": "Exemple d’annonce",
+  "body": "Texte informatif de démonstration.\nÀ remplacer avant toute publication autorisée.",
+  "app_version": null,
+  "action": { "kind": "notification_content" },
+  "requires_action": false,
+  "include_new_users": false,
+  "expires_at": null,
+  "publication_context": { "reason": "Exemple documentaire", "include_new_users_justification": null }
+}

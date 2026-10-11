@@ -1,15 +1,13 @@
 import { z } from 'zod'
 import { collectionUuid, personalRevision } from './collection-contract'
+import { notificationDate, notificationInstant, notificationSemver as semver } from './notification-scalars.ts'
+export { notificationDate, notificationInstant } from './notification-scalars.ts'
 
 export const notificationUuid = collectionUuid.refine(value => value === value.toLowerCase())
 const uuidPattern = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 export const notificationKeySchema = z.string().regex(new RegExp(`^(collection|announcement):${uuidPattern}$`))
 export const notificationHash = z.string().regex(/^[a-f0-9]{64}$/)
 export const notificationVersion = personalRevision.refine(value => value !== '0')
-export const notificationDate = z.iso.datetime({ offset: true })
-  .regex(/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,6})?(Z|[+-](0[0-9]|1[0-5]):[0-9]{2})$/)
-  .refine(value => !value.startsWith('0000-') && Number.isFinite(Date.parse(value)))
-const semver = z.string().max(64).regex(/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/)
 const plainText = (max: number) => z.string().refine(value => /\S/.test(value)
   && Array.from(value.replace(/^ +| +$/g, '')).length <= max)
 const common = { notification_key: notificationKeySchema, revision: z.string(), state: z.enum(['unread', 'read']),
@@ -35,11 +33,6 @@ export const notificationContentSchema = z.discriminatedUnion('kind', [
 export const notificationCursorSchema = z.strictObject({ updatedAt: notificationDate, notificationKey: notificationKeySchema })
 const wireCursor = z.strictObject({ updated_at: notificationDate, notification_key: notificationKeySchema })
 
-// Compare exact PostgreSQL microseconds; Date alone loses pagination precision.
-export function notificationInstant(value: string): bigint {
-  const fraction = value.match(/\.(\d+)/)?.[1] ?? ''
-  return BigInt(Date.parse(value.replace(/\.\d+/, ''))) * 1000n + BigInt(fraction.padEnd(6, '0'))
-}
 export const notificationCenterSchema = z.strictObject({ items: z.array(notificationItemSchema).max(50),
   unread_count: personalRevision, next_cursor: wireCursor.nullable(),
 }).refine(row => {

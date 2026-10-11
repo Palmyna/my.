@@ -1,0 +1,12 @@
+{
+  "publication_key": "example.changelog.0.8.16",
+  "category": "changelog",
+  "title": "Exemple de changelog 0.8.16",
+  "body": "Exemple documentaire du contenu d’une version.\nDécrire les changements destinés aux utilisateurs.",
+  "app_version": "0.8.16",
+  "action": null,
+  "requires_action": false,
+  "include_new_users": true,
+  "expires_at": null,
+  "publication_context": { "reason": "Exemple documentaire", "include_new_users_justification": "Information importante encore actuelle pour les nouveaux inscrits" }
+}

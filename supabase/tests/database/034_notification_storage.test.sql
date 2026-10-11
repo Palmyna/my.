@@ -135,8 +135,9 @@ select throws_ok($q$select * from private.notification_announcements$q$,'42501',
 select throws_ok($q$insert into private.collection_notification_reads values('c3500000-0000-0000-0000-000000000001',1,now())$q$,'42501',null,'Browser cannot acknowledge directly');
 select throws_ok($q$delete from private.notification_announcement_states$q$,'42501',null,'Browser cannot delete states');
 reset role;
-select ok(not exists(select 1 from pg_roles where rolname='my_notification_publisher'),'No operator role in 8G.1');
-select ok(to_regprocedure('private.publish_notification_announcement(jsonb)') is null,'No publication function in 8G.1');
+select ok(exists(select 1 from pg_roles where rolname='my_notification_publisher' and not rolbypassrls and not rolsuper),'8G.3 dedicated operator stays unprivileged');
+select ok(to_regprocedure('private.publish_notification_announcement(jsonb)') is not null
+  and not has_function_privilege('authenticated','private.publish_notification_announcement(jsonb)','EXECUTE'),'8G.3 publication remains private and closed to users');
 
 delete from public.collections where id='c3500000-0000-0000-0000-000000000001';
 select is((select count(*)::int from private.collection_notification_reads where collection_id='c3500000-0000-0000-0000-000000000001'),0,'Fixture collection cascades read state');
