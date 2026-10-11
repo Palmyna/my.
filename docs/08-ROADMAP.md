@@ -180,9 +180,9 @@ Précédente / Suivante, swipe entre cartes, séquence de navigation et navigati
 
 ### Phase 8 — Actualisation, masquage et notifications
 
-**Statut : EN DÉVELOPPEMENT — 8B/8C/8D/8E VALIDÉS LOCAL ; APPLICATION EN COURS, NOTIFICATIONS FUTURES**
+**Statut : EN DÉVELOPPEMENT — 8B/8C/8D/8E/8F VALIDÉS LOCAL ; BACKEND NOTIFICATIONS EN COURS**
 
-8A.1 consigne les décisions métier ; l’[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) et ses arbitrages R1–R4, puis la [conception technique 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md), sont validés. **8B terminée et validée Local** : persistance, moteur PostgreSQL, journal, writers, reçus, lecteur et intégration applicative livrés ; contrat 2 actif pour les nouvelles créations, contrat 1 conservé pour les anciennes. [Clôture 8B](reports/2026-10-10-PHASE8B8-CLOSURE.md). **8C terminée et validée Local** : masquage persistant, progression autoritative et services/hooks livrés. [Clôture 8C](reports/2026-10-10-PHASE8C-CLOSURE.md). **8D terminée et validée Local** : actions Liste/Cartes, filtres communs, reorder R2 et Classeur compacté. [Clôture 8D](reports/2026-10-10-PHASE8D-CLOSURE.md). **8E terminée et validée Local** : détection autoritative, aperçu pur, plan/token de confirmation et composant de consultation réutilisable. [Clôture 8E](reports/2026-10-11-PHASE8E-CLOSURE.md). **8F terminée et validée Local** : application transactionnelle, services/reprise et parcours explicitement confirmé livrés. [Clôture 8F](reports/2026-10-11-PHASE8F3-CLOSURE.md). Notifications 8G/8H futures ; aucun déploiement Cloud Phase 8.
+8A.1 consigne les décisions métier ; l’[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) et ses arbitrages R1–R4, puis la [conception technique 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md), sont validés. **8B terminée et validée Local** : persistance, moteur PostgreSQL, journal, writers, reçus, lecteur et intégration applicative livrés ; contrat 2 actif pour les nouvelles créations, contrat 1 conservé pour les anciennes. [Clôture 8B](reports/2026-10-10-PHASE8B8-CLOSURE.md). **8C terminée et validée Local** : masquage persistant, progression autoritative et services/hooks livrés. [Clôture 8C](reports/2026-10-10-PHASE8C-CLOSURE.md). **8D terminée et validée Local** : actions Liste/Cartes, filtres communs, reorder R2 et Classeur compacté. [Clôture 8D](reports/2026-10-10-PHASE8D-CLOSURE.md). **8E terminée et validée Local** : détection autoritative, aperçu pur, plan/token de confirmation et composant de consultation réutilisable. [Clôture 8E](reports/2026-10-11-PHASE8E-CLOSURE.md). **8F terminée et validée Local** : application transactionnelle, services/reprise et parcours explicitement confirmé livrés. [Clôture 8F](reports/2026-10-11-PHASE8F3-CLOSURE.md). [Fondations backend des notifications livrées Local](reports/2026-10-11-PHASE8G1-NOTIFICATION-FOUNDATIONS.md) ; 8G reste en cours, interface 8H future ; aucun déploiement Cloud Phase 8.
 
 Trois fonctionnalités prévues : actualisation contrôlée des collections automatiques, masquage des cartes automatiques et centre de notifications interne.
 
@@ -213,7 +213,7 @@ Découpage prévisionnel, affinable avant chaque développement :
 | 8D | Masquage : vues Liste, Cartes et Classeur — **terminé, validé Local** |
 | 8E | Détection et aperçu des actualisations — **terminé, validé Local** |
 | 8F | Application transactionnelle et confirmation UI — **terminé, validé Local** |
-| 8G | Notifications : backend, cycle de vie, publication |
+| 8G | Notifications : backend, cycle de vie, publication — **en cours Local** |
 | 8H | Notifications : header, panneau, indicateurs |
 | 8I | Tests, audit, clôture et checkpoint Cloud |
 

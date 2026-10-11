@@ -399,7 +399,7 @@ Desktop/tablette large : page 1 seule à droite, puis 2–3, 4–5 ; dernière p
 
 ## Centre de notifications — décisions Phase 8
 
-**Planifié, non implémenté.** Centre interne à MY. uniquement : aucun push système, notification navigateur externe ou email. Cloche dans le header entre recherche globale et menu du compte, badge du nombre de non lues, panneau de consultation et navigation adaptée à chaque notification.
+**Centre planifié ; fondations backend livrées Local en 8G.1 (`0.8.14`).** Centre interne à MY. uniquement : aucun push système, notification navigateur externe ou email. Cloche dans le header entre recherche globale et menu du compte, badge du nombre de non lues, panneau de consultation et navigation adaptée à chaque notification.
 
 Trois types initiaux : mise à jour disponible pour une collection automatique ; changelog ou nouvelle version de MY. ; annonce générale (maintenance, information importante, etc.). Le modèle reste extensible sans implémenter d'autres catégories maintenant.
 
@@ -419,7 +419,7 @@ Une seule notification active par collection, destinée au propriétaire. De nou
 
 Une consultation suffit normalement à les rendre lus et traités. Une annonce nécessitant une action peut rester en attente. Les utilisateurs déjà inscrits reçoivent les nouvelles annonces même déconnectés ; les nouveaux inscrits ne reçoivent pas automatiquement les annonces/changelogs anciens. Exception possible : annonce importante encore d'actualité visible aux nouveaux utilisateurs.
 
-Stockage et suivi individuel via Supabase. Publication par commande ou script sécurisé, utilisable depuis le terminal ou par Codex ; aucune interface d'administration, aucun secret administratif frontend, aucun droit de publication administrative pour les utilisateurs ordinaires. La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#8-notifications-et-publication) recommande événements de collection dérivés des versions, annonces communes avec ciblage par date d'inscription et suivi individuel à la lecture, puis publication transactionnelle par rôle PostgreSQL dédié. Aucun mécanisme implémenté. Les notifications de partage ne sont pas ajoutées au périmètre Phase 9.
+Stockage et suivi individuel via Supabase. Publication par commande ou script sécurisé, utilisable depuis le terminal ou par Codex ; aucune interface d'administration, aucun secret administratif frontend, aucun droit de publication administrative pour les utilisateurs ordinaires. La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#8-notifications-et-publication) recommande événements de collection dérivés des versions, annonces communes avec ciblage par date d'inscription et suivi individuel à la lecture, puis publication transactionnelle par rôle PostgreSQL dédié. [8G.1](reports/2026-10-11-PHASE8G1-NOTIFICATION-FOUNDATIONS.md) livre les trois stockages privés et la projection des mises à jour de collection, sans RPC utilisateur ni acquittement automatique de l’aperçu. Centre, transitions et services restent pour 8G.2 ; publication sécurisée pour 8G.3. Les notifications de partage ne sont pas ajoutées au périmètre Phase 9.
 
 ## Partage d'une collection
 
