@@ -1,14 +1,15 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { useNavigate } from 'react-router'
 import { isValidCollectionName } from '../../lib/collection-name'
 import { CollectionsError, deleteCollection, renameCollection } from '../../services/collections'
-import type { DashboardCollection } from '../../types/collections'
+import type { CollectionOverview, DashboardCollection } from '../../types/collections'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
-import { collectionOverviewKey } from './collection-query'
+import { collectionOverviewKey, collectionStructureMutationKey } from './collection-query'
+import { CollectionUpdateDialog } from './CollectionUpdateDialog'
 
 type Action = 'rename' | 'delete'
-type Props = { collection: DashboardCollection; userId: string; unavailable: () => void }
+type Props = { collection: CollectionOverview; userId: string; unavailable: () => void }
 
 function CollectionActionDialog({ collection, userId, unavailable, action, trigger, close }: Props & {
   action: Action; trigger: RefObject<HTMLButtonElement | null>; close: () => void
@@ -132,7 +133,10 @@ function CollectionActionDialog({ collection, userId, unavailable, action, trigg
 
 export function CollectionActions(props: Props) {
   const [open, setOpen] = useState(false)
-  const [action, setAction] = useState<Action | null>(null)
+  const [action, setAction] = useState<Action | 'update' | null>(null)
+  const [updateOpener, setUpdateOpener] = useState<HTMLButtonElement | null>(null)
+  const busy = useIsMutating({ mutationKey: collectionStructureMutationKey(props.userId, props.collection.collectionId), exact: true }) > 0
+  const canUpdate = props.collection.access === 'owned' && props.collection.ownerId === props.userId && props.collection.collectionType === 'automatic'
   const trigger = useRef<HTMLButtonElement>(null)
   const container = useRef<HTMLDivElement>(null)
   const first = useRef<HTMLButtonElement>(null)
@@ -161,9 +165,12 @@ export function CollectionActions(props: Props) {
     </button>
     {open && <div className="collection-actions-panel" id={id} role="group" aria-label="Actions de la collection">
       <button ref={first} type="button" onClick={() => { setOpen(false); setAction('rename') }}>Renommer</button>
+      {canUpdate && <button type="button" disabled={busy} onClick={() => { setUpdateOpener(trigger.current); setOpen(false); setAction('update') }}>Vérifier les mises à jour</button>}
       <hr />
-      <button className="collection-delete-option" type="button" onClick={() => { setOpen(false); setAction('delete') }}>Supprimer la collection</button>
+      <button className="collection-delete-option" type="button" disabled={busy} onClick={() => { setOpen(false); setAction('delete') }}>Supprimer la collection</button>
     </div>}
-    {action && <CollectionActionDialog {...props} action={action} trigger={trigger} close={() => setAction(null)} />}
+    {action === 'update' ? <CollectionUpdateDialog viewerId={props.userId} collectionId={props.collection.collectionId}
+      opener={updateOpener} onClose={() => setAction(null)} unavailable={props.unavailable} />
+      : action && <CollectionActionDialog {...props} action={action} trigger={trigger} close={() => setAction(null)} />}
   </div>
 }

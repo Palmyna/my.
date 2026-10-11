@@ -5,7 +5,7 @@ import { CollectionsError, getCollectionOverview } from '../../services/collecti
 import { useAuth } from '../auth/auth-context'
 import { CollectionProgress } from './CollectionProgress'
 import { collectionPresentation } from './collection-presentation'
-import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey } from './collection-query'
+import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey, collectionUpdatePreviewKey, collectionUpdateStatusKey } from './collection-query'
 import { CollectionContentLoader } from './CollectionContentLoader'
 import { CollectionActions } from './CollectionActions'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
@@ -42,7 +42,8 @@ export function CollectionPage() {
     if (isAuthorized && !overview.isError && !mutationUnavailable) return
     // Unmount private rows/dialogs immediately; cancel before clearing so late
     // responses cannot repopulate the revoked collection's cache.
-    for (const queryKey of [collectionContentKey(user?.id, collectionId), collectionItemOrderKey(user?.id, collectionId)]) {
+    for (const queryKey of [collectionContentKey(user?.id, collectionId), collectionItemOrderKey(user?.id, collectionId),
+      collectionUpdatePreviewKey(user?.id, collectionId), collectionUpdateStatusKey(user?.id, collectionId)]) {
       void client.cancelQueries({ queryKey, exact: true })
       client.removeQueries({ queryKey, exact: true })
     }

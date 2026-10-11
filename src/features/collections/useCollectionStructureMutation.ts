@@ -248,10 +248,10 @@ export function useCollectionStructureMutation(viewerId: string, collectionId: s
     } catch { return false }
     finally { running.current = false; occupied.delete(key) }
   }
-  async function refresh() {
+  async function refresh(): Promise<boolean> {
     const lockKey = resourceKey(viewerId, collectionId), occupied = locks(client)
     if (!active.current || !scope.current.authorized || scope.current.viewerId !== viewerId || scope.current.collectionId !== collectionId
-      || !isAuthorized || user?.id !== viewerId || running.current || occupied.has(lockKey) || client.isMutating({ mutationKey, exact: true })) return
+      || !isAuthorized || user?.id !== viewerId || running.current || occupied.has(lockKey)) return false
     occupied.add(lockKey)
     running.current = true
     try {
@@ -260,7 +260,7 @@ export function useCollectionStructureMutation(viewerId: string, collectionId: s
       try {
         request = client.getQueryData<CollectionContent>(collectionContentKey(viewerId, collectionId))?.orderContractVersion === 1
           ? map.get(key) : retainedRequest(map, key)
-      } catch { return }
+      } catch { return false }
       if (request?.operation.orderContractVersion === 2) {
         if (!request.confirmed) {
           try {
@@ -279,11 +279,26 @@ export function useCollectionStructureMutation(viewerId: string, collectionId: s
           } catch { /* Unavailable/absent receipt retains the exact request. */ }
         }
         await reread(client, request)
-        if (request.confirmed && readsConfirmed(client, request)) { forgetRequest(map, key); mutation.reset() }
+        if (request.confirmed && readsConfirmed(client, request)) { forgetRequest(map, key); mutation.reset(); return true }
       } else {
         await rereadKeys(client, [collectionContentKey(viewerId, collectionId), collectionItemOrderKey(viewerId, collectionId)])
       }
+      return false
     } finally { running.current = false; occupied.delete(lockKey) }
+  }
+  // Recovery is part of the same exclusion as writers, including receipt lookup
+  // and rereads. Expose only its kind/confirmation, never the stored token.
+  const recoveryMutation = useMutation({ mutationKey, mutationFn: refresh, retry: false })
+  function recovery() {
+    if (!isAuthorized || user?.id !== viewerId) return null
+    try {
+      const request = retainedRequest(requests(client), resourceKey(viewerId, collectionId))
+      return request ? { type: request.action.type, confirmed: request.confirmed } : null
+    } catch { return { type: 'unknown' as const, confirmed: false } }
+  }
+  async function recover() {
+    if (client.isMutating({ mutationKey, exact: true })) return false
+    try { return await recoveryMutation.mutateAsync() } catch { return false }
   }
   async function retry() {
     if (!isAuthorized || user?.id !== viewerId) return false
@@ -292,6 +307,6 @@ export function useCollectionStructureMutation(viewerId: string, collectionId: s
       return request ? await submit(request.action) : false
     } catch { return false }
   }
-  return { submit, refresh, retry, busy, pending: mutation.isPending,
-    error: mutation.error, reset: mutation.reset }
+  return { submit, refresh: recover, retry, recovery: recovery(), busy, pending: mutation.isPending || recoveryMutation.isPending,
+    error: mutation.error ?? recoveryMutation.error, reset: mutation.reset }
 }

@@ -170,7 +170,7 @@ test('receipt consultation/recovery also excludes an ordinary submission across 
   const original = apply.mock.calls[0]![1]
   let finish!: () => void
   lookup.mockImplementationOnce(() => new Promise(resolve => { finish = () => resolve(accepted(original)) }))
-  let refreshing!: Promise<void>; act(() => { refreshing = hook.result.current.update.refresh() })
+  let refreshing!: Promise<boolean>; act(() => { refreshing = hook.result.current.update.refresh() })
   await waitFor(() => expect(lookup).toHaveBeenCalledOnce())
   expect(await run(() => hook.result.current.ordinary.submit(addAction))).toBe(false)
   await act(async () => { finish(); await refreshing })
