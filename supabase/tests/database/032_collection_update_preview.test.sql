@@ -130,7 +130,7 @@ select is((select array_agg(key order by key) from jsonb_object_keys((select pla
 select is(private.collection_update_plan_hash('c3500000-0000-0000-0000-000000000001',
   '{"added":[],"removed":[],"converted":[],"rank_changes":[],"final_order":[]}'::jsonb),
   'd3b3d15061db8d6721b1ad5f7b33fcd96adb1105b96380c5e06696d2aa5cbef7','Version 1 serialization golden SHA256 from independent Node crypto');
-select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='apply_collection_update'),'8F absent');
+select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='collection_update_plan'),'Shared update planner remains private');
 select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in('public','private') and p.proname in('get_collection_update_status','preview_collection_update','read_collection_update_context','collection_update_plan','collection_update_plan_hash')
   and pg_get_functiondef(p.oid) ~* '(insert into|update public|delete from|gen_random_uuid|uuid_generate|nextval)'), 'No reader contains business DML or UUID/sequence allocator');
 select ok(p.provolatile='v' and p.prosecdef and p.proconfig @> array['search_path=""'],p.proname||' safe definer/volatile') from pg_proc p

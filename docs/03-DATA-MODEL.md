@@ -234,7 +234,7 @@ Une collection par extension peut inclure toutes les catégories présentes dans
 
 Sa structure est **matérialisée** : les éléments générés sont enregistrés dans la collection. Elle n'est pas recalculée dynamiquement à chaque affichage à partir de l'état courant du catalogue.
 
-Cette matérialisation rend possible le processus de mise à jour validé pour la Phase 8, encore non implémenté :
+Cette matérialisation rend possible le processus de mise à jour validé pour la Phase 8, livré côté SQL en 8F.1 mais sans parcours utilisateur :
 
 1. la collection est générée avec l'état courant du catalogue ;
 2. ses éléments automatiques sont enregistrés ;
@@ -331,7 +331,7 @@ La détection seule ne modifie jamais la collection.
 
 Le modèle doit permettre d'identifier précisément les changements proposés afin de présenter un résumé avant leur application.
 
-8E livre Local un résumé calculé à la demande, sans table de previews : ajouts, retraits, conversions, changements de rang et séquence finale complète. Un token lie version appliquée, version/hash cible, révision personnelle et empreinte du plan. L’aperçu réutilise le moteur PostgreSQL 8B.2 ; la future application 8F devra recalculer le même plan pour vérifier le token. Changement pertinent depuis l’aperçu → refus et nouvel aperçu en 8F. Les nouveaux UUID sont alloués à l'application, les items nouveaux étant identifiés par variante dans le plan. [Contrats de détection/aperçu livrés 8E](06-DATABASE.md#phase-8e--détection-et-aperçu-local), [clôture 8E](reports/2026-10-11-PHASE8E-CLOSURE.md). La version appliquée n’est jamais avancée par une lecture, même si le catalogue revient à sa structure ancienne.
+8E livre Local un résumé calculé à la demande, sans table de previews : ajouts, retraits, conversions, changements de rang et séquence finale complète. Un token lie version appliquée, version/hash cible, révision personnelle et empreinte du plan. L’aperçu réutilise le moteur PostgreSQL 8B.2 ; le writer SQL [8F.1](reports/2026-10-11-PHASE8F1-APPLY-WRITER.md) recalcule ce même plan pour vérifier le token. Changement pertinent depuis l’aperçu → refus et nouvel aperçu en 8F. Les nouveaux UUID sont alloués à l'application, les items nouveaux étant identifiés par variante dans le plan. [Contrats de détection/aperçu livrés 8E](06-DATABASE.md#phase-8e--détection-et-aperçu-local), [clôture 8E](reports/2026-10-11-PHASE8E-CLOSURE.md). La version appliquée n’est jamais avancée par une lecture, même si le catalogue revient à sa structure ancienne.
 
 ### Application d'une mise à jour
 
@@ -591,7 +591,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les éventuelles exigences légales/rétentions particulières liées à la suppression, sans remettre en question le périmètre fonctionnel validé ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
-- les APIs futures d’application d’actualisation et de notifications selon 8A.3 ; détection/aperçu livrés Local en 8E ; le socle d’ordre relatif 8B et le masquage/progression 8C sont livrés Local, ainsi que l’interface et les filtres 8D ; contrat 2 activé pour les nouveaux parents ;
+- l’intégration applicative de l’actualisation et les APIs futures de notifications selon 8A.3 ; writer SQL d’application livré Local en 8F.1 ; détection/aperçu livrés Local en 8E ; le socle d’ordre relatif 8B et le masquage/progression 8C sont livrés Local, ainsi que l’interface et les filtres 8D ; contrat 2 activé pour les nouveaux parents ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;
