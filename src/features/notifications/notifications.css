@@ -23,6 +23,8 @@
 .notification-item h3 { margin: 4px 0; font-size: .85rem; font-weight: 400; }
 .notification-item[data-state="unread"] h3 { font-weight: 600; }
 .notification-item time { color: var(--text-muted); font-size: .7rem; }
+.notification-item-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.notification-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
 .notification-pagination { display: grid; justify-items: start; gap: 8px; margin-top: 16px; }
 .notification-count-retry { margin-top: 12px; }
 @media (max-width: 1100px) {

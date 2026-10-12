@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { NotificationCenter, NotificationCursor, NotificationItem } from '../../types/notifications'
-import { notificationCenterKey, notificationCenterOptions, notificationUnreadCountOptions } from './notification-query'
+import { notificationCenterKey, notificationCenterOptions, notificationUnreadCountKey, notificationUnreadCountOptions } from './notification-query'
 
 // Repeated mounts and focus/visibility bursts share the same recent read.
 // Opening or explicitly refreshing the panel always requests a fresh snapshot.
@@ -13,15 +13,23 @@ export function useNotificationUnreadCount(viewerId: string) {
     ...notificationUnreadCountOptions(viewerId), staleTime: fresh ? 0 : freshness,
   }).catch(() => undefined), [client, viewerId])
   useEffect(() => {
+    let active = true
+    const unsubscribe = client.getQueryCache().subscribe(event => {
+      if (event.type === 'updated' && event.action.type === 'invalidate'
+        && event.query === client.getQueryCache().find({ queryKey: notificationUnreadCountKey(viewerId), exact: true })) {
+        queueMicrotask(() => { if (active) void refresh(true) })
+      }
+    })
     void refresh()
     function onFocus() { if (document.visibilityState !== 'hidden') void refresh() }
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onFocus)
     return () => {
+      active = false; unsubscribe()
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onFocus)
     }
-  }, [refresh])
+  }, [client, viewerId, refresh])
   return { count, refresh }
 }
 
@@ -32,20 +40,28 @@ export function useNotificationPages(viewerId: string) {
   const [state, setState] = useState<Pages>({ pages: [], loading: 'first', error: null })
   const active = useRef(false)
   const running = useRef(false)
-  const read = useCallback(async (cursor: NotificationCursor | null = null) => {
-    if (!active.current || running.current) return
+  const sequence = useRef(0)
+  const read = useCallback(async (cursor: NotificationCursor | null = null, replace = false) => {
+    if (!active.current || running.current && !replace) return
+    const ticket = ++sequence.current
     running.current = true
     const kind: Read = cursor ? 'more' : 'first'
     setState(previous => ({ ...previous, loading: kind, error: null }))
     try {
       const page = await client.fetchQuery({ ...notificationCenterOptions(viewerId, { limit: 20, cursor }), staleTime: 0 })
-      if (active.current) setState(previous => ({ pages: cursor ? [...previous.pages, page] : [page], loading: null, error: null }))
+      if (active.current && sequence.current === ticket) setState(previous => ({ pages: cursor ? [...previous.pages, page] : [page], loading: null, error: null }))
     } catch {
-      if (active.current) setState(previous => ({ ...previous, loading: null, error: kind }))
-    } finally { running.current = false }
+      if (active.current && sequence.current === ticket) setState(previous => ({ ...previous, loading: null, error: kind }))
+    } finally { if (sequence.current === ticket) running.current = false }
   }, [client, viewerId])
   useEffect(() => {
     active.current = true
+    const unsubscribe = client.getQueryCache().subscribe(event => {
+      if (event.type === 'updated' && event.action.type === 'invalidate'
+        && event.query === client.getQueryCache().find({ queryKey: notificationCenterKey(viewerId), exact: true })) {
+        queueMicrotask(() => { if (active.current) void read(null, true) })
+      }
+    })
     // Initial loading is already rendered. Start after effect setup, so the
     // StrictMode setup/cleanup/setup cycle also shares one first-page read.
     queueMicrotask(() => { void read() })
@@ -57,6 +73,7 @@ export function useNotificationPages(viewerId: string) {
     document.addEventListener('visibilitychange', onFocus)
     return () => {
       active.current = false
+      unsubscribe()
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onFocus)
     }

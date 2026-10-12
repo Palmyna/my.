@@ -200,7 +200,7 @@ test('échec après compteur connu ne présente pas ancien chiffre comme confirm
   await waitFor(() => expect(bell()).toHaveAccessibleName('Notifications — compteur indisponible'))
   expect(bell().querySelector('.notification-badge')).toBeNull()
 })
-test('trois types, titre texte backend, date, états lu/non lu ; aucune action factice', async () => {
+test('trois types, titre texte backend, date, états lu/non lu et actions indépendantes', async () => {
   const center = decodeNotificationCenter(notificationCenterRow())
   center.items[1] = { ...center.items[1]!, state: 'read', title: '<b>Annonce</b>' }
   vi.mocked(getNotificationCenter).mockResolvedValue(center)
@@ -211,7 +211,10 @@ test('trois types, titre texte backend, date, états lu/non lu ; aucune action f
   expect(within(list).getAllByText('Non lue')).toHaveLength(2); expect(within(list).getByText('Lue')).toBeInTheDocument()
   expect(within(list).getByText('<b>Annonce</b>').querySelector('b')).toBeNull()
   expect(list.querySelector('time')).toHaveAttribute('datetime', center.items[0]!.updatedAt)
-  expect(within(list).queryByRole('button')).not.toBeInTheDocument(); expect(within(list).queryByRole('link')).not.toBeInTheDocument()
+  expect(within(list).getByRole('button', { name: 'Voir la mise à jour' })).toBeVisible()
+  expect(within(list).getAllByRole('button', { name: 'Lire' })).toHaveLength(2)
+  expect(within(list).getAllByRole('button', { name: 'Marquer comme lue' })).toHaveLength(2)
+  expect(list.querySelector('button button')).toBeNull(); expect(within(list).queryByRole('link')).not.toBeInTheDocument()
 })
 test('page de 20, curseur suivant, déduplication et ordre backend ; compteur global indépendant', async () => {
   const head = page(1, 20, true), next = page(21, 2)

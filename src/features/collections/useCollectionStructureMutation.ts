@@ -14,6 +14,7 @@ import { useAuth } from '../auth/auth-context'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { collectionContentKey, collectionItemOrderKey, collectionOverviewKey, collectionStructureMutationKey, collectionUpdatePreviewKey } from './collection-query'
 import { invalidateCollectionUpdateQueries } from './collection-update-query'
+import { invalidateNotificationQueries } from '../notifications/notification-query'
 
 export type CollectionStructureAction = { type: 'move'; move: ItemMove }
   | { type: 'add'; variantId: string; placement: ManualItemPlacement }
@@ -229,6 +230,7 @@ export function useCollectionStructureMutation(viewerId: string, collectionId: s
       } finally { await reread(client, request) }
       if (!readsConfirmed(client, request)) throw new CollectionItemsError('content_refresh_failed')
       if (request.operation.orderContractVersion === 2) forgetRequest(map, key)
+      if (request.action.type === 'apply') await invalidateNotificationQueries(client, request.viewerId)
     },
   })
   const reset = mutation.reset
@@ -279,7 +281,11 @@ export function useCollectionStructureMutation(viewerId: string, collectionId: s
           } catch { /* Unavailable/absent receipt retains the exact request. */ }
         }
         await reread(client, request)
-        if (request.confirmed && readsConfirmed(client, request)) { forgetRequest(map, key); mutation.reset(); return true }
+        if (request.confirmed && readsConfirmed(client, request)) {
+          forgetRequest(map, key); mutation.reset()
+          if (request.action.type === 'apply') await invalidateNotificationQueries(client, request.viewerId)
+          return true
+        }
       } else {
         await rereadKeys(client, [collectionContentKey(viewerId, collectionId), collectionItemOrderKey(viewerId, collectionId)])
       }

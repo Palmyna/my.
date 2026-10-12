@@ -13,6 +13,7 @@ import { collectionContentKey, collectionStructureMutationKey, collectionUpdateP
 import { collectionUpdatePreviewOptions, collectionUpdateStatusOptions } from './collection-update-query'
 import { useCollectionUpdateMutation } from './useCollectionUpdateMutation'
 import { manualItemErrorMessage } from './useManualCollectionItems'
+import { usePresentedCollectionNotification } from '../notifications/usePresentedCollectionNotification'
 
 type Plan = { preview: Preview; currentItems: CollectionContentItemV2[]; variants: Map<string, CatalogVariantForAdd> }
 type Phase = 'status' | 'current' | 'legacy' | 'preview' | 'ready' | 'error' | 'recovery' | 'success'
@@ -110,6 +111,8 @@ export function CollectionUpdateDialog({ viewerId, collectionId, opener, onClose
     && !previewInvalidated && queryState.data === plan.preview && content.isSuccess && !content.isFetching
     && content.data.orderContractVersion === 2 && content.data.personalRevision === plan.preview.token.personalRevision
   const stale = phase === 'ready' && (!fresh || mutation.previewStale)
+  const notificationRead = usePresentedCollectionNotification(viewerId, collectionId,
+    phase === 'ready' && fresh && plan ? plan.preview.token.targetVersion : null)
   const presentPreview = mutation.presentPreview
   useEffect(() => {
     if (phase === 'ready' && fresh && plan) presentPreview(plan.preview)
@@ -177,6 +180,11 @@ export function CollectionUpdateDialog({ viewerId, collectionId, opener, onClose
     {plan && phase !== 'success' && <CollectionUpdatePreview key={plan.preview.token.planHash + plan.preview.token.personalRevision}
       state={{ status: 'ready', ...plan }} headingRef={heading} onVariantsNeeded={more} />}
     {phase === 'success' && <p ref={confirmation} tabIndex={-1} role="status">Opération confirmée. Votre collection a été mise à jour et son contenu relu.</p>}
+    {notificationRead.error && <div className="notification-state">
+      <p role="alert">L’aperçu reste consultable. Sa lecture n’a pas pu être confirmée dans les notifications.</p>
+      <button type="button" className="button button-secondary" disabled={notificationRead.pending}
+        onClick={() => void notificationRead.retry()}>Réessayer le suivi</button>
+    </div>}
     <div className="collection-dialog-actions">
       <button type="button" className="button collection-cancel" disabled={mutation.pending || working && (phase === 'ready' || recovering)}
         onClick={() => { if (!running.current || phase === 'status' || phase === 'preview') onClose() }}>{phase === 'success' ? 'Fermer' : 'Annuler'}</button>

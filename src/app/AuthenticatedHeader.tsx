@@ -90,7 +90,7 @@ function UserMenu() {
   </div>
 }
 
-export function AuthenticatedHeader() {
+export function AuthenticatedHeader({ onCollectionUpdate }: { onCollectionUpdate?: (collectionId: string, opener: HTMLElement | null) => void } = {}) {
   const { user } = useAuth()
   const location = useLocation()
   return <header className="site-header authenticated-header">
@@ -98,7 +98,7 @@ export function AuthenticatedHeader() {
       <Link className="brand" to="/dashboard" aria-label="MY. — Dashboard"><img src={logo} alt="" /></Link>
     </div>
     <GlobalSearch key={`${user?.id}:${location.key}`} viewerId={user?.id ?? ''} />
-    <NotificationCenter />
+    <NotificationCenter onCollectionUpdate={onCollectionUpdate} />
     <UserMenu key={location.key} />
   </header>
 }

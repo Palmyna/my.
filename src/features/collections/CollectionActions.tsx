@@ -7,9 +7,10 @@ import type { CollectionOverview, DashboardCollection } from '../../types/collec
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import { collectionOverviewKey, collectionStructureMutationKey } from './collection-query'
 import { CollectionUpdateDialog } from './CollectionUpdateDialog'
+import type { CollectionUpdateIntent } from './collection-update-navigation'
 
 type Action = 'rename' | 'delete'
-type Props = { collection: CollectionOverview; userId: string; unavailable: () => void }
+type Props = { collection: CollectionOverview; userId: string; unavailable: () => void; updateIntent?: CollectionUpdateIntent | null }
 
 function CollectionActionDialog({ collection, userId, unavailable, action, trigger, close }: Props & {
   action: Action; trigger: RefObject<HTMLButtonElement | null>; close: () => void
@@ -134,13 +135,21 @@ function CollectionActionDialog({ collection, userId, unavailable, action, trigg
 export function CollectionActions(props: Props) {
   const [open, setOpen] = useState(false)
   const [action, setAction] = useState<Action | 'update' | null>(null)
-  const [updateOpener, setUpdateOpener] = useState<HTMLButtonElement | null>(null)
+  const [updateOpener, setUpdateOpener] = useState<HTMLElement | null>(null)
   const busy = useIsMutating({ mutationKey: collectionStructureMutationKey(props.userId, props.collection.collectionId), exact: true }) > 0
   const canUpdate = props.collection.access === 'owned' && props.collection.ownerId === props.userId && props.collection.collectionType === 'automatic'
   const trigger = useRef<HTMLButtonElement>(null)
   const container = useRef<HTMLDivElement>(null)
   const first = useRef<HTMLButtonElement>(null)
   const id = useId()
+  const consumed = useRef<CollectionUpdateIntent | null>(null)
+  useEffect(() => {
+    const intent = props.updateIntent
+    if (!intent || consumed.current === intent || intent.viewerId !== props.userId
+      || intent.collectionId !== props.collection.collectionId || !canUpdate) return
+    consumed.current = intent
+    setOpen(false); setUpdateOpener(intent.opener?.isConnected ? intent.opener : trigger.current); setAction('update')
+  }, [props.updateIntent, props.userId, props.collection.collectionId, canUpdate])
 
   useEffect(() => {
     if (!open) return

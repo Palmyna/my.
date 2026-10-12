@@ -27,8 +27,8 @@ export function notificationContentOptions(viewerId: string | undefined, announc
   return queryOptions({ ...consultation, queryKey: notificationContentKey(viewerId, announcementId),
     queryFn: () => { requireViewer(viewerId); return getNotificationContent(announcementId) } })
 }
-// Reusable after 8F apply in 8H; intentionally not wired to its confirmation
-// protocol yet. Cancel stale in-flight responses before marking cache stale.
+// Used after tracking and confirmed 8F apply. Consumers explicitly reread on
+// invalidation; disabled observers still never refetch by themselves.
 export async function invalidateNotificationQueries(client: QueryClient, viewerId: string, announcementId?: string) {
   const filters: QueryFilters[] = [{ queryKey: notificationCenterKeys(viewerId) }, { queryKey: notificationUnreadCountKey(viewerId), exact: true },
     ...(announcementId ? [{ queryKey: notificationContentKey(viewerId, announcementId), exact: true }] : [])]

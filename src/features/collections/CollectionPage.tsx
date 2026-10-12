@@ -12,12 +12,18 @@ import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 import type { CollectionOverview } from '../../types/collections'
 import { useCollectionView } from './useCollectionView'
 import { PageBackButton } from '../../app/PageBackButton'
+import { useCollectionUpdateNavigation, type CollectionUpdateIntent } from './collection-update-navigation'
+import { invalidateNotificationQueries } from '../notifications/notification-query'
 
 export function CollectionPage() {
   const { collectionId = '' } = useParams()
   const { user, isAuthorized } = useAuth()
   const client = useQueryClient()
   const heading = useRef<HTMLHeadingElement>(null)
+  const navigation = useCollectionUpdateNavigation()
+  const intent = navigation?.intent, consume = navigation?.consume
+  const [updateIntent, setUpdateIntent] = useState<CollectionUpdateIntent | null>(null)
+  const handled = useRef<CollectionUpdateIntent | null>(null)
   const [unavailableResource, setUnavailableResource] = useState<string | null>(null)
   const resource = `${user?.id}:${collectionId}`
   const mutationUnavailable = unavailableResource === resource
@@ -33,6 +39,24 @@ export function CollectionPage() {
   const collection = isAuthorized && user && overview.isSuccess && !mutationUnavailable ? overview.data : undefined
   const presentation = collection ? collectionPresentation(collection) : undefined
   const title = collection?.name ?? (unavailable ? 'Collection indisponible' : 'Collection')
+  const { refetch: readOverview } = overview
+  useEffect(() => {
+    if (!intent || !consume || !isAuthorized || intent.viewerId !== user?.id || intent.collectionId !== collectionId) return
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled || handled.current === intent) return
+      handled.current = intent
+      void (async () => {
+        const result = await readOverview()
+        if (cancelled) return
+        consume(intent)
+        if (result.isSuccess && result.data.access === 'owned' && result.data.ownerId === intent.viewerId && result.data.collectionType === 'automatic') {
+          setUpdateIntent(intent)
+        } else await invalidateNotificationQueries(client, intent.viewerId)
+      })()
+    })
+    return () => { cancelled = true }
+  }, [intent, consume, isAuthorized, user?.id, collectionId, readOverview, client])
 
   // AppRoutes focuses this persistent h1 on navigation. Updating its text/title after
   // loading must not steal focus if the user has already moved to another control.
@@ -64,7 +88,7 @@ export function CollectionPage() {
     <div className="collection-overview">
       <header className="collection-heading">
         <h1 ref={heading} id="page-title" tabIndex={-1}>{title}</h1>
-        {collection?.access === 'owned' && user && <CollectionActions key={resource} collection={collection} userId={user.id} unavailable={markUnavailable} />}
+        {collection?.access === 'owned' && user && <CollectionActions key={resource} collection={collection} userId={user.id} unavailable={markUnavailable} updateIntent={updateIntent} />}
       </header>
       {collection && <>
         <div className="collection-overview-meta">

@@ -3,10 +3,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useLocation } from 'react-router'
 import { useAuth } from '../auth/auth-context'
 import { NotificationPanel } from './NotificationPanel'
+import { NotificationContentDialog } from './NotificationContentDialog'
+import type { AnnouncementNotification, ChangelogNotification } from '../../types/notifications'
 import { useNotificationUnreadCount } from './useNotificationCenter'
 import './notifications.css'
 
-export function NotificationCenter() {
+type OpenCollection = (collectionId: string, opener: HTMLElement | null) => void
+export function NotificationCenter({ onCollectionUpdate }: { onCollectionUpdate?: OpenCollection | undefined }) {
   const { user, isAuthorized } = useAuth()
   const viewerId = isAuthorized ? user?.id : undefined
   const client = useQueryClient()
@@ -24,27 +27,29 @@ export function NotificationCenter() {
   }, [client, viewerId])
   // AuthProvider also cancels/purges the whole cache when the shell unmounts
   // on logout. Gate rendering before effects; never show previous-viewer data.
-  return viewerId ? <ViewerNotifications key={viewerId} viewerId={viewerId} /> : null
+  return viewerId ? <ViewerNotifications key={viewerId} viewerId={viewerId} onCollectionUpdate={onCollectionUpdate} /> : null
 }
 
-function ViewerNotifications({ viewerId }: { viewerId: string }) {
+function ViewerNotifications({ viewerId, onCollectionUpdate }: { viewerId: string; onCollectionUpdate?: OpenCollection | undefined }) {
   const { count, refresh } = useNotificationUnreadCount(viewerId)
   const location = useLocation()
   return <NotificationSurface key={location.key} viewerId={viewerId}
     unreadCount={count.data?.unreadCount} unavailable={count.isError} loading={count.isFetching || count.isPending}
-    refreshCount={() => { void refresh(true) }} />
+    refreshCount={() => { void refresh(true) }} onCollectionUpdate={onCollectionUpdate} />
 }
 
-function NotificationSurface({ viewerId, unreadCount, unavailable, loading, refreshCount }: {
+function NotificationSurface({ viewerId, unreadCount, unavailable, loading, refreshCount, onCollectionUpdate }: {
   viewerId: string; unreadCount: string | undefined; unavailable: boolean; loading: boolean; refreshCount: () => void
+  onCollectionUpdate?: OpenCollection | undefined
 }) {
   const [open, setOpen] = useState(false)
+  const [detail, setDetail] = useState<{ item: AnnouncementNotification | ChangelogNotification; opener: HTMLElement } | null>(null)
   const id = useId()
   const container = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const close = () => { setOpen(false); trigger.current?.focus({ preventScroll: true }) }
   useEffect(() => {
-    if (!open) return
+    if (!open || detail) return
     function closeOutside(event: Event) {
       if (!(event.target instanceof Node) || container.current?.contains(event.target)) return
       setOpen(false)
@@ -65,7 +70,7 @@ function NotificationSurface({ viewerId, unreadCount, unavailable, loading, refr
       document.removeEventListener('focusin', closeOutside)
       document.removeEventListener('keydown', escape)
     }
-  }, [open])
+  }, [open, detail])
   const label = unavailable ? 'Notifications — compteur indisponible'
     : unreadCount === undefined ? 'Notifications — chargement du compteur'
       : `Notifications — ${unreadCount} non ${unreadCount === '1' ? 'lue' : 'lues'}`
@@ -87,6 +92,16 @@ function NotificationSurface({ viewerId, unreadCount, unavailable, loading, refr
         : badge && <span className="notification-badge" aria-hidden="true">{badge}</span>}
     </button>
     {open && <NotificationPanel viewerId={viewerId} id={id} onClose={close} refreshCount={refreshCount}
-      countUnavailable={unavailable} countLoading={loading && !unavailable} />}
+      countUnavailable={unavailable} countLoading={loading && !unavailable}
+      onReadContent={(item, opener) => setDetail({ item, opener })}
+      onCollectionUpdate={collectionId => { close(); onCollectionUpdate?.(collectionId, trigger.current) }} />}
+    {detail && <NotificationContentDialog viewerId={viewerId} item={detail.item} opener={detail.opener} onClose={() => {
+      const opener = detail.opener
+      setDetail(null)
+      queueMicrotask(() => {
+        if (opener.isConnected) opener.focus({ preventScroll: true })
+        else if (container.current?.isConnected) (container.current.querySelector<HTMLElement>('.notification-panel h2') ?? trigger.current)?.focus({ preventScroll: true })
+      })
+    }} />}
   </div>
 }
