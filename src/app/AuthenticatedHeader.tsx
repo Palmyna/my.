@@ -4,6 +4,7 @@ import logo from '../assets/brand/my-logo.svg'
 import { useAuth } from '../features/auth/auth-context'
 import { useAuthTask } from '../features/auth/auth-ui'
 import { GlobalSearch } from '../features/global-search/GlobalSearch'
+import { NotificationCenter } from '../features/notifications/NotificationCenter'
 
 function UserMenu() {
   const { actions, user } = useAuth()
@@ -97,6 +98,7 @@ export function AuthenticatedHeader() {
       <Link className="brand" to="/dashboard" aria-label="MY. — Dashboard"><img src={logo} alt="" /></Link>
     </div>
     <GlobalSearch key={`${user?.id}:${location.key}`} viewerId={user?.id ?? ''} />
+    <NotificationCenter />
     <UserMenu key={location.key} />
   </header>
 }

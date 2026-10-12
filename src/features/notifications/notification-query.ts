@@ -9,8 +9,8 @@ export const notificationCenterKey = (viewerId: string | undefined, input: Notif
 export const notificationUnreadCountKey = (viewerId: string | undefined) => ['notifications', 'unread-count', viewerId] as const
 export const notificationContentKey = (viewerId: string | undefined, announcementId: string) => ['notifications', 'content', viewerId, announcementId] as const
 
-// 8H will explicitly refetch these options. No mount/session/header consumer,
-// polling, focus, reconnect, invalidation refetch or implicit read in 8G.2.
+// Consumers explicitly fetch these options. No automatic observer reads,
+// polling, focus, reconnect or invalidation refetch.
 const consultation = { enabled: false, retry: false, refetchOnMount: false, refetchOnWindowFocus: false,
   refetchOnReconnect: false, refetchInterval: false } as const
 function requireViewer(viewerId: string | undefined) { if (!viewerId) throw new NotificationError('not_authorized') }
