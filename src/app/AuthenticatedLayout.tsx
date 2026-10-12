@@ -8,16 +8,19 @@ import { SiteFooter } from './SiteFooter'
 export function AuthenticatedLayout() {
   const { user, isAuthorized } = useAuth()
   const navigate = useNavigate(), location = useLocation()
-  const [intent, setIntent] = useState<CollectionUpdateIntent | null>(null)
+  const [intent, setIntent] = useState<(CollectionUpdateIntent & { originLocationKey: string }) | null>(null)
   const consume = useCallback((observed: CollectionUpdateIntent) => setIntent(current => current === observed ? null : current), [])
   useEffect(() => {
     let cancelled = false
-    if (intent && (!isAuthorized || intent.viewerId !== user?.id || location.pathname !== `/collections/${intent.collectionId}`)) queueMicrotask(() => { if (!cancelled) consume(intent) })
+    // A data-router transition can commit the intent before its destination.
+    // Retain it on the origin; discard it if another navigation wins instead.
+    if (intent && (!isAuthorized || intent.viewerId !== user?.id
+      || location.pathname !== `/collections/${intent.collectionId}` && location.key !== intent.originLocationKey)) queueMicrotask(() => { if (!cancelled) consume(intent) })
     return () => { cancelled = true }
-  }, [intent, isAuthorized, user?.id, location.pathname, consume])
+  }, [intent, isAuthorized, user?.id, location.pathname, location.key, consume])
   function openCollectionUpdate(collectionId: string, opener: HTMLElement | null) {
     if (!user || !isAuthorized) return
-    setIntent({ viewerId: user.id, collectionId, opener })
+    setIntent({ viewerId: user.id, collectionId, opener, originLocationKey: location.key })
     const destination = `/collections/${collectionId}`
     if (location.pathname !== destination) void navigate(destination)
   }

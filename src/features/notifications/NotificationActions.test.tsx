@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { Link, MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router'
+import { createMemoryRouter, Link, MemoryRouter, Route, RouterProvider, Routes, useLocation, useNavigate } from 'react-router'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 import { AuthenticatedLayout } from '../../app/AuthenticatedLayout'
 import { CollectionPage } from '../collections/CollectionPage'
@@ -190,6 +190,20 @@ test.each(['close', 'navigation', 'viewer', 'logout'] as const)('chargement de c
   expect(document.querySelector('.notification-body')).toBeNull(); expect(processAnnouncementNotification).not.toHaveBeenCalled()
   expect(view.client.getQueryData(notificationContentKey(viewer, content.announcementId))).toBeUndefined()
 })
+test('contenu long : titre/version complets, retours conservés et dialogue autorise la coupure des chaînes', async () => {
+  const content = { ...announcement('changelog'), title: 'W'.repeat(200), appVersion: `0.8.19+${'w'.repeat(57)}`,
+    body: `Première ligne\n\n${'W'.repeat(19_900)}\nDernière ligne` }
+  items = [content]
+  setup(); await readAnnouncement(); await screen.findByText('Consultation enregistrée.')
+  const dialog = screen.getByRole('dialog', { name: content.title })
+  expect(within(dialog).getByRole('heading', { name: content.title })).toHaveTextContent(content.title)
+  expect(within(dialog).getByText(`Changelog · Version ${content.appVersion}`)).toBeInTheDocument()
+  expect(dialog.querySelector('.notification-body')?.textContent).toBe(content.body)
+  // jsdom verifies the actual stylesheet; browser measurements prove geometry.
+  expect(getComputedStyle(dialog).overflowWrap).toBe('anywhere')
+  expect(getComputedStyle(dialog.querySelector('.notification-body')!).whiteSpace).toBe('pre-wrap')
+  expect(processAnnouncementNotification).toHaveBeenCalledExactlyOnceWith({ announcementId: content.announcementId, observedHash: content.revision })
+})
 test('erreur de contenu, nouvel essai puis erreur de suivi : reprise explicite avec hash consulté', async () => {
   const content = announcement(); items = [content]
   vi.mocked(getNotificationContent).mockRejectedValueOnce(new Error('Contenu inaccessible'))
@@ -253,6 +267,35 @@ test.each(['/dashboard', `/collections/${updateParent}`])('notification collecti
   }
   expect(screen.queryByRole('dialog', { name: 'Vérifier les mises à jour' })).toBeNull()
   expect(previewCollectionUpdate).toHaveBeenCalledOnce()
+})
+test.each([false, true])('routeur de données : intention survit à la transition, navigation remplacée ne la ressuscite pas (%s)', async superseded => {
+  const navigation = deferred<null>()
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); clients.push(client)
+  const router = createMemoryRouter([{ path: '*', loader: ({ request }) => new URL(request.url).pathname === '/dashboard' ? null : navigation.promise,
+    element: <Routes><Route element={<AuthenticatedLayout />}>
+    <Route path="/dashboard" element={<h1>Dashboard</h1>} />
+    <Route path="/collections/:collectionId" element={<CollectionPage />} />
+  </Route></Routes> }], { initialEntries: ['/dashboard'] })
+  const view = render(<StrictMode><QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider></StrictMode>)
+  try {
+    await screen.findByRole('button', { name: /^Notifications —/ })
+    await openUpdate()
+    expect(router.state.navigation.state).toBe('loading')
+    expect(previewCollectionUpdate).not.toHaveBeenCalled()
+    if (superseded) await act(() => router.navigate('/dashboard'))
+    await act(() => { navigation.resolve(null); return navigation.promise })
+    if (superseded) {
+      await act(() => router.navigate(`/collections/${updateParent}`))
+      await screen.findByRole('button', { name: 'Actions de la collection' })
+      expect(screen.queryByRole('dialog', { name: 'Vérifier les mises à jour' })).toBeNull()
+      expect(previewCollectionUpdate).not.toHaveBeenCalled(); expect(markNotificationRead).not.toHaveBeenCalled()
+      return
+    }
+    await screen.findByRole('button', { name: 'Mettre à jour la collection' })
+    expect(router.state.location.pathname).toBe(`/collections/${updateParent}`)
+    await waitFor(() => expect(markNotificationRead).toHaveBeenCalledExactlyOnceWith({ notificationKey: `collection:${updateParent}`, observedRevision: original().token.targetVersion }))
+    expect(applyCollectionUpdate).not.toHaveBeenCalled()
+  } finally { view.unmount(); router.dispose() }
 })
 test.each(['deleted', 'revoked', 'shared'] as const)('collection %s : aucun aperçu ni acquittement', async scenario => {
   if (scenario === 'shared') vi.mocked(getCollectionOverview).mockResolvedValue({ ...base, access: 'shared', ownerId: 'bob' })

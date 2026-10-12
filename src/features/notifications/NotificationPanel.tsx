@@ -20,16 +20,16 @@ export function NotificationPanel({ viewerId, id, onClose, refreshCount, countUn
   const options = notificationReadMutationOptions(client, viewerId)
   const readMutation = useMutation({ ...options, mutationFn: (request, context) => { requireViewer(); return options.mutationFn!(request, context) } })
   const running = useRef(false), active = useRef(false)
-  const readFocus = useRef<{ key: string; opener: HTMLElement } | null>(null)
+  const removedActionFocus = useRef<{ key: string | null; opener: HTMLElement } | null>(null)
   const list = useRef<HTMLUListElement>(null)
   const [failedRead, setFailedRead] = useState<NotificationReadRequest | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const center = useNotificationPages(viewerId)
   useEffect(() => { active.current = true; heading.current?.focus({ preventScroll: true }); return () => { active.current = false } }, [])
   useEffect(() => {
-    const focus = readFocus.current
+    const focus = removedActionFocus.current
     if (!focus || focus.opener.isConnected) return
-    readFocus.current = null
+    removedActionFocus.current = null
     if (document.activeElement !== document.body) return
     const row = Array.from(list.current?.children ?? []).find(node => (node as HTMLElement).dataset.notificationKey === focus.key)
     const destination = row?.querySelector<HTMLButtonElement>('button') ?? heading.current
@@ -37,7 +37,7 @@ export function NotificationPanel({ viewerId, id, onClose, refreshCount, countUn
   }, [center.items])
   async function markRead(request: NotificationReadRequest, opener: HTMLElement) {
     if (running.current) return
-    readFocus.current = { key: request.notificationKey, opener }
+    removedActionFocus.current = { key: request.notificationKey, opener }
     running.current = true; setFailedRead(null)
     try { await readMutation.mutateAsync(request) }
     catch { if (active.current) setFailedRead(request) }
@@ -90,7 +90,9 @@ export function NotificationPanel({ viewerId, id, onClose, refreshCount, countUn
             </li>)}
           </ul>}
         {center.nextCursor ? <div className="notification-pagination">
-          <button className="button secondary" type="button" disabled={!!center.loading} onClick={() => void center.loadMore()}>Afficher la suite</button>
+          <button className="button secondary" type="button" disabled={!!center.loading} onClick={event => {
+            removedActionFocus.current = { key: null, opener: event.currentTarget }; void center.loadMore()
+          }}>Afficher la suite</button>
           {center.loading === 'more' && <p role="status">Chargement de la suite…</p>}
         </div> : center.items.length > 0 && !center.loading && !center.error && <p className="notification-state" role="status">Toutes les notifications sont affichées.</p>}
       </>}

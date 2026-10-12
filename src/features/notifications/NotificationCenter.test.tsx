@@ -249,6 +249,18 @@ test('erreur de page conserve liste et curseur pour retry', async () => {
   await screen.findByText('Événement 21')
   expect(getNotificationCenter).toHaveBeenLastCalledWith({ limit: 20, cursor: head.nextCursor })
 })
+test.each([false, true])('fin de pagination : focus conservé dans le panneau, destination choisie respectée (%s)', async movedFocus => {
+  const pending = deferred<Center>()
+  vi.mocked(getNotificationCenter).mockResolvedValueOnce(page(1, 20, true)).mockReturnValueOnce(pending.promise)
+  setup(); open(); await screen.findByRole('list')
+  const more = screen.getByRole('button', { name: 'Afficher la suite' })
+  act(() => more.focus()); fireEvent.click(more)
+  const destination = screen.getByRole('button', { name: 'Fermer les notifications' })
+  if (movedFocus) act(() => destination.focus())
+  await act(() => { pending.resolve(page(21, 1)); return pending.promise })
+  expect(screen.queryByRole('button', { name: 'Afficher la suite' })).toBeNull()
+  expect(movedFocus ? destination : screen.getByRole('heading', { name: 'Notifications' })).toHaveFocus()
+})
 test('actualisation remplace pages et curseur ; événements retirés disparaissent ; reprise depuis nouvelle tête', async () => {
   const newer = page(31, 20, true), pending = deferred<Center>()
   vi.mocked(getNotificationCenter).mockResolvedValueOnce(page(1, 20, true)).mockResolvedValueOnce(page(21, 1))

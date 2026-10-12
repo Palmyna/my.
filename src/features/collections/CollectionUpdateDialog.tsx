@@ -5,7 +5,7 @@ import { CollectionUpdateError } from '../../services/collection-update'
 import { CollectionItemsError } from '../../services/collection-items'
 import { getVariantDetail } from '../../services/variant-detail'
 import type { CatalogVariantForAdd } from '../../types/catalog-search'
-import type { CollectionContentItemV2 } from '../../types/collection-content'
+import type { CollectionContent, CollectionContentItemV2 } from '../../types/collection-content'
 import type { CollectionUpdatePreview as Preview } from '../../types/collection-update'
 import { CollectionItemDialog } from './CollectionItemDialog'
 import { CollectionUpdatePreview, UPDATE_PREVIEW_PAGE_SIZE } from './CollectionUpdatePreview'
@@ -31,7 +31,7 @@ export function CollectionUpdateDialog({ viewerId, collectionId, opener, onClose
   const status = useQuery(collectionUpdateStatusOptions(viewerId, collectionId))
   const preview = useQuery({ ...collectionUpdatePreviewOptions(viewerId, collectionId), notifyOnChangeProps: 'all' })
   const content = useQuery({ queryKey: collectionContentKey(viewerId, collectionId),
-    queryFn: () => getCollectionContentV2(collectionId), retry: false })
+    queryFn: () => getCollectionContentV2(collectionId), retry: false, notifyOnChangeProps: 'all' })
   const [phase, setPhase] = useState<Phase>(mutation.recovery ? 'recovery' : 'status')
   const [plan, setPlan] = useState<Plan | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -107,10 +107,14 @@ export function CollectionUpdateDialog({ viewerId, collectionId, opener, onClose
   }, [consult, mutation.recovery])
 
   const queryState = client.getQueryState<Preview>(collectionUpdatePreviewKey(viewerId, collectionId))
-  const fresh = !!plan && queryState?.status === 'success' && queryState.fetchStatus === 'idle'
-    && !previewInvalidated && queryState.data === plan.preview && content.isSuccess && !content.isFetching
-    && content.data.orderContractVersion === 2 && content.data.personalRevision === plan.preview.token.personalRevision
-  const stale = phase === 'ready' && (!fresh || mutation.previewStale)
+  const contentState = client.getQueryState<CollectionContent>(collectionContentKey(viewerId, collectionId))
+  const matchesPlan = !!plan && queryState?.status === 'success' && !previewInvalidated && queryState.data === plan.preview
+    && contentState?.status === 'success' && contentState.data?.orderContractVersion === 2
+    && contentState.data.personalRevision === plan.preview.token.personalRevision
+  // Shared readers can refetch after presentation. Suspend consent while they
+  // run; only a confirmed mismatch/error or invalidation makes the plan stale.
+  const fresh = matchesPlan && queryState?.fetchStatus === 'idle' && contentState?.fetchStatus === 'idle'
+  const stale = phase === 'ready' && (!matchesPlan || mutation.previewStale)
   const notificationRead = usePresentedCollectionNotification(viewerId, collectionId,
     phase === 'ready' && fresh && plan ? plan.preview.token.targetVersion : null)
   const presentPreview = mutation.presentPreview

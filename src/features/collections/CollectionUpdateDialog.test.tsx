@@ -158,6 +158,38 @@ test('aperçu invalidé encore affiché : nouveau consentement requis sans write
   expect(screen.queryByRole('button', { name: 'Mettre à jour la collection' })).not.toBeInTheDocument()
   expect(preview).toHaveBeenCalledOnce(); expect(apply).not.toHaveBeenCalled()
 })
+test.each(['same', 'revision', 'error'] as const)('relecture du contenu : consentement suspendu sans fausse alerte, résultat %s', async result => {
+  const view = setup(); await open(); await ready()
+  const staleMessage = 'La collection ou le catalogue a changé depuis l’aperçu. Consultez un nouvel aperçu avant de confirmer.'
+  const heading = within(screen.getByRole('dialog')).getByRole('heading', { name: 'Vérifier les mises à jour' })
+  act(() => heading.focus())
+  let finish!: (value: ReturnType<typeof fixture>) => void, fail!: (error: Error) => void
+  content.mockImplementation(() => new Promise((resolve, reject) => { finish = resolve; fail = reject }))
+  let reread!: Promise<void>
+  try {
+    await act(async () => {
+      reread = view.client.refetchQueries({ queryKey: collectionContentKey(viewer, updateParent), exact: true })
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(view.client.getQueryState(collectionContentKey(viewer, updateParent))?.fetchStatus).toBe('fetching'))
+    expect(screen.queryByText(staleMessage)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Mettre à jour la collection' })).toBeDisabled()
+    expect(heading).toHaveFocus(); expect(apply).not.toHaveBeenCalled()
+    await act(async () => {
+      if (result === 'error') fail(new Error('Synthetic reread failed'))
+      else finish(result === 'revision' ? { ...current, personalRevision: (BigInt(current.personalRevision) + 1n).toString() } : current)
+      await reread
+    })
+    if (result === 'same') {
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Mettre à jour la collection' })).toBeEnabled())
+      expect(screen.queryByText(staleMessage)).toBeNull(); expect(heading).toHaveFocus()
+    } else {
+      await screen.findByRole('button', { name: 'Consulter un nouvel aperçu' })
+      expect(screen.queryByRole('button', { name: 'Mettre à jour la collection' })).toBeNull()
+    }
+    expect(apply).not.toHaveBeenCalled()
+  } finally { view.unmount(); view.client.clear() }
+})
 test('preview_stale conserve ancien aperçu, nouvelle lecture échouée, puis remplacement et clic neuf', async () => {
   apply.mockRejectedValueOnce(new CollectionUpdateError('preview_stale'))
   setup(); await open(); fireEvent.click(await ready())
