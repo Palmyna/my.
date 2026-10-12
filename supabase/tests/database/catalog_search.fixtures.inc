@@ -35,7 +35,8 @@ insert into public.catalog_variants(id,source_card_id,variant_key,label,sort_ord
   from public.source_cards where id between -88011 and -88002 and id <> -88008;
 insert into public.catalog_variants(id,source_card_id,variant_key,sort_order,source_present,origin,french_availability)
   overriding system value select -88100-n,-88008,'volume-' || n,n,true,'tcgdex','confirmed' from generate_series(1,105) n;
-insert into public.collections(id,owner_id,name,collection_type) values
-  ('c1800000-0000-0000-0000-000000000001','a1800000-0000-0000-0000-000000000001','Search fixture','free');
+-- Explicit historical contract: these fixtures exercise legacy behavior.
+insert into public.collections(id,owner_id,name,collection_type,order_contract_version) values
+  ('c1800000-0000-0000-0000-000000000001','a1800000-0000-0000-0000-000000000001','Search fixture','free',1);
 insert into public.collection_items(collection_id,variant_id,origin,sort_position) values
   ('c1800000-0000-0000-0000-000000000001',-88001,'manual',1);

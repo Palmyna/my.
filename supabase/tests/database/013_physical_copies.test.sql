@@ -45,8 +45,9 @@ insert into public.source_cards(id,tcgdex_id,set_id,source_present,origin) overr
   values(-84001,'physical-copies-fixture',-84001,true,'tcgdex');
 insert into public.catalog_variants(id,source_card_id,variant_key,source_present,origin) overriding system value values
   (-84001,-84001,'shared',true,'tcgdex'), (-84002,-84001,'private',true,'tcgdex');
-insert into public.collections(id,owner_id,name,collection_type) values
-  ('c1400000-0000-0000-0000-000000000001','a1400000-0000-0000-0000-000000000001','Copies fixture','free');
+-- Historical fixture with no v2 journal.
+insert into public.collections(id,owner_id,name,collection_type,order_contract_version) values
+  ('c1400000-0000-0000-0000-000000000001','a1400000-0000-0000-0000-000000000001','Copies fixture','free',1);
 insert into public.collection_items(collection_id,variant_id,origin,sort_position) values
   ('c1400000-0000-0000-0000-000000000001',-84001,'manual',1);
 insert into public.collection_shares(collection_id,recipient_user_id) values

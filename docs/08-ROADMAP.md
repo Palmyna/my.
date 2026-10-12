@@ -4,7 +4,7 @@
 
 Ce document constitue la source de vérité concernant la **roadmap globale de MY.** : l'état, l'ordre et le périmètre des grandes phases du projet, jusqu'à la V1 puis au-delà.
 
-La roadmap reste volontairement **macro**. Chaque phase représente un ensemble fonctionnel cohérent. Le découpage opérationnel est défini au moment de sa réalisation ; les sous-phases de développement ne sont pas documentées ici.
+La roadmap reste volontairement **macro**. Chaque phase représente un ensemble fonctionnel cohérent. Le découpage opérationnel est défini au moment de sa réalisation ; les blocs prévisionnels de Phase 8 ci-dessous cadrent ses dépendances, sans constituer un journal de sous-phases de développement.
 
 Elle permet de voir ce qui est terminé, la prochaine étape et les orientations futures, sans remplacer les spécifications détaillées :
 
@@ -17,7 +17,7 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 
 ## État actuel
 
-**Phases 0 à 7 terminées et validées. Version applicative `0.7.21`.** Phase 7 livre les préférences de vues et le footer/version, les vues Collection Liste/Cartes/Classeur, les réglages Affichage, les Catalogues Pokémon/Extension/Carte, la recherche globale, l’harmonisation et la navigation Retour/liens par entité. Badges Auto/Perso retirés en `0.7.20` ; origine métier et droits de retrait conservés. Audit technique, checkpoint Cloud manuel et clôture sont acquis dans le [rapport de clôture Phase 7](reports/2026-10-08-PHASE7-CLOSURE.md). Partages existants consultables en lecture seule ; parcours utilisateur de partage futur. **Prochaine phase : Phase 8 — Mise à jour des collections automatiques, planifiée et non commencée.**
+**Phases 0 à 8 terminées. Version applicative `0.8.21`.** Phase 8 livre ordre relatif et reprise idempotente, masquage/progression, filtres communs, aperçu/application explicitement confirmés et centre interne de notifications. Validation finale Local et checkpoint manuel Cloud acquis ; 48 migrations de chaque côté, dont 19 Phase 8. [Clôture officielle 8I.2 et limites](reports/2026-10-12-PHASE8I2-CLOSURE.md). Partages existants consultables en lecture seule ; gestion complète réservée à Phase 9. **Prochaine opération : push propriétaire et PR `dev` → `main`, puis préparation de la première mise en production.** Aucun déploiement Vercel ni test applicatif complet Cloud avec de vrais utilisateurs.
 
 | Grandes phases | Statut |
 |---|---|
@@ -27,11 +27,11 @@ Ces références spécialisées priment sur les résumés de cette roadmap pour 
 | 5 — Dashboard, création et gestion des collections | Terminée |
 | 6 — Cœur fonctionnel des collections | Terminée |
 | 7 — Vues, catalogue, recherche globale et préférences | Terminée |
-| 8 — Mise à jour des collections automatiques | Planifiée |
+| 8 — Actualisation, masquage et notifications | Terminée |
 | 9 — Partage des collections | Planifiée |
-| 10 — Finalisation V1 et mise en production | Planifiée |
+| 10 — Finalisation, qualité et stabilisation V1 | Planifiée |
 
-Le socle SQL, le catalogue, Auth et les contrats jusqu’à la Phase 7 sont déployés dans Supabase Cloud. Après l’audit 7G.1 validé, le propriétaire a exécuté manuellement le checkpoint Cloud : six migrations Phase 7 appliquées avec succès, **29 Local / 29 Remote** alignées jusqu’à `20261007085921`, puis dry-run final `Remote database is up to date.` Confirmations du propriétaire ; aucun accès Cloud par Codex en 7G.2. Le détail reste dans le README et le [rapport de clôture](reports/2026-10-08-PHASE7-CLOSURE.md).
+Le socle SQL, le catalogue et les migrations jusqu’à la Phase 8 sont présents dans Supabase Cloud. Checkpoint manuel puis contrôles directs en lecture seule fournis par le propriétaire : **48 migrations, aucun écart d’historique signalé**, dernière `20261011191625` ; rôle publisher contrôlé et `delete-account` active. Les validations Local, le catalogue Cloud, les advisors et les limites sont distingués dans le [rapport de clôture](reports/2026-10-12-PHASE8I2-CLOSURE.md). Aucun accès Cloud en 8I.2.
 
 **Le développement et les tests courants utilisent Supabase local ; les checkpoints Cloud ponctuels exigent une autorisation explicite et des fixtures temporaires. Supabase cloud reste réservé à la future production avec Vercel.** Aucun déploiement Vercel n'est en place. Les URLs de production seront configurées lors de la mise en production ; aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée au cloud.
 
@@ -178,22 +178,56 @@ Précédente / Suivante, swipe entre cartes, séquence de navigation et navigati
 
 `/settings` est fonctionnelle : section Affichage cohérente avec Profil, vue catalogue/collection par défaut et format Classeur global. Sauvegarde immédiate par réglage, chargement/erreur/retry et contrôles accessibles responsive. Les derniers modes restent indépendants, la vue d'une collection ouverte reste conservée et le format global s'applique aux héritiers sans toucher aux overrides viewer + collection. Aucun autre réglage validé par cette phase.
 
-### Phase 8 — Mise à jour des collections automatiques
+### Phase 8 — Actualisation, masquage et notifications
 
-**Statut : PLANIFIÉE — PROCHAINE PHASE, NON COMMENCÉE**
+**Statut : TERMINÉE**
 
-Permettre au propriétaire d'actualiser une collection lorsque la structure de sa cible évolue dans le catalogue :
+8A.1 consigne les décisions métier ; l’[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) et ses arbitrages R1–R4, puis la [conception technique 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md), sont validés. **8B terminée et validée Local** : persistance, moteur PostgreSQL, journal, writers, reçus, lecteur et intégration applicative livrés ; contrat 2 actif pour les nouvelles créations, contrat 1 conservé pour les anciennes. [Clôture 8B](reports/2026-10-10-PHASE8B8-CLOSURE.md). **8C terminée et validée Local** : masquage persistant, progression autoritative et services/hooks livrés. [Clôture 8C](reports/2026-10-10-PHASE8C-CLOSURE.md). **8D terminée et validée Local** : actions Liste/Cartes, filtres communs, reorder R2 et Classeur compacté. [Clôture 8D](reports/2026-10-10-PHASE8D-CLOSURE.md). **8E terminée et validée Local** : détection autoritative, aperçu pur, plan/token de confirmation et composant de consultation réutilisable. [Clôture 8E](reports/2026-10-11-PHASE8E-CLOSURE.md). **8F terminée et validée Local** : application transactionnelle, services/reprise et parcours explicitement confirmé livrés. [Clôture 8F](reports/2026-10-11-PHASE8F3-CLOSURE.md). **Backend notifications 8G terminé et validé Local** : fondations/projection, API/transitions et publication terminal sécurisée. [Clôture 8G](reports/2026-10-11-PHASE8G3-CLOSURE.md). **Centre de notifications 8H terminé et validé Local** : cloche, pagination, consultation, lecture/traitement, aperçu/application et reprise raccordés. [Clôture 8H.3](reports/2026-10-12-PHASE8H3-CLOSURE.md) en `0.8.19`, preuves navigateur desktop/tablette/mobile ; contrôles axe incomplets explicitement conservés. **Audit 8I.1 conservé ; checkpoint Cloud manuel terminé et clôture officielle 8I.2 en `0.8.21`, GO pour Phase 8.** [Rapport de clôture](reports/2026-10-12-PHASE8I2-CLOSURE.md). Migrations backend présentes Cloud selon les contrôles fournis ; application non publiée et campagne applicative complète Cloud encore à réaliser.
+
+Trois fonctionnalités livrées et validées Local : actualisation contrôlée des collections automatiques, masquage des cartes automatiques et centre de notifications interne.
+
+Permettre au propriétaire d'actualiser une collection lorsque la structure canonique de sa cible Pokémon ou Extension évolue :
 
 - détection par version de cible et signalement d'une mise à jour disponible ;
 - aperçu des ajouts, retraits, conversions d'éléments manuels en automatiques et changements d'ordre ;
 - application après validation explicite de l'utilisateur ;
-- opération autoritative et atomique, avec contrôle de la version présentée ;
+- opération autoritative et atomique, avec contrôle de la version présentée et de la concurrence ;
 - absence de doublons lors des conversions et préservation des exemplaires physiques ;
 - actualisation des rangs canoniques et préservation autant que possible de l'ordre personnalisé des éléments automatiques et manuels, sans réinitialisation arbitraire des positions vers l'ordre canonique.
 
 La synchronisation du catalogue ne modifie jamais silencieusement la structure d'une collection. Si la cible change après l'aperçu, un résumé actualisé est nécessaire avant application.
 
-Le placement d'un nouvel élément automatique dans un ordre personnalisé et la stratégie de préservation/ancrage des positions restent ouverts pour cette Phase 8 ; cette roadmap ne fixe aucun algorithme exact d'insertion/fusion. Une conversion conserve le même élément et préserve autant que possible sa position.
+Principe relatif validé : reconstruire le nouvel ordre canonique puis réappliquer chronologiquement toutes les personnalisations. Relations avant/ancre ou fin, ajouts manuels compris. R1 fixe le contexte complet immuable au geste ; R2 résout les gestes filtrés dans l'ordre complet sans déplacer implicitement les masqués ; R3 renouvelle l'identité après retrait réel et la conserve à la conversion ; R4 exclut gestes sans effet/doublons techniques et garde le placement initial manuel. [Règles et exemples A/B](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8). 8A.3 recommande journal/révision/reçus privés, ordre affiché unique via `sort_position`, token d'aperçu et application atomique. Collections historiques de test legacy, recréation acceptée sans récupération des anciens gestes ; aucune destruction pendant 8A.
+
+Masquage persistant réservé au propriétaire et aux éléments automatiques des collections automatiques. Exclusion des deux comptes de progression, manuels inclus, dans Dashboard/Collection/partage quel que soit le filtre. `Non masquées` par défaut / `Toutes` dans les trois vues ; œil seulement Liste/Cartes propriétaire. Classeur compacté sans mutation d'ordre ; recherche sans compactage supplémentaire. Reorder Liste/Cartes disponible avec les deux filtres, sans déplacer implicitement les masqués non affichés. Partage toujours en lecture seule.
+
+Centre interne : cloche entre recherche et compte, badge non lues, panneau et navigation. Trois types initiaux (actualisation, changelog/version, annonce générale), états individuels persistants et retrait des traitées/obsolètes. Publication sécurisée terminal/Codex via Supabase, sans administration UI, secret frontend ou droit administratif ordinaire. Aucun push système, notification navigateur externe ni email. [Cycle de vie complet](01-FEATURES.md#centre-de-notifications--décisions-phase-8).
+
+Blocs réalisés :
+
+| Bloc | Contenu |
+|---|---|
+| 8A | Cadrage documentaire, algorithme relatif, contrats techniques — **validés** |
+| 8B | Persistance et réordonnancement relatif — **terminé, validé Local** |
+| 8C | Masquage : base de données, droits et progression — **terminé, validé Local** |
+| 8D | Masquage : vues Liste, Cartes et Classeur — **terminé, validé Local** |
+| 8E | Détection et aperçu des actualisations — **terminé, validé Local** |
+| 8F | Application transactionnelle et confirmation UI — **terminé, validé Local** |
+| 8G | Notifications : backend, cycle de vie, publication — **terminé et validé Local** |
+| 8H | Notifications : header, panneau, indicateurs et actions — **terminé, validé Local avec preuves navigateur ; limites axe documentées** |
+| 8I | Audit transversal, checkpoint manuel Cloud fourni, validation finale et clôture officielle — **terminés** |
+
+**8A reste uniquement documentaire et sa conception 8A.3 est validée.** 8B a livré persistance, contrats, sécurité, concurrence, compatibilité et activation des seules nouvelles créations ; audit Local terminé, collections historiques préservées. Premières dépendances : B fournit journal/révision/reçus, gardes des writers et intégration applicative, C complète masquage/progression, E/F réutilisent ces fondations pour aperçu/application, G/H ajoutent backend puis centre de notifications. [Dépendances détaillées](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#13-dépendances-8b-à-8h-et-première-intervention-8b) dans le rapport, sans les transformer en nouvelles grandes phases. Phase 9 conserve la gestion complète des partages, Phase 10 la finalisation, la qualité et la stabilisation V1 ; lecture partagée déjà livrée acquise.
+
+### Première mise en ligne après Phase 8
+
+**Décision validée : publier après la clôture officielle de Phase 8, sans attendre Phase 10.** Cette mise en ligne anticipée ne signifie pas que la V1 est terminée. Elle permettra les parcours hébergés, les notifications de version, les futures synchronisations TCGdex sécurisées et la validation des procédures de production. Les tests manuels complets auront lieu après cette première publication.
+
+GitHub `Palmyna/my.` ; `dev` pour développement, `main` pour publication via PR ; Vercel pour frontend React/Vite, **Supabase Cloud existant** pour backend ; domaine acquis `collectrealm.com`, application **`my.collectrealm.com`**. Première production à préparer après clôture Phase 8 et PR, sans seconde base de production ni perte des données actuelles. Les intégrations GitHub/Vercel/Supabase visent des publications plus simples ; mécanismes, coordination et limites des offres gratuites seront confirmés dans cette préparation.
+
+Décision de publication : validations sur `dev`, contrôle PR, activation maintenance production, merge vers `main`, déploiements Supabase/Vercel coordonnés, vérifications, puis levée maintenance seulement après validation. Maintenance indépendante d’un nouveau déploiement, persistante pendant déploiement/échec, page MY., réponse appropriée idéalement 503 et contrôles protégés. **Une page frontend ne bloque pas Supabase** : protection temporaire des écritures backend sensibles à concevoir et tester. Une intégration GitHub ne garantit pas l’ordre des déploiements. [Exigences de référence](05-ARCHITECTURE.md#publication-coordonnée-et-maintenance).
+
+Configuration Vercel/DNS/Auth/SMTP, maintenance, coordination et adaptations Cloud sécurisées du pipeline TCGdex/publisher restent à réaliser séparément. Aucune implémentation, intégration externe ou ouverture de production en 8I.2. Phase 9 et Phase 10 gardent leurs périmètres.
 
 ### Phase 9 — Partage des collections
 
@@ -212,24 +246,23 @@ Le partage est actif dès confirmation du propriétaire : aucune invitation, acc
 
 Aucune édition collaborative ni diffusion par lien public n'est ajoutée à la V1. Les notifications de partage restent non cadrées.
 
-### Phase 10 — Finalisation V1 et mise en production
+### Phase 10 — Finalisation, qualité et stabilisation V1
 
 **Statut : PLANIFIÉE**
 
-Stabiliser l'ensemble de la V1 et préparer son utilisation en production :
+Finaliser et stabiliser la V1 en tenant compte de la première version déjà publiée après Phase 8 :
 
 - cohérence responsive et accessibilité des parcours complets ;
 - états de chargement, vides et d'erreur ;
 - validation de la sécurité, des droits et des parcours de bout en bout ;
 - performances, requêtes et taille des bundles, avec découpage si pertinent ;
 - nettoyage et documentation finale ;
-- configuration Vercel et accès direct aux routes de la SPA ;
-- configuration des environnements de production et vérification Supabase Auth ;
-- Site URL et Redirect URLs de production pour confirmation email et récupération du mot de passe ;
-- configuration de l'envoi réel des emails, dont SMTP, et vérification des parcours ;
-- déploiement puis contrôles en production.
+- retours des tests utilisateurs complets et de l’exploitation de la première version hébergée ;
+- consolidation du routage SPA, des environnements, d’Auth/MFA et des emails déjà configurés ;
+- validation des procédures de publication, synchronisation catalogue, notifications et récupération ;
+- publication de la V1 finalisée puis contrôles en production.
 
-Le développement et les tests courants restent locaux avant cette étape, hors checkpoints Cloud ponctuels explicitement autorisés. Les URLs de production ne sont ni inventées à l'avance ni remplacées par des URLs localhost dans Supabase cloud.
+Le développement et les tests courants restent locaux ; les validations hébergées commencent après la première mise en ligne. Les opérations Cloud restent contrôlées et attribuées. Les URLs de production utilisent `https://my.collectrealm.com`, jamais localhost dans Supabase Cloud.
 
 La V1 conserve son périmètre de gestion de collections Pokémon TCG : aucun paiement ou abonnement Premium n'est requis, et les collections automatiques restent accessibles normalement.
 

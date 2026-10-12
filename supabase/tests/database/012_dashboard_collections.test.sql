@@ -41,14 +41,15 @@ insert into public.source_cards(id,tcgdex_id,set_id,source_present,origin) overr
 insert into public.catalog_variants(id,source_card_id,variant_key,source_present,origin) overriding system value values
   (-83001,-83001,'one',true,'tcgdex'),(-83002,-83001,'two',true,'tcgdex'),
   (-83003,-83001,'three',true,'tcgdex'),(-83004,-83001,'outside',true,'tcgdex');
-insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_pokemon_id,target_set_id,applied_target_version) values
-  ('c1300000-0000-0000-0000-000000000001','a1300000-0000-0000-0000-000000000001','Libre personnelle','free',null,null,null,null),
-  ('c1300000-0000-0000-0000-000000000002','a1300000-0000-0000-0000-000000000001','Auto Pokémon','automatic','pokemon',-9007199254740995,null,1),
-  ('c1300000-0000-0000-0000-000000000003','a1300000-0000-0000-0000-000000000001','Auto Extension','automatic','set',null,-83001,1),
-  ('c1300000-0000-0000-0000-000000000004','a1300000-0000-0000-0000-000000000001','Vide personnelle','free',null,null,null,null),
-  ('c1300000-0000-0000-0000-000000000005','a1300000-0000-0000-0000-000000000001','Cible sans nom','automatic','set',null,-9007199254740996,1),
-  ('c1300000-0000-0000-0000-000000000006','a1300000-0000-0000-0000-000000000002','Libre destinataire','free',null,null,null,null),
-  ('c1300000-0000-0000-0000-000000000007','a1300000-0000-0000-0000-000000000004','Privée tierce','free',null,null,null,null);
+-- Historical fixture with no v2 journal.
+insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_pokemon_id,target_set_id,applied_target_version,order_contract_version) values
+  ('c1300000-0000-0000-0000-000000000001','a1300000-0000-0000-0000-000000000001','Libre personnelle','free',null,null,null,null,1),
+  ('c1300000-0000-0000-0000-000000000002','a1300000-0000-0000-0000-000000000001','Auto Pokémon','automatic','pokemon',-9007199254740995,null,1,1),
+  ('c1300000-0000-0000-0000-000000000003','a1300000-0000-0000-0000-000000000001','Auto Extension','automatic','set',null,-83001,1,1),
+  ('c1300000-0000-0000-0000-000000000004','a1300000-0000-0000-0000-000000000001','Vide personnelle','free',null,null,null,null,1),
+  ('c1300000-0000-0000-0000-000000000005','a1300000-0000-0000-0000-000000000001','Cible sans nom','automatic','set',null,-9007199254740996,1,1),
+  ('c1300000-0000-0000-0000-000000000006','a1300000-0000-0000-0000-000000000002','Libre destinataire','free',null,null,null,null,1),
+  ('c1300000-0000-0000-0000-000000000007','a1300000-0000-0000-0000-000000000004','Privée tierce','free',null,null,null,null,1);
 insert into public.collection_items(collection_id,variant_id,origin,sort_position,automatic_rank) values
   ('c1300000-0000-0000-0000-000000000001',-83001,'manual',1,null),
   ('c1300000-0000-0000-0000-000000000001',-83002,'manual',2,null),

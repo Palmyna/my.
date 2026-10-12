@@ -27,7 +27,7 @@
 .binder-pocket.opens-right { border-left: 1px dashed #ffffff30; }
 .binder-pocket.opens-left { border-right: 1px dashed #ffffff30; }
 .binder-pocket::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, #ffffff07, transparent 42%, #ffffff05); pointer-events: none; border-radius: inherit; }
-.binder-card { display: block; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
+.binder-card { position: relative; display: block; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
 .binder-card .collection-content-image { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 5px; background: transparent; box-shadow: 0 1px 3px #0004; }
 .binder-pocket.is-missing .collection-content-image { filter: grayscale(1); opacity: .55; }
 .binder-pocket.is-search-muted .binder-card { opacity: .14; }
@@ -78,3 +78,4 @@
   .binder-book { transform: none; }
   .binder-navigation span { transition: none; }
 }
+.binder-card .collection-hidden-badge { position: absolute; bottom: 6px; left: 6px; pointer-events: none; }

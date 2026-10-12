@@ -14,7 +14,8 @@ export function CollectionItemDialog({ title, description, busy, error, opener, 
     const overflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     node.showModal()
-    node.querySelector<HTMLElement>('[data-initial-focus]')?.focus()
+    const initial = node.querySelector<HTMLElement>('[data-initial-focus]') ?? heading.current
+    initial?.focus({ preventScroll: true })
     return () => {
       node.close()
       document.body.style.overflow = overflow
@@ -29,8 +30,9 @@ export function CollectionItemDialog({ title, description, busy, error, opener, 
     aria-describedby={`${id}-description`} onCancel={event => { event.preventDefault(); if (!busy) onClose() }}
     onKeyDown={event => {
       if (event.key !== 'Tab') return
-      const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)'))
-        .filter(control => !control.closest('[hidden]') && (!(control instanceof HTMLInputElement) || control.type !== 'radio' || control.checked))
+      const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary, [tabindex="0"]'))
+        .filter(control => !control.closest('[hidden]') && !control.closest('details:not([open]) :not(summary)')
+          && (!(control instanceof HTMLInputElement) || control.type !== 'radio' || control.checked))
       const first = controls[0], last = controls[controls.length - 1]
       if (!first || !last) { event.preventDefault(); heading.current?.focus(); return }
       const onControl = controls.includes(document.activeElement as HTMLElement)

@@ -7,8 +7,9 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(appPackage.version) },
   test: {
     projects: [
-      { extends: true, test: { name: 'frontend', include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', css: { include: [/(physical-copies|collection-item-reorder)\.css$/] }, setupFiles: ['./src/test/setup.ts'] } },
+      { extends: true, test: { name: 'frontend', include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', css: { include: [/(physical-copies|collection-item-reorder|notifications)\.css$/] }, setupFiles: ['./src/test/setup.ts'] } },
       { extends: true, test: { name: 'catalog', include: ['scripts/catalog/**/*.test.ts'], environment: 'node' } },
+      { extends: true, test: { name: 'notifications', include: ['scripts/notifications/**/*.test.ts'], environment: 'node' } },
       { extends: true, test: { name: 'functions', include: ['supabase/functions/**/*.test.ts'], environment: 'node' } },
     ],
     clearMocks: true,

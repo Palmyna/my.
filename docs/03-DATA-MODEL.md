@@ -234,7 +234,7 @@ Une collection par extension peut inclure toutes les catégories présentes dans
 
 Sa structure est **matérialisée** : les éléments générés sont enregistrés dans la collection. Elle n'est pas recalculée dynamiquement à chaque affichage à partir de l'état courant du catalogue.
 
-Cette matérialisation garantit le processus de mise à jour validé :
+Cette matérialisation rend possible le processus de mise à jour validé pour la Phase 8, livré côté SQL en 8F.1, services/reprise en 8F.2 et parcours utilisateur confirmé en [8F.3](reports/2026-10-11-PHASE8F3-CLOSURE.md) :
 
 1. la collection est générée avec l'état courant du catalogue ;
 2. ses éléments automatiques sont enregistrés ;
@@ -286,7 +286,15 @@ Le modèle doit représenter un ordre stable des éléments :
 
 `automatic_rank` est le rang canonique système ; `sort_position` est l'ordre réel affiché dans cette collection. Un déplacement automatique ne modifie que `sort_position`, jamais `automatic_rank`, `origin`, le hash/version canonique ou `automatic_target_states`. Deux collections de même cible/version peuvent contenir les mêmes éléments automatiques avec des `sort_position` différents.
 
-La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. Les primitives 6A.3 et 6C.1 calculent les positions en PostgreSQL et sérialisent réorganisation, ajout et retrait par verrou de la collection. Un ajout manuel accepte `start` ou `end` (défaut), avec rééquilibrage si nécessaire ; le retrait ne compacte pas l'ordre. Le placement d'un nouvel élément automatique et la stratégie de préservation/ancrage de l'ordre personnalisé lors des mises à jour restent à cadrer en Phase 8.
+La Phase 1 représente l'ordre matérialisé par des positions numériques fractionnaires exactes, décrites dans `06-DATABASE.md`. Les primitives 6A.3 et 6C.1 calculent les positions en PostgreSQL et sérialisent réorganisation, ajout et retrait par verrou de la collection. Un ajout manuel accepte `start` ou `end` (défaut), avec rééquilibrage si nécessaire ; le retrait ne compacte pas l'ordre.
+
+**Modèle Phase 8 validé ; stockage 8B.1 et [calcul interne 8B.2](reports/2026-10-08-PHASE8B2-RELATIVE-ORDER-ENGINE.md) livrés Local, déplacement v2 backend livré en 8B.3 ajout manuel avec invariant initial en 8B.4 et retrait/cycle de vie R3 en 8B.5 ; application 8F livrée Local :** reconstruire le canonique cible puis rejouer toutes les intentions personnelles avant/ancre ou fin dans leur chronologie, placements initiaux manuels compris. Les [décisions R1–R4 validées](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) imposent contexte historique complet au moment du geste, immuable ; gestes filtrés résolus dans l'ordre complet ; nouvel UUID après retrait réel, identité conservée lors d'une conversion ; aucun nouveau geste pour annulation, absence d'effet ou retry. Masqués inclus dans le calcul.
+
+La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md#4-modèle-persistant-projeté) est validée. [8B.1](reports/2026-10-08-PHASE8B1-RELATIVE-ORDER-FOUNDATIONS.md) livre Local les colonnes de révision personnelle (défaut zéro), contrat (défaut 2 depuis 8B.8, anciennes lignes inchangées), introduction nullable et les tables privées de journal/reçus. [8B.3](reports/2026-10-08-PHASE8B3-REORDER-WRITER-V2.md) alimente journal et reçus pour les déplacements v2 sous verrou parent : R1 produit côté serveur, une révision par permutation modifiée, no-op avec reçu seul et retry sans écriture. [8B.4](reports/2026-10-09-PHASE8B4-MANUAL-ADD-V2.md) enregistre atomiquement chaque ajout manuel v2 avec introduction positive, intention initiale unique à cette séquence et reçu. Contrainte différée en fin de transaction ; introduction et intention restent obligatoires et inchangées après conversion. Legacy exempt, sans reconstruction historique. [8B.5](reports/2026-10-09-PHASE8B5-MANUAL-REMOVAL-V2.md) retire atomiquement le manuel et toutes ses intentions propres par cascade du sujet ; révision +1 et reçu remove conservant l’ancien UUID. Références historiques des autres sujets et reçus antérieurs restent intacts. Réajout de même variante : nouvel UUID, nouveau placement initial, aucune intention ancienne restaurée ni référence historique rattachée par variante ; aucune intention ancienne n’est reconstruite ; les nouvelles créations sont v2 depuis 8B.8. [Consultation sécurisée 8B.6](reports/2026-10-09-PHASE8B6-OPERATION-RESULT.md) livrée Local : `get_collection_operation_result` retourne le résultat historique enregistré après autorisation actuelle, sans mutation. Trois writers v2 et reprise backend complète ; NULL ne permet pas de changer l’UUID d’une requête incertaine. [Intégration 8B.7](reports/2026-10-09-PHASE8B7-APPLICATION-INTEGRATION.md) livrée Local en `0.8.6` : lecteur v2 et services/hooks communs aux contrats 1/2, routage des trois writers et récupération des opérations incertaines. Depuis l’[activation 8B.8](reports/2026-10-10-PHASE8B8-CLOSURE.md), les nouvelles créations sont contrat 2/révision zéro ; les collections existantes restent contrat 1. 8B et 8C sont terminées et validées Local ; interface de masquage et filtres livrés en 8D. `sort_position` reste l'unique ordre lu ; rangs appliqués et journal servent à reconstruire une actualisation, sans lecteur parallèle ni déduction des anciennes intentions. Les références d'ancre/successeurs peuvent survivre comme UUID historiques dans les intentions d'autres sujets vivants ; les intentions propres d'un sujet retiré sont supprimées. Les collections historiques sont des tests legacy recréables, sans récupération des anciens déplacements ni destruction pendant 8A.
+
+### Masquage d'un élément — backend livré en 8C
+
+Le masquage persistant appartient à l'élément de collection, uniquement automatique dans une collection automatique ; il n'appartient ni à la Variante du catalogue, ni à l'exemplaire, ni au viewer. Seul le propriétaire le modifie en contrat 2. Origine, positions, exemplaires et notes sont inchangés. Un automatique conservé garde son masquage ; un nouvel automatique ou un manuel converti est visible par défaut. [8C](reports/2026-10-10-PHASE8C-CLOSURE.md) livre Local `collection_items.is_hidden boolean not null default false`, CHECK d'origine, invariant parent et RPC avec révision/reçu atomiques. Aucune table de masquage séparée. Les deux comptes de progression excluent les automatiques masqués ; manuels toujours inclus, possession du contenu inchangée. Interface et filtres livrés en 8D, sans évolution du modèle ; actualisation confirmée livrée Local en 8F.3.
 
 ### Ordre canonique du catalogue
 
@@ -323,7 +331,7 @@ La détection seule ne modifie jamais la collection.
 
 Le modèle doit permettre d'identifier précisément les changements proposés afin de présenter un résumé avant leur application.
 
-Ce résumé peut être calculé à la demande, stocké temporairement ou persisté comme une entité dédiée. Ce choix reste technique et n'est pas fixé ici.
+8E livre Local un résumé calculé à la demande, sans table de previews : ajouts, retraits, conversions, changements de rang et séquence finale complète. Un token lie version appliquée, version/hash cible, révision personnelle et empreinte du plan. L’aperçu réutilise le moteur PostgreSQL 8B.2 ; le writer SQL [8F.1](reports/2026-10-11-PHASE8F1-APPLY-WRITER.md) recalcule ce même plan pour vérifier le token. Changement pertinent depuis l’aperçu → refus et nouvel aperçu en 8F. Les nouveaux UUID sont alloués à l'application, les items nouveaux étant identifiés par variante dans le plan. [Contrats de détection/aperçu livrés 8E](06-DATABASE.md#phase-8e--détection-et-aperçu-local), [clôture 8E](reports/2026-10-11-PHASE8E-CLOSURE.md). La version appliquée n’est jamais avancée par une lecture, même si le catalogue revient à sa structure ancienne.
 
 ### Application d'une mise à jour
 
@@ -333,12 +341,18 @@ Après validation explicite de l'utilisateur :
 - leurs `automatic_rank` sont mis à jour, en préservant autant que possible l'ordre personnalisé sans réinitialisation arbitraire de `sort_position` vers l'ordre canonique ;
 - les éléments automatiques encore éligibles sont conservés ;
 - les éléments automatiques devenus non éligibles sont retirés de la collection ;
-- un élément manuel devenu automatiquement éligible conserve le même `collection_item`, passe à `origin = automatic`, reçoit son `automatic_rank` et conserve autant que possible son `sort_position`, sans doublon ;
+- un élément manuel devenu automatiquement éligible conserve le même `collection_item`, passe à `origin = automatic`, reçoit son `automatic_rank` et conserve ses intentions de placement rejouées, sans doublon ; sa position numérique peut être rematérialisée ;
 - les autres éléments manuels sont préservés ;
 - les exemplaires physiques restent inchangés ;
 - les notes et autres informations personnelles restent inchangées.
 
 Une mise à jour du catalogue ou d'une collection ne doit jamais entraîner de perte silencieuse de données personnelles.
+
+## Notifications — modèle conceptuel Phase 8
+
+**Fondations privées 8G.1, lecteurs/transitions 8G.2 et publication sécurisée 8G.3 livrés ; backend notifications terminé et validé Local.** Distinguer le contenu publié ou l'événement de collection de son suivi individuel par utilisateur : non lu, lu non traité, traité. Le badge dérive des non lues actives ; le centre exclut les traitées et les obsolètes. Une collection possède au plus une notification active pour son propriétaire ; de nouveaux changements actualisent celle-ci et la rendent non lue par comparaison des versions, sans modifier le suivi existant.
+
+Les annonces/changelogs concernent les comptes déjà inscrits à leur publication, y compris déconnectés. Pas de réception automatique des contenus anciens à l'inscription, sauf annonce importante encore d'actualité. 8A.3 recommande événements de collection dérivés des versions, une ligne de lecture par collection à la demande, contenu d'annonce partagé et suivi individuel créé seulement à la lecture/au traitement. Éligibilité par date d'inscription serveur, exception nouveaux inscrits explicite tant que l'annonce reste active ; retrait/expiration rendent obsolète. Pas de diffusion écrivant chez tous les utilisateurs. Le [cycle de vie métier](01-FEATURES.md#centre-de-notifications--décisions-phase-8) et les [fondations privées](06-DATABASE.md#phase-8g1--fondations-privées-des-notifications-local) font référence. Les trois tables privées sont livrées en [8G.1](reports/2026-10-11-PHASE8G1-NOTIFICATION-FOUNDATIONS.md), avec contraintes, publication immuable et projection de collection au même snapshot. Aucun suivi rempli à la sync ou par les lecteurs purs ; [8G.2](reports/2026-10-11-PHASE8G2-NOTIFICATION-API.md) partage les prédicats des annonces entre consultation, compteur et suivi du seul appelant. Lecture pure, dates persistantes et retries idempotents ; [8G.3](reports/2026-10-11-PHASE8G3-CLOSURE.md) ajoute publication/retrait privés, provenance PostgreSQL et hash métier normalisé sans valeur générée ; aucune résolution d’annonce supportée, `requires_action=true` refusé. Centre 8H.1 et actions de lecture/traitement [8H.2](reports/2026-10-12-PHASE8H2-NOTIFICATION-ACTIONS.md) livrés sans changement du modèle ; version de l’aperçu et hash du contenu consulté seuls acquittés.
 
 ## Exemplaires physiques
 
@@ -480,7 +494,7 @@ Ces valeurs sont dérivées du catalogue, sans nouvelle source de vérité persi
 
 ### Progression d'une collection
 
-Le modèle calcule la progression en comparant le nombre de variantes possédées au nombre total de variantes présentes dans la collection. Tous les éléments de collection, automatiques comme manuels, contribuent au total. Une variante compte comme possédée dès que le propriétaire de la collection possède au moins un exemplaire correspondant.
+Le modèle livré calcule la progression en comparant le nombre de variantes possédées au nombre total de variantes présentes, manuelles comprises. Une variante compte comme possédée dès que le propriétaire possède au moins un exemplaire correspondant. **Depuis 8C**, les automatiques masqués sont exclus des deux comptes, même possédés ; les manuels restent inclus. Même règle au Dashboard, dans Collection et en partage, quel que soit le filtre affiché. Le statut de possession reste dérivé des exemplaires ; le masquage ne l'efface pas.
 
 ## Relations conceptuelles principales
 
@@ -577,8 +591,7 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les éventuelles exigences légales/rétentions particulières liées à la suppression, sans remettre en question le périmètre fonctionnel validé ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
-- la persistance ou non des résumés de mise à jour ;
-- le comportement exact des éléments manuels lorsqu'un élément automatique est inséré à proximité ;
+- les APIs de notifications livrées Local en 8G selon 8A.3, avec centre 8H.1 et actions 8H.2 livrés, centre 8H clôturé et validé Local en `0.8.19` ; application SQL, services/reprise et parcours confirmé livrés Local en 8F.1–8F.3 ; détection/aperçu livrés Local en 8E ; le socle d’ordre relatif 8B et le masquage/progression 8C sont livrés Local, ainsi que l’interface et les filtres 8D ; contrat 2 activé pour les nouveaux parents ;
 - les éventuels outils d'administration du catalogue ;
 - l'implémentation PostgreSQL finale de la recherche ;
 - les choix de performance et d'optimisation ;

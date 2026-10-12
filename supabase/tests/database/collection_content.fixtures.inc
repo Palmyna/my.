@@ -17,10 +17,11 @@ insert into public.catalog_variants(id,source_card_id,variant_key,label,image_ur
   (-9007199254740995,-86001,'stamp','Holo Cosmos Stamp corrigé',null,false,'my',false),
   (-86005,-9007199254740995,'unknown',null,null,false,'my',false),
   (-86006,-86001,'outside','Normal hors collection',null,true,'tcgdex',true);
-insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_set_id,applied_target_version) values
-  ('c1600000-0000-0000-0000-000000000001','a1600000-0000-0000-0000-000000000001','Contenu mixte','automatic','set',-86001,1),
-  ('c1600000-0000-0000-0000-000000000002','a1600000-0000-0000-0000-000000000001','Vide','free',null,null,null),
-  ('c1600000-0000-0000-0000-000000000003','a1600000-0000-0000-0000-000000000001','Volume','free',null,null,null);
+-- Explicit historical contract: these fixtures exercise legacy behavior.
+insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_set_id,applied_target_version,order_contract_version) values
+  ('c1600000-0000-0000-0000-000000000001','a1600000-0000-0000-0000-000000000001','Contenu mixte','automatic','set',-86001,1,1),
+  ('c1600000-0000-0000-0000-000000000002','a1600000-0000-0000-0000-000000000001','Vide','free',null,null,null,1),
+  ('c1600000-0000-0000-0000-000000000003','a1600000-0000-0000-0000-000000000001','Volume','free',null,null,null,1);
 -- Deliberately not inserted in display order. Automatic ranks also differ.
 insert into public.collection_items(id,collection_id,variant_id,origin,sort_position,automatic_rank) values
   ('d1600000-0000-0000-0000-000000000002','c1600000-0000-0000-0000-000000000001',-86002,'manual',1,null),

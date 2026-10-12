@@ -240,8 +240,8 @@ Les sujets suivants devront être traités dans de futurs documents dédiés et 
 - les détails d'implémentation et l'automatisation future laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - les règles exactes des variantes de cartes ;
 - les détails d'ordre encore ouverts dans la [politique TCGdex](02-TCGDEX.md), notamment l'ordre des variantes et les cas sans date fiable ;
-- le comportement détaillé lors de l'apparition d'une nouvelle carte ou variante éligible ;
-- le degré de personnalisation d'une collection automatique ;
+- les cas complexes et les contrats techniques d'actualisation et de réordonnancement relatif (8A.2/8A.3), selon les [décisions Phase 8](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) ;
+- l'implémentation du masquage des automatiques et du centre de notifications interne, planifiés en [Phase 8](08-ROADMAP.md#phase-8--actualisation-masquage-et-notifications) ;
 - la nomenclature exacte des états de conservation ;
 - les sociétés et formats de notes de grading pris en charge ;
 - les éventuelles évolutions du classeur au-delà de la V1 continue et des trois formats livrés ;

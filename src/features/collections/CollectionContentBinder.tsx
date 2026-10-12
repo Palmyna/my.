@@ -86,9 +86,10 @@ export function CollectionContentBinder({ navigation, format, onDetail }: {
           {pages[page - 1]!.map((item, slot) => <li key={slot}
             className={`binder-pocket ${slot % columns < Math.ceil(columns / 2) ? 'opens-right' : 'opens-left'}${!item ? ' is-empty' : ''}${item && !item.owned ? ' is-missing' : ''}${item && navigation.searching && !navigation.matchingIds.has(item.collectionItemId) ? ' is-search-muted' : ''}${item?.collectionItemId === navigation.haloId ? ' has-search-halo' : ''}`}
             data-item-id={item?.collectionItemId} aria-label={!item ? 'Pochette vide' : undefined}>
-            {item && <button type="button" className="binder-card" aria-label={`Voir le détail de ${[item.cardNameFr || 'Nom indisponible', item.setAbbreviationFr || item.setAbbreviation, item.localId, item.variantLabel, item.owned ? 'Carte possédée' : 'Carte manquante'].filter(Boolean).join(' · ')}`}
+            {item && <button type="button" className="binder-card" aria-label={`Voir le détail de ${[item.cardNameFr || 'Nom indisponible', item.setAbbreviationFr || item.setAbbreviation, item.localId, item.variantLabel, item.owned ? 'Carte possédée' : 'Carte manquante', 'isHidden' in item && item.isHidden === true ? 'Carte masquée' : null].filter(Boolean).join(' · ')}`}
               onClick={event => onDetail(item, event.currentTarget)}>
               <CardImage url={item.imageUrl} name={item.cardNameFr || 'Nom indisponible'} />
+              {'isHidden' in item && item.isHidden === true && <span className="collection-hidden-badge">Masquée</span>}
             </button>}
           </li>)}
         </ol>

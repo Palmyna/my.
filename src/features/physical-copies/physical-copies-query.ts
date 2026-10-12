@@ -1,6 +1,6 @@
 import type { QueryClient, QueryFilters } from '@tanstack/react-query'
 import { variantIdString, type VariantIdInput } from '../../lib/variant-id'
-import type { CollectionContentItem } from '../../types/collection-content'
+import type { CollectionContent } from '../../types/collection-content'
 import { collectionContentKeys } from '../collections/collection-query'
 import { dashboardCollectionsKey } from '../dashboard/dashboard-query'
 
@@ -13,9 +13,9 @@ export async function invalidateCopyPossession(client: QueryClient, viewerId: st
     // Overview has no variant membership, so refresh this viewer's summaries.
     { queryKey: ['collections', 'detail', viewerId] },
     { queryKey: collectionContentKeys(viewerId), predicate: query => {
-      const content = client.getQueryData<CollectionContentItem[]>(query.queryKey)
+      const content = client.getQueryData<CollectionContent>(query.queryKey)
       // Pending/error queries without data cannot prove the variant is absent.
-      return content === undefined || content.some(item => item.variantId === variantId)
+      return content === undefined || content.items.some(item => item.variantId === variantId)
     } },
   ]
   // invalidateQueries alone reuses an initial pending read without cached data.

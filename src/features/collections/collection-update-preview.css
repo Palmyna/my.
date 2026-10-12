@@ -1,0 +1,15 @@
+.collection-update-preview { min-width: 0; }
+.collection-update-preview h2:focus-visible { outline: 2px solid var(--focus, var(--text)); outline-offset: 4px; }
+.collection-update-counts { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; padding-left: 1.25rem; }
+.collection-update-list { display: grid; gap: .75rem; padding-left: 1.5rem; }
+.collection-update-list li { min-width: 0; padding: .75rem; background: var(--surface-raised); border-radius: var(--radius-md, .5rem); }
+.collection-update-list p { margin: .5rem 0 0; overflow-wrap: anywhere; }
+.collection-update-variant { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .25rem .75rem; align-items: center; }
+.collection-update-extension { grid-column: 2; color: var(--text-muted); overflow-wrap: anywhere; }
+.collection-update-empty { padding: .75rem; background: var(--surface-raised); border-radius: var(--radius-md, .5rem); }
+.collection-update-order summary { cursor: pointer; min-height: 44px; display: list-item; align-content: center; }
+.collection-update-order summary:focus-visible { outline: 2px solid var(--focus, var(--text)); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .collection-update-list { padding-left: 1.1rem; }
+  .collection-update-list li { padding: .5rem; }
+}

@@ -6,7 +6,11 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import { AuthenticatedHeader } from './AuthenticatedHeader'
 
 const actions = vi.hoisted(() => ({ signOut: vi.fn() }))
-vi.mock('../features/auth/auth-context', () => ({ useAuth: () => ({ actions, user: { id: 'alice', email: 'alice@example.test' } }) }))
+vi.mock('../features/auth/auth-context', () => ({ useAuth: () => ({ actions, isAuthorized: true, user: { id: 'alice', email: 'alice@example.test' } }) }))
+vi.mock('../services/notifications', async importOriginal => ({ ...await importOriginal<object>(),
+  getNotificationUnreadCount: vi.fn().mockResolvedValue({ unreadCount: '0' }),
+  getNotificationCenter: vi.fn().mockResolvedValue({ items: [], unreadCount: '0', nextCursor: null }),
+}))
 vi.mock('../services/global-search', async importOriginal => ({ ...await importOriginal<typeof import('../services/global-search')>(),
   searchGlobalNavigation: vi.fn().mockResolvedValue([{ kind: 'pokemon', pokemonId: '25', nameFr: 'Pikachu',
     dexNumber: 25, primaryType: 'electric', secondaryType: null }]),

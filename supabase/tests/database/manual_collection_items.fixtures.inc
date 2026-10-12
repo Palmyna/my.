@@ -22,9 +22,10 @@ insert into public.catalog_variants(id,source_card_id,variant_key,source_present
   (9007199254740995,-87001,'lossless-local',false,'my','confirmed',true);
 insert into public.automatic_target_states(id,target_type,set_id,generation_version,content_hash) overriding system value
   values(-87001,'set',-87001,7,repeat('a',64));
-insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_set_id,applied_target_version) values
-  ('c1700000-0000-0000-0000-000000000001','a1700000-0000-0000-0000-000000000001','Manual auto','automatic','set',-87001,7),
-  ('c1700000-0000-0000-0000-000000000002','a1700000-0000-0000-0000-000000000001','Manual free','free',null,null,null);
+-- Explicit historical contract: these fixtures exercise legacy behavior.
+insert into public.collections(id,owner_id,name,collection_type,automatic_target_type,target_set_id,applied_target_version,order_contract_version) values
+  ('c1700000-0000-0000-0000-000000000001','a1700000-0000-0000-0000-000000000001','Manual auto','automatic','set',-87001,7,1),
+  ('c1700000-0000-0000-0000-000000000002','a1700000-0000-0000-0000-000000000001','Manual free','free',null,null,null,1);
 insert into public.collection_items(id,collection_id,variant_id,origin,automatic_rank,sort_position) values
   ('d1700000-0000-0000-0000-000000000001','c1700000-0000-0000-0000-000000000001',-87001,'automatic',1,1),
   ('d1700000-0000-0000-0000-000000000002','c1700000-0000-0000-0000-000000000001',-87002,'manual',null,2);
