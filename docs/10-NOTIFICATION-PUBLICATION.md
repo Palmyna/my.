@@ -1,6 +1,6 @@
 # Publication des notifications depuis le terminal
 
-Backend livré et validé sur **Supabase Local** en 8G.3, version `0.8.16`. Aucun droit de publication dans le navigateur. Interface du centre et raccordement aux parcours prévus en 8H. [Clôture 8G](reports/2026-10-11-PHASE8G3-CLOSURE.md).
+Backend livré et validé sur **Supabase Local** en 8G.3, version `0.8.16`. Aucun droit de publication dans le navigateur. Centre et raccordement aux parcours livrés et validés Local en [8H.3](reports/2026-10-12-PHASE8H3-CLOSURE.md). Publication Cloud toujours non implémentée. [Clôture 8G](reports/2026-10-11-PHASE8G3-CLOSURE.md).
 
 ## Préparer et valider un fichier
 
@@ -80,6 +80,10 @@ Correction : retirer l’ancienne publication puis préparer une nouvelle clé. 
 Erreurs/outputs assainis, aucun objet d’erreur driver, SQL brut, secret, URL de connexion ou donnée Auth journalisé. Codes de sortie : 0 succès, 1 échec. UUID/date/hash identiques sur reprise permettent de reconnaître l’idempotence ; aucune valeur `replayed` variable ne modifie le résultat historique.
 
 ## Publication Cloud future
+
+L’[audit 8I.1](reports/2026-10-12-PHASE8I1-AUDIT-CLOUD-READINESS.md#8-publication-cloud-future-des-notifications) inventorie les prérequis sans les appliquer. Le checkpoint manuel doit d’abord vérifier la création du rôle par les privilèges managés, les ACL effectives incluant PUBLIC et le propriétaire des fonctions. `NOINHERIT` ne soustrait pas le rôle aux droits accordés à PUBLIC. Ne pas créer un rôle homonyme avant la migration qui le crée, ni donner un mot de passe pour faire passer le dry-run ; celui-ci ne vérifie pas l’exécution de CREATE ROLE. Le rôle demeure sans secret provisionné jusqu’à une intervention dédiée.
+
+Publication future : environnement/projet explicitement sélectionnés, identifiants hors Git et frontend, rotation et révocation, identité PostgreSQL préservée, TLS vérifiant chaîne et nom d’hôte, puis validation du contrat et de l’audience. Même clé/contenu pour reprise incertaine ; correction par retrait puis nouvelle clé, aucun écrasement. Publier un changelog seulement après contrôle de la version effectivement déployée, puis vérifier consultation, lecture/traitement et retrait sur comptes synthétiques. Aucun privilège `service_role` utilisé pour remplacer le rôle dédié.
 
 **Non autorisée et non implémentée ici.** Une future intervention devra appliquer/provisionner la migration avec autorisation distincte, vérifier attributs/ACL et réseau, secrets hors Git et rotation, utiliser connexion directe ou mode de pool conservant l’identité PostgreSQL, puis exiger TLS avec validation du certificat et du nom d’hôte. CA de confiance si nécessaire ; jamais `rejectUnauthorized:false`, `sslmode=no-verify` ou désactivation TLS. Avec `pg`, paramètres `sslmode/sslcert/sslkey/sslrootcert` dans l’URL peuvent remplacer l’objet TLS : les refuser ou configurer explicitement une voie garantissant la validation. Aucun navigateur, `service_role`, frontend, Cloud ou Vercel utilisé par le parcours actuel.
 
