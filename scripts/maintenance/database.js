@@ -72,7 +72,7 @@ function expectedBodies() {
   return bodies
 }
 
-export async function verifyContract(client) {
+export async function verifyFreezeContract(client) {
   const expected = expectedBodies()
   const { rows: functions } = await client.query(`select n.nspname || '.' || p.proname name, p.prosrc,
     p.proowner::regrole::text owner, p.prosecdef, p.proconfig,
@@ -118,10 +118,15 @@ export async function verifyContract(client) {
         and has_table_privilege('my_notification_publisher',c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')) as publisher_permissions`,
   [deniedRoles, controlNames])
   if (!security || Object.values(security).some(v => v !== true)) throw new MaintenanceError('permissions_incomplete')
+  return { tables: guards.length, functions: functions.length, permissions: 'verified' }
+}
+
+export async function verifyContract(client) {
+  const contract = await verifyFreezeContract(client)
   const versions = (await client.query('select version from supabase_migrations.schema_migrations order by version')).rows.map(r => r.version)
   const files = readdirSync(migrationDirectory).filter(f => /^\d{14}_.+\.sql$/.test(f)).map(f => f.slice(0, 14)).sort()
   if (JSON.stringify(versions) !== JSON.stringify(files)) throw new MaintenanceError('migration_history_mismatch')
-  return { tables: guards.length, functions: functions.length, migrations: versions.length, last_migration: versions.at(-1), permissions: 'verified' }
+  return { ...contract, migrations: versions.length, last_migration: versions.at(-1) }
 }
 
 export async function observe(client, excludedPids = []) {

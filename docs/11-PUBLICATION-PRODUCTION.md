@@ -6,7 +6,7 @@ Ce document est la **référence opérationnelle unique des futures publications
 
 **Décisions formalisées le 13 octobre 2026 ; procédure cible, pas encore opérationnelle ni validée de bout en bout en Production.** L’application est déjà hébergée en Production selon le propriétaire. **PROD.1 livre la maintenance frontend, PROD.2 le gel backend et PROD.3 la coordination opérateur validée sur Local.** Les validations manuelles Preview fournies par le propriétaire couvrent activation sans rebuild, page MY., HTTP 503, headers anti-cache, refus d’une route directe et retour HTTP 200 sans rebuild. Elles ne prouvent pas Production. Installation/validation Supabase Cloud, répétition coordonnée Production, sauvegarde/restauration vérifiée, publisher Cloud, contrôles applicatifs hébergés pendant fermeture et nouveaux réglages de déploiement restent nécessaires.
 
-Version du dépôt : **`0.8.26`**, après PROD.3 ; PROD.2 était en `0.8.25`, PROD.1 en `0.8.24` et le cadrage initial en `0.8.23`. PROD.3 réutilise les deux migrations PROD.2 et leurs contrats sans modification SQL persistante, ajoute un CLI strictement Local, des contrôles HTTP préparés hors connexion et une répétition isolée. Aucun accès aux projets Cloud, changement de configuration distante, commit, push, PR, merge ou déploiement effectué ici. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
+Version du dépôt : **`0.8.27`**, après PROD.4 ; PROD.3 était en `0.8.26` ; PROD.2 était en `0.8.25`, PROD.1 en `0.8.24` et le cadrage initial en `0.8.23`. PROD.3 réutilise les deux migrations PROD.2 et leurs contrats sans modification SQL persistante, ajoute un CLI strictement Local, des contrôles HTTP préparés hors connexion et une répétition isolée. Aucun accès aux projets Cloud, changement de configuration distante, commit, push, PR, merge ou déploiement effectué ici. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
 
 ## État connu et provenance
 
@@ -16,7 +16,7 @@ Inspection historique du cadrage : branche **`dev`**, HEAD **`590d9fb827948ee694
 
 | Élément observé | Portée de l’observation |
 |---|---|
-| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.26` dans les trois champs ; version injectée par Vite depuis le package |
+| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.27` dans les trois champs après PROD.4 ; version injectée par Vite depuis le package |
 | [vercel.json](../vercel.json) | Fallback SPA `/(.*)` vers `/index.html` conservé ; `proxy.entrypoint` vers [middleware.ts](../middleware.ts), sans exclusion de chemin ; aucun réglage d’attente de promotion ajouté |
 | [Migrations](../supabase/migrations/) | 50 fichiers et 50 appliqués Local, dernier `20261013135415_prod2_freeze_admission_barrier` ; aucune preuve d'application des deux migrations PROD.2 Cloud |
 | [supabase/config.toml](../supabase/config.toml) | Configuration Local `my-local`, URLs Auth locales, seed applicatif désactivé ; ne décrit pas à elle seule la configuration Cloud |
@@ -86,7 +86,7 @@ Les opérations déjà engagées doivent avoir terminé ou été annulées selon
 
 Après maintenance effective, effectuer **un backup manuel avant chaque publication**, avant création de la PR de livraison et avant toute nouvelle migration Production.
 
-La procédure technique de sauvegarde/restauration sera conçue et testée dans un bloc distinct. Elle devra produire un ensemble cohérent, adapté aux possibilités réelles de Supabase Free, et couvrir :
+L’[outillage PROD.4](12-SUPABASE-BACKUP.md), livré en `0.8.27`, prépare les futurs exports manuels avec archive PostgreSQL native complète, snapshot partagé, inventaires et chiffrement immédiat. Tests uniquement sur PostgreSQL isolé synthétique ; aucun accès ou backup Cloud. La restauration reste exclusivement PROD.5. Le périmètre cible reste :
 
 | Élément à conserver | Exigence de restauration |
 |---|---|
@@ -431,6 +431,12 @@ node scripts/maintenance/cli.js --command verify-open --environment local --proj
 
 Si levée backend confirmée mais frontend encore fermé : ne pas présumer la reprise ; diagnostiquer le frontend. En cas d'échec de reprise, l'opérateur décide explicitement de rétablir fermeture frontend puis gel, avec nouveau contrôle et drainage. Ce rétablissement n'est jamais automatique. Après `delete-account` refusée en gel, les sessions révoquées restent révoquées : reconnexion requise ; refus Auth natif 500 générique possible, distinct du REST 503. Pour Phase 8, garder UUID, payload/token, intention et reçu exacts ; réponse réseau incertaine ou reçu absent n'autorise aucune nouvelle opération aveugle.
 
+## PROD.4 — Outillage de sauvegarde
+
+**Livré en `0.8.27`, validé sur PostgreSQL synthétique isolé seulement.** [Procédure détaillée, matrice exhaustive, Windows, manifeste et limites](12-SUPABASE-BACKUP.md), [rapport](reports/2026-10-13-PROD4-BACKUP.md). Archive native de toute la base, inventaire/roles/migrations sous snapshot partagé, comparaison des séquences non transactionnelles et chiffrement immédiat hors Git. `plan` ne connecte aucun service ; `capture` exige sélection Cloud explicite, cible examinée, preuves de fermeture et deux autorisations distinctes ; `verify` relit hors connexion, avec authentification GCM, SHA-256 et lecture intégrale de l'archive.
+
+PROD.3 conserve `backup_authorized=false`. Aucun script de sauvegarde ne modifie maintenance ou gel, ni ne contourne les permissions. Storage/Vault utilisés, droits incomplets, snapshot perdu, séquences instables ou références externes inconnues nécessitent arrêt et cadrage complémentaire. Évidence opérateur et configurations externes restent des déclarations à contrôler manuellement ; aucune preuve Production déduite de Local. **Aucune sauvegarde Cloud réalisée ; aucune restauration éprouvée.** `restore_proven=false` et `publication_authorized=false` dans tout succès. Première sauvegarde Cloud dans une intervention manuelle autorisée ; récupération isolée et compatibilité à tester exclusivement dans PROD.5 avant publication.
+
 ## Échecs, reprise et retour arrière
 
 | Situation | Principe de reprise |
@@ -473,9 +479,9 @@ Les [rapports Phase 8](reports/2026-10-12-PHASE8I2-CLOSURE.md) restent inchangé
 Découpage **prévisionnel**, à affiner en petites sous-phases avant chaque implémentation :
 
 1. **Maintenance Vercel et protection Supabase** : **PROD.1/PROD.2 implémentées, PROD.3 coordination et outillage validés Local** ; tests Preview partiels fournis par le propriétaire. Installation/validation Supabase Cloud, contrôles applicatifs hébergés protégés et répétition complète Production restent requis. La fermeture mondiale ne se déduit pas de la répétition Local.
-2. **Sauvegarde/restauration manuelle** : choix des outils et périmètre réel, stockage hors Git, intégrité et essai de restauration isolé avec données/Auth/historique/permissions et compatibilité.
+2. **Sauvegarde/restauration manuelle** : **PROD.4 outillage livré et testé isolément**, snapshot PostgreSQL partagé, inventaire explicite, stockage chiffré hors Git et intégrité ; [matrice, procédures et limites](12-SUPABASE-BACKUP.md). Première sauvegarde Cloud manuelle encore requise dans une intervention autorisée. **PROD.5 restauration isolée restant à concevoir et éprouver** avec données/Auth/historique/permissions et compatibilité.
 3. **Publication des notifications Cloud** : adaptation sécurisée du script existant, rôle/authentification/TLS/permissions, reprise idempotente et contrôle du changelog pendant fermeture.
 4. **Réglages de déploiement** : Supabase automatique depuis `main` sans Preview ; builds Vercel Production sans assignation automatique, promotion manuelle sans rebuild, configuration Cloud préservée.
 5. **Validation complète du workflow** : préparation, fermeture effective, backup, PR/merge, migrations/build/promotion, notification, réouverture et reprises après échec, avant les premiers tests d’utilisateurs réels.
 
-PROD.1 à PROD.3 sont livrées avec preuves Local à ce stade. Les validations hébergées complètes et les autres blocs restent à réaliser ; aucun changement du périmètre des Phases 9 et 10. La [roadmap](08-ROADMAP.md) conserve leur ordre macro ; ce document porte le détail opérationnel.
+PROD.1 à PROD.3 sont livrées avec preuves Local ; PROD.4 livre les outils de sauvegarde avec preuves PostgreSQL synthétiques isolées, sans backup Cloud ni restauration. Les validations hébergées complètes et les autres blocs restent à réaliser ; aucun changement du périmètre des Phases 9 et 10. La [roadmap](08-ROADMAP.md) conserve leur ordre macro ; ce document porte le détail opérationnel.

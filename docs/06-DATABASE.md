@@ -44,7 +44,7 @@ Fermeture/réouverture : transaction dédiée prenant exclusivement `771403`, co
 
 `observe` relève transactions, catégories de writer, blockers et locks `771403` dans la base cible, sans texte SQL ni donnée sensible. Transactions préparées ou locks résiduels rendent l'attestation incertaine. La vérification tient une admission partagée pendant la lecture/les probes pour empêcher une bascule concurrente. Probes SQL zéro ligne sous vraie connexion `authenticator`, rôles authenticated/service_role : lectures maintenues et refus PT503 fermé, reprise SQL ouverte. Les fixtures d'intégration isolées ajoutent une lecture/RPC Phase 8 et une mutation persistée après décision de réouverture. Ces probes ne constituent pas une preuve REST/Auth/MFA Cloud.
 
-`closed_and_drained` concerne exclusivement les écritures ordinaires admises sous le contrat PROD.2. **`backup_authorized=false` reste constant.** Migrations/imports/catalogue/publisher/SQL opérateur et Auth interne doivent être coordonnés séparément ; une absence observée de transactions ne les empêche pas de recommencer. Le snapshot cohérent et sa restauration relèvent du futur bloc sauvegarde. [Procédure complète et conditions interdisant backup/réouverture](11-PUBLICATION-PRODUCTION.md#prod3--coordination-opérateur), [rapport Local](reports/2026-10-13-PROD3-COORDINATION.md).
+`closed_and_drained` concerne exclusivement les écritures ordinaires admises sous le contrat PROD.2. **`backup_authorized=false` reste constant.** Migrations/imports/catalogue/publisher/SQL opérateur et Auth interne doivent être coordonnés séparément ; une absence observée de transactions ne les empêche pas de recommencer. PROD.4 livre le snapshot PostgreSQL partagé, les inventaires et les exports chiffrés, testés uniquement sur une base synthétique isolée ; aucune sauvegarde Cloud. La restauration reste PROD.5. [Périmètre réel, préconditions, rôles/Auth et limites](12-SUPABASE-BACKUP.md). [Procédure complète et conditions interdisant backup/réouverture](11-PUBLICATION-PRODUCTION.md#prod3--coordination-opérateur), [rapport Local](reports/2026-10-13-PROD3-COORDINATION.md).
 
 ## Checkpoint Cloud et clôture Phase 8
 
@@ -1831,7 +1831,7 @@ Les sujets suivants restent à définir lors des cadrages ou implémentations co
 - les éventuelles optimisations des recherches PostgreSQL déjà livrées, dont l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
 - les éventuelles exigences légales/rétentions particulières liées à la suppression ;
-- l'installation/validation Cloud du gel PROD.2 livré Local et la procédure technique de sauvegarde/restauration à implémenter et vérifier, selon les [décisions de publication](11-PUBLICATION-PRODUCTION.md) ;
+- l'installation/validation Cloud du gel PROD.2 livré Local et la première sauvegarde Cloud avec les outils PROD.4 puis la restauration PROD.5 à vérifier, selon les [décisions de publication](11-PUBLICATION-PRODUCTION.md) ;
 - les besoins futurs éventuels d'historique ;
 - le modèle Premium post-V1.
 

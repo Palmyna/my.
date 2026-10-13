@@ -1,0 +1,20 @@
+{
+  "format": "my-backup-evidence-v1",
+  "environment": "cloud",
+  "project": "REPLACE",
+  "system_id": "REPLACE",
+  "freeze_revision": "REPLACE",
+  "maintenance_checked_at": "REPLACE_WITH_UTC_ISO_DATE",
+  "maintenance_evidence": "REPLACE",
+  "freeze_committed_evidence": "REPLACE",
+  "ordinary_writes_drained_evidence": "REPLACE",
+  "privileged_writers_excluded_until_end": false,
+  "privileged_coordination_evidence": "REPLACE",
+  "ddl_roles_configuration_excluded_until_end": false,
+  "auth_consistency": "postgresql_snapshot_external_keys_separate_sessions_reauth_required",
+  "storage_and_vault_expected_empty": false,
+  "storage_configuration_evidence": "REPLACE",
+  "protected_storage_evidence": "REPLACE",
+  "unsynchronized_destination": false,
+  "key_saved_separately_evidence": "REPLACE"
+}
