@@ -8,9 +8,19 @@ Il complète la [vision](00-VISION.md), les [fonctionnalités](01-FEATURES.md), 
 
 Le socle stable est implémenté dans les [migrations versionnées](../supabase/migrations/) et vérifié avec pgTAP sur Supabase Local. **Phase 8 clôturée en `0.8.21` : 48 migrations Local vérifiées, 48 Cloud confirmées par le checkpoint fourni**, dont 19 Phase 8, jusqu’à `20261011191625_phase8g3_notification_expiration_validation`. [Clôture 8I.2](reports/2026-10-12-PHASE8I2-CLOSURE.md). L’[audit 8I.1](reports/2026-10-12-PHASE8I1-AUDIT-CLOUD-READINESS.md) conserve l’inspection transversale et la parité des 59 fonctions Local. La validation finale distingue tests Local, preuves historiques et contrôles directs Cloud en lecture seule fournis par le propriétaire. Aucun accès distant en 8I.2, aucune migration créée/appliquée, aucune conversion de parent historique.
 
+## Production, protection des écritures et sauvegardes
+
+Le projet Supabase Cloud existant est conservé ; intégration GitHub connectée et déploiement automatique Production **désactivé**, selon le propriétaire. Son activation depuis `main` est décidée mais non appliquée, sans branche Supabase Preview, reset ou seed. Vérifier les effets sur configuration Auth/SMTP/Edge avant activation : [prérequis du workflow](11-PUBLICATION-PRODUCTION.md#conditions-avant-utilisation-du-workflow). URLs Auth du domaine définitif et Resend déclarés configurés ; aucun test complet de compte réel Production acquis.
+
+La [procédure Production](11-PUBLICATION-PRODUCTION.md) impose fermeture Vercel, **gel backend des mutations métier, RPC et accès directs compris**, propagation et fin effective des opérations en cours, puis backup manuel Cloud validé avant PR/merge et nouvelles migrations. RLS, MFA, propriété et permissions restent en vigueur ; accès opérateur aux migrations/publisher limité à ses droits dédiés. Maintenance et gel restent à implémenter et tester.
+
+Sauvegarde manuelle avant chaque publication, hors Git, intégrité vérifiée ; pas de système complexe automatique. Le [périmètre de sauvegarde](11-PUBLICATION-PRODUCTION.md#c--sauvegarde-manuelle-supabase-cloud) couvre schéma/données/séquences, fonctions/RLS/ACL, historique `supabase_migrations`, rôles, Auth/MFA et personnalisations MY. sur schémas gérés, configurations et secrets nécessaires. Vérifier exclusions réelles des outils ; objets Storage et configuration externe ne sont pas tous contenus dans un dump SQL. Supabase Free ne fournit pas de restauration historique automatique équivalente à Instant Rollback ; **procédure de restauration à concevoir et éprouver avant de la déclarer opérationnelle**.
+
+Après merge, contrôler migrations effectivement appliquées et compatibilité avant promotion manuelle du build Vercel Production. Privilégier migrations rétrocompatibles. Un rollback Vercel ne restaure pas Supabase ; une restauration SQL peut être longue et perdre des écritures, reçus ou notifications postérieurs au backup. Conserver garanties UUID/token/reçu et relectures Phase 8, sans nouveau geste pour contourner une réponse incertaine. [Échecs et reprise](11-PUBLICATION-PRODUCTION.md#échecs-reprise-et-retour-arrière).
+
 ## Checkpoint Cloud et clôture Phase 8
 
-Le checkpoint manuel préparé en 8I.1 est terminé. Résultat fourni par le propriétaire après vérification directe Cloud en lecture seule : **48 migrations appliquées, dont les 19 Phase 8, aucun écart d’historique signalé**. [Inventaire historique des migrations](reports/2026-10-12-PHASE8I1-AUDIT-CLOUD-READINESS.md#5-inventaire-des-19-migrations-phase-8) ; [résultats Cloud, catalogue et limites](reports/2026-10-12-PHASE8I2-CLOSURE.md#checkpoint-supabase-cloud-fourni). Comptes utilisateurs et collections Cloud : zéro. Les volumes principaux du catalogue correspondent aux relevés Local ; ni identité des empreintes Cloud/Local ni parité complète des fonctions Cloud ne sont déduites de ces comptages.
+Le checkpoint manuel préparé en 8I.1 est terminé. Résultat fourni par le propriétaire après vérification directe Cloud en lecture seule : **48 migrations appliquées, dont les 19 Phase 8, aucun écart d’historique signalé**. [Inventaire historique des migrations](reports/2026-10-12-PHASE8I1-AUDIT-CLOUD-READINESS.md#5-inventaire-des-19-migrations-phase-8) ; [résultats Cloud, catalogue et limites](reports/2026-10-12-PHASE8I2-CLOSURE.md#checkpoint-supabase-cloud-fourni). Comptes utilisateurs et collections Cloud : zéro **à ce checkpoint historique**, sans nouveau comptage distant ici. Les volumes principaux du catalogue correspondaient aux relevés Local ; ni identité des empreintes Cloud/Local ni parité complète des fonctions Cloud ne sont déduites de ces comptages.
 
 Le rôle `my_notification_publisher` existe Cloud : non-superuser, sans CREATEROLE/CREATEDB/BYPASSRLS, sans héritage de privilèges ni appartenance supérieure, sans accès direct aux tables métier contrôlées. Les deux EXECUTE privés publication/retrait sont autorisés, préparation interne refusée ; publication non exécutable par `anon` ou `authenticated`. `delete-account` reste active selon ce checkpoint, sans nouveau test fonctionnel Edge Cloud. Aucun provisionnement de secret ni connexion publisher Cloud n’est déduit de la création du rôle ; adaptation sécurisée du script encore à réaliser.
 
@@ -1789,12 +1799,11 @@ La préparation à un éventuel Premium post-V1 repose uniquement sur la central
 Les sujets suivants restent à définir lors des cadrages ou implémentations concernés :
 
 - les migrations complémentaires nécessaires aux futures fonctionnalités ;
-- les APIs de notifications livrées Local en 8G selon 8A.3, avec centre consultatif livré en 8H.1 et actions futures en 8H.2 ; application SQL, services/reprise et parcours confirmé livrés Local en 8F.1–8F.3 ; détection et aperçu livrés Local en 8E ; le socle d’ordre relatif 8B, lecteur et writers compris, est livré et activé Local pour les nouveaux parents ;
+- l’adaptation sécurisée Cloud des outils de publication et de synchronisation catalogue ; notifications 8G/8H et application/reprise 8F sont déjà livrées Local ;
 - l'implémentation PostgreSQL finale de la recherche et l'utilité mesurée de `pg_trgm` ;
 - les évolutions des policies nécessaires aux futures opérations ;
-- le raccordement utilisateur 8H des RPC de notifications livrées Local en 8G ; application SQL livrée Local en 8F.1 ; signatures recommandées dans les contrats projetés et le rapport 8A.3 ;
 - les éventuelles exigences légales/rétentions particulières liées à la suppression ;
-- la politique opérationnelle de sauvegarde ;
+- les mécanismes de gel des écritures et la procédure technique de sauvegarde/restauration à implémenter et vérifier, selon les [décisions de publication](11-PUBLICATION-PRODUCTION.md) ;
 - les besoins futurs éventuels d'historique ;
 - le modèle Premium post-V1.
 

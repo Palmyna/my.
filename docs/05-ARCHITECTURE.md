@@ -47,7 +47,7 @@ La V1 n'utilise ni Next.js ni un framework SSR équivalent. Ce choix répond au 
 
 ## Architecture générale
 
-Architecture cible ; l'hébergement Vercel n'est pas encore configuré :
+Architecture retenue ; frontend Vercel désormais déployé selon le propriétaire. [État actuel et provenance](11-PUBLICATION-PRODUCTION.md#état-connu-et-provenance) :
 
 ```text
 Utilisateur
@@ -75,7 +75,7 @@ Processus de synchronisation dans un environnement de confiance
                 Catalogue local MY.
 ```
 
-Vercel hébergera le frontend compilé par Vite lors de la mise en production. La SPA React s'exécute dans le navigateur et accède directement à Supabase pour les opérations applicatives simples, sous contrôle Auth et RLS. Supabase reste le backend principal ; aucune logique backend n'est déplacée vers Vercel. TCGdex alimente le catalogue local, mais n'est pas interrogé à chaque consultation utilisateur.
+Vercel héberge le frontend compilé par Vite. La SPA React s'exécute dans le navigateur et accède directement à Supabase pour les opérations applicatives simples, sous contrôle Auth et RLS. Supabase reste le backend principal ; aucune logique backend n'est déplacée vers Vercel. TCGdex alimente le catalogue local, mais n'est pas interrogé à chaque consultation utilisateur.
 
 ## Frontend
 
@@ -91,7 +91,7 @@ Les pages partagent le shell, des espacements adaptés à l'écran et un `h1` ac
 
 7F est terminée : contrats 7F.1 puis navigation frontend 7F.2. `PageBackButton` est partagé par Collection et les trois pages Catalogue, avant tous leurs états. React Router `8.3.1` : `useNavigate()` utilise `navigate(-1)` si `window.history.state.idx` est un entier positif. Le routeur navigateur unique initialise cet index à zéro, incrémente PUSH, conserve REPLACE et refresh. Sinon `navigate("/dashboard", { replace: true })`. Aucun `history.length` (peut inclure un autre site), gestionnaire de navigation ou stockage métier. Comportement public testé avec `createBrowserRouter`, y compris recréation après refresh. Destination par type et ID explicites, jamais par analyse du nom visible ; aucune seconde lecture Catalogue pour reconstruire les IDs. Précédente / Suivante, swipe entre cartes, séquence de cartes et navigation rapide contextuelle sont abandonnés pour la V1 actuelle. Le Détail Variante reste commun aux Collections et aux trois pages Catalogue.
 
-Vercel devra permettre l'accès direct et le rafraîchissement des routes internes de la SPA. Le mécanisme précis de rewrite ou de fallback SPA sera défini et configuré lors du déploiement effectif. La présente décision d'hébergement n'ajoute aucune configuration de déploiement et ne modifie pas React Router.
+Le [fallback SPA Vercel](../vercel.json), livré en `0.8.23`, réécrit `/(.*)` vers `/index.html` ; les fichiers statiques conservent leur priorité. Accès directs et rafraîchissements des routes internes vérifiés selon le propriétaire, sans nouvelle validation distante pendant cette sous-phase documentaire. React Router reste inchangé.
 
 ### TypeScript
 
@@ -253,7 +253,7 @@ Flux éventuel, après cadrage : Navigateur → Vercel Functions → Supabase
 
 L'utilisation éventuelle de Vercel Functions ne peut être introduite qu'en réponse à un besoin réel, après cadrage et validation. Elle ne doit pas déplacer par défaut la logique backend de Supabase vers Vercel.
 
-La première mise en ligne aura lieu **après la clôture de Phase 8 et sa PR `dev` → `main`**, sans attendre Phase 10. Dépôt GitHub `Palmyna/my.` ; frontend Vercel et backend Supabase Cloud ; domaine acquis `collectrealm.com`, sous-domaine applicatif **`my.collectrealm.com`**. Vercel, DNS et URLs Auth de production restent à configurer lors de cette publication, pas dans la clôture 8I.2. Cette mise en ligne anticipée ne clôture pas la V1 : Phase 9 conserve les partages, Phase 10 la finalisation et la stabilisation.
+La première mise en ligne après Phase 8 est désormais déclarée par le propriétaire : dépôt GitHub `Palmyna/my.`, frontend Vercel, backend Supabase Cloud existant, application **`my.collectrealm.com`** en HTTPS. Elle ne clôture pas la V1 : Phase 9 conserve les partages, Phase 10 la finalisation et la stabilisation. La [préparation du workflow de publication](11-PUBLICATION-PRODUCTION.md) est en cours ; aucun test complet de compte réel en Production encore réalisé.
 
 ## Supabase et PostgreSQL
 
@@ -340,7 +340,7 @@ La CLI locale du dépôt est **2.120.0**, référence reproductible via `package
 
 Le cloud ne reprend pas automatiquement les réglages locaux. Selon la [validation 3A fournie par le propriétaire](reports/2026-09-09-PHASE3A-AUTH.md#validation-cloud), le provider Email, les inscriptions et la confirmation email obligatoire sont activés. TOTP/App Authenticator est activé avec **un seul facteur MFA par utilisateur en V1** ; les sessions `aal1` sont limitées à **15 minutes** et Phone/SMS MFA reste désactivé. L'accès MY. exige toujours `aal2`, notamment via les 13 policies restrictives déployées.
 
-Le développement et les tests courants utilisent **Supabase local**, avec l'URL et la clé publishable locales. Le [checkpoint Cloud 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) est une exception ponctuelle explicitement autorisée, limitée aux fixtures synthétiques temporaires. Les quatre retours ci-dessus restent dans la configuration locale : **aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée aux Redirect URLs du cloud**. Supabase cloud est réservé à la future production avec Vercel ; la Site URL et les Redirect URLs de production seront configurées lors de la phase finale de mise en production. Aucune URL de production n'est encore définie et aucune configuration cloud n'est modifiée en 3C.
+Le développement et les tests courants utilisent **Supabase local**, avec l'URL et la clé publishable locales. Le [checkpoint Cloud 4D.3](reports/2026-09-15-PHASE4D3-CLOUD-CHECKPOINT.md) est une exception ponctuelle explicitement autorisée, limitée aux fixtures synthétiques temporaires. Les quatre retours ci-dessus restent dans la configuration locale : **aucune URL `localhost` ou `127.0.0.1` ne doit être ajoutée aux Redirect URLs du cloud**. Le projet Cloud existant est celui de Production ; Site URL et redirections vers le domaine définitif désormais configurées selon le propriétaire, ainsi que Resend pour les emails transactionnels. Ces confirmations ne remplacent pas une validation complète Auth/MFA/emails avec compte réel. L’absence de configuration Production en 3C reste un constat historique.
 
 ### Récupération MFA administrative
 
@@ -731,9 +731,9 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. distingue développement Local et production Supabase Cloud. **Phase 8 clôturée en `0.8.21` : 48 migrations Local vérifiées et 48 Cloud confirmées par le checkpoint fourni**, dont 19 Phase 8, jusqu’à `20261011191625`. [Clôture, attribution des preuves et limites](reports/2026-10-12-PHASE8I2-CLOSURE.md). Aucun accès Cloud dans cette clôture ; aucune application publiée. Outillage conservé : Node.js 24.20.0, npm 12.1.0, Supabase CLI 2.120.0. Pipeline catalogue et publication terminal refusent toujours toute connexion distante. Le backend Cloud existant et ses données seront conservés pour la première production ; aucune seconde base de production à créer. Staging et usage des previews restent à cadrer.
+MY. distingue développement Local sur `dev` et Production Vercel/Supabase Cloud sur `main`. Version actuelle **`0.8.23`**. La **clôture historique Phase 8 en `0.8.21`** conserve 48 migrations Local vérifiées et 48 Cloud confirmées, dont 19 Phase 8, jusqu’à `20261011191625` ; aucun accès Cloud ou déploiement Vercel pendant cette clôture. [Preuves et limites](reports/2026-10-12-PHASE8I2-CLOSURE.md). Pipeline catalogue et publication terminal refusent toujours toute connexion distante. Le projet Cloud existant et ses données sont conservés ; aucune seconde base Production ni branche Supabase Preview prévue.
 
-Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration de production n'est pas codée en dur. Le développement et les tests courants ciblent Supabase local, hors checkpoints Cloud explicitement autorisés et consignés ; Supabase cloud constitue la future instance de production associée à Vercel.
+Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration Production n’est pas codée en dur. Selon le propriétaire : Previews Vercel automatiques depuis `dev`, Production automatique depuis `main`, HTTPS actif sur `my.collectrealm.com`, Vercel Authentication sur tous les déploiements et variables Supabase **Production uniquement**. Les Previews ne prouvent donc pas un parcours Supabase complet. Intégration GitHub Supabase connectée, déploiement automatique Production désactivé ; Auth/redirections et Resend configurés. [État détaillé, provenance et validations non réalisées](11-PUBLICATION-PRODUCTION.md#état-connu-et-provenance). Développement/tests courants toujours Local, hors checkpoints Cloud autorisés et consignés.
 
 ## Versionnement et déploiement
 
@@ -747,39 +747,27 @@ La phase majeure 7 correspond à la série `0.7.x`. Une sous-sous-phase applicat
 
 Le dépôt GitHub est la source de référence du code et de la configuration versionnée. Il doit contenir le frontend, les scripts, les migrations, la documentation et la configuration non secrète. Aucun secret ne doit y être commité.
 
-`dev` est la branche GitHub par défaut et la branche normale de développement et d'intégration. `main` représente l'état stable et la future production. Les changements validés passent de `dev` vers `main` par Pull Request, sans push direct sur `main` dans le workflow normal.
+`main` est désormais la branche GitHub par défaut et Production. `dev` reste développement et intégration. Les changements validés passent de `dev` vers `main` par Pull Request et merge classique, sans push direct sur `main` dans le workflow normal.
 
-Un GitHub Ruleset actif protège `main` : suppression et force-push bloqués, Pull Request obligatoire avant merge, sans approbation exigée actuellement. Seul le merge classique est autorisé.
+Le Ruleset documenté protège `main` : suppression et force-push bloqués, Pull Request obligatoire, sans approbation exigée au dernier état consigné. Aucun nouvel audit distant du Ruleset dans cette sous-phase. Le workflow conserve le merge classique.
 
-Vercel reste non configuré et aucun déploiement n’est revendiqué. Après clôture Phase 8 et PR, la première publication devra connecter GitHub `Palmyna/my.`, Vercel et **Supabase Cloud existant**, avec `main` comme branche de production. L’intégration vise à simplifier les publications futures ; son mécanisme précis et l’usage éventuel de previews seront étudiés séparément, sans seconde base de production ni perte des données Cloud. Aucune intégration, workflow GitHub Actions ou configuration Vercel n’est créée en 8I.2.
+Les intégrations GitHub/Vercel/Supabase sont désormais connectées selon le propriétaire. Deux adaptations sont décidées mais **non appliquées** : activer Supabase Production depuis `main` et laisser les builds Vercel Production sans assignation automatique au domaine jusqu’à promotion manuelle sans rebuild. Aucun workflow GitHub Actions ni changement de configuration créé dans cette sous-phase documentaire. [Procédure et prérequis](11-PUBLICATION-PRODUCTION.md#conditions-avant-utilisation-du-workflow).
 
 ### Publication coordonnée et maintenance
 
-Décision validée après 8I.1, à concevoir et tester lors de la préparation du premier déploiement. Domaine applicatif : **`my.collectrealm.com`**, sur le domaine détenu `collectrealm.com`. Procédure des futures publications :
+La [procédure Production](11-PUBLICATION-PRODUCTION.md#procédure-officielle) est la référence unique : préparation locale et changelog, fermeture Vercel/gel Supabase effectifs et fin des opérations en cours, backup manuel Cloud validé, PR/merge, déploiement Supabase et build Vercel Production, promotion manuelle après succès Supabase, notification idempotente, puis levée du gel et de la maintenance. Une intégration GitHub ne garantit pas l’ordre des déploiements ; la promotion reste le point de contrôle manuel.
 
-1. Développer et valider sur `dev`.
-2. Préparer et contrôler la PR vers `main`.
-3. Activer la maintenance sur le site de production avant le merge.
-4. Fusionner `dev` → `main`.
-5. Exécuter les déploiements Supabase et Vercel selon le mécanisme retenu.
-6. Vérifier la version réellement servie, le backend et la base.
-7. Désactiver la maintenance uniquement après validation.
+Maintenance à développer : page MY., **HTTP 503 sans cache**, activation/désactivation depuis configuration Vercel sans redéploiement, état indépendant des builds et conservé pendant déploiement/échec/rollback compatible, contrôles opérateur protégés et réouverture exclusivement contrôlée. **Une page frontend ne bloque pas Supabase** : gel des mutations métier, RPC et accès directs, sessions/onglets déjà ouverts et chemins Edge/Auth concernés. RLS, MFA, propriété et permissions restent obligatoires.
 
-Le mode maintenance devra afficher une page dédiée aux couleurs de MY., être activable et désactivable **sans nouveau déploiement applicatif**, rester actif pendant un déploiement Vercel et en cas d’échec, retourner une réponse HTTP appropriée, idéalement **503**, et permettre des contrôles protégés avant réouverture. Aucun de ces mécanismes n’est livré par la Phase 8.
+Les [exigences complètes](11-PUBLICATION-PRODUCTION.md#exigences-du-mode-maintenance) ne figent pas encore de mécanisme technique. Faisabilité, propagation, opérations en vol et limites Hobby/Free à valider ; aucune interface d’administration supplémentaire sauf nécessité démontrée. Backup/restauration et publisher Cloud sécurisé restent à réaliser. Aucun échec ne rouvre automatiquement le site ; rollback frontend ne restaure ni SQL ni données. [Reprise et retour arrière](11-PUBLICATION-PRODUCTION.md#échecs-reprise-et-retour-arrière).
 
-**Une page frontend ne bloque pas les appels directs à Supabase.** Pour les migrations sensibles, concevoir et tester une protection temporaire des écritures métier côté backend avant de la considérer comme une garantie. Maintenir les droits ordinaires et prévoir activation, contrôle et levée de cette protection dans la procédure ; mécanisme exact encore à choisir.
+### Prérequis des prochaines publications
 
-La coordination Supabase/Vercel devra expliciter ordre d’exécution, compatibilité entre versions, critères d’arrêt et reprise après échec. **Une intégration GitHub ne garantit pas cet ordre.** Un retour arrière frontend ne révertit ni SQL ni données. Les adaptations Cloud sécurisées du pipeline TCGdex et du publisher restent des travaux dédiés ; le rôle présent Cloud ne rend pas le script Local exploitable à distance.
+Conserver build React/Vite reproductible depuis le lockfile, `npm run build`, sortie `dist`, Node/npm compatibles avec le package et fallback SPA livré en `0.8.23`. La promotion sans rebuild exige un build **Production**, pas un Preview à reconstruire. [Réglages futurs et contrôle de configuration Supabase](11-PUBLICATION-PRODUCTION.md#conditions-avant-utilisation-du-workflow).
 
-Faisabilité technique exacte, protections de contrôle, quotas et limites des offres gratuites à confirmer lors de cette préparation. En 8I.2 : exigences documentées uniquement, sans maintenance implémentée, workflow, intégration externe, ouverture de production ou modification de sécurité Cloud.
+Seules `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY` sont nécessaires au frontend. Elles sont publiques et intégrées au build ; clé `sb_publishable_` exigée par le décodeur existant. Aucun secret administratif, SMTP, publisher ou catalogue dans Vite/Vercel frontend. Domaine/HTTPS, URLs Auth et connexion Resend déclarés configurés ; vérifier les parcours Auth/AAL2, liens d’email, livraison réelle et Edge `delete-account` lors de la validation hébergée. Aucun test complet de compte réel Production acquis.
 
-### Prérequis de première publication
-
-Préparation documentaire uniquement : preset Vite, installation reproductible depuis le lockfile, `npm run build`, sortie `dist`, Node/npm compatibles avec le package. React Router utilise une SPA : prévoir un fallback vers `index.html` pour accès direct et rafraîchissement des routes ; aucun fichier Vercel n’est ajouté en 8I.2.
-
-Seules `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY` sont nécessaires au frontend. Elles sont publiques et intégrées au build ; clé `sb_publishable_` exigée par le décodeur existant. Aucun secret administratif, SMTP, publisher ou catalogue dans Vite/Vercel frontend. Supabase Cloud exige schéma validé, Auth/AAL2, URLs HTTPS exactes de confirmation email/changement d’email/recovery et fonction Edge `delete-account` compatible. L’envoi à de vrais utilisateurs exige SMTP adapté, identité d’expéditeur et DNS email vérifiés.
-
-Associer `my.collectrealm.com` au projet puis utiliser les valeurs DNS recommandées par Vercel, vérifier HTTPS et certificats. Identifier le déploiement précédent compatible ; un retour arrière frontend ne révertit ni migrations ni données et conserve les variables intégrées à cet ancien build. Les previews ne doivent pas recevoir implicitement la configuration de production. [Prérequis, validations et workflows préparés](reports/2026-10-12-PHASE8I1-AUDIT-CLOUD-READINESS.md#9-première-mise-en-ligne-après-phase-8).
+Identifier le déploiement précédent éligible et compatible avec la base, ses variables intégrées et limites Instant Rollback Hobby ; aucun backup manuel des builds Vercel. Les Previews ne reçoivent pas implicitement la configuration Production. Les [prérequis historiques 8I.1](reports/2026-10-12-PHASE8I1-AUDIT-CLOUD-READINESS.md#9-première-mise-en-ligne-après-phase-8) restent conservés ; l’état actuel et les validations restantes figurent dans la procédure Production.
 
 ### Migrations PostgreSQL
 
@@ -787,7 +775,7 @@ Les évolutions de structure de la base doivent être versionnées par des migra
 
 Les migrations définissent principalement la structure. Le catalogue TCGdex volumineux est alimenté par l'import ou la synchronisation plutôt que par de gigantesques migrations SQL.
 
-Le déploiement des migrations reste contrôlé. Un simple changement frontend ne doit pas pouvoir appliquer accidentellement une migration destructive en production. Une automatisation CI pourra être ajoutée plus tard si elle apporte une vraie valeur.
+Le déploiement des migrations reste contrôlé : examen local et PR, fermeture effective et backup avant merge. Déploiement automatique Supabase depuis `main` décidé mais non activé, vers le projet Cloud existant, sans Preview/reset/seed ; contrôler historique et compatibilité avant promotion Vercel. Privilégier migrations rétrocompatibles ; plusieurs migrations ne forment pas une transaction globale. [Procédure Production](11-PUBLICATION-PRODUCTION.md).
 
 ## Qualité, tests et exploitation
 
@@ -821,7 +809,7 @@ Il n'est pas nécessaire de tester mécaniquement chaque détail de présentatio
 
 Au démarrage, MY. privilégie les outils de diagnostic fournis par Supabase, Vercel et le navigateur. Aucun service de monitoring payant n'est requis par défaut.
 
-Les données utilisateur ne sont jamais considérées comme jetables. Les migrations et synchronisations potentiellement destructrices doivent être conçues prudemment. La politique détaillée de sauvegarde évoluera avec le stade du projet et le plan Supabase disponible.
+Les données utilisateur ne sont jamais considérées comme jetables. **Backup manuel Supabase Cloud après fermeture effective et avant chaque publication**, conservé hors Git avec intégrité vérifiée ; pas de système complexe de sauvegardes automatiques pour ce workflow. Supabase Free n’offre pas de restauration historique automatique équivalente à Instant Rollback. [Périmètre de sauvegarde et essai de restauration requis](11-PUBLICATION-PRODUCTION.md#c--sauvegarde-manuelle-supabase-cloud). La procédure technique reste à concevoir et éprouver ; les synchronisations catalogue conservent leurs protections propres.
 
 ## Premium post-V1
 
@@ -873,16 +861,16 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 - le moyen de contact final pour le remplacement d'Authenticator et les éventuelles exigences légales/rétentions particulières ;
 - la bibliothèque d'interface éventuelle ;
 - le découpage détaillé des futures fonctionnalités dans la structure initialisée ;
-- le staging éventuel et la stratégie de production au-delà du développement Supabase local ;
-- la configuration détaillée de Vercel, dont le rewrite ou fallback des routes SPA lors du déploiement effectif ;
+- un éventuel staging supplémentaire hors du workflow retenu, qui ne crée aucune branche Supabase Preview ;
+- les mécanismes techniques de maintenance Vercel et de gel backend selon les [exigences validées](11-PUBLICATION-PRODUCTION.md#exigences-du-mode-maintenance), le fallback SPA étant déjà livré ;
 - la fréquence et le déclencheur de l'automatisation future du pipeline décrit dans [07-CATALOG-SYNC.md](07-CATALOG-SYNC.md) ;
 - les éventuels usages d'Edge Functions au-delà de la suppression de compte déjà livrée ;
-- la politique détaillée de sauvegarde ;
-- l'automatisation CI ;
+- les outils et la validation de la sauvegarde/restauration manuelle selon les [décisions de publication](11-PUBLICATION-PRODUCTION.md#c--sauvegarde-manuelle-supabase-cloud) ;
+- la configuration des déploiements Supabase automatiques et de l’attente de promotion Vercel déjà décidées, avec préservation des paramètres Cloud ;
 - les seuils précis de passage aux offres payantes ;
 - le modèle Premium et un éventuel fournisseur de paiement.
 
-Ces éléments ne doivent pas être considérés comme décidés avant leur cadrage et leur validation.
+Les objectifs de publication liés ci-dessus sont décidés ; leurs mécanismes techniques restent à réaliser et vérifier. Les autres éléments ne sont pas considérés comme décidés avant leur cadrage et leur validation.
 
 ### Parcours Collection d’actualisation — 8F.3 Local
 
