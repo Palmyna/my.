@@ -4,19 +4,19 @@
 
 Ce document est la **référence opérationnelle unique des futures publications** de MY. Il complète l’[architecture](05-ARCHITECTURE.md), la [base de données](06-DATABASE.md) et le [contrat de publication des notifications](10-NOTIFICATION-PUBLICATION.md), qui conserve les détails du payload, des permissions et de l’idempotence.
 
-**Décisions formalisées le 13 octobre 2026 ; procédure cible, pas encore opérationnelle ni validée de bout en bout.** L’application est déjà hébergée en Production selon le propriétaire. **PROD.1 livre la maintenance frontend et PROD.2 le gel backend, avec validations locales ; installation et validation sur Vercel/Supabase Cloud restent à réaliser.** Sauvegarde/restauration vérifiée, publisher Cloud, contrôles opérateur hébergés et nouveaux réglages de déploiement restent à réaliser avant d’utiliser cette procédure.
+**Décisions formalisées le 13 octobre 2026 ; procédure cible, pas encore opérationnelle ni validée de bout en bout en Production.** L’application est déjà hébergée en Production selon le propriétaire. **PROD.1 livre la maintenance frontend, PROD.2 le gel backend et PROD.3 la coordination opérateur validée sur Local.** Les validations manuelles Preview fournies par le propriétaire couvrent activation sans rebuild, page MY., HTTP 503, headers anti-cache, refus d’une route directe et retour HTTP 200 sans rebuild. Elles ne prouvent pas Production. Installation/validation Supabase Cloud, répétition coordonnée Production, sauvegarde/restauration vérifiée, publisher Cloud, contrôles applicatifs hébergés pendant fermeture et nouveaux réglages de déploiement restent nécessaires.
 
-Version du dépôt : **`0.8.25`**, après PROD.2 ; PROD.1 était en `0.8.24` et le cadrage initial en `0.8.23`. PROD.2 ajoute deux migrations installées sur Local et des tests SQL/REST/Auth/Edge/concurrence isolés. Aucun SQL, migration, donnée ou permission Supabase n'avait été modifié pendant PROD.1. Aucun accès aux projets Cloud, changement de configuration distante, commit, push, PR, merge ou déploiement effectué ici. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
+Version du dépôt : **`0.8.26`**, après PROD.3 ; PROD.2 était en `0.8.25`, PROD.1 en `0.8.24` et le cadrage initial en `0.8.23`. PROD.3 réutilise les deux migrations PROD.2 et leurs contrats sans modification SQL persistante, ajoute un CLI strictement Local, des contrôles HTTP préparés hors connexion et une répétition isolée. Aucun accès aux projets Cloud, changement de configuration distante, commit, push, PR, merge ou déploiement effectué ici. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
 
 ## État connu et provenance
 
 ### Observations dans le dépôt
 
-Inspection historique du cadrage : branche **`dev`**, HEAD **`590d9fb827948ee694e181fa2654d427442cff8d`**, worktree propre. Inspection initiale PROD.1 : **`dev`**, HEAD **`312ff061c7d9783b1b689ab3c45bf7bcdb614895`**, worktree propre. Inspection initiale PROD.2 : **`dev`**, HEAD **`ceb3cf97ce5ba110867f2d28696eff4eff6e0f1a`**, worktree propre. Remote Git : `Palmyna/my.` ; référence locale `origin/HEAD` vers `origin/main`. Cette référence locale ne remplace pas une lecture actuelle des paramètres GitHub. Le tableau suivant décrit le dépôt après PROD.2.
+Inspection historique du cadrage : branche **`dev`**, HEAD **`590d9fb827948ee694e181fa2654d427442cff8d`**, worktree propre. Inspection initiale PROD.1 : **`dev`**, HEAD **`312ff061c7d9783b1b689ab3c45bf7bcdb614895`**, worktree propre. Inspection initiale PROD.2 : **`dev`**, HEAD **`ceb3cf97ce5ba110867f2d28696eff4eff6e0f1a`**, worktree propre. Inspection initiale PROD.3 : **`dev`**, HEAD **`603460596a8b5ab434dc7519402bd9bb2c493b75`**, worktree propre, version `0.8.25`, 50 migrations Local et gel ouvert. Remote Git : `Palmyna/my.` ; référence locale `origin/HEAD` vers `origin/main`. Cette référence locale ne remplace pas une lecture actuelle des paramètres GitHub. Le tableau suivant décrit le dépôt après PROD.3.
 
 | Élément observé | Portée de l’observation |
 |---|---|
-| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.25` dans les trois champs ; version injectée par Vite depuis le package |
+| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.26` dans les trois champs ; version injectée par Vite depuis le package |
 | [vercel.json](../vercel.json) | Fallback SPA `/(.*)` vers `/index.html` conservé ; `proxy.entrypoint` vers [middleware.ts](../middleware.ts), sans exclusion de chemin ; aucun réglage d’attente de promotion ajouté |
 | [Migrations](../supabase/migrations/) | 50 fichiers et 50 appliqués Local, dernier `20261013135415_prod2_freeze_admission_barrier` ; aucune preuve d'application des deux migrations PROD.2 Cloud |
 | [supabase/config.toml](../supabase/config.toml) | Configuration Local `my-local`, URLs Auth locales, seed applicatif désactivé ; ne décrit pas à elle seule la configuration Cloud |
@@ -43,7 +43,7 @@ Aucune branche Supabase Preview n’est prévue pour ce workflow. Les Previews V
 
 La [clôture Phase 8I.2](reports/2026-10-12-PHASE8I2-CLOSURE.md) conserve les tests Local exécutés, les preuves navigateur historiques et le checkpoint Cloud fourni par le propriétaire : 48 migrations, dont 19 Phase 8, rôle publisher et permissions contrôlés. Sa version de clôture **`0.8.21`** et ses conclusions restent historiques.
 
-La présence du rôle Cloud ne prouve ni provisionnement d’un secret, ni authentification publisher, ni connexion TLS vérifiée. Les confirmations de domaine, routes et Resend ne constituent pas un test complet Auth/MFA/emails/compte réel. **Aucun test complet de compte réel en Production n’a encore été réalisé.** Maintenance validée localement seulement ; maintenance Vercel réelle, restauration et workflow coordonné non éprouvés. [Preuves PROD.1](reports/2026-10-13-PROD1-MAINTENANCE.md).
+La présence du rôle Cloud ne prouve ni provisionnement d’un secret, ni authentification publisher, ni connexion TLS vérifiée. Les confirmations de domaine, routes et Resend ne constituent pas un test complet Auth/MFA/emails/compte réel. **Aucun test complet de compte réel en Production n’a encore été réalisé.** Maintenance validée Local et partiellement Preview selon les contrôles manuels du propriétaire ; Production, restauration et workflow coordonné hébergé non éprouvés. [Preuves historiques PROD.1](reports/2026-10-13-PROD1-MAINTENANCE.md), [coordination Local PROD.3](reports/2026-10-13-PROD3-COORDINATION.md).
 
 ## Conditions avant utilisation du workflow
 
@@ -170,7 +170,7 @@ Ces objectifs conservent le [cadrage architectural](05-ARCHITECTURE.md#publicati
 
 ### Architecture livrée et comportement
 
-**Implémentée et validée localement en `0.8.24`, prête pour notre validation manuelle ; non opérationnelle sur Vercel à ce stade.** Le [middleware](../middleware.ts) Node.js s’exécute selon `proxy.entrypoint`, sans matcher restrictif. La documentation Vercel décrit son exécution avant cache pour tout framework, dont une SPA Vite. Maintenance inactive : `next()` laisse le routage, les assets et le fallback existants poursuivre sans modification. Maintenance active : réponse `Response` HTTP **503**, sans rewrite ni passage par React.
+**Implémentée en `0.8.24`, validée Local et partiellement Preview selon les contrôles manuels fournis par le propriétaire ; validation Production restante.** Le [middleware](../middleware.ts) Node.js s’exécute selon `proxy.entrypoint`, sans matcher restrictif. La documentation Vercel décrit son exécution avant cache pour tout framework, dont une SPA Vite. Maintenance inactive : `next()` laisse le routage, les assets et le fallback existants poursuivre sans modification. Maintenance active : réponse `Response` HTTP **503**, sans rewrite ni passage par React.
 
 Une seule lecture de Global Config par requête concernée. Seul le booléen JSON **`false`** ouvre ; `true` ferme. Aucun paramètre, cookie, header utilisateur, identité Supabase ou exception de chemin ne permet de passer. Le contrôle porte sur l’environnement serveur `VERCEL_ENV`, pas sur le hostname ou une valeur transmise par le navigateur.
 
@@ -247,7 +247,7 @@ Un navigateur possédant déjà HTML/JS ou un onglet ouvert peut utiliser son ca
 
 **Aucun bypass opérateur livré.** L’opérateur reçoit également 503 sur toutes les URLs Production compatibles pendant maintenance, même après Vercel Authentication. Le dashboard permet de contrôler commit, build et configuration ; une Preview séparée peut éprouver le dispositif mais ne prouve pas les parcours Supabase Production.
 
-**Prérequis PROD.3 :** définir une identité opérateur vérifiée côté serveur et révocable, la preuve d’authentification disponible après All Deployments, un passage limité aux seuls contrôles nécessaires, la conservation du gel backend pour les utilisateurs ordinaires et la traçabilité. Vérifier droits Hobby et ordre réel Authentication/middleware. Ni simple cookie, hostname, secret client ou paramètre public. Sans ce moyen validé, les contrôles applicatifs prévus dans E ne sont pas exécutables pendant fermeture ; le workflow complet reste non opérationnel. Aucun outillage coordonné commencé dans PROD.1.
+**Contrôles disponibles en PROD.3 :** PostgreSQL privé avec identité réelle, observation et relecture indépendantes ; HTTP depuis une session Vercel normalement autorisée, sans passage au travers de la maintenance. Aucun bypass applicatif livré ou ajouté. Les lectures Supabase autorisées avec compte synthétique MFA peuvent vérifier données/reçus/notification directement, sans écrire ni lever le gel. **Le contrôle du frontend Production réellement servi et les parcours applicatifs prévus dans E restent à éprouver par un moyen protégé validé séparément.** Dashboard/build `Ready` et parité du commit ne remplacent pas cette preuve. Tant que cette condition manque, ne pas déclarer le workflow complet opérationnel ni autoriser sa réouverture. Ne pas ajouter de secret client, paramètre public ou exception de hostname pour contourner ce prérequis.
 
 Campagne manuelle à réaliser **d’abord en Preview**, store connecté et clé Preview isolée :
 
@@ -332,6 +332,105 @@ Préparer sauvegarde et reprise de première installation, choisir une fenêtre 
 
 Pendant une future première fermeture Cloud, relever commit de bascule, relecture indépendante, catalogues sécurité, blockers et refus directs, puis coordonner exceptions/Auth et backup. **Aucune de ces opérations Cloud n'a été effectuée ici.** Le publisher Cloud, les contrôles opérateur hébergés, la sauvegarde/restauration et le workflow complet restent des blocs distincts.
 
+## PROD.3 — Coordination opérateur
+
+**Livrée en `0.8.26`, répétée sur Local uniquement.** [CLI](../scripts/maintenance/cli.js), [contrôles SQL](../scripts/maintenance/database.js), [contrôles HTTP](../scripts/maintenance/http-check.js), [rapport](reports/2026-10-13-PROD3-COORDINATION.md). Aucun mécanisme PROD.1/PROD.2, RPC publique, frontend ou droit publisher modifié. Aucune bascule Global Config automatisée ; aucun credential supplémentaire. Les commandes DB refusent toute cible distante avant connexion. Les contrôles HTTP futurs sont générés hors connexion, jamais exécutés sur Cloud par cette sous-phase.
+
+### Précontrôle et dossier opérateur
+
+Une publication doit identifier **les deux cibles**, pas seulement une URL ou une version. Conserver dans un dossier d'exploitation protégé hors Git : opérateur responsable et autorisation, UTC, version/commit/build attendus et précédents, projet/organisation Vercel, domaine/alias/URLs de déploiements et rollback compatibles, store et clés Global Config, environnement serveur et connexion disponible (identifiant, jamais valeur secrète), projet PostgreSQL et son identité stable, historique réel des migrations, writers privilégiés recensés et preuves requises pour le backup/la réouverture.
+
+Pour Local, stack `my-local` déjà démarrée, port hôte `55322`, base `postgres`. CLI réutilise la connexion Local du pipeline ; une variable `MY_MAINTENANCE_DATABASE_URL` peut fournir une connexion privée déjà disponible. La fournir uniquement dans l’environnement d’un terminal de confiance, jamais en argument, transcript, fichier suivi ou frontend. Aucun secret Cloud ajouté. Le statut CLI est capturé en mémoire, ses clés API ne sont pas affichées ni utilisées comme identité opérateur.
+
+```powershell
+npm.cmd run maintenance:db -- --command preflight --environment local --project my-local
+npm.cmd run maintenance:db -- --command observe --environment local --project my-local
+```
+
+`preflight` contrôle version package/lock/racine du lock, branche/HEAD et état dirty, configuration Local, identité réelle `session_user=current_user=postgres|supabase_admin`, base/port serveur, version PostgreSQL, `system_id` exact, `session_replication_role=origin` et visibilité complète des sessions. Puis : 50 migrations identiques aux fichiers, corps/owner/definer/search_path des 15 fonctions PROD.2, 23 gardes actives y compris Auth, singleton/RLS/ACL, absence d'accès API aux contrôles, identité/permissions publisher inchangées. Une table/partition supplémentaire non cadrée, un overload, une définition altérée ou un historique divergent fait échouer le précontrôle. Adapter explicitement le contrat versionné lors d'une future évolution ; ne pas ignorer son échec.
+
+`observe` reste disponible pour diagnostiquer sans exiger un contrat complet. Il expose uniquement état, PID, catégorie de session, état/borne transactionnelle, événement d'attente, blockers, locks `771403` et nombre/ancienneté de transactions préparées. Aucun texte SQL, adresse client, nom d'application libre, donnée personnelle ou secret. Sessions `authenticator` = ordinaires ; opérateurs/publisher = privilégiées ; `supabase_auth_admin` = Auth interne ; autres = non classées. L'observation est un échantillon, pas une preuve de cessation future des jobs. Visibilité insuffisante ou identité incorrecte interdit toute attestation.
+
+Lire réellement la sortie avant de poursuivre. Pour lier les commandes à une cible et une révision déjà examinées :
+
+```powershell
+$maintenanceCheckpoint = node scripts/maintenance/cli.js --command preflight --environment local --project my-local | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Précontrôle refusé' }
+# Examiner identity.system_id, repository, state et contract avant bascule.
+```
+
+### Fermeture et borne de commit
+
+1. Vérifier le dossier opérateur, les protections installées et les résultats initiaux ouverts. Coordonner les propriétaires de jobs/imports/migrations/publisher ; aucun autre opérateur ne doit basculer pendant cette fenêtre.
+2. **Frontend d'abord** : action manuelle Global Config sur la bonne clé, `Save Items`. Vérifier enregistrement puis HTTP autorisé sur les cibles inventoriées. Garder la fermeture sur tout déploiement compatible. Local ne possède pas Global Config : la répétition utilise un serveur HTTP isolé servant la vraie page PROD.1, sans prétendre reproduire Vercel/CDN.
+3. **Backend ensuite** : demander le gel sur la cible et la révision relevées. Ne pas placer d'autres écritures métier dans cette transaction.
+
+```powershell
+node scripts/maintenance/cli.js --command close --environment local --project my-local --expect-system-id $maintenanceCheckpoint.identity.system_id --expect-revision $maintenanceCheckpoint.state.revision
+```
+
+Sortie NDJSON : `requested=true, recorded=unknown`, puis `provisional_before_commit`, puis `commit_acknowledged`, enfin `recorded=committed, verified=true, independent_read=true`. Une sortie intermédiaire ne vaut pas succès final. La transaction prend exclusivement `771403`, vérifie la révision sous verrou, appelle le setter PROD.2 et commit. Une connexion fraîche au même `system_id` doit ensuite retrouver exactement le nouvel état et la nouvelle révision. BIGINT et identifiant système restent des chaînes décimales.
+
+`ShareLock` accordé = admission ordinaire encore détenue ; `ExclusiveLock` en attente et ses blockers = fermeture en attente. Les writers admis doivent finir jusqu'au commit/rollback avant la borne de gel. Un lecteur qui verrouille le parent peut indirectement retarder cette borne. Timeout, deadlock, réponse perdue ou interruption : état **inconnu**, aucune réouverture ni relance automatique. Refaire précontrôle/observation depuis une connexion indépendante. Une bascule peut avoir committé malgré une réponse perdue ; une répétition exige la nouvelle révision examinée. Aucun kill automatique. `--timeout-ms` borne la commande (100–60 000 ms, défaut 15 000), jamais la maintenance.
+
+### Attestation backend et refus de commencer un backup
+
+Après relecture du nouveau checkpoint et examen de ses résultats :
+
+```powershell
+$maintenanceCheckpoint = node scripts/maintenance/cli.js --command preflight --environment local --project my-local | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'État inconnu' }
+node scripts/maintenance/cli.js --command verify-closed --environment local --project my-local --expect-system-id $maintenanceCheckpoint.identity.system_id --expect-revision $maintenanceCheckpoint.state.revision
+```
+
+La vérification reprend le contrat, tient un verrou partagé `771403` pour empêcher une bascule concurrente pendant l'observation, exige le gel et la révision attendus, refuse les autres locks d'admission et toute transaction préparée, puis ouvre une vraie session `authenticator`. Sous `authenticated` et `service_role`, SELECT zéro ligne reste autorisé et UPDATE zéro ligne doit retourner exactement `PT503/business_writes_frozen`. Aucune fixture, séquence, faux JWT ou MFA créé par ce probe opérateur. Il prouve la garde SQL de statement ; il ne prétend pas tester REST/MFA ni une mutation utilisateur réelle. Les tests d'intégration isolés vérifient en plus lecteur/RPC Phase 8 et reprise réelle.
+
+Résultat `ordinary_writes=closed_and_drained` = **preuve backend Local, à cette borne**, pas fermeture globale. Chaque résultat, même réussi, conserve **`backup_authorized=false` et `global_closure=not_attested`**. Code de sortie 0 signifie seulement réussite du contrôle nommé ; 1 signifie inconnu/refus, 130 interruption gérée. Ni ce résultat, ni un statut `Ready`, dashboard, délai ou retour du setter avant commit n'autorise un backup Production.
+
+Avant un backup futur, exiger ensemble :
+
+- HTTP de maintenance réellement vérifié sur domaine, alias et déploiements concernés avec accès Vercel autorisé ; inventaire de couverture et limites de propagation consignés.
+- Backend cible installé/vérifié, état fermé committé relu indépendamment, gardes/permissions et refus ordinaires établis, aucun drainage indéterminé.
+- Chaque import catalogue, migration, session opérateur, publisher et autre writer privilégié recensé, arrêté ou placé sous une exclusion opérationnelle tenue pendant la sauvegarde ; transaction en cours terminée par son propriétaire. Un PID privilégié sans lock `771403` reste un writer possible. Aucune nouvelle publication pendant le backup ; la publication du changelog vient plus tard selon E.
+- Auth interne explicitement pris en compte dans la future méthode de snapshot cohérent. Login/MFA/refresh/révocation/UPDATE Auth restent actifs ; le gel ne les arrête pas. Aucune suppression physique Auth pendant gel, aucune soft deletion administrative ou opération Auth non coordonnée. Observer leur absence à un instant ne les interdit pas ensuite.
+- Périmètre/export/snapshot cohérent et restauration déjà éprouvés dans le bloc backup, autorisation Cloud explicite, cible/commit/version/historique exacts et toutes les preuves conservées.
+
+Une condition absente ou inconnue interdit d'annoncer « fermeture validée pour backup ». PROD.3 n'effectue aucun backup et ne fournit aucun mode `--force`, certificat de sûreté Production ou mécanisme d'arrêt global Auth/PostgreSQL.
+
+### Contrôles HTTP futurs sous Vercel Authentication
+
+Préparer le code sans appel réseau :
+
+```powershell
+npm.cmd run maintenance:http -- --print-browser --expect closed
+npm.cmd run maintenance:http -- --print-browser --expect open
+```
+
+Lors d'une intervention distante **autorisée séparément**, se connecter normalement à Vercel, avec identité habilitée et All Deployments conservé. Exécuter le code généré dans un onglet autorisé déjà ouvert du bon origin dont la CSP permet ces requêtes. Il utilise les cookies normaux `credentials=same-origin`, aucune clé, header de bypass ou automatisation Global Config. La CSP de la page maintenance bloque volontairement fetch : dans ce cas, utiliser navigation normale et panneau Network pour les mêmes contrôles, sans désactiver la CSP ni Authentication. `vercel curl` ajoute automatiquement un header de bypass de Deployment Protection selon sa documentation : il n'est pas retenu ici.
+
+Le code relève GET/HEAD pour `/`, `/login`, `/dashboard`, `/index.html`. Ajouter pour la fermeture les vrais JS/CSS/favicon/robots et chemins directs/inconnus de l'inventaire, uniquement chemins publics sans query, token ou fragment. Répéter pour chaque origin/déploiement compatible, avec sa propre session normale. Les indices de cible dans la sortie correspondent à la liste conservée dans le dossier ; aucune URL, cookie, HTML ou donnée de session journalisée.
+
+Fermé : HTTP 503, titre exact de la page MY. pour GET, HEAD vide, `Cache-Control` avec no-store/no-cache/max-age=0/must-revalidate, Pragma/Expires, noindex/nofollow/noarchive, type HTML et CSP de fermeture. Les headers CDN sont relevés ; Vercel peut les consommer : compléter par logs/cache autorisés, jamais déduire l'inexistence d'un cache de leur seule absence côté client. Ouvert : HTTP 200 et shell SPA sur les routes HTML ; assets et parcours Auth/MFA/backend nécessitent leurs contrôles dédiés. 401/403, redirection, opaque redirect, 304, page générique 503, erreur réseau/CSP ou header indispensable absent = contrôle non validé.
+
+Conserver horodatage, identifiant/commit du même déploiement avant/après, localisation des clients et observations. **Un échantillon HTTP n'est pas une preuve de propagation mondiale** ; `worldwide_propagation_verified=false` reste explicite. Aucune mesure Production exécutée ici. Preview sans Supabase ne sert jamais à valider le backend.
+
+### Réouverture explicite et contrôles de reprise
+
+Décision opérateur obligatoire après vérification de tous les prérequis E : même commit/version de frontend et backend, migrations/config/Edge effectivement réussies, compatibilité et reprise Phase 8, notification active/version/audience/idempotence relues, absence de writer privilégié inattendu, aucun état inconnu, moyen de contrôle applicatif hébergé validé. Si ces preuves n'existent pas, conserver fermeture. Les exemples suivants sont **Local**, pas une autorisation Production.
+
+```powershell
+# Refaire/examiner preflight et assigner maintenanceCheckpoint avant cette décision.
+node scripts/maintenance/cli.js --command reopen --environment local --project my-local --expect-system-id $maintenanceCheckpoint.identity.system_id --expect-revision $maintenanceCheckpoint.state.revision --authorize-reopen
+# Refaire/examiner preflight : la révision a changé après commit ; arrêt si inconnu.
+$maintenanceCheckpoint = node scripts/maintenance/cli.js --command preflight --environment local --project my-local | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'État inconnu' }
+node scripts/maintenance/cli.js --command verify-open --environment local --project my-local --expect-system-id $maintenanceCheckpoint.identity.system_id --expect-revision $maintenanceCheckpoint.state.revision
+```
+
+`reopen` sans `--authorize-reopen`, avec ancienne révision/cible ou contrat incomplet est refusé. Commit et relecture indépendante sont obligatoires comme à la fermeture. `verify-open` vérifie lectures et UPDATE zéro ligne autorisé ; compléter par une vraie mutation légitime sur identité/donnée synthétique isolée et sa relecture. **Lever backend d'abord**, puis décision explicite manuelle sur la bonne clé Vercel à `false`, `Save Items`, HTTP/routes/ressources/version et parcours Auth/MFA/backend. La répétition Local couvre mutation persistée et RPC Phase 8, puis HTTP 200. Aucun `finally`, succès, erreur, timeout ou arrêt du CLI ne rouvre le gel.
+
+Si levée backend confirmée mais frontend encore fermé : ne pas présumer la reprise ; diagnostiquer le frontend. En cas d'échec de reprise, l'opérateur décide explicitement de rétablir fermeture frontend puis gel, avec nouveau contrôle et drainage. Ce rétablissement n'est jamais automatique. Après `delete-account` refusée en gel, les sessions révoquées restent révoquées : reconnexion requise ; refus Auth natif 500 générique possible, distinct du REST 503. Pour Phase 8, garder UUID, payload/token, intention et reçu exacts ; réponse réseau incertaine ou reçu absent n'autorise aucune nouvelle opération aveugle.
+
 ## Échecs, reprise et retour arrière
 
 | Situation | Principe de reprise |
@@ -373,10 +472,10 @@ Les [rapports Phase 8](reports/2026-10-12-PHASE8I2-CLOSURE.md) restent inchangé
 
 Découpage **prévisionnel**, à affiner en petites sous-phases avant chaque implémentation :
 
-1. **Maintenance Vercel et protection Supabase** : **PROD.1 frontend et PROD.2 gel backend implémentés et validés localement**, installations/validations Vercel et Supabase Cloud restantes ; **PROD.3 contrôles/outillage coordonné non commencés**. La fermeture globale et la réouverture maîtrisée restent à valider ensemble.
+1. **Maintenance Vercel et protection Supabase** : **PROD.1/PROD.2 implémentées, PROD.3 coordination et outillage validés Local** ; tests Preview partiels fournis par le propriétaire. Installation/validation Supabase Cloud, contrôles applicatifs hébergés protégés et répétition complète Production restent requis. La fermeture mondiale ne se déduit pas de la répétition Local.
 2. **Sauvegarde/restauration manuelle** : choix des outils et périmètre réel, stockage hors Git, intégrité et essai de restauration isolé avec données/Auth/historique/permissions et compatibilité.
 3. **Publication des notifications Cloud** : adaptation sécurisée du script existant, rôle/authentification/TLS/permissions, reprise idempotente et contrôle du changelog pendant fermeture.
 4. **Réglages de déploiement** : Supabase automatique depuis `main` sans Preview ; builds Vercel Production sans assignation automatique, promotion manuelle sans rebuild, configuration Cloud préservée.
 5. **Validation complète du workflow** : préparation, fermeture effective, backup, PR/merge, migrations/build/promotion, notification, réouverture et reprises après échec, avant les premiers tests d’utilisateurs réels.
 
-PROD.1 et PROD.2 sont implémentées localement à ce stade. Les installations/validations hébergées et les autres blocs restent à réaliser ; aucun changement du périmètre des Phases 9 et 10. La [roadmap](08-ROADMAP.md) conserve leur ordre macro ; ce document porte le détail opérationnel.
+PROD.1 à PROD.3 sont livrées avec preuves Local à ce stade. Les validations hébergées complètes et les autres blocs restent à réaliser ; aucun changement du périmètre des Phases 9 et 10. La [roadmap](08-ROADMAP.md) conserve leur ordre macro ; ce document porte le détail opérationnel.

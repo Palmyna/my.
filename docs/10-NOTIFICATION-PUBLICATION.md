@@ -12,6 +12,12 @@ Audience existante seulement : date d’inscription Auth ≤ publication ; excep
 
 **Ce parcours Cloud n’est pas encore opérationnel.** Le script ci-dessous reste Local uniquement ; son adaptation sécurisée est un [bloc futur](11-PUBLICATION-PRODUCTION.md#blocs-futurs-de-réalisation), avec rôle dédié/authentification/TLS/permissions. **PROD.2 démontre Local la publication, le rejeu et le retrait pendant le gel**, sans rouvrir les écritures ordinaires ni ajouter de droits au publisher. L'exception utilise la connexion PostgreSQL réelle `session_user=my_notification_publisher` et seulement INSERT/UPDATE de `private.notification_announcements` via les deux fonctions existantes ; les utilisateurs ne peuvent ni marquer lu ni traiter pendant le gel. Les confirmations de présence du rôle Cloud ne prouvent pas une connexion publisher réelle ni l'installation du gel. [Matrice et preuves](reports/2026-10-13-PROD2-WRITE-FREEZE.md).
 
+## Coordination avec la maintenance PROD.3
+
+Le [contrôle opérateur Local](11-PUBLICATION-PRODUCTION.md#prod3--coordination-opérateur) vérifie que le publisher garde exactement ses deux EXECUTE privés et aucune permission de table métier/Auth. Il ne provisionne pas son secret, ne publie rien et ne lui accorde pas de droit sur le gel. Une transaction publisher appartient aux writers **privilégiés non drainés par `771403`**, même si les mutations ordinaires sont refusées : suspendre/coordonner publication et retrait pendant le futur backup, puis les autoriser explicitement au moment prévu par E.
+
+Lecture du centre/contenu/reçu avec une identité synthétique éligible et les permissions MFA existantes peut vérifier la publication pendant gel ; ne pas marquer lu/traiter ni inventer une nouvelle clé après réponse incertaine. Le frontend servi pendant maintenance reste fermé à l'opérateur ; son contrôle protégé hébergé reste un prérequis distinct. PROD.3 ne prétend ni vérifier une publication Cloud, ni autoriser backup ou réouverture Production. [Preuves et limites](reports/2026-10-13-PROD3-COORDINATION.md).
+
 ## Préparer et valider un fichier
 
 Copier [l’exemple d’annonce](../scripts/notifications/examples/announcement.json) ou [l’exemple de changelog](../scripts/notifications/examples/changelog.json) dans un fichier local. Les exemples sont documentaires ; aucune publication réelle ne découle de leur présence dans Git.
