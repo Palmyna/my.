@@ -11,7 +11,7 @@ import { versions, dump, inspectArchive, dumpArgs } from './clients.js'
 import { connect, identity, requireClosed, inventory, sequences, freezeContract, validateTOC } from './database.js'
 
 const artifacts = ['database.dump.myb','inventory.json.myb','external.json.myb','evidence.json.myb','source.tar.myb','toc.txt.myb']
-const manifestSchema = z.strictObject({
+export const manifestSchema = z.strictObject({
   format: z.literal('my-backup-manifest-v1'), status: z.literal('capture_verified_restore_unproven'),
   publication_authorized: z.literal(false), restore_proven: z.literal(false),
   environment: z.enum(['cloud','isolated']), project: z.string(),
@@ -64,8 +64,9 @@ async function sourceArchive(filename, key) {
   try { await encryptFile(child.stdout, filename, key); await finished }
   catch (error) { child.kill(); throw error }
 }
-export async function capture(target, evidence, external, directory, { synthetic = false, afterSnapshot } = {}) {
+export async function capture(target, evidence, external, directory, { synthetic = false, afterSnapshot,isolatedTransport=false } = {}) {
   requireBackup(target.environment === 'cloud' || (synthetic && target.environment === 'isolated'), 'execution_target_not_authorized')
+  requireBackup(!isolatedTransport||(synthetic&&target.environment==='isolated'),'synthetic_transport_forbidden')
   decodeTarget(target,target.environment,target.project); decodeEvidence(evidence,target); decodeExternal(external,target.project)
   const key = encryptionKey()
   const repository = repositoryIdentity()
@@ -76,7 +77,7 @@ export async function capture(target, evidence, external, directory, { synthetic
   await restrictDirectory(directory)
   await fs.writeFile(join(directory,'INCOMPLETE'), 'No verified manifest. Keep maintenance and freeze active.\n', { flag:'wx',mode:0o600 })
   const tools = await versions(target)
-  const client = await connect(target,process.env.MY_BACKUP_DATABASE_PASSWORD)
+  const client = await connect(target,process.env.MY_BACKUP_DATABASE_PASSWORD,{isolatedTransport})
   try {
     const id = await identity(client,target)
     const clientMinor = Number(tools.pg_dump.match(/^pg_dump \(PostgreSQL\) \d+\.(\d+)/)[1])

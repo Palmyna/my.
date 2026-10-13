@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { Duplex } from 'node:stream'
 import { requireBackup, BackupError } from './contract.js'
 import { encryptFile, decryptFile, discard } from './secure-files.js'
 
@@ -22,7 +23,7 @@ export function dockerArgs(target, tool, args, connected = false) {
   result.push('--entrypoint', 'bash', target.client_image, '-c', connected ? bootstrap : 'exec "$@"', 'my-backup', tool, ...args)
   return result
 }
-function start(args) {
+export function start(args) {
   // Do not inherit incidental PG*, Docker TLS bypass, credentials or connection URLs.
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => /^(PATH|PATHEXT|SYSTEMROOT|WINDIR|TEMP|TMP|USERPROFILE|HOME|APPDATA|LOCALAPPDATA|PROGRAMDATA)$/i.test(k)))
   const child = spawn('docker', args, { env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
@@ -36,6 +37,19 @@ function start(args) {
   // A later pipeline failure may abandon this promise; suppress unhandled rejection.
   done.catch(() => undefined)
   return { child, done }
+}
+// No host TCP forwarding is needed for a disposable cluster. BusyBox nc is
+// already in the pinned image. PostgreSQL still performs password validation.
+export function postgresStream(container) {
+  requireBackup(/^(my-prod4-test-[a-f0-9]{12}|[a-f0-9]{64})$/.test(container),'isolated_transport_required')
+  const {child}=start(['exec','-i',container,'nc','127.0.0.1','5432'])
+  const stream=Duplex.from({readable:child.stdout,writable:child.stdin})
+  stream.connect=()=>queueMicrotask(()=>stream.emit('connect'))
+  stream.setNoDelay=()=>undefined
+  stream.setKeepAlive=()=>undefined
+  child.once('error',()=>stream.destroy(new BackupError('isolated_transport_failed')))
+  stream.once('close',()=>child.kill())
+  return stream
 }
 export async function toolText(target, tool, args) {
   const { child, done } = start(dockerArgs(target, tool, args))
@@ -89,10 +103,11 @@ export async function inspectArchive(target, filename, key, list = false) {
 // Used only by isolated tests to initialize synthetic data; never exported to the CLI.
 export async function fixtureSql(container, sql) {
   requireBackup(/^my-prod4-test-[a-f0-9]{12}$/.test(container), 'isolated_target_required')
-  const child = spawn('docker', ['exec', '-i', container, 'psql', '-X', '-U', 'supabase_admin', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'],
+  const child = spawn('docker', ['exec', '-i', container, 'psql', '-X', '-U', 'supabase_admin', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1','-v','VERBOSITY=sqlstate'],
     { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
-  child.stdout.pipe(discard()); child.stderr.pipe(discard())
+  let state='unknown'
+  child.stdout.pipe(discard());child.stderr.on('data',b=>{const match=b.toString().match(/ERROR:\s+([A-Z0-9]{5})/);if(match)state=match[1]})
   child.stdin.end(sql)
   const [code] = await once(child, 'close')
-  requireBackup(code === 0, 'synthetic_fixture_initialization_failed')
+  requireBackup(code === 0, `synthetic_fixture_initialization_failed_${state}`)
 }

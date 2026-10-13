@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory=$true)][ValidateSet('ImportKey','Run')][string]$Action,
   [Parameter(Mandatory=$true)][string]$KeyFile,
+  [ValidateSet('Backup','Restore')][string]$Tool = 'Backup',
   [string[]]$BackupArgs
 )
 $ErrorActionPreference = 'Stop'
@@ -38,7 +39,7 @@ if ($Action -eq 'ImportKey') {
   exit 0
 }
 if (-not $BackupArgs -or $BackupArgs -contains '--command=plan' -or $BackupArgs -contains 'plan') {
-  throw 'Run accepts capture/verify; plan needs no secrets.'
+  throw 'Run accepts secret-bearing backup/restore commands; plan needs no secrets.'
 }
 $directoryIndex = [Array]::IndexOf($BackupArgs, '--directory')
 $backupDirectory = $null
@@ -53,20 +54,29 @@ $password = $null
 if ($BackupArgs -contains 'capture' -or $BackupArgs -contains '--command=capture') {
   $password = Read-Host 'Selected PostgreSQL operator password' -AsSecureString
 }
+if ($Tool -eq 'Restore' -and ($BackupArgs -contains 'create' -or $BackupArgs -contains 'inspect' -or $BackupArgs -contains 'execute' -or
+    $BackupArgs -contains '--command=create' -or $BackupArgs -contains '--command=inspect' -or $BackupArgs -contains '--command=execute')) {
+  $password = Read-Host 'Isolated disposable PostgreSQL password (16-128 letters/digits/hyphens)' -AsSecureString
+}
 function Unprotect-InMemory([Security.SecureString]$value) {
   $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($value)
   try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) }
   finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
 }
 try {
-  if ($env:MY_BACKUP_KEY -or $env:MY_BACKUP_DATABASE_PASSWORD) { throw 'Clear inherited backup secrets first.' }
+  if ($env:MY_BACKUP_KEY -or $env:MY_BACKUP_DATABASE_PASSWORD -or $env:MY_RESTORE_DATABASE_PASSWORD) { throw 'Clear inherited backup/restore secrets first.' }
   $env:MY_BACKUP_KEY = Unprotect-InMemory $protected
-  if ($password) { $env:MY_BACKUP_DATABASE_PASSWORD = Unprotect-InMemory $password }
-  & node (Join-Path $PSScriptRoot 'cli.js') @BackupArgs
+  if ($password) {
+    if ($Tool -eq 'Restore') { $env:MY_RESTORE_DATABASE_PASSWORD = Unprotect-InMemory $password }
+    else { $env:MY_BACKUP_DATABASE_PASSWORD = Unprotect-InMemory $password }
+  }
+  $entry = if ($Tool -eq 'Restore') { 'restore.js' } else { 'cli.js' }
+  & node (Join-Path $PSScriptRoot $entry) @BackupArgs
   $result = $LASTEXITCODE
 } finally {
   Remove-Item Env:MY_BACKUP_KEY -ErrorAction SilentlyContinue
   Remove-Item Env:MY_BACKUP_DATABASE_PASSWORD -ErrorAction SilentlyContinue
+  Remove-Item Env:MY_RESTORE_DATABASE_PASSWORD -ErrorAction SilentlyContinue
   $protected.Dispose()
   if ($password) { $password.Dispose() }
 }

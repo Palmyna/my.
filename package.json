@@ -1,7 +1,7 @@
 {
   "name": "my-app",
   "private": true,
-  "version": "0.8.27",
+  "version": "0.8.28",
   "type": "module",
   "engines": {
     "node": "^24.20.0",
@@ -31,6 +31,9 @@
     "backup": "node scripts/backup/cli.js",
     "backup:test": "node --test scripts/backup/operator.test.js",
     "backup:test:isolated": "node --test scripts/backup/local.integration.js",
+    "restore": "node scripts/backup/restore.js",
+    "restore:test": "node --test scripts/backup/restore.test.js",
+    "restore:test:isolated": "node --test scripts/backup/restore.integration.js",
     "pokemon:update": "node scripts/catalog/pokemon-update.ts",
     "catalog:validate": "node scripts/catalog/cli.ts --validate",
     "catalog:find": "node scripts/catalog/catalog-find.ts",

@@ -1,8 +1,8 @@
-# PROD.4 — Sauvegarde manuelle Supabase de MY.
+# PROD.4 / PROD.5 — Sauvegarde et restauration isolée de MY.
 
 ## Statut et contrat
 
-Outillage livré en **`0.8.27`**, testé exclusivement sur PostgreSQL jetable avec données synthétiques. **Aucun accès Cloud, aucun backup Production, aucune restauration.** La [procédure de publication](11-PUBLICATION-PRODUCTION.md) reste la référence pour l'ordre des opérations : fermeture effective, sauvegarde, puis seulement PR et migrations. PROD.5 devra éprouver la récupération avant toute publication.
+Capture PROD.4 livrée en **`0.8.27`**, puis restauration isolée PROD.5 en **`0.8.28`**. Archive native authentique produite par `capture`, restaurée sur une seconde base jetable ; données, sécurité, contrats métier et parcours Auth/TOTP synthétiques éprouvés. **Aucun accès Cloud ni backup Production. Récupérabilité de Production non démontrée.** La [procédure de publication](11-PUBLICATION-PRODUCTION.md) conserve les autres conditions avant publication. [Rapport PROD.5](reports/2026-10-13-PROD5-RESTORE.md).
 
 Trois commandes : `plan` prépare hors connexion ; `capture` effectue les futurs contrôles et exports après deux autorisations explicites ; `verify` relit hors connexion une sauvegarde existante. Le CLI public n'accepte aucune cible Local ou implicite. Le test appelle le moteur avec une cible `isolated` réservée, un conteneur distinct et un marqueur synthétique ; aucun mode CLI ne permet d'exporter le volume personnel.
 
@@ -62,7 +62,7 @@ Une parité noms/versions n'établit pas que chaque migration historique a été
 
 ### Auth, sessions et limites de récupération
 
-La source Local actuelle comporte 24 tables Auth : users/identities, familles MFA, sessions/refresh_tokens, audit, flow_state/one_time_tokens, OAuth/SSO/SAML, WebAuthn et versions internes. Le nombre Cloud n'est pas supposé identique : découverte dynamique obligatoire. Le jeu isolé emploie le schéma Auth initial de l'image et des dépendances MFA/identités/sessions synthétiques ; il ne simule pas GoTrue actuel ni une reconnexion MFA.
+La source Local actuelle comporte 24 tables Auth : users/identities, familles MFA, sessions/refresh_tokens, audit, flow_state/one_time_tokens, OAuth/SSO/SAML, WebAuthn et versions internes. Le nombre Cloud n'est pas supposé identique : découverte dynamique obligatoire. Le jeu **PROD.4 historique** emploie le schéma Auth initial de l'image et des dépendances MFA/identités/sessions synthétiques, sans GoTrue ni reconnexion MFA. PROD.5 ajoute un véritable service GoTrue 2.197.0 et des identités/TOTP exclusivement synthétiques dans des ressources distinctes.
 
 Les hashes de mots de passe, secrets TOTP, tokens et données personnelles sont sensibles même chiffrés. Leur présence dans le dump ne prouve pas qu'ils fonctionneront après restauration. Clés Auth, signature/JWT/JWK, secrets OAuth/SMTP/Edge et éventuelle racine Vault ne sont pas automatiquement exportés. Certaines clés peuvent rester gérées/inaccessibles chez Supabase : **si le propriétaire ne peut pas établir leur conservation/réutilisation, noter ce blocage pour PROD.5**, pas promettre MFA portable.
 
@@ -169,10 +169,102 @@ npm.cmd run backup:test:isolated
 
 Le second démarre un conteneur `my-prod4-test-<12 hex>` avec stockage éphémère, port loopback aléatoire et schema/données synthétiques ; installe les migrations versionnées et dépendances Auth représentatives. Supprime seulement ce conteneur exact et son dossier temporaire vérifié. Pas de commande volume/reset, pas de lecture/export des données personnelles, pas de restauration.
 
-## Première sauvegarde Cloud et transmission PROD.5
+## Première sauvegarde Cloud et portée de PROD.5
 
 Première intervention manuelle encore nécessaire : version serveur réelle ; image corrigée ; CA/certificat et hostname direct/session ; cible/system_id ; droits réels de lecture/catalogues/locks/snapshot ; installation autorisée PROD.2 ; Auth/MFA/keys/config Cloud ; éventuels writers inconnus et Storage/Vault. Si snapshot, visibilité, schéma géré ou clé manque : **refus, diagnostic et cadrage complémentaire**, sans exclusion silencieuse, élargissement automatique de privilèges ou export non protégé. Il est interdit de déclarer complet un simple dump Supabase standard.
 
-PROD.5 devra définir et tester : lecture déchiffrée portable ; versions/packages d'extensions ; cible isolée ; ordre rôles/managed schemas/DDL/data/FK/triggers/ACL/RLS ; droits restreints Supabase Cloud et reprise sur projet existant ; séquences ; historique et parité source/schéma ; versions GoTrue ; comptes/identités/MFA et politiques de réauthentification ; secrets/SMTP/Edge ; reçus et notifications ; pertes après borne et durées ; vérifications applicatives et stratégie d'échec. **Aucun `pg_restore -d` ni restauration complète anticipé dans PROD.4.**
+PROD.5 éprouve désormais la restauration sur PostgreSQL isolé avec paquets d'extensions Supabase et GoTrue synthétique. Le [rapport](reports/2026-10-13-PROD5-RESTORE.md) distingue ces preuves des adaptations managées, clés externes, SMTP/Edge et récupération Cloud encore non démontrés. **PROD.4 reste une preuve d'intégrité, avec `restore_proven=false` ; aucune autorisation de publication n'en découle.**
+
+## PROD.5 — Architecture et frontières de restauration
+
+Le CLI distinct [restore.js](../scripts/backup/restore.js) accepte uniquement `preflight`, `create`, `inspect`, `execute`, `destroy`. Aucun mode Cloud, URL PostgreSQL, port hôte, `clean`, `reset`, `create database`, mode force, filtre métier ou option pour ignorer une erreur. `preflight` est hors connexion DB : il utilise seulement des clients Docker sans réseau pour authentifier et parcourir l'archive. `create` exige nom réservé choisi explicitement, image locale par digest, fichier cible neuf et `--authorize-create`. `execute` exige cette cible, SHA-256 du manifeste examiné et `--authorize-isolated-restore`.
+
+Destination : cluster PostgreSQL **neuf**, initialisé avec `initdb` dans une image déjà installée. Deux tmpfs seulement (`/var/lib/postgresql/data` limité à 1 GiB, `/tmp` à 128 MiB), aucun volume ni bind hôte, aucun port publié ; namespace Docker `--network none`, sans interface externe, route ni passerelle. Racine en lecture seule, utilisateur système PostgreSQL, capacités supprimées, `no-new-privileges`. PostgreSQL est joint par `docker exec ... nc 127.0.0.1 5432` et le protocole `pg`, jamais par le port du Local personnel. Connexion native `pg_restore` dans le même conteneur. Le compte bootstrap `supabase_admin` et son mot de passe éphémère appartiennent uniquement à ce cluster jetable. Ces bornes conviennent au jeu éprouvé ; capacité et mémoire d'une vraie sauvegarde devront être examinées avant adapter ce mode, sans allocation automatique de volume.
+
+Sélection fermée `my-isolated-restore-target-v1` : nom `my-prod5-restore-<12 hex>`, ID complet du conteneur, `network_id=null`, nonce de labels, digest, transport `docker-stdio`, base/identité/version et `system_id` décimal exact. Avant écriture : moteur Docker local, labels/ID/image/montages et namespace sans réseau réel, identité PostgreSQL réelle, majeure/mineure, source ≠ destination, état vide et absence d'autres sessions. La destination vide contient seulement `public`, `plpgsql` et le bootstrap ; aucun schéma applicatif préexistant accepté. Port `5432` dans le JSON est le port **interne**, sans publication. Le nettoyage exige les mêmes identités réelles, supprime seulement cet ID et refuse tant qu’un service portant le nonce de cet essai subsiste. Aucun `docker volume rm` ou nettoyage par préfixe.
+
+Le moteur de capture reste PROD.4 ; un transport Docker réservé à `synthetic=true` permet la source de test sans port hôte. Capture Cloud et tests PROD.4 existants gardent leur transport TCP/TLS antérieur. Les scénarios créent source et destinations distinctes depuis les migrations/fixtures versionnées, jamais depuis le Local personnel.
+
+### Archive, borne et mémoire
+
+Les **sept artefacts**, `MYBK0001`, AES-256-GCM, SHA-256 des fichiers chiffrés et manifeste fermé `my-backup-manifest-v1` sont conservés. L'inventaire v1 gagne des champs authentifiés : empreintes de contenu, schémas/colonnes, propriétés/ACL DB, vues et event triggers. Empreintes prises **dans le même snapshot PROD.4**, pas après capture : SHA-256 de chaque ligne `to_jsonb(t)::text`, tri des hashes sous collation C, puis SHA-256 du multiensemble. Multiplicités, UUID et BIGINT restent exacts ; aucun contenu Auth décodé en nombres JavaScript. UTC, DateStyle, bytea, flottants et search_path fixés pendant lecture. Toute table ordinaire/matérialisée découverte est comparée, avec comptes et contenu.
+
+Une archive PROD.4 antérieure sans ces champs reste lisible par `backup verify`. Le CLI PROD.5 refuse sa validation/restauration automatique avec `restore_legacy_inventory_requires_reference` : ne pas fabriquer de hashes après sinistre ni retoucher son manifeste. Préparer une référence indépendante et une adaptation examinée, ou recapturer une source encore disponible lors d'une intervention autorisée. Aucune ancienne archive Production n'existe ici. Cette limitation est explicite ; le test utilise une vraie capture du moteur PROD.4 enrichi, sans format parallèle.
+
+Après vérification PROD.4, tous les artefacts sont relus, hashés et authentifiés depuis des buffers figés. L'archive custom est gardée en mémoire jusqu'à fin ; une modification ultérieure du dossier ne change pas les octets restaurés. Authentification GCM complète **avant toute écriture**, puis seconde inspection native de ces octets. Borne fixe : **512 MiB chiffrés par artefact** ; dépassement refuse ce mode. Ne pas extrapoler aux gros catalogues : `string_agg` des hashes consomme aussi de la mémoire PostgreSQL. Aucun SQL/archive déchiffré sur disque hôte. La seule liste TOC adaptée est écrite sur tmpfs privé puis supprimée ; métadonnées, pas SQL ni données Auth. Les tests alimentent pgTAP par stdin. Mémoire, swap/pagefile, crash dumps et effacement physique ne sont pas certifiés ; buffers effacés au mieux, secrets JS/OS non garantis physiquement effacés.
+
+### Ordre et adaptations PostgreSQL
+
+1. Vérification indépendante complète de l'archive et consentement lié à son manifeste ; destination neuve, clients/serveur, versions exactes d'extensions disponibles, locale/encodage compatibles.
+2. Claim persistant `my_restore_control.attempt`, hors schémas MY., privé au bootstrap. Sérialisation des tentatives et nouvelle vérification du vide ; toute tentative commencée rend la destination non réutilisable.
+3. Rôles source : rôles natifs `pg_*`, liste fermée des rôles plateforme connus et seul rôle personnalisé `my_notification_publisher`. Attributs, memberships ADMIN/INHERIT/SET/grantor et GUC réappliqués. **Aucun mot de passe source exporté/recréé** ; rôles LOGIN restent sans credential, sauf bootstrap synthétique. Rôle privilégié inconnu ou publisher élargi : refus.
+4. Schémas source avec owners, DB owner, puis extensions **version/schema/owner exacts**. `pg_dump` ne préserve pas l'owner d'extension ni n'impose sa version. `plpgsql` initial est recréé avant objets applicatifs. Seules entrées CREATE SCHEMA/EXTENSION sont commentées dans la TOC : elles viennent d'être réalisées explicitement. Tous commentaires/ACL et autres objets restent sélectionnés.
+5. `pg_restore --dbname=postgres --single-transaction --exit-on-error --no-password --use-list=<TOC tmpfs>` lit l'archive par stdin. Owners, grants, pre-data/data/post-data, séquences, fonctions, contraintes, index, triggers, policies/RLS et migrations sont conservés. Aucun `--no-owner`, `--no-acl`, désactivation de triggers ou `--clean`. Warning/exit natif bloque.
+6. Réapplication exacte des **ACL de schémas et DB** depuis l'inventaire authentifié : des privilèges d'initialisation Supabase (`pg_init_privs`), observés notamment sur `graphql`, ne sont pas forcément émis par le dump complet. Droits effectifs comparés, sans assimiler ordre textuel des ACL à un changement de droits ; NULL et ACL par défaut équivalentes normalisés par `acldefault`. GUC de listes copiés avec `set_config`/`SET ... FROM CURRENT`, GUC scalaires conservés sans normaliser leurs unités.
+7. Comparaison exhaustive à la borne : objets/colonnes/vues, owners/ACL effectifs, fonctions, contraintes/index, triggers/event triggers, RLS/policies/default privileges, rôles/memberships/GUC, historique **avec statements via empreinte de table**, contenu de chaque table et large object PostgreSQL, états/définitions des séquences et gel. Pour chaque séquence possédant une colonne, prochain ID persistant > max existant et ≤ borne max ; cycles/incréments non positifs refusés. Égalité hors MVCC conserve les limites PROD.4 : caches/réservations clients et avancées privilégiées ne sont pas récupérés.
+
+Bootstrap **`supabase_admin`** nécessaire dans ce test : PostgreSQL 17 attribue les grants de rôle au bootstrap (OID 10), avec règle ADMIN différente d'un autre superuser. Aucun catalogue système modifié à la main. En Supabase managé, ce bootstrap et ces droits ne sont pas disponibles à l'opérateur de la même manière : **ces étapes ne constituent pas une recette Cloud**. Le CLI supporte actuellement PG17, même version serveur et client de restauration, locale `en_US.UTF-8`, extensions exactes de l'image examinée. PG18/autre locale/nouvelle liste de rôles/extension ou build incompatible impose adaptation examinée.
+
+### Résultats, échecs et reprise
+
+Rapport JSON hors Git, neuf, sans secret/Auth brut/personne : manifeste/borne, destination, étapes, durée, comptes des objets, contrôles et diagnostic fixe/SQLSTATE. `postgresql_restored` indique fin du restore natif ; `data_verified` exige tous les contrôles. Succès actuel : `isolated_postgresql_restored_data_verified`, **`application_recovery_proven=false`, `production_recovery_proven=false`, `publication_authorized=false`**. Le CLI n'exécute ni parcours applicatifs, ni réapplication externe, ni levée du gel. Le rapport de test séparé précise les seuls parcours éprouvés.
+
+Claim, rôles/schémas/extensions préparés et ACL sont des étapes séparées de la transaction native. Une erreur native annule cette transaction, mais laisse une destination partielle **jetable**. Une réponse perdue/interruption peut laisser un commit natif inconnu. SIGINT/SIGTERM traités annulent seulement le backend identifié par login/application dédiés ; arrêt forcé Windows/daemon peut empêcher ce traitement. Dans tous les cas : garder rapport/borne, constater les effets par lecture indépendante, **détruire explicitement la destination exacte, créer une nouvelle cible, refaire preflight/autorisation**. Aucun retry, deuxième restore sur cible partielle ou rollback par reset. Succès/échec ne touche ni maintenance ni gel Production.
+
+### Windows / PowerShell — commandes isolées
+
+Choisir dossiers existants hors Git/non synchronisés, clé DPAPI séparée et mot de passe **synthétique** de 16–128 lettres/chiffres/tirets, identique pour création/inspect/exécution. La copie DPAPI reste liée au poste/compte ; vérifier aussi la clé originale au coffre indépendant. Exemple avec l'image déjà présente et éprouvée, à examiner avant choix ; aucun pull automatique :
+
+```powershell
+$image = (docker image inspect public.ecr.aws/supabase/postgres:17.6.1.166 --format '{{.Id}}').Trim()
+$archive = 'D:\MY-backups\backup-<borne>'
+$key = 'D:\MY-secrets\backup-key.dpapi'
+$target = 'D:\MY-restore\essai-001\target.json'
+$report = 'D:\MY-restore\essai-001\restore-report.json'
+# Précontrôle hors connexion DB ; examiner borne, version, SHA, rôles/extensions.
+$preflightArgs = @('--command','preflight','--directory',$archive)
+$check = & ./scripts/backup/secrets.ps1 -Action Run -Tool Restore -KeyFile $key -BackupArgs $preflightArgs | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Archive refusée ; aucune restauration.' }
+# Choisir EXPLICITEMENT un nom réservé neuf ; exemple à remplacer si déjà utilisé.
+$createArgs = @('--command','create','--container','my-prod5-restore-123456abcdef','--image',$image,'--target',$target,'--authorize-create')
+& ./scripts/backup/secrets.ps1 -Action Run -Tool Restore -KeyFile $key -BackupArgs $createArgs
+if ($LASTEXITCODE -ne 0) { throw 'Création refusée ; inspecter ressources exactes.' }
+$inspectArgs = @('--command','inspect','--directory',$archive,'--target',$target)
+& ./scripts/backup/secrets.ps1 -Action Run -Tool Restore -KeyFile $key -BackupArgs $inspectArgs
+if ($LASTEXITCODE -ne 0) { throw 'Cible refusée.' }
+# Décision explicite après examen du précontrôle, du JSON cible et de la portée.
+$runArgs = @('--command','execute','--directory',$archive,'--target',$target,'--report',$report,
+  '--expect-manifest-sha256',$check.manifest_sha256,'--authorize-isolated-restore')
+& ./scripts/backup/secrets.ps1 -Action Run -Tool Restore -KeyFile $key -BackupArgs $runArgs
+if ($LASTEXITCODE -ne 0) { throw 'Récupération non validée ; cible jetable, aucun retry.' }
+Get-Content -LiteralPath $report
+# Après conservation du rapport et arrêt des seuls services de cet essai :
+npm.cmd run restore -- --command destroy --target $target --authorize-destroy
+```
+
+Le wrapper `Tool=Backup` par défaut conserve PROD.4 ; `Tool=Restore` choisit seulement le CLI isolé et nettoie clé/password de travail en `finally`. `create`/`inspect`/`execute` demandent un mot de passe masqué ; pas de secret dans JSON/argv/logs/Docker Config.Env du cluster. Code 0 : commande nommée réussie, 1 : refus/échec, 130 : interruption traitée. Le test utilise des clés éphémères exclusivement synthétiques, jamais conservées comme clés Production.
+
+```powershell
+npm.cmd run restore:test
+npm.cmd run restore:test:isolated
+npm.cmd run backup:test
+npm.cmd run backup:test:isolated
+npm.cmd run maintenance:test
+npm.cmd run typecheck
+npm.cmd run lint
+npm.cmd run build
+```
+
+### Auth, services externes et future sauvegarde Cloud
+
+Trois preuves acquises **uniquement pour les identités synthétiques** du test : données Auth dans capture authentique ; tables/relations/SQL restaurés et profil MY. conservé ; GoTrue **2.197.0** effectivement reconnecté à la base restaurée, password/TOTP chiffré original/AAL2/refresh réussis avec clés éphémères correspondantes. Sans clé de déchiffrement, login retourne 500 ; mauvaise clé de signature refuse token avec 403. Pendant gel, Auth Admin INSERT/DELETE retourne 503 ; après ouverture isolée explicite, nouveau compte/profil créé puis supprimé. Aucun nouvel enrôlement nécessaire dans **ce** cas ; aucun engagement pour les facteurs Cloud ou tous les types MFA/SSO/WebAuthn. Le service est sur boucle locale du namespace PostgreSQL (`--network container:<ID>`), SMTP loopback port 1 fermé, emails `.invalid`, aucun provider/webhook/Edge externe exécuté.
+
+Après sinistre réel : vérifier disponibilité effective des clés Auth/JWT/JWK/decryption et éventuelle racine Vault dans un coffre indépendant, pas seulement des références. Rotation peut invalider tokens/sessions ; prévoir réauthentification, récupération des facteurs selon fournisseur, puis nouvel enrôlement si la clé nécessaire est perdue. Version GoTrue et historique `auth.schema_migrations` doivent correspondre ; ne pas lancer ses migrations automatiquement sur une base réelle non examinée.
+
+Avant essai ultérieur d'une **vraie sauvegarde Cloud**, intervention distincte autorisée : obtenir backup authentique/clé, digest du manifeste, source Git et versions exactes ; attester première installation manuelle PROD.2 et fermeture coordonnée ; vérifier droits réels d'export, rôles/managed schemas/extension packages et besoins externes. Préparer un environnement isolé adapté et approuvé ; désactiver intégrations sortantes avant démarrage, confirmer accès indépendant aux secrets. Ne pas utiliser ce CLI sur Cloud ni sur le volume personnel.
+
+Pour préparer la récupération future sur **projet Cloud existant**, examiner séparément conflits avec schémas Auth/Storage déjà gérés, propriétaires/grants disponibles, versions d'extensions, rôles réservés non recréables et absence de bootstrap opérateur. Choisir adaptations et ordre par objet avec Supabase, sans ignorer les erreurs ni réimporter aveuglément le DDL géré. Préparer réapplication des URLs/redirections Auth, providers, SMTP/Resend/templates, MFA, clés Data API/PG, réseau, Edge `delete-account`/secrets et version déployée, Realtime/jobs/intégrations ; vérifier la parité code/schéma avant reprise. Storage blobs et Vault non vide nécessitent un nouveau workflow protégé (capture actuelle refuse). Aucune commande de restauration Cloud livrée.
+
+Déclaration de récupération opérationnelle seulement après essai réel et relevés : données/borne/RPO, sécurité/permissions, login et MFA des facteurs concernés, mutations/lectures/UUID-reçus, secrets réellement accessibles/reprovisionnés, Edge, emails/redirections/API et frontend compatible. Les lectures/écritures SQL et HTTP Auth synthétiques de PROD.5 ne prouvent pas le navigateur, SMTP/Resend, Edge, services managés Cloud ou disponibilité de leurs secrets après sinistre. RTO mesuré sur petit jeu synthétique uniquement ; pertes possibles depuis snapshot, effets externes et caches de séquences restent distincts. Aucun assouplissement des préconditions de publication.
 
 Références publiques actuelles consultées via Context7 et aides des clients : [CLI dump](https://supabase.com/docs/reference/cli/supabase-db-dump), [backups Free/Storage/rôles](https://supabase.com/docs/guides/platform/backups), [backup-restore et chiffrement](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore), [changelog Supabase](https://supabase.com/changelog), [mise à jour PostgreSQL](https://supabase.com/changelog/postgres-15-19-17-11-breaking-changes), [pg_dump 17](https://www.postgresql.org/docs/17/app-pgdump.html), [pg_restore](https://www.postgresql.org/docs/17/app-pgrestore.html), [psql](https://www.postgresql.org/docs/17/app-psql.html), [snapshots](https://www.postgresql.org/docs/17/functions-admin.html#FUNCTIONS-SNAPSHOT-SYNCHRONIZATION), [TLS libpq](https://www.postgresql.org/docs/17/libpq-ssl.html), [extensions](https://www.postgresql.org/docs/17/extend-extensions.html), [TLS node-postgres](https://node-postgres.com/features/ssl). Capacités documentées, aucun état Cloud MY. vérifié.

@@ -3,18 +3,20 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { requireBackup, BackupError } from './contract.js'
 import { hashBytes } from './secure-files.js'
 import { readFreeze, observe, verifyFreezeContract } from '../maintenance/database.js'
+import { postgresStream } from './clients.js'
 
 const migrations = new URL('../../supabase/migrations/', import.meta.url)
 const identifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/
-const quote = name => {
+export const quote = name => {
   requireBackup(identifier.test(name), 'unsupported_identifier_requires_review')
   return `"${name}"`
 }
-export async function connect(target, password) {
+export async function connect(target, password,{isolatedTransport=false}={}) {
   requireBackup(typeof password === 'string' && password.length > 0 && !/[\r\n\0]/.test(password), 'database_password_required')
   const ca = target.ca_file ? readFileSync(target.ca_file) : null
   requireBackup(!ca || hashBytes(ca) === target.ca_sha256, 'TLS_certificate_changed')
   const client = new pg.Client({ host: target.host, port: target.port, user: target.user, database: target.database,
+    ...(isolatedTransport&&target.environment==='isolated'?{stream:postgresStream(target.isolated_container)}:{}),
     password, ssl: ca ? { ca, rejectUnauthorized: true, servername: target.host } : false,
     application_name: 'my-backup', connectionTimeoutMillis: 10_000, statement_timeout: 60_000 })
   client.on('error', () => undefined)
@@ -46,9 +48,12 @@ export async function requireClosed(client, evidence) {
   return state
 }
 export async function inventory(client) {
+  // Hash SQL text in PostgreSQL, never decode BIGINT/Auth rows in JavaScript.
+  // These additive v1 inventory fields keep the PROD.4 seven-file format intact.
+  await client.query("set local timezone='UTC'; set local datestyle='ISO, YMD'; set local extra_float_digits=3; set local bytea_output='hex'; set local search_path=''")
   const tables = (await client.query(`select n.nspname schema, c.relname name, c.relkind kind,
     c.relowner::regrole::text owner, c.relrowsecurity rls, c.relforcerowsecurity force_rls,
-    c.relacl::text acl,
+    coalesce(c.relacl,acldefault(case when c.relkind='S' then 'S'::"char" else 'r'::"char" end,c.relowner))::text acl,
     exists(select 1 from pg_depend d where d.classid='pg_class'::regclass and d.objid=c.oid and d.deptype='e') extension_owned,
     exists(select 1 from pg_extension e where c.oid=any(e.extconfig)) extension_config
     from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -63,11 +68,25 @@ export async function inventory(client) {
       requireBackup(!t.extension_owned || t.extension_config || t.rows === '0', 'extension_data_not_dumped_requires_review')
     }
   }
+  const dataDigests = await dataFingerprints(client,tables)
+  const schemas = (await client.query(`select nspname name,nspowner::regrole::text owner,coalesce(nspacl,acldefault('n',nspowner))::text acl
+    from pg_namespace where nspname !~ '^pg_' and nspname<>'information_schema' order by 1`)).rows
+  const databaseProperties=(await client.query(`select datdba::regrole::text owner,pg_encoding_to_char(encoding) encoding,
+    datcollate collation,datctype ctype,coalesce(datacl,acldefault('d',datdba))::text acl
+    from pg_database where datname=current_database()`)).rows[0]
+  const columns = (await client.query(`select n.nspname schema,c.relname relation,a.attname name,
+    format_type(a.atttypid,a.atttypmod) type,a.attnotnull not_null,a.attidentity identity,a.attgenerated generated,
+    pg_get_expr(d.adbin,d.adrelid) default_expression,a.attacl::text acl
+    from pg_attribute a join pg_class c on c.oid=a.attrelid join pg_namespace n on n.oid=c.relnamespace
+    left join pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum
+    where n.nspname !~ '^pg_' and n.nspname<>'information_schema' and a.attnum>0 and not a.attisdropped
+      and c.relkind in ('r','p','v','m') order by 1,2,a.attnum`)).rows
   const roles = (await client.query(`select rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin,
     rolreplication, rolbypassrls, rolconnlimit, rolvaliduntil::text, rolconfig from pg_roles order by rolname`)).rows
   const memberships = (await client.query(`select roleid::regrole::text role, member::regrole::text member,
     grantor::regrole::text grantor, admin_option, inherit_option, set_option from pg_auth_members order by 1,2,3`)).rows
-  const roleSettings = (await client.query(`select setdatabase, setrole::regrole::text role, setconfig
+  const roleSettings = (await client.query(`select case when setdatabase=0 then null else current_database() end database,
+    case when setrole=0 then null else setrole::regrole::text end role, setconfig
     from pg_db_role_setting where setdatabase=0 or setdatabase=(select oid from pg_database where datname=current_database())
     order by 1,2`)).rows
   const extensions = (await client.query(`select extname, extversion, extnamespace::regnamespace::text schema,
@@ -75,19 +94,28 @@ export async function inventory(client) {
   requireBackup(!extensions.some(e=>e.extcondition?.some(condition=>condition !== '')), 'filtered_extension_data_requires_review')
   const constraints = (await client.query(`select n.nspname schema, c.relname relation, con.conname name, con.contype type,
     pg_get_constraintdef(con.oid) definition from pg_constraint con join pg_class c on c.oid=con.conrelid
-    join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private','auth') order by 1,2,3`)).rows
+    join pg_namespace n on n.oid=c.relnamespace where n.nspname !~ '^pg_' and n.nspname<>'information_schema' order by 1,2,3`)).rows
   const indexes = (await client.query(`select n.nspname schema, c.relname name, pg_get_indexdef(c.oid) definition
-    from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind='i' and n.nspname in ('public','private','auth')
+    ,t.relname relation
+    from pg_class c join pg_namespace n on n.oid=c.relnamespace join pg_index ix on ix.indexrelid=c.oid join pg_class t on t.oid=ix.indrelid
+    where c.relkind='i' and n.nspname !~ '^pg_' and n.nspname<>'information_schema'
     and not exists(select 1 from pg_constraint con where con.conindid=c.oid) order by 1,2`)).rows
-  const largeObjects = (await client.query('select oid::text, lomowner::regrole::text owner, lomacl::text acl from pg_largeobject_metadata order by oid')).rows
+  const largeObjects = (await client.query(`select oid::text,lomowner::regrole::text owner,
+    coalesce(lomacl,acldefault('L',lomowner))::text acl,encode(sha256(lo_get(oid)),'hex') sha256
+    from pg_largeobject_metadata order by oid`)).rows
   const functions = (await client.query(`select n.nspname schema, p.proname name, pg_get_function_identity_arguments(p.oid) arguments,
-    p.proowner::regrole::text owner, p.proacl::text acl, pg_get_functiondef(p.oid) definition
+    p.proowner::regrole::text owner, coalesce(p.proacl,acldefault('f',p.proowner))::text acl, pg_get_functiondef(p.oid) definition
     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-    where n.nspname in ('public','private','auth') and p.prokind in ('f','p')
+    where n.nspname !~ '^pg_' and n.nspname<>'information_schema' and p.prokind in ('f','p')
     and not exists(select 1 from pg_depend d where d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e') order by 1,2,3`)).rows
   const triggers = (await client.query(`select n.nspname schema, c.relname relation, t.tgname name,
     pg_get_triggerdef(t.oid) definition, t.tgenabled enabled from pg_trigger t join pg_class c on c.oid=t.tgrelid
     join pg_namespace n on n.oid=c.relnamespace where not t.tgisinternal order by 1,2,3`)).rows
+  const eventTriggers=(await client.query(`select evtname name,evtevent event,evtowner::regrole::text owner,
+    evtfoid::regprocedure::text function,evtenabled enabled,evttags tags from pg_event_trigger order by 1`)).rows
+  const views=(await client.query(`select n.nspname schema,c.relname name,pg_get_viewdef(c.oid,false) definition
+    from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('v','m')
+      and n.nspname !~ '^pg_' and n.nspname<>'information_schema' order by 1,2`)).rows
   const policies = (await client.query('select * from pg_policies order by schemaname,tablename,policyname')).rows
   const defaultACL = (await client.query('select defaclrole::regrole::text role, defaclnamespace::regnamespace::text schema, defaclobjtype, defaclacl::text from pg_default_acl order by 1,2,3')).rows
   const history = (await client.query('select version, name from supabase_migrations.schema_migrations order by version')).rows
@@ -106,10 +134,20 @@ export async function inventory(client) {
     'Storage_or_Vault_used_requires_separate_protected_backup')
   requireBackup(['users','identities','mfa_factors','mfa_challenges','mfa_amr_claims','sessions','refresh_tokens']
     .every(name => tables.some(t => t.schema === 'auth' && t.name === name)), 'managed_auth_dependencies_missing')
-  return { tables, roles, memberships, role_settings: roleSettings, extensions, functions, triggers, policies,
+  return { tables, schemas, columns, database_properties:databaseProperties, data_fingerprints:dataDigests, roles, memberships, role_settings: roleSettings, extensions, functions, triggers, event_triggers:eventTriggers,view_definitions:views,policies,
     default_acl: defaultACL, constraints, indexes, large_objects:largeObjects,
     migration_history: history, migration_files: migrationFiles, storage, vault,
     schema_source_limit: 'history_names_versions_prefix_and_PROD2_contract_verified_full_schema_drift_requires_PROD5' }
+}
+export async function dataFingerprints(client,tables) {
+  const result=[]
+  for (const t of tables.filter(t=>['r','p','m'].includes(t.kind))) {
+    const value=(await client.query(`select count(*)::text rows,
+      encode(sha256(convert_to(coalesce(string_agg(row_hash,'' order by row_hash collate "C"),''),'UTF8')),'hex') sha256
+      from (select encode(sha256(convert_to(to_jsonb(t)::text,'UTF8')),'hex') row_hash from ${quote(t.schema)}.${quote(t.name)} t) q`)).rows[0]
+    result.push({schema:t.schema,name:t.name,...value})
+  }
+  return result
 }
 export async function sequences(client, tables) {
   const result = []
@@ -135,10 +173,15 @@ export function validateTOC(toc, inventory) {
     requireBackup(has('TRIGGER', t.schema, `${t.relation} ${t.name}`), 'archive_trigger_omission')
   }
   for (const role of ['postgres','my_notification_publisher']) requireBackup(inventory.roles.some(r=>r.rolname===role), 'role_inventory_incomplete')
-  for (const c of (inventory.constraints ?? []).filter(c=>['p','u','x','f'].includes(c.type))) {
+  for (const c of (inventory.constraints ?? []).filter(c=>['p','u','x','f'].includes(c.type)
+    &&!inventory.tables.some(t=>t.schema===c.schema&&t.name===c.relation&&t.extension_owned))) {
     requireBackup(has(c.type === 'f' ? 'FK CONSTRAINT' : 'CONSTRAINT',c.schema,`${c.relation} ${c.name}`), 'archive_constraint_omission')
   }
-  for (const i of inventory.indexes ?? []) requireBackup(has('INDEX',i.schema,i.name), 'archive_index_omission')
+  // Extension indexes are rebuilt by CREATE EXTENSION, not individual TOC entries.
+  for (const i of inventory.indexes ?? []) {
+    if(inventory.tables.some(t=>t.schema===i.schema&&t.name===i.relation&&t.extension_owned)) continue
+    requireBackup(has('INDEX',i.schema,i.name), 'archive_index_omission')
+  }
   for (const p of (inventory.policies ?? []).filter(p=>['public','private','auth'].includes(p.schemaname))) {
     requireBackup(has('POLICY',p.schemaname,`${p.tablename} ${p.policyname}`), 'archive_policy_omission')
   }

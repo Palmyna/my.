@@ -75,3 +75,12 @@ export async function fileHash(filename) {
   return { sha256: hash.digest('hex'), bytes: size }
 }
 export function hashBytes(value) { return createHash('sha256').update(value).digest('hex') }
+export function decryptBytes(ciphertext,key) {
+  try {
+    requireBackup(ciphertext.length>36&&ciphertext.subarray(0,8).equals(magic),'encrypted_file_format_invalid')
+    const decipher=createDecipheriv('aes-256-gcm',key,ciphertext.subarray(8,20))
+    decipher.setAAD(magic);decipher.setAuthTag(ciphertext.subarray(-16))
+    // No plaintext reaches a consumer until final() has validated the tag.
+    return Buffer.concat([decipher.update(ciphertext.subarray(20,-16)),decipher.final()])
+  } catch {throw new BackupError('encrypted_file_authentication_failed')}
+}
