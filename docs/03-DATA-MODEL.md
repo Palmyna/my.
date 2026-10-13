@@ -407,6 +407,8 @@ Supprimer un exemplaire signifie que l'utilisateur indique ne plus posséder cet
 
 ## Partages de collections
 
+Le stockage et la consultation en lecture seule sont livrés. Les parcours utilisateur de création, gestion et retrait ci-dessous restent à livrer en Phase 9 ; les permissions SQL déjà disponibles sont distinguées dans le [schéma](06-DATABASE.md#permissions-effectivement-accordées).
+
 Un partage relie une collection à un utilisateur destinataire. Le propriétaire est déjà porté par la collection.
 
 ```text
@@ -525,7 +527,7 @@ Partage N → 1 Utilisateur destinataire
 
 ## Invariants conceptuels
 
-Le futur modèle technique doit permettre de garantir autant que possible que :
+Le modèle technique livré doit préserver les invariants suivants :
 
 - une collection possède exactement un propriétaire ;
 - son nom contient au moins 3 caractères utiles après trim ;
@@ -551,9 +553,9 @@ Le futur modèle technique doit permettre de garantir autant que possible que :
 
 Les contraintes implémentées en Phase 1 et les opérations fonctionnelles restant à réaliser sont distinguées dans le [schéma PostgreSQL / Supabase](06-DATABASE.md).
 
-## Principes de sécurité futurs
+## Principes de sécurité
 
-Le modèle doit permettre de mettre en place des règles garantissant que :
+Le schéma et les opérations livrés appliquent des règles garantissant que :
 
 - un utilisateur ne modifie que ses propres données ;
 - le propriétaire contrôle ses collections ;
@@ -591,9 +593,9 @@ Les sujets suivants restent à cadrer ou à décider lors de l'implémentation, 
 - les éventuelles exigences légales/rétentions particulières liées à la suppression, sans remettre en question le périmètre fonctionnel validé ;
 - les détails d'implémentation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - l'historique éventuel des corrections ;
-- les APIs de notifications livrées Local en 8G selon 8A.3, avec centre 8H.1 et actions 8H.2 livrés, centre 8H clôturé et validé Local en `0.8.19` ; application SQL, services/reprise et parcours confirmé livrés Local en 8F.1–8F.3 ; détection/aperçu livrés Local en 8E ; le socle d’ordre relatif 8B et le masquage/progression 8C sont livrés Local, ainsi que l’interface et les filtres 8D ; contrat 2 activé pour les nouveaux parents ;
+- l'adaptation Cloud du publisher et du pipeline catalogue, distincte des APIs, du centre de notifications et des parcours Collection déjà livrés en Phase 8 ; voir les [décisions de publication](11-PUBLICATION-PRODUCTION.md) ;
 - les éventuels outils d'administration du catalogue ;
-- l'implémentation PostgreSQL finale de la recherche ;
+- les éventuelles optimisations des recherches PostgreSQL déjà livrées, selon des mesures de performance ;
 - les choix de performance et d'optimisation ;
 - les éventuels plans, droits fonctionnels, fonctionnalités Premium, limites gratuites, prix, périodicités, essais et fournisseurs de paiement d'une offre post-V1.
 

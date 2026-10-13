@@ -180,7 +180,7 @@ Les fichiers `.env` réels, `node_modules/`, `dist/`, les caches et l'état loca
 
 Après `npm ci`, démarrer Docker Desktop. Pour appliquer les migrations en attente au volume local existant puis vérifier le schéma :
 
-Toute migration validée est appliquée à **Supabase local** au fil du développement. État courant : **39 migrations appliquées Local / 29 Cloud au dernier checkpoint manuel propriétaire**. Les six migrations Phase 7 sont déployées selon ce checkpoint ; les migrations 8B.1 à 8B.8 sont Local uniquement. Aucun accès Cloud en 7G.2. `migration list --local` compare les fichiers à l’historique de la base locale : sa colonne `Remote` désigne ici cette base locale, pas Supabase Cloud. Aucun reset requis pour appliquer les migrations manquantes.
+Toute migration validée est appliquée à **Supabase local** au fil du développement. Dernier état validé en 8I.2 : **48 migrations appliquées Local / 48 Cloud au checkpoint manuel fourni par le propriétaire**, dont 19 Phase 8. Les preuves Local et les contrôles Cloud fournis restent distincts ; aucun nouveau contrôle de base n’est effectué par ce correctif documentaire. Voir l’[état des environnements et sa provenance](docs/11-PUBLICATION-PRODUCTION.md#état-connu-et-provenance). `migration list --local` compare les fichiers à l’historique de la base locale : sa colonne `Remote` désigne ici cette base locale, pas Supabase Cloud. Aucun reset requis pour appliquer les migrations manquantes.
 
 ```sh
 npm run supabase:start
@@ -217,7 +217,7 @@ Les migrations sont détaillées dans [06-DATABASE.md](docs/06-DATABASE.md). Le 
 
 ## Catalogue TCGdex local
 
-La procédure et les algorithmes sont définis dans [07-CATALOG-SYNC.md](docs/07-CATALOG-SYNC.md). `scripts/catalog/` utilise Node 24, TypeScript, Zod et `pg` (avec ses types). Le cache Git et les rapports résident dans `.cache/`, ignoré. Les corrections versionnées sont dans [data/catalog-overrides/](data/catalog-overrides/README.md) ; aucun override réel n'est ajouté par défaut.
+La procédure et les algorithmes sont définis dans [07-CATALOG-SYNC.md](docs/07-CATALOG-SYNC.md). `scripts/catalog/` utilise Node 24, TypeScript, Zod et `pg` (avec ses types). Le cache Git et les rapports résident dans `.cache/`, ignoré. Les corrections versionnées sont dans [data/catalog-overrides/](data/catalog-overrides/README.md), dont le correctif réel Pikachu 28/73 ; `overrides.json` reste vide.
 
 Le catalogue local vérifié contient 19 907 cartes, 31 904 variantes, 1 025 Pokémon et 188 sets ; le catalogue cloud validé est détaillé plus haut. Le premier override réel porte Pikachu 28/73 à cinq variantes. Les mesures de l'import initial (31 900 variantes) restent dans le [rapport Phase 2](docs/reports/2026-09-06-PHASE2.md), qui constitue une preuve historique locale. La recherche n'applique aucune correction et ne change ni le catalogue ni les états de cible.
 

@@ -4,7 +4,7 @@
 
 Ce document constitue la source de vérité concernant la **roadmap globale de MY.** : l'état, l'ordre et le périmètre des grandes phases du projet, jusqu'à la V1 puis au-delà.
 
-La roadmap reste volontairement **macro**. Chaque phase représente un ensemble fonctionnel cohérent. Le découpage opérationnel est défini au moment de sa réalisation ; les blocs prévisionnels de Phase 8 ci-dessous cadrent ses dépendances, sans constituer un journal de sous-phases de développement.
+La roadmap reste volontairement **macro**. Chaque phase représente un ensemble fonctionnel cohérent. Le découpage opérationnel est défini au moment de sa réalisation ; les blocs réalisés de Phase 8 ci-dessous résument ses dépendances, sans constituer un journal de sous-phases de développement.
 
 Elle permet de voir ce qui est terminé, la prochaine étape et les orientations futures, sans remplacer les spécifications détaillées :
 
@@ -68,7 +68,7 @@ Cette phase fournit les parcours d'authentification et la structure commune aux 
 - shell authentifié, header permanent et menu Profil / Paramètres / Déconnexion ;
 - pages minimales `/dashboard`, `/profile` et `/settings`, avec finitions responsive et accessibilité.
 
-La recherche du header est encore un champ visuel sans requête ni suggestion. À l'issue de cette phase, les pages authentifiées étaient minimales : le vrai Dashboard, le contenu du Profil et les Paramètres fonctionnels relèvent des phases suivantes.
+À l'issue de Phase 3, la recherche du header était un champ visuel sans requête ni suggestion et les pages authentifiées étaient minimales. Dashboard, Profil, Paramètres et recherche globale ont été livrés dans les phases suivantes, désormais terminées.
 
 ### Phase 4 — Profil et gestion du compte
 
@@ -128,7 +128,7 @@ Les collections permettent désormais de suivre les variantes et les exemplaires
 
 Les éléments automatiques restent non supprimables manuellement ; leur déplacement ne modifie ni origine ni rang canonique. Les exemplaires ne sont jamais dupliqués entre collections.
 
-Phase 6 terminée et validée après l'audit technique exécuté par Codex et le checkpoint Supabase Cloud exécuté manuellement par le propriétaire. Local/Remote : **23/23 migrations**, dont 12 Phase 6, alignées jusqu'à `20260928083830`, sans migration restante au dry-run final. Le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md) conserve ces preuves. Bundle principal d'environ 680,01 kB, absence du nom de série dans la recherche d'ajout et Paramètres minimal restent non bloquants ; Phase 7+ reste hors périmètre.
+Phase 6 terminée et validée après l'audit technique exécuté par Codex et le checkpoint Supabase Cloud exécuté manuellement par le propriétaire. À ce checkpoint historique, Local/Remote : **23/23 migrations**, dont 12 Phase 6, alignées jusqu'à `20260928083830`, sans migration restante au dry-run final. Le [rapport de clôture](reports/2026-09-30-PHASE6-CLOSURE.md) conserve ces preuves. Bundle principal d'environ 680,01 kB, absence du nom de série dans la recherche d'ajout et Paramètres minimal étaient non bloquants à cette clôture ; Phase 7+ était hors de son périmètre. Les Paramètres fonctionnels sont désormais livrés en Phase 7.
 
 ### Phase 7 — Vues, catalogue, recherche globale et préférences
 
@@ -263,7 +263,7 @@ Finaliser et stabiliser la V1 en tenant compte de la première version déjà pu
 - validation des procédures de publication, synchronisation catalogue, notifications et récupération ;
 - publication de la V1 finalisée puis contrôles en production.
 
-Le développement et les tests courants restent locaux ; les validations hébergées commencent après la première mise en ligne. Les opérations Cloud restent contrôlées et attribuées. Les URLs de production utilisent `https://my.collectrealm.com`, jamais localhost dans Supabase Cloud.
+Le développement et les tests courants restent locaux. La première mise en ligne est réalisée selon le propriétaire ; la campagne complète de compte réel et le workflow coordonné restent à valider selon la [procédure Production](11-PUBLICATION-PRODUCTION.md). Les opérations Cloud restent contrôlées et attribuées. Les URLs de production utilisent `https://my.collectrealm.com`, jamais localhost dans Supabase Cloud.
 
 La V1 conserve son périmètre de gestion de collections Pokémon TCG : aucun paiement ou abonnement Premium n'est requis, et les collections automatiques restent accessibles normalement.
 

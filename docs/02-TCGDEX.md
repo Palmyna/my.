@@ -93,7 +93,7 @@ Exemples de données utilisateur :
 - une note personnelle ;
 - la position manuelle d'une carte dans une collection.
 
-Cette séparation doit être préservée dans le futur modèle de données.
+Cette séparation est définie dans le [modèle de données](03-DATA-MODEL.md) et conservée par le schéma livré.
 
 ## Carte TCGdex, variante et exemplaire utilisateur
 
@@ -239,7 +239,7 @@ Le catalogue local doit conserver suffisamment d'informations pour alimenter la 
 - la rareté ;
 - les autres métadonnées textuelles pertinentes.
 
-La liste définitive des champs recherchés sera précisée avec le modèle de données et l'UX.
+Les champs effectivement recherchés et les différences entre filtre interne, recherche d'ajout et recherche globale sont définis dans les [fonctionnalités](01-FEATURES.md) et l'[UX](04-UX-UI.md), avec leurs contrats livrés dans le [schéma SQL](06-DATABASE.md#recherche-classeur-et-préférences).
 
 ## Construction des collections automatiques
 
@@ -283,7 +283,7 @@ Dans les deux cas, le catalogue local MY., et non un appel direct à TCGdex lors
 
 ### Ordre stable et reproductible
 
-L'ordre canonique de génération doit rester stable et reproductible. Une synchronisation ne doit pas produire un ordre canonique différent de manière arbitraire lorsque la cible et l'état du catalogue n'ont pas changé. Cet ordre initialise la collection et fournit les `automatic_rank` ; après création, tous les éléments sont librement réordonnables par le propriétaire via `sort_position`, sans modifier le hash/version canonique ni `automatic_target_states`. Pour les actualisations futures, le principe Phase 8 validé reconstruit le nouvel ordre canonique puis réapplique chronologiquement les personnalisations relatives, sans replacer arbitrairement les cartes déjà présentes. Les [règles métier](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) priment ; algorithme détaillé et persistance restent à formaliser en 8A.2/8A.3.
+L'ordre canonique de génération doit rester stable et reproductible. Une synchronisation ne doit pas produire un ordre canonique différent de manière arbitraire lorsque la cible et l'état du catalogue n'ont pas changé. Cet ordre initialise la collection et fournit les `automatic_rank` ; après création, tous les éléments sont librement réordonnables par le propriétaire via `sort_position`, sans modifier le hash/version canonique ni `automatic_target_states`. Pour les actualisations livrées en Phase 8, MY. reconstruit le nouvel ordre canonique puis réapplique chronologiquement les personnalisations relatives, sans replacer arbitrairement les cartes déjà présentes. Les [règles métier](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) priment ; algorithme, persistance et application confirmée sont cadrés et livrés, avec leurs validations Local et limites décrites dans le [schéma SQL](06-DATABASE.md#contrats-phase-8--livraisons-et-limites).
 
 Pour une collection par Pokémon, les priorités sont :
 
@@ -433,7 +433,7 @@ Le pipeline conserve les IDs et les lignes historiques, normalement inactives et
 - la cadence, l'automatisation et le déploiement distant du pipeline ;
 - la vérification historique de certaines variantes rares et des dates de promotions/coffrets ;
 - une éventuelle politique des apparitions secondaires (cameos) ;
-- l'interface de maintenance et la gestion visuelle des assets absents ;
-- les RPC et opérations utilisateur des phases suivantes.
+- l'interface de maintenance du catalogue et les éventuelles évolutions de gestion visuelle des assets absents au-delà du fallback applicatif livré ;
+- les opérations de création, gestion et retrait des partages de Phase 9 ; actualisation, masquage et notifications internes sont déjà livrés en Phase 8, hors du pipeline.
 
 Le langage, le cache Git, JSON/Zod, les propriétés d'identité, les stamps multiples, la disponibilité FR, l'exclusion des Jumbo, les numéros, les dates inconnues, les tris, la fusion, les transactions, le dry-run et les hashes sont désormais fixés dans le pipeline V1.

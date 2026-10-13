@@ -109,7 +109,7 @@ La tablette est un format particulièrement important pour les grilles, la consu
 
 Sur mobile, le nombre de cartes par ligne diminue, les contrôles peuvent être regroupés, le détail peut occuper tout l'écran et les actions essentielles doivent rester accessibles au tactile. La navigation dans le classeur doit demeurer utilisable.
 
-Les breakpoints et adaptations détaillées restent à définir.
+Les écrans livrés disposent d'adaptations responsive définies dans les sections concernées et implémentées dans les composants communs ; seules les évolutions des écrans futurs ou les finitions de Phase 10 restent à préciser.
 
 ## Homepage publique et authentification
 
@@ -152,7 +152,7 @@ Le header authentifié est léger, permanent et accessible dans toute l'applicat
 - **au centre** : la recherche globale persistante, outil de navigation disponible depuis chaque écran authentifié ;
 - **à droite** : un menu utilisateur compact donnant accès à Profil, Paramètres et Déconnexion.
 
-MY. n'utilise pas de grande sidebar permanente. Les actions contextuelles restent proches du contenu concerné. La hauteur du header, la largeur du champ et l'icône exacte du menu restent des choix de design détaillé. Cartes, listes et classeurs conservent l'espace principal.
+MY. n'utilise pas de grande sidebar permanente. Les actions contextuelles restent proches du contenu concerné. Le header livré fixe hauteur, largeur du champ et icônes selon la fondation graphique commune ; ses éventuelles finitions ultérieures restent à cadrer. Cartes, listes et classeurs conservent l'espace principal.
 
 ## Recherche globale du header
 
@@ -654,6 +654,8 @@ Une notification non lue est visible et comptabilisée ; lue non traitée, visib
 
 ## Partage
 
+**Parcours de création, gestion et retrait cible Phase 9, non livré.** La consultation des partages existants est déjà disponible ; les règles ci-dessous conservent le cadrage validé.
+
 Une collection appartenant à l'utilisateur propose une action `Partager`. Le propriétaire saisit l'identifiant public MY. du destinataire et, lorsque possible, l'interface identifie clairement l'utilisateur concerné avant validation.
 
 Après confirmation du propriétaire, le partage est directement actif et la collection apparaît dans la grille unifiée du Dashboard avec le statut `Partagée · Lecture seule`. Il n'existe ni invitation, ni acceptation, ni refus. Le propriétaire peut consulter les personnes ayant accès et retirer un partage ; le destinataire peut retirer son propre accès. Ce retrait conserve la collection, ses éléments et les exemplaires. L'interface de création/gestion des partages et la résolution limitée du destinataire restent prévues en Phase 9.
@@ -817,20 +819,20 @@ Ce document ne constitue pas un audit WCAG complet.
 
 Les sujets suivants concernent les fonctionnalités non livrées et d'éventuelles évolutions ultérieures. Les choix des écrans livrés, décrits ci-dessus et dans l'[architecture](05-ARCHITECTURE.md), restent la référence :
 
-- les wireframes et maquettes pixel-perfect ;
-- les textes définitifs des modales du Profil, ses intitulés de groupes et ses détails visuels, dans le respect des parcours validés ;
+- les wireframes et maquettes des fonctionnalités restantes, sans remettre en question les écrans livrés ;
+- les éventuelles finitions des textes et détails visuels du Profil, au-delà des modales et groupes déjà livrés ;
 - le moyen de contact final pour demander un remplacement d'Authenticator et la forme exacte de son message d'information ;
-- les dimensions, espacements, tailles typographiques et rayons exacts ;
+- les dimensions, espacements, tailles typographiques et rayons des futurs composants, en réutilisant la fondation graphique livrée ;
 - les éventuelles évolutions visuelles des cartes et badges, dans le respect des états possédés/manquants livrés ;
 - les évolutions visuelles ultérieures du classeur, au-delà des pages/pochettes et transitions légères livrées en 7B.3 ;
 - les éventuelles animations de cartes ;
 - les éventuelles évolutions du reorder au-delà des interactions Liste/Cartes livrées ;
 - les éventuelles évolutions de la composition Liste/Cartes et du panneau Détail, au-delà des rendus livrés ;
 - les éventuelles finitions visuelles ultérieures du header ; recherche globale 7E.2 et Paramètres Affichage livrés ;
-- le design du résumé de mise à jour ;
-- le système d'icônes ;
-- les breakpoints et adaptations responsive détaillées ;
-- le design system complet ;
+- les éventuelles évolutions du résumé de mise à jour et du centre de notifications déjà livrés en 8F/8H ;
+- les éventuels compléments aux icônes partagées déjà intégrées ;
+- les adaptations responsive des fonctionnalités restantes et les validations complémentaires d'accessibilité de Phase 10 ;
+- les éventuelles extensions de la fondation graphique et des primitives communes livrées ;
 - les éventuels composants nécessaires aux fonctionnalités restantes, selon la stack et l'organisation frontend déjà fixées dans l'architecture ;
 
 Ces éléments futurs ne doivent pas être considérés comme décidés avant leur cadrage et leur validation.

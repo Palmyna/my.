@@ -30,9 +30,9 @@ Ces fonctionnalités doivent rester simples à comprendre et rapides à utiliser
 
 ## État courant et première mise en ligne
 
-**Phase 8 terminée en `0.8.21`.** 8B à 8H livrés et validés Local ; audit transversal 8I.1 conservé. Checkpoint manuel terminé : 48 migrations Cloud, dont 19 Phase 8, et contrôles directs en lecture seule fournis par le propriétaire. [Clôture 8I.2, validations et limites](reports/2026-10-12-PHASE8I2-CLOSURE.md). Cet alignement du backend ne constitue pas une validation applicative complète Cloud avec de vrais utilisateurs.
+**Phases 0 à 8 terminées ; version applicative actuelle `0.8.23`.** La clôture historique Phase 8 reste en `0.8.21` : 8B à 8H livrés et validés Local ; audit transversal 8I.1 conservé. Checkpoint manuel terminé : 48 migrations Cloud, dont 19 Phase 8, et contrôles directs en lecture seule fournis par le propriétaire. [Clôture 8I.2, validations et limites](reports/2026-10-12-PHASE8I2-CLOSURE.md). Cet alignement du backend ne constitue pas une validation applicative complète Cloud avec de vrais utilisateurs.
 
-La première publication sera préparée après cette clôture et la PR `dev` → `main`, sans attendre Phase 10. Elle permettra les tests utilisateurs en environnement hébergé, sans déclarer la V1 terminée. Phase 9 conserve création/gestion/retrait des partages ; Phase 10 conserve finalisation, qualité et stabilisation V1. Publication sous maintenance indépendante des déploiements et protection backend des écritures sensibles à concevoir/tester : [exigences architecturales](05-ARCHITECTURE.md#publication-coordonnée-et-maintenance). Aucun nouveau comportement fonctionnel livré en 8I.2 ; application pas encore déployée.
+La première mise en ligne est réalisée selon le propriétaire : **Production Vercel sur `my.collectrealm.com`**, sans déclarer la V1 terminée. Aucun test complet de compte réel en Production encore réalisé. Phase 9 conserve création/gestion/retrait des partages ; Phase 10 conserve finalisation, qualité et stabilisation V1. Les futures publications suivent la [procédure Production de référence](11-PUBLICATION-PRODUCTION.md) : état confirmé, décisions de déploiement et mécanismes de maintenance, gel, sauvegarde/restauration et publisher Cloud restant à réaliser y sont distingués. Aucun nouveau comportement fonctionnel livré par la clôture 8I.2.
 
 ## Comptes utilisateurs
 
@@ -177,7 +177,7 @@ Un élément manuel conserve `origin = manual` et n'a pas d'`automatic_rank`. To
 
 ### Mise à jour contrôlée — décisions Phase 8
 
-**Application et parcours confirmé terminés, validés Local en [8F.3](reports/2026-10-11-PHASE8F3-CLOSURE.md). Détection et aperçu livrés en 8E, writer SQL en 8F.1, services/reprise en 8F.2.** Conception 8A.3 validée ; Phase 8 clôturée en 8I.2. **Phase 8B terminée et validée Local en `0.8.7`.** Moteur PostgreSQL de fusion/rejeu, journal chronologique, trois writers v2, reçus idempotents, lecteur et services/hooks communs livrés. Contrat 2 actif exclusivement pour les nouvelles créations libres et automatiques ; contrat 1 conservé pour les collections existantes, sans conversion. `sort_position` reste l’unique ordre affiché. Masquage persistant, progression et services/hooks livrés Local en 8C (`0.8.8`). **Interface de masquage et filtres livrés Local en 8D (`0.8.9`). Détection, aperçu pur et token de confirmation livrés Local en 8E (`0.8.10`).** Writer PostgreSQL livré Local en 8F.1 (`0.8.11`) ; services et reprise idempotente livrés en 8F.2 (`0.8.12`) ; parcours utilisateur et clôture 8F livrés Local en 8F.3 (`0.8.13`). Backend notifications 8G terminé Local ; centre 8H.1 et actions 8H.2 livrés ; clôture et validation Local en [8H.3](reports/2026-10-12-PHASE8H3-CLOSURE.md) (`0.8.19`). Aucune collection modifiée automatiquement. Migrations backend Phase 8 présentes Cloud selon le checkpoint fourni ; application non déployée. [Rapport de clôture](reports/2026-10-10-PHASE8B8-CLOSURE.md).
+**Application et parcours confirmé terminés, validés Local en [8F.3](reports/2026-10-11-PHASE8F3-CLOSURE.md). Détection et aperçu livrés en 8E, writer SQL en 8F.1, services/reprise en 8F.2.** Conception 8A.3 validée ; Phase 8 clôturée en 8I.2. **Phase 8B terminée et validée Local en `0.8.7`.** Moteur PostgreSQL de fusion/rejeu, journal chronologique, trois writers v2, reçus idempotents, lecteur et services/hooks communs livrés. Contrat 2 actif exclusivement pour les nouvelles créations libres et automatiques ; contrat 1 conservé pour les collections existantes, sans conversion. `sort_position` reste l’unique ordre affiché. Masquage persistant, progression et services/hooks livrés Local en 8C (`0.8.8`). **Interface de masquage et filtres livrés Local en 8D (`0.8.9`). Détection, aperçu pur et token de confirmation livrés Local en 8E (`0.8.10`).** Writer PostgreSQL livré Local en 8F.1 (`0.8.11`) ; services et reprise idempotente livrés en 8F.2 (`0.8.12`) ; parcours utilisateur et clôture 8F livrés Local en 8F.3 (`0.8.13`). Backend notifications 8G terminé Local ; centre 8H.1 et actions 8H.2 livrés ; clôture et validation Local en [8H.3](reports/2026-10-12-PHASE8H3-CLOSURE.md) (`0.8.19`). Aucune collection modifiée automatiquement. Migrations backend Phase 8 présentes Cloud selon le checkpoint fourni ; frontend déployé sur Vercel selon le propriétaire, sans test complet de compte réel Production acquis. [État actuel et futures publications](11-PUBLICATION-PRODUCTION.md). [Rapport de clôture](reports/2026-10-10-PHASE8B8-CLOSURE.md).
 
 Une collection automatique peut évoluer lorsque le catalogue change pour sa cible Pokémon ou Extension. Elle ne doit jamais être modifiée silencieusement.
 
@@ -221,7 +221,7 @@ Exemples métier de référence :
 - **R3 :** retrait réel = perte des intentions propres et du masquage ; réintroduction = nouvel élément/UUID, sans restauration des anciennes personnalisations. Conversion manuel → automatique = même identité et mêmes intentions. Exemplaires/notes conservés indépendamment ; seules les références historiques nécessaires aux intentions d'autres sujets vivants restent conservées.
 - **R4 :** annulation ou séquence inchangée = aucune intention ; retry technique = même opération, jamais second geste. L'ajout manuel enregistre toujours son placement initial, même fin par défaut.
 
-L'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) conserve l'analyse historique et ses 36 scénarios. La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) recommande journal chronologique, contextes immuables et reçus d'opération ; `sort_position` reste l'unique ordre affiché. Les [contrats projetés](06-DATABASE.md#contrats-projetés-phase-8--non-implémentés) précisent persistance, révisions et transition ; stockage, moteur, writers, masquage/progression et interface de masquage sont livrés Local ; détection et aperçu 8E sont raccordés au menu Collection en [8F.3](reports/2026-10-11-PHASE8F3-CLOSURE.md), avec acquittement de la seule version effectivement présentée depuis 8H, sans application automatique.
+L'[algorithme 8A.2](reports/2026-10-08-PHASE8A2-RELATIVE-ORDER-ALGORITHM.md) conserve l'analyse historique et ses 36 scénarios. La [conception 8A.3](reports/2026-10-08-PHASE8A3-TECHNICAL-CONTRACTS.md) recommande journal chronologique, contextes immuables et reçus d'opération ; `sort_position` reste l'unique ordre affiché. Les [contrats livrés et leurs limites](06-DATABASE.md#contrats-phase-8--livraisons-et-limites) précisent persistance, révisions et transition ; stockage, moteur, writers, masquage/progression et interface de masquage sont livrés Local ; détection et aperçu 8E sont raccordés au menu Collection en [8F.3](reports/2026-10-11-PHASE8F3-CLOSURE.md), avec acquittement de la seule version effectivement présentée depuis 8H, sans application automatique.
 
 Compatibilité historique : les collections existantes sont uniquement des données de test. Aucune récupération des intentions de déplacement passées n'est nécessaire ; le propriétaire accepte de recréer ses collections de test. Cette décision n'autorise aucun reset ni suppression pendant 8A. Les trois anciens writers sont désormais refusés sur contrat 2 en Local ; contrat 1 conserve strictement ses règles. Les nouveaux parents utilisent désormais contrat 2 ; les parents historiques conservent contrat 1 et leurs writers legacy.
 
@@ -429,6 +429,8 @@ Stockage et suivi individuel via Supabase. Publication par commande ou script s�
 
 ## Partage d'une collection
 
+**Parcours cible Phase 9 : création, gestion et retrait des accès restent à livrer.** La consultation et la recherche des collections déjà partagées sont opérationnelles selon les contrats livrés.
+
 Le propriétaire peut partager une collection avec un autre utilisateur MY. depuis la collection concernée. Il utilise pour cela l'identifiant public unique du destinataire, qui doit être clairement identifié avant ou pendant la validation du partage.
 
 Le partage devient immédiatement actif après confirmation du propriétaire et la collection apparaît dans la grille unifiée du Dashboard, avec le statut `Partagée · Lecture seule`. La V1 ne comporte ni invitation, ni attente, ni acceptation ou refus par le destinataire. La résolution de l'identifiant reste limitée et ne permet jamais de parcourir les profils. Ce parcours de création de partage reste prévu en Phase 9 ; la consultation partagée est déjà livrée.
@@ -591,23 +593,20 @@ Les collections automatiques sont accessibles normalement dans la V1, sans abonn
 
 ## Éléments laissés ouverts
 
-Les sujets suivants devront être définis dans de futurs documents dédiés ou lors de l'implémentation concernée :
+Actualisation, ordre relatif, masquage, résumé de mise à jour, centre de notifications, recherches et écrans des Phases 0 à 8 sont livrés selon les contrats décrits ci-dessus. Restent à cadrer ou à réaliser :
 
 - les détails de base de données laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
-- les fonctionnalités futures d’actualisation et notifications selon 8A.3 ; le socle d’[ordre relatif](#réordonnancement-relatif--décisions-phase-8) 8B est livré, activé pour les nouveaux parents et validé Local ;
 - les vérifications historiques d'inclusion de certaines variantes rares et les éventuelles évolutions au-delà des règles V1 du pipeline ;
 - la classification des blocs et des ères ;
 - les enrichissements futurs au-delà des données TCGdex exploitées en Phase 2 ;
 - la fréquence de vérification des mises à jour ;
-- la présentation détaillée du résumé et du centre, la fraîcheur du badge, les annonces importantes destinées aussi aux nouveaux inscrits et les conditions de traitement des annonces exigeant une action ; contrats techniques proposés en 8A.3 ;
-- la liste définitive des champs utilisés par la recherche ;
+- les éventuelles conditions métier serveur des annonces exigeant une action, actuellement non supportées ; l'exception d'audience des nouveaux inscrits est déjà livrée ;
 - la résolution limitée d'un identifiant public et l'interface de confirmation du destinataire ;
 - le moyen de contact final pour modifier/remplacer l'Authenticator ;
 - les éventuelles exigences légales ou rétentions particulières liées à la suppression, à cadrer spécifiquement ;
-- le design détaillé du dashboard et des vues ;
-- le responsive et l'accessibilité ;
+- les éventuelles finitions UX et validations complémentaires d'accessibilité de Phase 10, sans remettre en question les écrans responsive livrés ni revendiquer une certification globale ;
 - les détails d'implémentation non figés par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
-- les futures RPC fonctionnelles et les configurations de production de Supabase et Vercel ; les permissions et policies SQL sont définies dans `06-DATABASE.md` ;
+- les opérations de création/gestion/retrait des partages en Phase 9 et les mécanismes du [workflow Production décidé](11-PUBLICATION-PRODUCTION.md) ; les configurations actuelles ne sont pas des travaux futurs ;
 - les détails de synchronisation laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
 - les fonctionnalités éventuellement concernées par une offre Premium post-V1, son prix, ses plans, ses limites, sa facturation, une éventuelle période d'essai et son fournisseur de paiement.
 
