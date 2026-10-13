@@ -91,7 +91,7 @@ Les pages partagent le shell, des espacements adaptés à l'écran et un `h1` ac
 
 7F est terminée : contrats 7F.1 puis navigation frontend 7F.2. `PageBackButton` est partagé par Collection et les trois pages Catalogue, avant tous leurs états. React Router `8.3.1` : `useNavigate()` utilise `navigate(-1)` si `window.history.state.idx` est un entier positif. Le routeur navigateur unique initialise cet index à zéro, incrémente PUSH, conserve REPLACE et refresh. Sinon `navigate("/dashboard", { replace: true })`. Aucun `history.length` (peut inclure un autre site), gestionnaire de navigation ou stockage métier. Comportement public testé avec `createBrowserRouter`, y compris recréation après refresh. Destination par type et ID explicites, jamais par analyse du nom visible ; aucune seconde lecture Catalogue pour reconstruire les IDs. Précédente / Suivante, swipe entre cartes, séquence de cartes et navigation rapide contextuelle sont abandonnés pour la V1 actuelle. Le Détail Variante reste commun aux Collections et aux trois pages Catalogue.
 
-Le [fallback SPA Vercel](../vercel.json), livré en `0.8.23`, réécrit `/(.*)` vers `/index.html` ; les fichiers statiques conservent leur priorité. Accès directs et rafraîchissements des routes internes vérifiés selon le propriétaire, sans nouvelle validation distante pendant cette sous-phase documentaire. React Router reste inchangé.
+Le [fallback SPA Vercel](../vercel.json), livré en `0.8.23`, réécrit `/(.*)` vers `/index.html` ; les fichiers statiques conservent leur priorité lorsque le middleware laisse poursuivre la requête. Accès directs et rafraîchissements des routes internes vérifiés selon le propriétaire ; PROD.1 ajoute la fermeture avant cache sans changer React Router, avec validation locale seulement.
 
 ### TypeScript
 
@@ -729,7 +729,7 @@ Le passage à une offre payante doit être déclenché par des métriques réell
 
 ## Environnements et configuration
 
-MY. distingue développement Local sur `dev` et Production Vercel/Supabase Cloud sur `main`. Version actuelle **`0.8.23`**. La **clôture historique Phase 8 en `0.8.21`** conserve 48 migrations Local vérifiées et 48 Cloud confirmées, dont 19 Phase 8, jusqu’à `20261011191625` ; aucun accès Cloud ou déploiement Vercel pendant cette clôture. [Preuves et limites](reports/2026-10-12-PHASE8I2-CLOSURE.md). Pipeline catalogue et publication terminal refusent toujours toute connexion distante. Le projet Cloud existant et ses données sont conservés ; aucune seconde base Production ni branche Supabase Preview prévue.
+MY. distingue développement Local sur `dev` et Production Vercel/Supabase Cloud sur `main`. Version actuelle du dépôt **`0.8.24`**, après PROD.1 maintenance frontend ; aucun déploiement de cette version effectué ici. La **clôture historique Phase 8 en `0.8.21`** conserve 48 migrations Local vérifiées et 48 Cloud confirmées, dont 19 Phase 8, jusqu’à `20261011191625` ; aucun accès Cloud ou déploiement Vercel pendant cette clôture. [Preuves et limites](reports/2026-10-12-PHASE8I2-CLOSURE.md). Pipeline catalogue et publication terminal refusent toujours toute connexion distante. Le projet Cloud existant et ses données sont conservés ; aucune seconde base Production ni branche Supabase Preview prévue.
 
 Les URL, clés publiques et autres paramètres sont injectés par environnement. La configuration Production n’est pas codée en dur. Selon le propriétaire : Previews Vercel automatiques depuis `dev`, Production automatique depuis `main`, HTTPS actif sur `my.collectrealm.com`, Vercel Authentication sur tous les déploiements et variables Supabase **Production uniquement**. Les Previews ne prouvent donc pas un parcours Supabase complet. Intégration GitHub Supabase connectée, déploiement automatique Production désactivé ; Auth/redirections et Resend configurés. [État détaillé, provenance et validations non réalisées](11-PUBLICATION-PRODUCTION.md#état-connu-et-provenance). Développement/tests courants toujours Local, hors checkpoints Cloud autorisés et consignés.
 
@@ -749,15 +749,15 @@ Le dépôt GitHub est la source de référence du code et de la configuration ve
 
 Le Ruleset documenté protège `main` : suppression et force-push bloqués, Pull Request obligatoire, sans approbation exigée au dernier état consigné. Aucun nouvel audit distant du Ruleset dans cette sous-phase. Le workflow conserve le merge classique.
 
-Les intégrations GitHub/Vercel/Supabase sont désormais connectées selon le propriétaire. Deux adaptations sont décidées mais **non appliquées** : activer Supabase Production depuis `main` et laisser les builds Vercel Production sans assignation automatique au domaine jusqu’à promotion manuelle sans rebuild. Aucun workflow GitHub Actions ni changement de configuration créé dans cette sous-phase documentaire. [Procédure et prérequis](11-PUBLICATION-PRODUCTION.md#conditions-avant-utilisation-du-workflow).
+Les intégrations GitHub/Vercel/Supabase sont désormais connectées selon le propriétaire. Deux adaptations sont décidées mais **non appliquées** : activer Supabase Production depuis `main` et laisser les builds Vercel Production sans assignation automatique au domaine jusqu’à promotion manuelle sans rebuild. Aucun workflow GitHub Actions ni changement de ces réglages créé dans PROD.1. [Procédure et prérequis](11-PUBLICATION-PRODUCTION.md#conditions-avant-utilisation-du-workflow).
 
 ### Publication coordonnée et maintenance
 
 La [procédure Production](11-PUBLICATION-PRODUCTION.md#procédure-officielle) est la référence unique : préparation locale et changelog, fermeture Vercel/gel Supabase effectifs et fin des opérations en cours, backup manuel Cloud validé, PR/merge, déploiement Supabase et build Vercel Production, promotion manuelle après succès Supabase, notification idempotente, puis levée du gel et de la maintenance. Une intégration GitHub ne garantit pas l’ordre des déploiements ; la promotion reste le point de contrôle manuel.
 
-Maintenance à développer : page MY., **HTTP 503 sans cache**, activation/désactivation depuis configuration Vercel sans redéploiement, état indépendant des builds et conservé pendant déploiement/échec/rollback compatible, contrôles opérateur protégés et réouverture exclusivement contrôlée. **Une page frontend ne bloque pas Supabase** : gel des mutations métier, RPC et accès directs, sessions/onglets déjà ouverts et chemins Edge/Auth concernés. RLS, MFA, propriété et permissions restent obligatoires.
+**PROD.1 implémentée et validée localement :** [Routing Middleware Node](../middleware.ts) désigné par `proxy.entrypoint` dans `vercel.json`, sans exclusion de chemin, et Global Config persistant. Lecture de `maintenance_production` ou `maintenance_preview` à l’origine via le SDK officiel, sans cache ancien en cas d’erreur ; seul le booléen `false` laisse poursuivre. État fermé ou erreur Production : [page MY. autonome](../vercel/maintenance-page.ts), **HTTP 503 sans cache ni indexation**, GET/HEAD et assets compris. Une Preview sans connexion reste sous la protection Vercel existante et passe sans lecture ; développement Vite inchangé. Connexion serveur `GLOBAL_CONFIG` et `VERCEL_ENV` sont des prérequis du premier déploiement, sans secret dans Vite. Les changements d’items ensuite ne nécessitent ni rebuild ni redéploiement ; les variables de connexion restent propres aux déploiements. [Installation, quotas, procédure et preuves restantes](11-PUBLICATION-PRODUCTION.md#prod1--maintenance-frontend-vercel).
 
-Les [exigences complètes](11-PUBLICATION-PRODUCTION.md#exigences-du-mode-maintenance) ne figent pas encore de mécanisme technique. Faisabilité, propagation, opérations en vol et limites Hobby/Free à valider ; aucune interface d’administration supplémentaire sauf nécessité démontrée. Backup/restauration et publisher Cloud sécurisé restent à réaliser. Aucun échec ne rouvre automatiquement le site ; rollback frontend ne restaure ni SQL ni données. [Reprise et retour arrière](11-PUBLICATION-PRODUCTION.md#échecs-reprise-et-retour-arrière).
+Installation réelle, propagation, CDN, ordre avec **Vercel Authentication / All Deployments**, quotas restants et rollbacks compatibles non éprouvés. Lecture cohérente plus lente que la lecture répliquée ; délai de lecture de 3 secondes ferme la requête, jamais l’état persistant. Aucun bypass opérateur livré : identité serveur et contrôles protégés restent à finaliser dans PROD.3. **Une page frontend ne bloque pas Supabase**, ni les ressources déjà chargées dans les onglets ouverts : gel des mutations/RPC/accès directs et opérations en vol réservés à PROD.2/coordination. RLS, MFA, propriété et permissions conservés. Backup/restauration et publisher Cloud restent à réaliser. Aucun échec ne rouvre implicitement Production ; ancien déploiement sans middleware non compatible avec cette garantie. [Exigences](11-PUBLICATION-PRODUCTION.md#exigences-du-mode-maintenance) et [reprise](11-PUBLICATION-PRODUCTION.md#échecs-reprise-et-retour-arrière).
 
 ### Prérequis des prochaines publications
 
@@ -860,7 +860,7 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 - la bibliothèque d'interface éventuelle ;
 - le découpage détaillé des futures fonctionnalités dans la structure initialisée ;
 - un éventuel staging supplémentaire hors du workflow retenu, qui ne crée aucune branche Supabase Preview ;
-- les mécanismes techniques de maintenance Vercel et de gel backend selon les [exigences validées](11-PUBLICATION-PRODUCTION.md#exigences-du-mode-maintenance), le fallback SPA étant déjà livré ;
+- la configuration et la validation Vercel réelles de PROD.1, puis le gel backend et les contrôles opérateur selon les [exigences validées](11-PUBLICATION-PRODUCTION.md#exigences-du-mode-maintenance) ; frontend maintenance implémenté localement, fallback SPA conservé ;
 - la fréquence et le déclencheur de l'automatisation future du pipeline décrit dans [07-CATALOG-SYNC.md](07-CATALOG-SYNC.md) ;
 - les éventuels usages d'Edge Functions au-delà de la suppression de compte déjà livrée ;
 - les outils et la validation de la sauvegarde/restauration manuelle selon les [décisions de publication](11-PUBLICATION-PRODUCTION.md#c--sauvegarde-manuelle-supabase-cloud) ;
@@ -868,7 +868,7 @@ Les choix suivants seront définis lors des étapes ultérieures, dans les limit
 - les seuils précis de passage aux offres payantes ;
 - le modèle Premium et un éventuel fournisseur de paiement.
 
-Les objectifs de publication liés ci-dessus sont décidés ; leurs mécanismes techniques restent à réaliser et vérifier. Les autres éléments ne sont pas considérés comme décidés avant leur cadrage et leur validation.
+Les objectifs de publication liés ci-dessus sont décidés ; seule PROD.1 est implémentée localement, les autres mécanismes et validations distantes restent à réaliser. Les autres éléments ne sont pas considérés comme décidés avant leur cadrage et leur validation.
 
 ### Parcours Collection d’actualisation — 8F.3 Local
 

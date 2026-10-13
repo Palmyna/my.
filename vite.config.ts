@@ -10,6 +10,7 @@ export default defineConfig({
       { extends: true, test: { name: 'frontend', include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', css: { include: [/(physical-copies|collection-item-reorder|notifications)\.css$/] }, setupFiles: ['./src/test/setup.ts'] } },
       { extends: true, test: { name: 'catalog', include: ['scripts/catalog/**/*.test.ts'], environment: 'node' } },
       { extends: true, test: { name: 'notifications', include: ['scripts/notifications/**/*.test.ts'], environment: 'node' } },
+      { extends: true, test: { name: 'maintenance', include: ['vercel/**/*.test.ts'], environment: 'node' } },
       { extends: true, test: { name: 'functions', include: ['supabase/functions/**/*.test.ts'], environment: 'node' } },
     ],
     clearMocks: true,

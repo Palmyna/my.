@@ -1,7 +1,7 @@
 {
   "name": "my-app",
   "private": true,
-  "version": "0.8.23",
+  "version": "0.8.24",
   "type": "module",
   "engines": {
     "node": "^24.20.0",
@@ -35,6 +35,8 @@
     "@hello-pangea/dnd": "18.0.1",
     "@supabase/supabase-js": "2.115.0",
     "@tanstack/react-query": "5.102.8",
+    "@vercel/functions": "3.9.11",
+    "@vercel/global-config": "1.5.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-router": "8.3.1",
