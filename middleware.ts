@@ -1,6 +1,7 @@
 import { next } from '@vercel/functions'
 import { createClient } from '@vercel/global-config'
-import { maintenanceResponse } from './vercel/maintenance-page.ts'
+// Use the emitted extension: Vercel packages this local TypeScript module as .js.
+import { maintenanceResponse } from './vercel/maintenance-page.js'
 
 // This deadline closes the request; it never changes the persistent maintenance state.
 const READ_DEADLINE_MS = 3_000
