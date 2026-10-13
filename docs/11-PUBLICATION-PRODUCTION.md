@@ -4,21 +4,21 @@
 
 Ce document est la **référence opérationnelle unique des futures publications** de MY. Il complète l’[architecture](05-ARCHITECTURE.md), la [base de données](06-DATABASE.md) et le [contrat de publication des notifications](10-NOTIFICATION-PUBLICATION.md), qui conserve les détails du payload, des permissions et de l’idempotence.
 
-**Décisions formalisées le 13 octobre 2026 ; procédure cible, pas encore opérationnelle ni validée de bout en bout.** L’application est déjà hébergée en Production selon le propriétaire. **PROD.1 livre la maintenance frontend et ses validations locales ; sa configuration et sa validation sur Vercel restent à réaliser.** Gel des écritures, sauvegarde/restauration vérifiée, publisher Cloud et nouveaux réglages de déploiement restent à réaliser avant d’utiliser cette procédure.
+**Décisions formalisées le 13 octobre 2026 ; procédure cible, pas encore opérationnelle ni validée de bout en bout.** L’application est déjà hébergée en Production selon le propriétaire. **PROD.1 livre la maintenance frontend et PROD.2 le gel backend, avec validations locales ; installation et validation sur Vercel/Supabase Cloud restent à réaliser.** Sauvegarde/restauration vérifiée, publisher Cloud, contrôles opérateur hébergés et nouveaux réglages de déploiement restent à réaliser avant d’utiliser cette procédure.
 
-Version du dépôt : **`0.8.24`**, après implémentation PROD.1 ; le cadrage initial était en `0.8.23`. Aucun SQL, migration, donnée, permission Supabase, commit, push, PR, merge ou déploiement modifié pendant PROD.1. Aucun accès aux projets Cloud ou changement de configuration distante effectué. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
+Version du dépôt : **`0.8.25`**, après PROD.2 ; PROD.1 était en `0.8.24` et le cadrage initial en `0.8.23`. PROD.2 ajoute deux migrations installées sur Local et des tests SQL/REST/Auth/Edge/concurrence isolés. Aucun SQL, migration, donnée ou permission Supabase n'avait été modifié pendant PROD.1. Aucun accès aux projets Cloud, changement de configuration distante, commit, push, PR, merge ou déploiement effectué ici. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
 
 ## État connu et provenance
 
 ### Observations dans le dépôt
 
-Inspection historique du cadrage : branche **`dev`**, HEAD **`590d9fb827948ee694e181fa2654d427442cff8d`**, worktree propre. Inspection initiale PROD.1 : **`dev`**, HEAD **`312ff061c7d9783b1b689ab3c45bf7bcdb614895`**, worktree propre. Remote Git : `Palmyna/my.` ; référence locale `origin/HEAD` vers `origin/main`. Cette référence locale ne remplace pas une lecture actuelle des paramètres GitHub. Le tableau suivant décrit le dépôt après PROD.1.
+Inspection historique du cadrage : branche **`dev`**, HEAD **`590d9fb827948ee694e181fa2654d427442cff8d`**, worktree propre. Inspection initiale PROD.1 : **`dev`**, HEAD **`312ff061c7d9783b1b689ab3c45bf7bcdb614895`**, worktree propre. Inspection initiale PROD.2 : **`dev`**, HEAD **`ceb3cf97ce5ba110867f2d28696eff4eff6e0f1a`**, worktree propre. Remote Git : `Palmyna/my.` ; référence locale `origin/HEAD` vers `origin/main`. Cette référence locale ne remplace pas une lecture actuelle des paramètres GitHub. Le tableau suivant décrit le dépôt après PROD.2.
 
 | Élément observé | Portée de l’observation |
 |---|---|
-| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.24` dans les trois champs ; version injectée par Vite depuis le package |
+| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.25` dans les trois champs ; version injectée par Vite depuis le package |
 | [vercel.json](../vercel.json) | Fallback SPA `/(.*)` vers `/index.html` conservé ; `proxy.entrypoint` vers [middleware.ts](../middleware.ts), sans exclusion de chemin ; aucun réglage d’attente de promotion ajouté |
-| [Migrations](../supabase/migrations/) | 48 fichiers, dernier `20261011191625_phase8g3_notification_expiration_validation` ; inventaire Git, pas preuve d’application Cloud actuelle |
+| [Migrations](../supabase/migrations/) | 50 fichiers et 50 appliqués Local, dernier `20261013135415_prod2_freeze_admission_barrier` ; aucune preuve d'application des deux migrations PROD.2 Cloud |
 | [supabase/config.toml](../supabase/config.toml) | Configuration Local `my-local`, URLs Auth locales, seed applicatif désactivé ; ne décrit pas à elle seule la configuration Cloud |
 | Configurations GitHub/Vercel versionnées | Aucun workflow `.github/` ou réglage `.vercel/` suivi observé ; intégrations et réglages des consoles non déduits de cette absence |
 | [Publisher](../scripts/notifications/publish.ts) et [contrat](../scripts/notifications/contract.ts) | Validation hors connexion ; écritures limitées à Supabase Local, rôle dédié et contrat Phase 8 ; aucune cible Cloud utilisable |
@@ -258,6 +258,80 @@ Campagne manuelle à réaliser **d’abord en Preview**, store connecté et clé
 - Tester clé invalide/absente avec les protections du schéma en place ; si son retrait est nécessaire, le limiter au test Preview planifié et restaurer le schéma. Tester perte de connexion/token avec des credentials Preview distincts : **ne pas révoquer un token partagé avec Production**. Modifier une variable de connexion exige un déploiement de test, contrairement à la bascule d’item.
 - Repasser Preview à `false`, vérifier réouverture sans changement de build, y compris après plusieurs requêtes ayant reçu 503. Relever durées, emplacement des clients, identifiants et résultats ; compléter séparément les contrôles domaine/CDN/rollbacks Production lors d’une intervention explicitement autorisée.
 
+## PROD.2 — Gel backend Supabase
+
+**Implémenté et démontré sur Local uniquement.** Le [contrat SQL](06-DATABASE.md#prod2--gel-des-écritures-métier) et le [rapport PROD.2](reports/2026-10-13-PROD2-WRITE-FREEZE.md) portent la matrice exhaustive des écritures et les résultats. Aucun déploiement Edge nécessaire : `delete-account` reste protégé par sa destruction Auth transactionnelle. Ce dispositif est indépendant de Global Config et de Vercel.
+
+### Activer, vérifier et désactiver sur Local
+
+Depuis un terminal de confiance, ouvrir une **connexion PostgreSQL opérateur**. Aucune clé Supabase API, JWT utilisateur ou identité `service_role` ne remplace cette connexion :
+
+```powershell
+docker exec -it supabase_db_my-local psql -U postgres -d postgres
+```
+
+Dans psql, conserver l'autocommit et vérifier l'identité avant bascule :
+
+```sql
+\set AUTOCOMMIT on
+select session_user, current_user;
+select private.get_business_write_freeze();
+select private.set_business_write_freeze(true);
+```
+
+Seuls `session_user=postgres` ou `supabase_admin` sont opérateurs SQL prévus. La table privée ne possède aucun droit API et les fonctions de contrôle ne sont pas exposées dans `public`. Elles vérifient l'identité de connexion malgré leur ACL. Ne jamais implémenter une RPC publique de bascule ou un passage par claim, header, métadonnée, rôle courant ou variable de session.
+
+La bascule attend le verrou exclusif transactionnel `771403`, derrière les writers déjà admis. Leurs verrous partagés durent jusqu'au commit/rollback ; les nouvelles admissions attendent derrière la bascule. La mise à jour du singleton vient après ce drainage. **Attendre la réussite de la commande et son commit**, puis ouvrir une seconde connexion et relire :
+
+```sql
+select private.get_business_write_freeze();
+```
+
+Exiger `frozen=true`, relever révision, date et identité SQL, puis contrôler les gardes/grants effectivement installés et les refus d'une identité synthétique autorisée. Un `true` produit dans une transaction non committée reste provisoire ; un simple état sauvegardé ne prouve pas que le bon backend, les gardes et les exceptions ont été vérifiés. Aucun délai fixe ne remplace ces observations.
+
+Pendant une attente, observer depuis une autre connexion opérateur :
+
+```sql
+select pid, usename, state, xact_start, wait_event_type, wait_event,
+       pg_blocking_pids(pid) as blockers
+from pg_stat_activity
+where datname = current_database() and backend_type = 'client backend';
+
+select pid, mode, granted
+from pg_locks
+where locktype = 'advisory' and classid = 0 and objid = 771403 and objsubid = 1;
+```
+
+Ces requêtes n'affichent ni SQL ni secrets. `ShareLock` accordés identifient les writers admis ; `ExclusiveLock` en attente identifie la bascule. Après commit, un état fermé et des gardes en place interdisent les nouvelles mutations ordinaires ; pas besoin d'attendre artificiellement des requêtes REST dont la réponse réseau arriverait encore. Une lecture avec verrou ou une transaction longue peut retarder un writer et donc la bascule. Diagnostiquer les blockers ; une éventuelle annulation administrative exige une décision opérateur, jamais un kill automatique ou une réouverture automatique.
+
+Timeout, deadlock, rollback, perte de connexion ou réponse incertaine : ne pas annoncer le gel effectif. Relire l'état sur une connexion fraîche ; inspecter les transactions/locks et reprendre la même bascule si nécessaire. Ne pas effectuer d'autres écritures métier dans la transaction de bascule. Une transaction ordinaire qui a déjà acquis son verrou peut continuer pendant l'attente, mais **aucune de ses écritures ne peut committer après le commit réussi de la fermeture**. Une transaction commencée avant, sans admission préalable, relit l'état fermé ou échoue `40001` si son snapshot est ancien.
+
+Les migrations, imports catalogue et opérations SQL exécutées par les opérateurs sont des exceptions explicites. Le publisher est également autorisé seulement pour publication/retrait. **Arrêter/coordonner ces opérations avant backup.** La barrière ne draine pas ces exceptions ni les écritures internes Auth ; le futur dispositif de sauvegarde devra définir son snapshot cohérent et son périmètre. La fin des écritures métier ordinaires ne vaut pas arrêt de toute la base Supabase.
+
+Réouverture après les conditions de la séquence E, en autocommit :
+
+```sql
+select private.set_business_write_freeze(false);
+```
+
+Relire depuis une seconde connexion puis vérifier lectures et mutations légitimes. Aucune modification d'ACL, migration ou redéploiement n'est nécessaire pour une bascule. Garder le gel pendant une erreur de publication. Ne pas supprimer le singleton pour rouvrir : son absence provoque un refus fermé. UUID, requête et token Phase 8 restent ceux de l'opération incertaine ; les reçus sont consultables pendant le gel. Le replay d'un writer est refusé tant que le gel reste actif, puis retrouve son contrat historique après réouverture.
+
+### Auth, Edge et limites
+
+Les comptes existants peuvent continuer à se connecter, vérifier/enrôler MFA selon Auth, rafraîchir ou révoquer les sessions et suivre les contrôles natifs email/password. Ces chemins modifient des tables gérées par Supabase mais aucune donnée métier MY. actuelle. Signup/admin création et suppression physique déclenchent les gardes sur `auth.users` : échec atomique avant les triggers métier. Auth masque l'erreur SQL : Local retourne HTTP 500 avec un message générique `Database error` pour ces refus, sans compte/profil partiel ni code SQL public. PostgREST expose HTTP 503 `PT503` pour les mutations MY.
+
+L'Edge conserve vérifications initiales, password/TOTP frais et révocation globale avant destruction physique. Pendant le gel, elle retourne 503 `deletion_failed`, compte/données conservés ; **les sessions déjà révoquées ne sont pas rétablies**. L'utilisateur doit se reconnecter. Cette révocation reste nécessaire aussi lors d'une course : gel activé entre révocation et suppression. Aucune vérification frontend de maintenance ne constituerait une protection atomique supplémentaire.
+
+Le gel ne bloque pas les UPDATE internes d'`auth.users`, dont suppression administrative **soft** (`deleteUser(..., true)`), confirmations et métadonnées, ni les tables `auth.sessions`/MFA/identités. La suppression soft n'est pas le parcours MY. exposé aux utilisateurs ; elle ne déclenche aucun nettoyage MY. et reste une opération Auth administrative à exclure/coordonner pendant publication. Ne pas modifier arbitrairement les mécanismes Auth internes pour obtenir un arrêt global. Aucun Storage ou writer Realtime applicatif actuellement recensé ; leurs éventuels futurs chemins devront rejoindre l'inventaire. Un superuser/owner SQL de confiance peut modifier la sécurité : le dispositif ne prétend pas résister à un administrateur malveillant.
+
+### Prérequis Cloud encore manuels
+
+Avant une installation explicitement autorisée : vérifier version PostgreSQL, 48 migrations historiques/parité des RPC, propriétaires/ACL des schémas et `auth.users`, identities de connexion des services (`authenticator`, `supabase_auth_admin`), rôle `postgres` d'installation, absence d'appartenance privilégiée API/publisher et absence de conflit de clé advisory `771403`. La création des triggers Auth doit être permise comme pour les triggers MY. existants. Les migrations utilisent uniquement des mécanismes PostgreSQL standards, aucune configuration `db_pre_request`, aucun superuser nouveau et aucun rôle opérateur ajouté.
+
+Préparer sauvegarde et reprise de première installation, choisir une fenêtre contrôlée et installer **les deux migrations du même commit**, jamais seulement la première. Elles sont transactionnelles séparément, pas une transaction globale. Un préfixe partiel impose inspection et correction vers l'avant. Vérifier ensuite état initial ouvert, 22 gardes MY./garde Auth/11 entrées RPC, permissions, anciennes sessions, native Auth/Edge et publisher avec identité PostgreSQL réelle/TLS validée. Faire les essais sur un environnement isolé ou des fixtures dont le périmètre/audience Cloud a été explicitement approuvé ; le script Local refuse toute connexion distante et son provisionnement de secret synthétique ne doit pas être transposé au Cloud.
+
+Pendant une future première fermeture Cloud, relever commit de bascule, relecture indépendante, catalogues sécurité, blockers et refus directs, puis coordonner exceptions/Auth et backup. **Aucune de ces opérations Cloud n'a été effectuée ici.** Le publisher Cloud, les contrôles opérateur hébergés, la sauvegarde/restauration et le workflow complet restent des blocs distincts.
+
 ## Échecs, reprise et retour arrière
 
 | Situation | Principe de reprise |
@@ -299,10 +373,10 @@ Les [rapports Phase 8](reports/2026-10-12-PHASE8I2-CLOSURE.md) restent inchangé
 
 Découpage **prévisionnel**, à affiner en petites sous-phases avant chaque implémentation :
 
-1. **Maintenance Vercel et protection Supabase** : **PROD.1 frontend implémentée et validée localement**, installation/validation Vercel restantes ; **PROD.2 gel backend non commencé**, opérations en vol et **PROD.3 contrôles/outillage coordonné non commencés**. La fermeture globale et la réouverture maîtrisée restent à valider ensemble.
+1. **Maintenance Vercel et protection Supabase** : **PROD.1 frontend et PROD.2 gel backend implémentés et validés localement**, installations/validations Vercel et Supabase Cloud restantes ; **PROD.3 contrôles/outillage coordonné non commencés**. La fermeture globale et la réouverture maîtrisée restent à valider ensemble.
 2. **Sauvegarde/restauration manuelle** : choix des outils et périmètre réel, stockage hors Git, intégrité et essai de restauration isolé avec données/Auth/historique/permissions et compatibilité.
 3. **Publication des notifications Cloud** : adaptation sécurisée du script existant, rôle/authentification/TLS/permissions, reprise idempotente et contrôle du changelog pendant fermeture.
 4. **Réglages de déploiement** : Supabase automatique depuis `main` sans Preview ; builds Vercel Production sans assignation automatique, promotion manuelle sans rebuild, configuration Cloud préservée.
 5. **Validation complète du workflow** : préparation, fermeture effective, backup, PR/merge, migrations/build/promotion, notification, réouverture et reprises après échec, avant les premiers tests d’utilisateurs réels.
 
-Seule PROD.1 est implémentée localement à ce stade. Les autres blocs restent à réaliser ; aucun changement du périmètre des Phases 9 et 10. La [roadmap](08-ROADMAP.md) conserve leur ordre macro ; ce document porte le détail opérationnel.
+PROD.1 et PROD.2 sont implémentées localement à ce stade. Les installations/validations hébergées et les autres blocs restent à réaliser ; aucun changement du périmètre des Phases 9 et 10. La [roadmap](08-ROADMAP.md) conserve leur ordre macro ; ce document porte le détail opérationnel.
