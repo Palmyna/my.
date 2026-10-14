@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { createHash, createHmac, pbkdf2Sync, randomBytes, randomUUID } from 'node:crypto'
+import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import pg from 'pg'
@@ -11,16 +11,10 @@ import { install, cleanup, users } from '../notification-fixtures.ts'
 import { publicationSchema, publicationHash } from './contract.ts'
 import type { Publication } from './contract.ts'
 import { connectPublisher, publish, withdraw } from './publish.ts'
+import { scramVerifier as verifier } from './test-fixtures.ts'
 
 // SCRAM verifier, never the plaintext credential, reaches the administrative
 // SQL statement. Credential exists only in this test's process/child env.
-function verifier(password: string): string {
-  const salt = randomBytes(16), salted = pbkdf2Sync(password, salt, 4096, 32, 'sha256')
-  const clientKey = createHmac('sha256', salted).update('Client Key').digest()
-  const stored = createHash('sha256').update(clientKey).digest('base64')
-  const server = createHmac('sha256', salted).update('Server Key').digest('base64')
-  return `SCRAM-SHA-256$4096:${salt.toString('base64')}$${stored}:${server}`
-}
 type Receipt = Awaited<ReturnType<typeof publish>>
 type Withdrawal = Awaited<ReturnType<typeof withdraw>>
 type Centre = { items: { announcement_id?: string; revision: string; action: { kind: string; announcement_id?: string } }[]; unread_count: string }
@@ -66,6 +60,8 @@ test.skipIf(process.env.MY_SUPABASE_LOCAL_TEST !== '1')('8G.3 actual publisher C
   const snapshot = async (id: string) => (await admin.query<{ data: Record<string, unknown> }>('select to_jsonb(a) data from private.notification_announcements a where id=$1', [id])).rows[0]!.data
   try {
     await admin.query('select pg_advisory_lock(830011)')
+    expect((await admin.query("select rolpassword is null absent from pg_authid where rolname='my_notification_publisher'")).rows[0]).toEqual({ absent: true })
+    expect((await admin.query('select frozen from private.business_write_freeze')).rows[0]).toEqual({ frozen: false })
     await install(admin); installed = true
     await admin.query(`alter role my_notification_publisher password '${verifier(password)}'`); provisioned = true
     const bad = new pg.Client({ connectionString: connection.replace(password, 'invalid-password') })
@@ -214,6 +210,40 @@ test.skipIf(process.env.MY_SUPABASE_LOCAL_TEST !== '1')('8G.3 actual publisher C
       }
     }
     console.log('PASS: fixed isolation refused; anon/Auth/service_role cannot reach publication via PostgREST')
+
+    // Actual committed freeze, actual publisher login. No frontend/Cloud
+    // bypass; successful checks explicitly restore the initial open status.
+    await admin.query('select private.set_business_write_freeze(true)')
+    expect((await first.query('select session_user::text,current_user::text')).rows[0]).toEqual({ session_user: 'my_notification_publisher', current_user: 'my_notification_publisher' })
+    const frozenPayload = payload('frozen', { category: 'changelog', app_version: '0.8.29' })
+    const frozenReceipt = await publish(first, frozenPayload)
+    expect(await publish(second, frozenPayload)).toEqual(frozenReceipt)
+    await expect(publish(second, { ...frozenPayload, body: 'Changed under freeze' })).rejects.toMatchObject({ code: '23505', message: 'publication_key_conflict' })
+    expect(await rpc('get_notification_content', { p_announcement_id: frozenReceipt.announcement_id })).toMatchObject({ app_version: '0.8.29', body: frozenPayload.body })
+    const frozenCentre = await rpc<Centre>('get_notification_center')
+    expect(frozenCentre.items.filter(i => i.announcement_id === frozenReceipt.announcement_id)).toHaveLength(1)
+    for (const sql of ['update public.user_preferences set binder_default_format=binder_default_format where false',
+      'update private.notification_announcement_states set read_at=read_at where false', 'select private.set_business_write_freeze(false)',
+      'select private.get_business_write_freeze()', 'select public.mark_notification_read(null,null)',
+      'alter role my_notification_publisher superuser']) {
+      await expect(first.query(sql)).rejects.toHaveProperty('code', '42501')
+    }
+    for (const operation of ['mark_notification_read', 'process_announcement_notification']) {
+      const response = await fetch(`${settings.API_URL}/rest/v1/rpc/${operation}`, { method: 'POST',
+        headers: { apikey: settings.ANON_KEY, Authorization: `Bearer ${token(users[0]!)}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(operation === 'mark_notification_read'
+          ? { p_notification_key: `announcement:${frozenReceipt.announcement_id}`, p_observed_revision: frozenReceipt.content_hash }
+          : { p_announcement_id: frozenReceipt.announcement_id, p_observed_hash: frozenReceipt.content_hash }) })
+      expect(response.status).toBe(503)
+    }
+    expect((await admin.query<{ n: number }>('select count(*)::int n from private.notification_announcement_states where announcement_id=$1', [frozenReceipt.announcement_id])).rows[0]!.n).toBe(0)
+    const frozenWithdrawal = await withdraw(first, frozenPayload.publication_key)
+    expect(await withdraw(second, frozenPayload.publication_key)).toEqual(frozenWithdrawal)
+    expect(await publish(first, frozenPayload)).toEqual(frozenReceipt)
+    expect(await rpc('get_notification_content', { p_announcement_id: frozenReceipt.announcement_id })).toBeNull()
+    expect((await admin.query('select frozen from private.business_write_freeze')).rows[0]).toEqual({ frozen: true })
+    console.log('PASS: committed Local freeze + publisher publish/replay/conflict/withdraw/repeat; eligible authoritative read, no duplicate/state mutation; direct DML/freeze/RPC/role escalation denied')
+    await admin.query('select private.set_business_write_freeze(false)')
   } finally {
     for (const db of [...connections, admin]) await db.query('rollback').catch(() => undefined)
     await Promise.all(connections.map(db => db.end()))

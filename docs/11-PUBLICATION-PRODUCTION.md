@@ -6,7 +6,7 @@ Ce document est la **référence opérationnelle unique des futures publications
 
 **Décisions formalisées le 13 octobre 2026 ; procédure cible, pas encore opérationnelle ni validée de bout en bout en Production.** L’application est déjà hébergée en Production selon le propriétaire. **PROD.1 livre la maintenance frontend, PROD.2 le gel backend et PROD.3 la coordination opérateur validée sur Local.** Les validations manuelles Preview fournies par le propriétaire couvrent activation sans rebuild, page MY., HTTP 503, headers anti-cache, refus d’une route directe et retour HTTP 200 sans rebuild. Elles ne prouvent pas Production. Installation/validation Supabase Cloud, répétition coordonnée Production, sauvegarde/restauration vérifiée, publisher Cloud, contrôles applicatifs hébergés pendant fermeture et nouveaux réglages de déploiement restent nécessaires.
 
-Version du dépôt : **`0.8.28`**, après PROD.5 ; PROD.4 était en `0.8.27`, PROD.3 en `0.8.26`, PROD.2 en `0.8.25`, PROD.1 en `0.8.24` et le cadrage initial en `0.8.23`. PROD.5 restaure une vraie capture PROD.4 synthétique dans un cluster neuf isolé, compare données/sécurité et éprouve les parcours Auth/TOTP et SQL métier correspondants. Aucun accès aux projets Cloud, changement de configuration distante, commit, push, PR, merge ou déploiement effectué ici. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
+Version du dépôt : **`0.8.29`**, après PROD.6 publisher sécurisé ; PROD.5 était en `0.8.28`, PROD.4 en `0.8.27`, PROD.3 en `0.8.26`, PROD.2 en `0.8.25`, PROD.1 en `0.8.24` et le cadrage initial en `0.8.23`. PROD.5 éprouve restauration et Auth/TOTP synthétiques ; PROD.6 adapte le même publisher avec cible/consentement Cloud, identité/ACL et TLS vérifiés, preuves Supabase Local et PostgreSQL/TLS isolé uniquement. Aucun accès aux projets Cloud, secret réel, changement de configuration distante, commit, push, PR, merge ou déploiement effectué ici. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
 
 ## État connu et provenance
 
@@ -16,12 +16,12 @@ Inspection historique du cadrage : branche **`dev`**, HEAD **`590d9fb827948ee694
 
 | Élément observé | Portée de l’observation |
 |---|---|
-| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.28` dans les trois champs après PROD.5 ; version injectée par Vite depuis le package |
+| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.29` dans les trois champs après PROD.6 ; version injectée par Vite depuis le package |
 | [vercel.json](../vercel.json) | Fallback SPA `/(.*)` vers `/index.html` conservé ; `proxy.entrypoint` vers [middleware.ts](../middleware.ts), sans exclusion de chemin ; aucun réglage d’attente de promotion ajouté |
 | [Migrations](../supabase/migrations/) | 50 fichiers et 50 appliqués Local, dernier `20261013135415_prod2_freeze_admission_barrier` ; aucune preuve d'application des deux migrations PROD.2 Cloud |
 | [supabase/config.toml](../supabase/config.toml) | Configuration Local `my-local`, URLs Auth locales, seed applicatif désactivé ; ne décrit pas à elle seule la configuration Cloud |
 | Configurations GitHub/Vercel versionnées | Aucun workflow `.github/` ou réglage `.vercel/` suivi observé ; intégrations et réglages des consoles non déduits de cette absence |
-| [Publisher](../scripts/notifications/publish.ts) et [contrat](../scripts/notifications/contract.ts) | Validation hors connexion ; écritures limitées à Supabase Local, rôle dédié et contrat Phase 8 ; aucune cible Cloud utilisable |
+| [Publisher](../scripts/notifications/publish.ts) et [contrat](../scripts/notifications/contract.ts) | Validation hors connexion, Local conservé ; cible Cloud explicite avec rôle réel, cluster, TLS et ACL contrôlés, consentement lié au hash/version ; aucun fonctionnement hébergé démontré |
 
 ### Configurations et opérations confirmées par le propriétaire
 
@@ -127,7 +127,7 @@ Cette séquence cible remplace l’assignation Vercel automatique actuelle. Acti
 ### E — Notification et réouverture
 
 1. Maintenance toujours active : vérifier rapidement la version réellement déployée et servie par le domaine après promotion, le commit et la compatibilité backend. Utiliser le moyen de contrôle opérateur protégé prévu par la maintenance.
-2. Avec le futur publisher Cloud sécurisé, publier **une seule fois** la notification de mise à jour et son changelog public dans le centre MY., comme **une publication de catégorie `changelog`** portant ce contenu. Aucune deuxième annonce parallèle n’est nécessaire.
+2. Après mise en service Cloud explicitement autorisée et vérifiée, utiliser le [publisher PROD.6](10-NOTIFICATION-PUBLICATION.md#cloud--commandes-powershell-et-autorisations) : `--check` avec cible/projet/version puis consentement `--authorize-publish --expect-hash` sur fichier examiné. Publier **une seule fois** notification et changelog public, comme **une publication de catégorie `changelog`**, pendant maintenance et gel toujours actifs. Aucune deuxième annonce parallèle.
 3. Vérifier, par relecture autoritative avec identité éligible, présence, version, contenu et absence de doublon. Ne pas traiter automatiquement la notification des utilisateurs lors de ce contrôle. Si réponse incertaine, reprendre avec fichier/clé/hash exacts selon le contrat.
 4. Lever le gel des écritures Supabase uniquement après ces vérifications.
 5. Désactiver la maintenance Vercel par action contrôlée.
@@ -149,9 +149,9 @@ Le [contrat complet](10-NOTIFICATION-PUBLICATION.md) reste inchangé : payload f
 - **Moment :** préparation/validation locales sans diffusion ; publication Cloud après vérification du déploiement, **avant réouverture**. Aucune annonce au simple build, merge ou test local.
 - **Reprise :** conserver fichier normalisé, clé et hash exacts après une réponse incertaine. Reprendre la même publication, jamais une nouvelle clé pour contourner l’incertitude. Un résultat idempotent historique ne prouve pas une visibilité active : relire le centre. Correction par retrait définitif puis nouvelle clé, pas écrasement du contenu historique.
 
-**Le script actuel ne publie que sur Supabase Local.** Son adaptation Cloud reste un bloc distinct : cible/projet/environnement explicites, rôle `my_notification_publisher` existant sans recréation, authentification réelle, secrets hors Git/logs/arguments/frontend, rotation/révocation, permissions effectives contrôlées et connexion conservant l’identité PostgreSQL. Exiger **TLS avec validation de la chaîne et du nom d’hôte** ; ne jamais contourner les gardes Local ni désactiver la vérification TLS. Aucun `service_role` de substitution.
+**PROD.6 livre le code et la procédure Cloud ; aucun système hébergé opérationnel revendiqué.** Cible/projet/environnement et autorisation de connexion explicites, rôle `my_notification_publisher` existant sans recréation, secret séparé en saisie protégée Windows, cluster réel et droits effectifs contrôlés. Connexion directe ou Supavisor session conservant l’identité ; transaction pooler refusé. **TLS avec CA épinglée, chaîne et hostname vérifiés**, sans URL ni downgrade. Publication exige version attendue/hash examinés et consentement métier ; retrait exige consentement distinct. Le CLI ne certifie ni version Vercel servie, ni maintenance, ni gel. [Procédure détaillée et limites](10-NOTIFICATION-PUBLICATION.md#publication-cloud--cible-et-contrôles).
 
-Le gel des écritures ordinaires devra permettre uniquement les opérations opérateur nécessaires aux migrations et à la publication via leurs droits dédiés. Publier pendant la maintenance ne doit pas exiger une réouverture globale du backend. Ce passage contrôlé et sa vérification restent à concevoir ; aucune nouvelle permission accordée ici.
+Le gel PROD.2 permet déjà les opérations SQL opérateur nécessaires et les deux fonctions publisher dédiées. PROD.6 redémontre publication/rejeu/conflit/retrait sous gel Local, états utilisateur et DML/RPC/bascule refusés ; aucune permission ni garde modifiée. Mise en service et mêmes preuves Cloud restent nécessaires. Ne jamais désactiver temporairement le gel pour publier.
 
 ## Exigences du mode maintenance
 
@@ -443,7 +443,15 @@ PROD.3 conserve `backup_authorized=false`. Aucun script de sauvegarde ne modifie
 
 Capture native complète, owners/grants conservés ; extensions et privilèges d'initialisation plateforme réappliqués depuis inventaire authentifié, puis contenus/IDs/séquences et sécurité comparés à la borne. Gel sauvegardé maintenu par le CLI. Ouvertures et mutations seulement dans les parcours de test explicitement isolés. Rapport distingue `postgresql_restored`, `data_verified` et `application_recovery_proven` ; **`production_recovery_proven=false`, `publication_authorized=false` toujours**. SQL métier, password/TOTP chiffré/AAL2/refresh réels de GoTrue synthétique ne certifient ni Edge/SMTP/frontend ni Supabase managé.
 
-Avant récupération opérationnelle : vraie sauvegarde Cloud éprouvée isolément, secrets accessibles indépendamment après sinistre, versions/rôles/extensions/managed schemas adaptés et autorisés, URLs/SMTP/Edge/Data API/intégrations reconfigurés, compatibilité applicative et parcours complets validés. Première installation Cloud PROD.2 reste **manuelle et ultérieure** ; aucun mécanisme de bootstrap Cloud ajouté, aucun PROD.6 commencé.
+Avant récupération opérationnelle : vraie sauvegarde Cloud éprouvée isolément, secrets accessibles indépendamment après sinistre, versions/rôles/extensions/managed schemas adaptés et autorisés, URLs/SMTP/Edge/Data API/intégrations reconfigurés, compatibilité applicative et parcours complets validés. Première installation Cloud PROD.2 reste **manuelle et ultérieure** ; aucun mécanisme de bootstrap Cloud ajouté.
+
+## PROD.6 — Publisher sécurisé des notifications
+
+**Livré en `0.8.29`, validé Supabase Local et TLS/PostgreSQL synthétiques isolés.** [Procédure Windows, cible/CA/identité/ACL/consentements/reprise](10-NOTIFICATION-PUBLICATION.md#publication-cloud--cible-et-contrôles), [rapport et tests](reports/2026-10-14-PROD6-NOTIFICATION-PUBLISHER.md). Local conserve ses commandes. Cloud exige fichier de cible fermé, projet et autorisation de connexion ; contrôle réel du cluster et des deux identités publisher ; deux seuls EXECUTE métier, sans tables/colonnes/états/gel/RPC/permissions supplémentaires. CA SHA-256, chaîne, hostname et socket négocié vérifiés ; jamais `postgres`, API role ou `service_role` de remplacement.
+
+Changelog [préparé `0.8.29`](../scripts/notifications/releases/0.8.29.json), validable hors connexion, aucune diffusion. `--check` présente métadonnées/hash avec preuves Vercel/maintenance/gel explicitement absentes. Publication autorisée séparément, hash/version exacts ; retrait distinct. Même clé/fichier/hash après réponse incertaine ; receipt historique ne certifie pas visibilité actuelle. Relecture éligible par RPC pures, sans marquer lu/traité, puis ordre E de réouverture.
+
+**Aucune connexion, secret réel, configuration, migration, publication/retrait ou preuve de visibilité Cloud en PROD.6.** Mise en service future : réseau/CA/system_id/droits/login et Supavisor éventuel réellement vérifiés, gel installé/testé, déploiement et maintenance servis contrôlés, backup achevé, publication métier explicitement autorisée puis présence/non-duplication démontrées. Aucun bypass frontend livré, aucune modification PROD.1/2/3.
 
 ## Échecs, reprise et retour arrière
 
@@ -488,8 +496,8 @@ Découpage **prévisionnel**, à affiner en petites sous-phases avant chaque imp
 
 1. **Maintenance Vercel et protection Supabase** : **PROD.1/PROD.2 implémentées, PROD.3 coordination et outillage validés Local** ; tests Preview partiels fournis par le propriétaire. Installation/validation Supabase Cloud, contrôles applicatifs hébergés protégés et répétition complète Production restent requis. La fermeture mondiale ne se déduit pas de la répétition Local.
 2. **Sauvegarde/restauration manuelle** : **PROD.4 outillage livré et testé isolément**, snapshot PostgreSQL partagé, inventaire explicite, stockage chiffré hors Git et intégrité ; [matrice, procédures et limites](12-SUPABASE-BACKUP.md). Première sauvegarde Cloud manuelle encore requise dans une intervention autorisée. **PROD.5 restauration synthétique isolée éprouvée** avec données/Auth/historique/permissions et compatibilité SQL. Essai adapté de vraie sauvegarde Cloud et validation applicative/externe complète toujours nécessaires.
-3. **Publication des notifications Cloud** : adaptation sécurisée du script existant, rôle/authentification/TLS/permissions, reprise idempotente et contrôle du changelog pendant fermeture.
+3. **Publication des notifications Cloud** : **PROD.6 code/tests/procédure livrés**, rôle/authentification/TLS/permissions et reprise démontrés Local/isolé ; connexion/réseau/CA/pool éventuel et publication/visibilité pendant fermeture hébergée restent à vérifier lors d’une intervention autorisée.
 4. **Réglages de déploiement** : Supabase automatique depuis `main` sans Preview ; builds Vercel Production sans assignation automatique, promotion manuelle sans rebuild, configuration Cloud préservée.
 5. **Validation complète du workflow** : préparation, fermeture effective, backup, PR/merge, migrations/build/promotion, notification, réouverture et reprises après échec, avant les premiers tests d’utilisateurs réels.
 
-PROD.1 à PROD.3 sont livrées avec preuves Local ; PROD.4 livre les outils de sauvegarde ; PROD.5 éprouve SQL/données et Auth/TOTP synthétiques isolés, sans backup ni récupération Cloud démontrés. Les validations hébergées complètes et les autres blocs restent à réaliser ; aucun changement du périmètre des Phases 9 et 10. La [roadmap](08-ROADMAP.md) conserve leur ordre macro ; ce document porte le détail opérationnel.
+PROD.1 à PROD.3 sont livrées avec preuves Local ; PROD.4 livre les outils de sauvegarde ; PROD.5 éprouve SQL/données et Auth/TOTP synthétiques isolés ; PROD.6 livre le publisher Cloud sécurisé avec preuves Local/TLS isolées. Aucun backup, récupération ou publication Cloud démontré. Validations hébergées complètes et réglages de déploiement restent à réaliser ; Phases 9 et 10 inchangées. La [roadmap](08-ROADMAP.md) conserve leur ordre macro ; ce document porte le détail opérationnel.
