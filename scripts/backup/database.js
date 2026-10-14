@@ -4,6 +4,10 @@ import { requireBackup, BackupError } from './contract.js'
 import { hashBytes } from './secure-files.js'
 import { readFreeze, observe, verifyFreezeContract } from '../maintenance/database.js'
 import { postgresStream } from './clients.js'
+import { isNative } from './contract.js'
+import { checkedCA } from './native.js'
+import { checkServerIdentity } from 'node:tls'
+import { isIP } from 'node:net'
 
 const migrations = new URL('../../supabase/migrations/', import.meta.url)
 const identifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/
@@ -13,11 +17,14 @@ export const quote = name => {
 }
 export async function connect(target, password,{isolatedTransport=false}={}) {
   requireBackup(typeof password === 'string' && password.length > 0 && !/[\r\n\0]/.test(password), 'database_password_required')
-  const ca = target.ca_file ? readFileSync(target.ca_file) : null
+  const ca = isNative(target) ? checkedCA(target) : target.ca_file ? readFileSync(target.ca_file) : null
   requireBackup(!ca || hashBytes(ca) === target.ca_sha256, 'TLS_certificate_changed')
   const client = new pg.Client({ host: target.host, port: target.port, user: target.user, database: target.database,
     ...(isolatedTransport&&target.environment==='isolated'?{stream:postgresStream(target.isolated_container)}:{}),
-    password, ssl: ca ? { ca, rejectUnauthorized: true, servername: target.host } : false,
+    password, ssl: ca ? { ca, rejectUnauthorized: true, ...(isIP(target.host) ? {} : {servername:target.host}), minVersion:'TLSv1.2',
+      checkServerIdentity:(_host,certificate)=>checkServerIdentity(target.host,certificate) } : false,
+    // pg falls back to inherited PGOPTIONS when an empty string is supplied.
+    options:'-c search_path=pg_catalog', sslnegotiation:'postgres', client_encoding:'UTF8', replication:'false',
     application_name: 'my-backup', connectionTimeoutMillis: 10_000, statement_timeout: 60_000 })
   client.on('error', () => undefined)
   try { await client.connect(); return client }
@@ -35,7 +42,7 @@ export async function identity(client, target) {
     && value.database === target.database && value.system_id === target.system_id
     && Math.floor(Number(value.version_num) / 10_000) === target.postgres_major
     && value.replication_role === 'origin' && value.full_visibility === true
-    && value.tls === (target.environment === 'cloud'), 'database_identity_or_visibility_mismatch')
+    && value.tls === (target.environment === 'cloud' || isNative(target)), 'database_identity_or_visibility_mismatch')
   return value
 }
 export async function requireClosed(client, evidence) {

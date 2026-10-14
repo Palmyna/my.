@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { BackupError, requireBackup, readJson, protectedParent, diagnostic } from './contract.js'
 import { verify, manifestSchema } from './cli.js'
 import { encryptionKey, decryptBytes, hashBytes, restrictDirectory } from './secure-files.js'
-import { versions, start, dockerArgs } from './clients.js'
+import { versions, start, startTool, archiveArgs } from './clients.js'
 import { decodeRestoreTarget, createSandbox, sandboxIdentity, sandboxConnect, destroySandbox, docker } from './isolated.js'
 import { rolePlan, requireEmpty, prepareObjects, restorePlatformPrivileges, verifyRestoredDatabase } from './restore-database.js'
 import { validateTOC } from './database.js'
@@ -32,7 +32,7 @@ async function readPinned(path,key,expected) {
   return {bytes:decryptBytes(encrypted,key),sha256:hashBytes(encrypted)}
 }
 async function archiveTool(target,dump,list) {
-  const {child,done}=start(dockerArgs(target,'pg_restore',list?['--list']:['--exit-on-error','--file=/dev/null']))
+  const {child,done}=startTool(target,'pg_restore',archiveArgs(target,list))
   const chunks=[];let length=0
   child.stdout.on('data',b=>{if(list){length+=b.length;if(length>16*1024*1024)child.kill();else chunks.push(b)}})
   child.stdin.end(dump)

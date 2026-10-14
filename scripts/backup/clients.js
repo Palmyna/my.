@@ -1,8 +1,15 @@
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { Duplex } from 'node:stream'
-import { requireBackup, BackupError } from './contract.js'
+import { requireBackup, BackupError, isNative } from './contract.js'
 import { encryptFile, decryptFile, discard } from './secure-files.js'
+import { startNative } from './native.js'
+
+export function startTool(target, tool, args, options = {}) {
+  if (isNative(target)) return startNative(target, tool, args, options)
+  return start(dockerArgs(target, tool, args, options.password !== undefined))
+}
+export const archiveArgs = (target, list) => list ? ['--list'] : ['--exit-on-error', `--file=${isNative(target) ? '-' : '/dev/null'}`]
 
 // Password travels only over stdin into an ephemeral container's environment.
 // It never enters docker argv, inspect Config.Env, a URL, a file or diagnostic output.
@@ -52,7 +59,7 @@ export function postgresStream(container) {
   return stream
 }
 export async function toolText(target, tool, args) {
-  const { child, done } = start(dockerArgs(target, tool, args))
+  const { child, done } = startTool(target, tool, args, { timeoutMs:10_000 })
   const chunks = []
   let length = 0
   child.stdout.on('data', b => {
@@ -62,6 +69,7 @@ export async function toolText(target, tool, args) {
   })
   child.stdin.end()
   await done
+  requireBackup(length <= 16 * 1024 * 1024, 'postgresql_tool_output_limit')
   return Buffer.concat(chunks).toString('utf8')
 }
 export async function versions(target) {
@@ -70,6 +78,7 @@ export async function versions(target) {
     const value = (await toolText(target, tool, ['--version'])).trim()
     requireBackup(new RegExp(`^${tool} \\(PostgreSQL\\) ${target.postgres_major}\\.[0-9]+(?: \\([^\\r\\n]+\\))?$`).test(value), 'client_version_incompatible')
     versions[tool] = value
+    if (isNative(target)) requireBackup(value === `${tool} (PostgreSQL) ${target.native_clients.version}`, 'client_version_incompatible')
   }
   return versions
 }
@@ -77,27 +86,29 @@ export function dumpArgs(snapshot) {
   requireBackup(/^[a-fA-F0-9-]+$/.test(snapshot), 'snapshot_invalid')
   return ['--format=custom', '--quote-all-identifiers', '--no-password', `--snapshot=${snapshot}`, '--lock-wait-timeout=10s']
 }
-export async function dump(target, snapshot, password, filename, key) {
+export async function dump(target, snapshot, password, filename, key, options = {}) {
   requireBackup(typeof password === 'string' && password.length > 0 && !/[\r\n\0]/.test(password), 'database_password_required')
-  const { child, done } = start(dockerArgs(target, 'pg_dump', dumpArgs(snapshot), true))
-  child.stdin.end([target.environment === 'isolated' ? '127.0.0.1' : target.host,
+  const { child, done } = startTool(target, 'pg_dump', dumpArgs(snapshot), { ...options, password })
+  if (isNative(target)) child.stdin.end()
+  else child.stdin.end([target.environment === 'isolated' ? '127.0.0.1' : target.host,
     target.environment === 'isolated' ? '5432' : String(target.port), target.user, target.database,
     password, target.environment === 'cloud' ? 'verify-full' : 'disable', ''].join('\n'))
   try { await encryptFile(child.stdout, filename, key); await done }
-  catch (error) { child.kill(); throw error }
+  catch (error) { child.kill(); await done.catch(() => undefined); throw error }
 }
 export async function inspectArchive(target, filename, key, list = false) {
-  const { child, done } = start(dockerArgs(target, 'pg_restore', list ? ['--list'] : ['--exit-on-error', '--file=/dev/null']))
+  const { child, done } = startTool(target, 'pg_restore', archiveArgs(target,list))
   const chunks = []
   let length = 0
   child.stdout.on('data', b => {
-    if (!list) return
+    if (!list) return // Drain native SQL rendering directly, never to disk/logs.
     length += b.length
     if (length > 16 * 1024 * 1024) child.kill()
     else chunks.push(b)
   })
   try { await decryptFile(filename, key, child.stdin); await done }
-  catch (error) { child.kill(); throw error }
+  catch (error) { child.kill(); await done.catch(() => undefined); throw error }
+  requireBackup(length <= 16 * 1024 * 1024, 'postgresql_tool_output_limit')
   return Buffer.concat(chunks).toString('utf8')
 }
 // Used only by isolated tests to initialize synthetic data; never exported to the CLI.

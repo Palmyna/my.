@@ -2,7 +2,7 @@
 
 ## Statut et contrat
 
-Capture PROD.4 livrée en **`0.8.27`**, puis restauration isolée PROD.5 en **`0.8.28`**. Archive native authentique produite par `capture`, restaurée sur une seconde base jetable ; données, sécurité, contrats métier et parcours Auth/TOTP synthétiques éprouvés. **Aucun accès Cloud ni backup Production. Récupérabilité de Production non démontrée.** La [procédure de publication](11-PUBLICATION-PRODUCTION.md) conserve les autres conditions avant publication. [Rapport PROD.5](reports/2026-10-13-PROD5-RESTORE.md).
+Capture PROD.4 livrée en **`0.8.27`**, puis restauration isolée PROD.5 en **`0.8.28`**. Archive native authentique produite par `capture`, restaurée sur une seconde base jetable ; données, sécurité, contrats métier et parcours Auth/TOTP synthétiques éprouvés. **PROD.7B.1, `0.8.30` : transport Windows explicite ajouté au même moteur, capture synthétique réelle avec clients 17.11 et TLS/SCRAM.** [Rapport natif](reports/2026-10-14-PROD7B1-NATIVE-BACKUP-TRANSPORT.md). **Aucun accès Cloud ni backup Production. Récupérabilité de Production non démontrée.** La [procédure de publication](11-PUBLICATION-PRODUCTION.md) conserve les autres conditions avant publication. [Rapport PROD.5](reports/2026-10-13-PROD5-RESTORE.md).
 
 Trois commandes : `plan` prépare hors connexion ; `capture` effectue les futurs contrôles et exports après deux autorisations explicites ; `verify` relit hors connexion une sauvegarde existante. Le CLI public n'accepte aucune cible Local ou implicite. Le test appelle le moteur avec une cible `isolated` réservée, un conteneur distinct et un marqueur synthétique ; aucun mode CLI ne permet d'exporter le volume personnel.
 
@@ -22,9 +22,9 @@ Supabase Free : exports logiques manuels sans abonnement, service externe ou upl
 
 ### Clients Windows et versions
 
-Node **24.20.0**, npm **12.1.0**, Supabase CLI **2.120.0**, Docker Desktop/moteur **29.8.2**, serveur Local et clients PostgreSQL **17.6** observés. Aucun `pg_dump`, `pg_restore` ou `psql` Windows natif trouvé dans PATH. Utilisation de clients dans une image Docker déjà présente, sélectionnée par son **ID SHA-256**, jamais `latest` ; `--pull=never`, aucun téléchargement implicite. Tests : `public.ecr.aws/supabase/postgres:17.6.1.166`, ID `sha256:b3bfedb107413abb3b8cb0d0874b0414a1dceb3d55bc0c778de6ad22d1f7dc86`.
+Node **24.20.0**, npm **12.1.0**. Deux transports, aucun choix automatique : cible historique `my-backup-target-v1` = Docker ; cible `my-backup-target-v2` avec `transport=windows-native` = exécutables Windows. Docker conserve image locale sélectionnée par **ID SHA-256**, `--pull=never`, sans téléchargement implicite. Tests Docker : `public.ecr.aws/supabase/postgres:17.6.1.166`, ID `sha256:b3bfedb107413abb3b8cb0d0874b0414a1dceb3d55bc0c778de6ad22d1f7dc86`. Le réseau Docker du poste ne route pas IPv6 vers Cloud selon PROD.7A ; aucun réglage réseau modifié.
 
-Le serveur source doit avoir la même majeure que les trois clients, actuellement 17 ou 18 acceptées ; la mineure `pg_dump` doit être au moins celle du serveur. C'est une restriction conservatrice, plus stricte que la capacité native de dumping d'une ancienne majeure. Les versions effectives sont consignées. La documentation publique du 25 septembre 2026 annonce un passage Supabase **17.6 → 17.11** : une source Cloud 17.11 fera refuser l'image de test 17.6. Préparer manuellement une image cliente corrigée, puis examiner son digest et son aide, sans mettre à niveau le volume personnel. La mineure Cloud actuelle reste inconnue.
+Le serveur source doit avoir la même majeure que les trois clients, actuellement 17 ou 18 acceptées ; la mineure `pg_dump` doit être au moins celle du serveur. Restriction conservatrice maintenue. Sous Windows, les trois versions doivent aussi égaler exactement `native_clients.version`. **17.11 réellement démarrée pour les trois EXEs**, depuis `D:\projets\my\tools\postgresql-17.11\pgsql\bin`, contre serveur synthétique **17.6**. Autres distributions/versions exigent examen et essais ; aucune compatibilité PG18 éprouvée ici. **Version serveur Cloud toujours inconnue** : ne pas la déduire des clients. L'image Docker 17.6 sera refusée pour une source 17.11 ; choisir des clients corrigés dans le transport explicitement examiné, sans mise à niveau du Local personnel.
 
 Commandes internes pertinentes :
 
@@ -35,7 +35,57 @@ pg_restore --exit-on-error --file=/dev/null
 psql --version
 ```
 
-Les deux lectures `pg_restore` n'ont **aucun `--dbname`, `--create`, `--clean` ou accès réseau**. La deuxième parcourt et décompresse réellement toute l'archive ; une liste TOC seule ne suffit pas. `psql` est vérifié pour le futur diagnostic opérateur et PROD.5 ; aucun script de restauration livré. Les limites d'attente font échouer une commande bloquée, jamais attester le drainage.
+Les deux lectures `pg_restore` n'ont **aucun `--dbname`, `--create`, `--clean` ou accès réseau DB**. La deuxième parcourt et décompresse réellement toute l'archive ; une liste TOC seule ne suffit pas. Sous Windows, `--file=-` est drainé en mémoire sans rétention ; Docker conserve `/dev/null`. `psql` est vérifié pour le diagnostic opérateur. La restauration PROD.5 reste limitée aux destinations isolées décrites plus bas. Les limites d'attente font échouer une commande bloquée, jamais attester le drainage.
+
+### Transport natif Windows — sélection et sécurité
+
+Modèle fermé : [target.windows.json](../scripts/backup/examples/target.windows.json). Remplir les mêmes identité/projet/CA que pour Docker, avec `format=my-backup-target-v2`, `transport=windows-native` et **sans `client_image`**. `native_clients` contient :
+
+| Champ | Contrôle |
+|---|---|
+| `directory` | Répertoire local absolu canonique, sur lettre de lecteur ; ni PATH, UNC, lien/jonction dans les ancêtres, ni exécutable arbitraire |
+| `version` | Version exacte `17.x` ou `18.x`, même majeure que la cible ; trois `--version` réellement exécutés, sans substitution |
+| `files` | Map nom → SHA-256 des trois `pg_dump.exe`, `pg_restore.exe`, `psql.exe` et de **toutes** les DLL adjacentes, dont `libpq.dll`. Ensemble exact vérifié ; DLL ajoutée, fichier absent/modifié, autre EXE déclaré refusés |
+
+Empreintes recalculées **avant chaque lancement**, répertoire de travail fixé au bin contrôlé, EXE absolu et `shell=false`. Installer/examiner provenance et ACL de la distribution avant de figer ces empreintes. Une empreinte produite à partir d'un binaire déjà compromis ne prouve pas sa provenance. Ne jamais régénérer automatiquement les empreintes pour contourner un refus.
+
+Cloud natif accepte seulement connexion **directe** `db.<projet>.supabase.co:5432`, `postgres`, base `postgres`. Deux consentements capture inchangés. Windows fournit la route réseau ; Docker n'intervient pas dans la capture/vérification native. La cible `isolated` TLS/loopback reste réservée aux tests internes, inaccessible par le CLI public.
+
+Node vérifie CA épinglée SHA-256, chaîne, hostname et TLS ≥ 1.2 ; libpq impose `verify-full`, même CA contrôlée avant dump, TLS ≥ 1.2, GSS désactivé et **authentification SCRAM obligatoire**. Aucun fallback non chiffré, `require` ou `verify-ca`. Snapshot exporté par Node et importé par le `pg_dump` connecté à cette cible ; fermeture committée, barrière `771403`, inventaires/hashes, owners/ACL, séquences aux bornes et exclusions PROD.4 inchangés.
+
+Environnement natif reconstruit : racine système Windows et PATH limité au bin contrôlé/System32, paramètres PG explicites. Aucun PG hérité, profil utilisateur, service libpq, option PG, variable OpenSSL/Node ou secret tiers transmis. Fichiers implicites pgpass/service/certificat/clé/CRL neutralisés ; CA reste explicite. Mot de passe dans **`PGPASSWORD` de l'enfant seulement**, jamais argv, URL, fichier, sortie ou manifeste ; clé AES reste dans Node, jamais dans ces enfants. stdin du dump fermé ; stdout immédiatement chiffré par le mécanisme existant. `pg_restore` offline reçoit uniquement l'archive par stdin, sans password ni cible DB dans l'environnement.
+
+Limite Windows : utilisateur courant, administrateur/SYSTEM ou logiciel de diagnostic privilégié peut lire mémoire/environnement ; chaînes JS non effaçables avec garantie. ACL et vérification avant spawn ne constituent pas une protection contre un attaquant exécutant du code sous ce même compte entre contrôle et lancement. Poste, OS/DLL système, distribution et configuration doivent rester de confiance ; disque chiffré, compte dédié si nécessaire, aucun transcript/diagnostic mémoire pendant opération. Aucun credential Windows persistant créé par ce transport.
+
+Timeouts natifs : versions 10 s, dump 15 min, lecture archive 5 min, connexion 10 s. SIGINT/SIGTERM gérés ou signal interne tuent l'enfant et attendent sa fermeture ; code non nul, stderr même avec code 0, timeout ou interruption = refus. Aucun stderr arbitraire propagé, retry, changement de transport ou réouverture. Arrêt forcé du parent/poste peut empêcher le nettoyage : dossier incomplet/état inconnu à examiner ; ne jamais réutiliser ce dossier comme nouvelle capture.
+
+### PowerShell — préparation native hors connexion
+
+Copier le modèle Windows **hors dépôt**, compléter cible/CA/identité obtenues lors d'une intervention séparément autorisée. Examiner distribution et versions, puis préparer les empreintes une fois :
+
+```powershell
+$nativeBin = 'D:\projets\my\tools\postgresql-17.11\pgsql\bin'
+$nativeTargetPath = 'D:\MY-operator\target.windows.json'
+foreach ($tool in @('psql', 'pg_dump', 'pg_restore')) {
+  & (Join-Path $nativeBin ($tool + '.exe')) --version
+  if ($LASTEXITCODE -ne 0) { throw 'Client PostgreSQL indisponible.' }
+}
+$nativeFiles = [ordered]@{}
+Get-ChildItem -LiteralPath $nativeBin -File | Where-Object {
+  $_.Extension -ieq '.dll' -or $_.Name -in @('psql.exe','pg_dump.exe','pg_restore.exe')
+} | Sort-Object Name | ForEach-Object {
+  $nativeFiles[$_.Name] = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+}
+$nativeTarget = Get-Content -LiteralPath $nativeTargetPath -Raw | ConvertFrom-Json
+$nativeTarget.native_clients.files = $nativeFiles
+[IO.File]::WriteAllText($nativeTargetPath, ($nativeTarget | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
+# Examiner et conserver cible/empreintes ; aucun secret dans ce JSON.
+npm.cmd run backup -- --command plan --environment cloud --project <ref-examinee> --config $nativeTargetPath
+```
+
+`plan` reste sans lancement PostgreSQL/Docker ni réseau et n'authentifie pas la distribution. Écriture UTF-8 sans BOM, compatible PowerShell 5.1. Lors d'une **future** capture autorisée, utiliser procédure DPAPI/consentements ci-dessous avec `--config $nativeTargetPath`. `verify` sélectionne le transport authentifié du manifeste et relance les trois versions/pins natifs, sans connexion DB ; ne pas modifier un ancien manifeste pour changer de transport ou de chemin.
+
+Preuves isolées PROD.7B.1 : vrais EXEs 17.11, PostgreSQL 17.6 jetable `network=none`, relais hôte loopback aléatoire sans port Docker publié, TLS/SCRAM ; capture et `verify`, preflight PROD.5, MVCC concurrent, versions/empreintes et TLS invalides, corruption interne malgré TOC/GCM/checksum valides, perte de snapshot, interruption réelle de dump et timeout du lanceur. [Rapport et décompte](reports/2026-10-14-PROD7B1-NATIVE-BACKUP-TRANSPORT.md). Rien ne prouve les droits, extensions, TLS ou récupération Cloud réels.
 
 ## Matrice du périmètre
 
@@ -106,7 +156,7 @@ backup-<borne choisie>/
 
 Un dossier en cours/échoué garde `INCOMPLETE`, et ne peut jamais passer `verify`. Existant refusé à capture. Noms/fichiers supplémentaires ou absents, symlinks, format inconnu, manifeste incohérent, tag GCM invalide, taille/hash différents, warning ou exit natif non nul et archive illisible provoquent refus. Le manifeste n'est publié qu'après lecture intégrale de l'archive ; le moteur vérifie de nouveau tous les artefacts avant rendre le succès. Aucun SQL/Auth brut sur disque.
 
-Manifeste fermé `my-backup-manifest-v1` : statut `capture_verified_restore_unproven`, cible/système/versions, branche/HEAD/version et dirty, outils, snapshot et bornes UTC, garantie/limites, résultat TOC et six `{name, bytes, sha256}`. SHA-256 porte sur chaque **fichier chiffré**. `manifest.myb` est protégé par GCM ; son SHA-256 externe peut être conservé séparément pour identifier le backup sans auto-hash circulaire. Le manifeste ne contient aucun mot de passe/valeur de secret, contenu Auth ou token. Le snapshot technique n'est pas une session Auth.
+Manifestes fermés : **`my-backup-manifest-v1` conserve exclusivement sa cible Docker v1**, sans réinterprétation ; **`my-backup-manifest-v2` contient exclusivement la cible Windows v2**, ses chemins/empreintes EXE/DLL et trois versions effectives. Même statut `capture_verified_restore_unproven`, cible/système/versions, branche/HEAD/version et dirty, snapshot et bornes UTC, garantie/limites, résultat TOC et six `{name, bytes, sha256}`. **Archive custom PostgreSQL, sept fichiers et enveloppe AES-GCM `MYBK0001` inchangés.** SHA-256 porte sur chaque fichier chiffré. `manifest.myb` est protégé par GCM ; son SHA-256 externe peut être conservé séparément pour identifier le backup sans auto-hash circulaire. Aucun mot de passe/valeur de secret, contenu Auth ou token dans le manifeste. Le snapshot technique n'est pas une session Auth. Lecture/verify/preflight PROD.5 conservent v1 et acceptent v2 ; le lecteur suit le transport authentifié, sans fallback. La destination de restauration reste Docker et conserve comparaison stricte de version client : une archive capturée avec 17.11 ne devient pas restaurable par l'image 17.6 sans préparation compatible séparée.
 
 Format binaire : magic ASCII `MYBK0001` (8 octets), nonce aléatoire (12), ciphertext AES-256-GCM, tag (16). Magic authentifié comme AAD ; nonce neuf par fichier ; clé aléatoire **32 octets**, encodée base64 canonique. La lecture authentifie intégralement avant toute transmission plaintext à `pg_restore`, puis relit en streaming. Le checksum n'est pas une restauration, ni une signature contre un opérateur possédant la clé.
 
@@ -148,7 +198,7 @@ $captureArguments = @(
 if ($LASTEXITCODE -ne 0) { throw 'Backup refusé/incomplet ; garder maintenance et gel.' }
 ```
 
-Wrapper saisit le mot de passe PostgreSQL en `SecureString`, fournit clé/password uniquement au processus enfant et nettoie ses variables dans `finally`. Docker reçoit le password par stdin dans un environnement de processus éphémère, jamais dans argv, Config.Env ou fichier. Node `pg` utilise propriétés distinctes avec `rejectUnauthorized:true`, CA hash examinée et hostname explicite ; libpq impose `sslmode=verify-full`. Aucun downgrade `require`, aucun flag de contournement TLS. Pas de secret Supabase CLI/PAT nécessaire.
+Wrapper saisit le mot de passe PostgreSQL en `SecureString`, fournit clé/password uniquement au processus Node enfant et nettoie ses variables dans `finally`. Docker reçoit le password par stdin dans un environnement éphémère, jamais dans argv, Config.Env ou fichier. Windows natif reçoit seulement le password dans son environnement explicite, avec limites du poste décrites plus haut ; aucune clé AES transmise au client PG. Node `pg` utilise propriétés distinctes avec `rejectUnauthorized:true`, CA hash examinée et hostname explicite ; libpq impose `sslmode=verify-full`. Aucun downgrade `require`, aucun flag de contournement TLS. Pas de secret Supabase CLI/PAT nécessaire.
 
 5. Relire ultérieurement, sans mot de passe DB ni connexion réseau :
 
@@ -165,13 +215,15 @@ Tests autorisés ici :
 ```powershell
 npm.cmd run backup:test
 npm.cmd run backup:test:isolated
+$env:MY_BACKUP_NATIVE_BIN = 'D:\projets\my\tools\postgresql-17.11\pgsql\bin'
+npm.cmd run backup:test:native
 ```
 
 Le second démarre un conteneur `my-prod4-test-<12 hex>` avec stockage éphémère, port loopback aléatoire et schema/données synthétiques ; installe les migrations versionnées et dépendances Auth représentatives. Supprime seulement ce conteneur exact et son dossier temporaire vérifié. Pas de commande volume/reset, pas de lecture/export des données personnelles, pas de restauration.
 
 ## Première sauvegarde Cloud et portée de PROD.5
 
-Première intervention manuelle encore nécessaire : version serveur réelle ; image corrigée ; CA/certificat et hostname direct/session ; cible/system_id ; droits réels de lecture/catalogues/locks/snapshot ; installation autorisée PROD.2 ; Auth/MFA/keys/config Cloud ; éventuels writers inconnus et Storage/Vault. Si snapshot, visibilité, schéma géré ou clé manque : **refus, diagnostic et cadrage complémentaire**, sans exclusion silencieuse, élargissement automatique de privilèges ou export non protégé. Il est interdit de déclarer complet un simple dump Supabase standard.
+Première intervention manuelle encore nécessaire : version serveur réelle ; clients compatibles dans le transport choisi ; CA/certificat et hostname direct (session seulement pour Docker v1) ; cible/system_id ; SCRAM pour Windows ; droits réels de lecture/catalogues/locks/snapshot ; installation autorisée PROD.2 ; Auth/MFA/keys/config Cloud ; éventuels writers inconnus et Storage/Vault. Connexion directe Windows et identité manuellement vérifiées selon propriétaire ; aucune connexion effectuée par PROD.7B.1. Si snapshot, visibilité, schéma géré ou clé manque : **refus, diagnostic et cadrage complémentaire**, sans exclusion silencieuse, élargissement automatique de privilèges ou export non protégé. Il est interdit de déclarer complet un simple dump Supabase standard.
 
 PROD.5 éprouve désormais la restauration sur PostgreSQL isolé avec paquets d'extensions Supabase et GoTrue synthétique. Le [rapport](reports/2026-10-13-PROD5-RESTORE.md) distingue ces preuves des adaptations managées, clés externes, SMTP/Edge et récupération Cloud encore non démontrés. **PROD.4 reste une preuve d'intégrité, avec `restore_proven=false` ; aucune autorisation de publication n'en découle.**
 

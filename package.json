@@ -1,7 +1,7 @@
 {
   "name": "my-app",
   "private": true,
-  "version": "0.8.29",
+  "version": "0.8.30",
   "type": "module",
   "engines": {
     "node": "^24.20.0",
@@ -29,7 +29,8 @@
     "maintenance:test": "node --test scripts/maintenance/operator.test.js",
     "maintenance:test:local": "node scripts/maintenance/local.integration.js",
     "backup": "node scripts/backup/cli.js",
-    "backup:test": "node --test scripts/backup/operator.test.js",
+    "backup:test": "node --test scripts/backup/operator.test.js scripts/backup/native.test.js",
+    "backup:test:native": "node --test scripts/backup/native.integration.js",
     "backup:test:isolated": "node --test scripts/backup/local.integration.js",
     "restore": "node scripts/backup/restore.js",
     "restore:test": "node --test scripts/backup/restore.test.js",

@@ -10,7 +10,7 @@ export const decimal = z.string().regex(/^(0|[1-9]\d*)$/)
 export const sha256 = z.string().regex(/^[a-f0-9]{64}$/)
 const reference = z.string().regex(/^[a-zA-Z0-9_.:-]{1,120}$/).refine(v=>!v.includes('REPLACE'))
 const absolutePath = z.string().refine(isAbsolute)
-export const targetSchema = z.strictObject({
+export const legacyTargetSchema = z.strictObject({
   format: z.literal('my-backup-target-v1'), environment: z.enum(['cloud', 'isolated']),
   project: z.string().regex(/^[a-z0-9-]{3,40}$/), host: z.string(), port: z.number().int(),
   database: z.literal('postgres'), user: z.string(), system_id: decimal,
@@ -19,6 +19,18 @@ export const targetSchema = z.strictObject({
   ca_file: absolutePath.nullable(), ca_sha256: sha256.nullable(),
   isolated_container: z.string().regex(/^my-prod4-test-[a-f0-9]{12}$/).nullable(),
 })
+// v1 always means Docker. A native target can never be inferred from PATH or
+// silently substituted for a legacy target embedded in an authenticated archive.
+export const nativeTargetSchema = legacyTargetSchema.omit({ client_image:true }).extend({
+  format:z.literal('my-backup-target-v2'), transport:z.literal('windows-native'),
+  native_clients:z.strictObject({
+    directory:z.string().regex(/^[A-Za-z]:\\(?:[^<>:"|?*\r\n\0]+\\)*[^<>:"|?*\r\n\0\\]+$/),
+    version:z.string().regex(/^(17|18)\.(0|[1-9][0-9]*)$/),
+    files:z.record(z.string().regex(/^[a-zA-Z0-9_.-]+\.(exe|dll)$/),sha256),
+  }),
+})
+export const targetSchema = z.discriminatedUnion('format',[legacyTargetSchema,nativeTargetSchema])
+export const isNative = target => target.format === 'my-backup-target-v2' && target.transport === 'windows-native'
 export function decodeTarget(value, environment, project) {
   const parsed = targetSchema.safeParse(value)
   requireBackup(parsed.success, 'target_configuration_invalid')
@@ -30,11 +42,13 @@ export function decodeTarget(value, environment, project) {
       && ((t.host === `db.${project}.supabase.co` && t.user === 'postgres')
         || (/^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$/.test(t.host) && t.user === `postgres.${project}`)),
     'cloud_target_requires_direct_or_session_TLS_connection')
+    if (isNative(t)) requireBackup(t.host === `db.${project}.supabase.co` && t.user === 'postgres', 'native_direct_connection_required')
   } else {
     requireBackup(environment === 'isolated' && /^my-prod4-test-[a-f0-9]{12}$/.test(project)
       && t.project === t.isolated_container && t.host === '127.0.0.1' && t.port > 1024 && t.port < 65536
-      && t.user === 'postgres' && t.ca_file === null && t.ca_sha256 === null, 'isolated_target_required')
+      && t.user === 'postgres' && (isNative(t) ? t.ca_file && t.ca_sha256 : t.ca_file === null && t.ca_sha256 === null), 'isolated_target_required')
   }
+  if (isNative(t)) requireBackup(t.native_clients.version.split('.')[0] === String(t.postgres_major), 'client_version_incompatible')
   return t
 }
 export const evidenceSchema = z.strictObject({

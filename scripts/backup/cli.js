@@ -4,19 +4,19 @@ import { promises as fs, lstatSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
 import { BackupError, requireBackup, decodeTarget, decodeEvidence, decodeExternal, readJson, root,
-  protectedParent, diagnostic, sha256, targetSchema, evidenceSchema, externalSchema } from './contract.js'
+  protectedParent, diagnostic, sha256, legacyTargetSchema, nativeTargetSchema, evidenceSchema, externalSchema, isNative } from './contract.js'
 import { repositoryIdentity } from '../maintenance/cli.js'
 import { encryptionKey, encryptFile, decryptFile, decryptJson, fileHash, bytes, restrictDirectory } from './secure-files.js'
 import { versions, dump, inspectArchive, dumpArgs } from './clients.js'
 import { connect, identity, requireClosed, inventory, sequences, freezeContract, validateTOC } from './database.js'
 
 const artifacts = ['database.dump.myb','inventory.json.myb','external.json.myb','evidence.json.myb','source.tar.myb','toc.txt.myb']
-export const manifestSchema = z.strictObject({
+const legacyManifestSchema = z.strictObject({
   format: z.literal('my-backup-manifest-v1'), status: z.literal('capture_verified_restore_unproven'),
   publication_authorized: z.literal(false), restore_proven: z.literal(false),
   environment: z.enum(['cloud','isolated']), project: z.string(),
   repository: z.strictObject({ project:z.string(), environment:z.string(), branch:z.string(), head:z.string().regex(/^[a-f0-9]{40}$/), version:z.string(), dirty:z.boolean() }),
-  target: targetSchema, identity: z.record(z.string(), z.union([z.string(),z.boolean()])),
+  target: legacyTargetSchema, identity: z.record(z.string(), z.union([z.string(),z.boolean()])),
   tools: z.strictObject({ pg_dump:z.string(), pg_restore:z.string(), psql:z.string() }),
   snapshot: z.strictObject({ id:z.string(), established_at:z.iso.datetime(), exports_finished_at:z.iso.datetime(),
     guarantee:z.literal('shared_MVCC_snapshot_sequences_equal_at_bounds_privileged_DDL_excluded_by_operator'),
@@ -25,6 +25,9 @@ export const manifestSchema = z.strictObject({
   files: z.array(z.strictObject({ name:z.enum(artifacts), sha256, bytes:z.number().int().positive() })).length(artifacts.length),
   encryption: z.literal('AES-256-GCM_MYBK0001_key_separate'),
 })
+export const manifestSchema = z.discriminatedUnion('format', [legacyManifestSchema, legacyManifestSchema.extend({
+  format:z.literal('my-backup-manifest-v2'), target:nativeTargetSchema,
+})])
 export function parseCommand(args) {
   let values
   try { values = parseArgs({ args, strict:true, allowPositionals:false, options:{
@@ -46,6 +49,7 @@ export function parseCommand(args) {
 }
 export function plan(target) {
   return { format:'my-backup-plan-v1', environment:target.environment, project:target.project, connects:false,
+    transport:isNative(target) ? 'windows-native' : 'docker',
     authorization:'not_granted', backup_authorized:false, output_encrypted:true,
     pg_dump:dumpArgs('00000000-00000000-1'), files:artifacts,
     required:['explicit_cloud_and_sensitive_export_authorizations','examined_target_system_id_TLS_CA',
@@ -64,21 +68,23 @@ async function sourceArchive(filename, key) {
   try { await encryptFile(child.stdout, filename, key); await finished }
   catch (error) { child.kill(); throw error }
 }
-export async function capture(target, evidence, external, directory, { synthetic = false, afterSnapshot,isolatedTransport=false } = {}) {
+export async function capture(target, evidence, external, directory, { synthetic = false, afterSnapshot,isolatedTransport=false, signal } = {}) {
   requireBackup(target.environment === 'cloud' || (synthetic && target.environment === 'isolated'), 'execution_target_not_authorized')
   requireBackup(!isolatedTransport||(synthetic&&target.environment==='isolated'),'synthetic_transport_forbidden')
   decodeTarget(target,target.environment,target.project); decodeEvidence(evidence,target); decodeExternal(external,target.project)
+  requireBackup(!signal?.aborted,'postgresql_tool_interrupted')
   const key = encryptionKey()
-  const repository = repositoryIdentity()
-  requireBackup(synthetic || !repository.dirty, 'backup_requires_clean_committed_source')
-  const parent = protectedParent(resolve(directory, '..'))
-  requireBackup(resolve(directory) === join(parent, directory.split(/[\\/]/).at(-1)), 'backup_path_invalid')
-  await fs.mkdir(directory, { mode:0o700 }) // Existing/incomplete directory is never reused.
-  await restrictDirectory(directory)
-  await fs.writeFile(join(directory,'INCOMPLETE'), 'No verified manifest. Keep maintenance and freeze active.\n', { flag:'wx',mode:0o600 })
-  const tools = await versions(target)
-  const client = await connect(target,process.env.MY_BACKUP_DATABASE_PASSWORD,{isolatedTransport})
+  let client
   try {
+    const repository = repositoryIdentity()
+    requireBackup(synthetic || !repository.dirty, 'backup_requires_clean_committed_source')
+    const parent = protectedParent(resolve(directory, '..'))
+    requireBackup(resolve(directory) === join(parent, directory.split(/[\\/]/).at(-1)), 'backup_path_invalid')
+    await fs.mkdir(directory, { mode:0o700 }) // Existing/incomplete directory is never reused.
+    await restrictDirectory(directory)
+    await fs.writeFile(join(directory,'INCOMPLETE'), 'No verified manifest. Keep maintenance and freeze active.\n', { flag:'wx',mode:0o600 })
+    const tools = await versions(target)
+    client = await connect(target,process.env.MY_BACKUP_DATABASE_PASSWORD,{isolatedTransport})
     const id = await identity(client,target)
     const clientMinor = Number(tools.pg_dump.match(/^pg_dump \(PostgreSQL\) \d+\.(\d+)/)[1])
     requireBackup(clientMinor >= Number(id.version_num)%10_000, 'client_minor_older_than_server_requires_update')
@@ -96,7 +102,7 @@ export async function capture(target, evidence, external, directory, { synthetic
     const content = { ...await inventory(client), freeze_state:await requireClosed(client,evidence) }
     const before = await sequences(client,content.tables)
     if (afterSnapshot) { requireBackup(synthetic, 'test_hook_forbidden'); await afterSnapshot({ client,snapshot }) }
-    await dump(target,snapshot,process.env.MY_BACKUP_DATABASE_PASSWORD,join(directory,artifacts[0]),key)
+    await dump(target,snapshot,process.env.MY_BACKUP_DATABASE_PASSWORD,join(directory,artifacts[0]),key,{signal})
     const after = await sequences(client,content.tables)
     requireBackup(JSON.stringify(before) === JSON.stringify(after), 'sequences_changed_nontransactional_backup_incomplete')
     await requireClosed(client,evidence)
@@ -114,7 +120,8 @@ export async function capture(target, evidence, external, directory, { synthetic
     requireBackup(current.head === repository.head && current.version === repository.version && (synthetic || !current.dirty), 'source_changed_during_export')
     const files = []
     for (const name of artifacts) files.push({ name,...await fileHash(join(directory,name)) })
-    const manifest = { format:'my-backup-manifest-v1', status:'capture_verified_restore_unproven', publication_authorized:false,
+    requireBackup(!signal?.aborted,'postgresql_tool_interrupted')
+    const manifest = { format:isNative(target) ? 'my-backup-manifest-v2' : 'my-backup-manifest-v1', status:'capture_verified_restore_unproven', publication_authorized:false,
       restore_proven:false, environment:target.environment, project:target.project, repository, target, identity:id, tools,
       snapshot:{id:snapshot, established_at:established, exports_finished_at:finished,
         guarantee:'shared_MVCC_snapshot_sequences_equal_at_bounds_privileged_DDL_excluded_by_operator',
@@ -128,7 +135,10 @@ export async function capture(target, evidence, external, directory, { synthetic
       await fs.writeFile(join(directory,'INCOMPLETE'),'Verification failed. Keep maintenance and freeze active.\n',{mode:0o600})
       throw error
     }
-  } finally { await client.query('rollback').catch(()=>undefined); await client.end().catch(()=>undefined); key.fill(0) }
+  } finally {
+    if (client) { await client.query('rollback').catch(()=>undefined); await client.end().catch(()=>undefined) }
+    key.fill(0)
+  }
 }
 export async function verify(directory, suppliedKey) {
   protectedParent(directory)
@@ -141,6 +151,10 @@ export async function verify(directory, suppliedKey) {
     requireBackup(manifestSchema.safeParse(manifest).success, 'manifest_invalid')
     requireBackup(new Set(manifest.files.map(f=>f.name)).size === artifacts.length, 'manifest_file_set_invalid')
     decodeTarget(manifest.target,manifest.environment,manifest.project)
+    if (isNative(manifest.target)) {
+      const actual = await versions(manifest.target)
+      requireBackup(Object.keys(actual).every(tool => actual[tool] === manifest.tools[tool]), 'manifest_client_versions_mismatch')
+    }
     for (const f of manifest.files) {
       const actual = await fileHash(join(directory,f.name))
       requireBackup(actual.bytes === f.bytes && actual.sha256 === f.sha256, 'backup_checksum_mismatch')
