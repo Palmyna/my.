@@ -92,6 +92,26 @@ describe('Production maintenance through the actual Global Config SDK', () => {
     else expect(body).toContain('MY. est momentanément indisponible')
   })
 
+  it.each([
+    'https://my.example',
+    'https://my-staged-synthetic.vercel.app',
+    'https://my-git-main-synthetic.vercel.app',
+  ])('keeps Production closed on %s even with claimed platform access', async (origin) => {
+    setState(true)
+    const response = await middleware(new Request(`${origin}/index.html`, {
+      headers: {
+        'x-vercel-protection-bypass': 'synthetic-bypass',
+        'x-vercel-authenticated-user': 'synthetic-owner',
+        cookie: 'operator=true',
+      },
+    }))
+    expect(response.status).toBe(503)
+    expect(response.headers.has('x-middleware-next')).toBe(false)
+    expect(await response.text()).toContain('<title>Maintenance en cours · MY.</title>')
+    expect(fetchConfig).toHaveBeenCalledOnce()
+    expect(fetchConfig.mock.calls[0]?.[0]).toEqual(expect.stringContaining('/item/maintenance_production?'))
+  })
+
   it.each([null, 'false', 'true', 0, 1, [], {}, { enabled: false }])('closes invalid state %j', async (value) => {
     setState(value)
     expect((await middleware(new Request('https://my.example/'))).status).toBe(503)
