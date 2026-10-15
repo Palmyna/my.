@@ -295,6 +295,12 @@ Email + mot de passe → aucun TOTP vérifié : enrollment puis vérification
 
 Le profil MY. est créé dans la transaction d'insertion Auth, avant confirmation email, sans accorder d'accès applicatif anticipé. Le trigger et son backfill sont décrits dans [06-DATABASE.md](06-DATABASE.md#création-du-profil). Le profil ne contient ni mot de passe ni secret MFA.
 
+### Rôles applicatifs privés
+
+Le socle des rôles PROD.7B.2.1 est exclusivement PostgreSQL : association privée UUID Auth → `super_admin`, absence de ligne = `user`. Le setter privé exige une vraie session opérateur `postgres`/`supabase_admin`, même lorsqu'un appel traverse un `SECURITY DEFINER`. Le prédicat interne sans argument lit l'attribution courante et exige `aal2` plus un profil vivant. Il n'a aucun droit d'exécution API ; aucun rôle applicatif n'est lu depuis le frontend, le profil ou les claims JWT. [Schéma et frontières](06-DATABASE.md#rôles-applicatifs--prod7b21).
+
+La migration est additive, sans modification du contrat frontend Auth, des politiques RLS ou des corps PROD.2. La nouvelle table rejoint la garde de gel existante. Aucun consommateur Premium, écran d'administration ni exception de maintenance n'est livré ; PROD.7B.2.2 reste distincte.
+
 ### Contrat frontend Auth des Phases 3A/3B
 
 `src/services/supabase.ts` fournit un seul client typé par `Database`, avec `persistSession` et `autoRefreshToken` activés. En 3B, `detectSessionInUrl` est désactivé : l'état Auth consomme explicitement les callbacks implicites avant toute résolution d'accès MY. `auth-callback.ts` retire immédiatement les tokens/erreurs de l'URL, valide le type et la route attendus, puis transmet les tokens au service `setSession`. Les secrets du callback ne sont jamais placés dans l'état React ni journalisés. La confirmation termine cette session avec `signOut({ scope: 'local' })`, affiche son succès et impose le login email/mot de passe ; aucun profil ni MFA n'est chargé depuis ce lien. Les erreurs ferment l'accès et permettent de revenir à la connexion ou de demander un nouveau lien.

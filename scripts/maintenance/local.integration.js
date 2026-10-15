@@ -83,9 +83,9 @@ async function main() {
     await admin.query('insert into public.user_preferences(user_id) values ($1)', [users[0]])
     const preflight = await run(command('preflight'))
     assert.equal(preflight.state.frozen, false)
-    assert.equal(preflight.contract.migrations, 50)
+    assert.equal(preflight.contract.migrations, 51)
     assert.equal(preflight.backup_authorized, false)
-    pass('initial open, exact target, private controls and 50 migrations')
+    pass('initial open, exact target, private controls and 51 migrations')
 
     // Local frontend harness, not Global Config or a real Vercel deployment.
     server = createServer(async (request, response) => {

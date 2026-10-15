@@ -1,7 +1,7 @@
 {
   "name": "my-app",
   "private": true,
-  "version": "0.8.30",
+  "version": "0.8.31",
   "type": "module",
   "engines": {
     "node": "^24.20.0",
@@ -24,6 +24,7 @@
     "db:test:concurrency": "node scripts/test-automatic-collection-concurrency.ts",
     "db:lint": "supabase db lint --local --schema public,private --level warning --fail-on warning",
     "db:types": "node scripts/generate-supabase-types.js",
+    "roles:test:local": "node scripts/test-app-roles.js",
     "maintenance:db": "node scripts/maintenance/cli.js",
     "maintenance:http": "node scripts/maintenance/http-check.js",
     "maintenance:test": "node --test scripts/maintenance/operator.test.js",

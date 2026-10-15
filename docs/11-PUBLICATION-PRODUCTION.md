@@ -6,19 +6,19 @@ Ce document est la **référence opérationnelle unique des futures publications
 
 **Décisions formalisées le 13 octobre 2026 ; procédure cible, pas encore opérationnelle ni validée de bout en bout en Production.** L’application est déjà hébergée en Production selon le propriétaire. **PROD.1 livre la maintenance frontend, PROD.2 le gel backend et PROD.3 la coordination opérateur validée sur Local.** Les validations manuelles Preview fournies par le propriétaire couvrent activation sans rebuild, page MY., HTTP 503, headers anti-cache, refus d’une route directe et retour HTTP 200 sans rebuild. Elles ne prouvent pas Production. Installation/validation Supabase Cloud, répétition coordonnée Production, sauvegarde/restauration vérifiée, publisher Cloud, contrôles applicatifs hébergés pendant fermeture et nouveaux réglages de déploiement restent nécessaires.
 
-Version du dépôt : **`0.8.30`**, après PROD.7B.1 transport Windows du moteur de sauvegarde existant ; PROD.6 publisher sécurisé en `0.8.29`, PROD.5 en `0.8.28`, PROD.4 en `0.8.27`, PROD.3 en `0.8.26`, PROD.2 en `0.8.25`, PROD.1 en `0.8.24` et cadrage initial en `0.8.23`. PROD.7B.1 éprouve capture native Windows/TLS et snapshot synthétiques, sans accès Cloud. PROD.5 éprouve restauration et Auth/TOTP synthétiques ; PROD.6 adapte le même publisher avec cible/consentement Cloud, identité/ACL et TLS vérifiés, preuves Supabase Local et PostgreSQL/TLS isolé uniquement. Aucun accès aux projets Cloud, secret réel, changement de configuration distante, commit, push, PR, merge ou déploiement effectué ici. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
+Version du dépôt : **`0.8.31`**, après PROD.7B.2.1 socle privé des rôles applicatifs ; PROD.7B.1 transport Windows du moteur de sauvegarde existant en `0.8.30`, PROD.6 publisher sécurisé en `0.8.29`, PROD.5 en `0.8.28`, PROD.4 en `0.8.27`, PROD.3 en `0.8.26`, PROD.2 en `0.8.25`, PROD.1 en `0.8.24` et cadrage initial en `0.8.23`. PROD.7B.1 éprouve capture native Windows/TLS et snapshot synthétiques, sans accès Cloud. PROD.5 éprouve restauration et Auth/TOTP synthétiques ; PROD.6 adapte le même publisher avec cible/consentement Cloud, identité/ACL et TLS vérifiés, preuves Supabase Local et PostgreSQL/TLS isolé uniquement. Aucun accès aux projets Cloud, secret réel, changement de configuration distante, commit, push, PR, merge ou déploiement effectué ici. La consultation de documentation publique des fournisseurs ne constitue pas une vérification de leurs projets.
 
 ## État connu et provenance
 
 ### Observations dans le dépôt
 
-Inspection historique du cadrage : branche **`dev`**, HEAD **`590d9fb827948ee694e181fa2654d427442cff8d`**, worktree propre. Inspection initiale PROD.1 : **`dev`**, HEAD **`312ff061c7d9783b1b689ab3c45bf7bcdb614895`**, worktree propre. Inspection initiale PROD.2 : **`dev`**, HEAD **`ceb3cf97ce5ba110867f2d28696eff4eff6e0f1a`**, worktree propre. Inspection initiale PROD.3 : **`dev`**, HEAD **`603460596a8b5ab434dc7519402bd9bb2c493b75`**, worktree propre, version `0.8.25`, 50 migrations Local et gel ouvert. Remote Git : `Palmyna/my.` ; référence locale `origin/HEAD` vers `origin/main`. Cette référence locale ne remplace pas une lecture actuelle des paramètres GitHub. Le tableau suivant décrit le dépôt après PROD.3.
+Inspection historique du cadrage : branche **`dev`**, HEAD **`590d9fb827948ee694e181fa2654d427442cff8d`**, worktree propre. Inspection initiale PROD.1 : **`dev`**, HEAD **`312ff061c7d9783b1b689ab3c45bf7bcdb614895`**, worktree propre. Inspection initiale PROD.2 : **`dev`**, HEAD **`ceb3cf97ce5ba110867f2d28696eff4eff6e0f1a`**, worktree propre. Inspection initiale PROD.3 : **`dev`**, HEAD **`603460596a8b5ab434dc7519402bd9bb2c493b75`**, worktree propre, version `0.8.25`, 50 migrations Local et gel ouvert. Remote Git : `Palmyna/my.` ; référence locale `origin/HEAD` vers `origin/main`. Cette référence locale ne remplace pas une lecture actuelle des paramètres GitHub. Le tableau suivant décrit le dépôt après PROD.7B.2.1.
 
 | Élément observé | Portée de l’observation |
 |---|---|
-| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.30` dans les trois champs après PROD.7B.1 ; version injectée par Vite depuis le package |
+| `package.json`, `package-lock.json` et entrée racine du lockfile | Version `0.8.31` dans les trois champs après PROD.7B.2.1 ; version injectée par Vite depuis le package |
 | [vercel.json](../vercel.json) | Fallback SPA `/(.*)` vers `/index.html` conservé ; `proxy.entrypoint` vers [middleware.ts](../middleware.ts), sans exclusion de chemin ; aucun réglage d’attente de promotion ajouté |
-| [Migrations](../supabase/migrations/) | 50 fichiers et 50 appliqués Local, dernier `20261013135415_prod2_freeze_admission_barrier` ; aucune preuve d'application des deux migrations PROD.2 Cloud |
+| [Migrations](../supabase/migrations/) | 51 fichiers et 51 appliqués Local, dernier `20261015103447_prod7b21_app_roles` ; aucune preuve d'application des deux migrations PROD.2 ou du socle des rôles Cloud |
 | [supabase/config.toml](../supabase/config.toml) | Configuration Local `my-local`, URLs Auth locales, seed applicatif désactivé ; ne décrit pas à elle seule la configuration Cloud |
 | Configurations GitHub/Vercel versionnées | Aucun workflow `.github/` ou réglage `.vercel/` suivi observé ; intégrations et réglages des consoles non déduits de cette absence |
 | [Publisher](../scripts/notifications/publish.ts) et [contrat](../scripts/notifications/contract.ts) | Validation hors connexion, Local conservé ; cible Cloud explicite avec rôle réel, cluster, TLS et ACL contrôlés, consentement lié au hash/version ; aucun fonctionnement hébergé démontré |
@@ -333,6 +333,49 @@ Avant une installation explicitement autorisée : vérifier version PostgreSQL, 
 Préparer sauvegarde et reprise de première installation, choisir une fenêtre contrôlée et installer **les deux migrations du même commit**, jamais seulement la première. Elles sont transactionnelles séparément, pas une transaction globale. Un préfixe partiel impose inspection et correction vers l'avant. Vérifier ensuite état initial ouvert, 22 gardes MY./garde Auth/11 entrées RPC, permissions, anciennes sessions, native Auth/Edge et publisher avec identité PostgreSQL réelle/TLS validée. Faire les essais sur un environnement isolé ou des fixtures dont le périmètre/audience Cloud a été explicitement approuvé ; le script Local refuse toute connexion distante et son provisionnement de secret synthétique ne doit pas être transposé au Cloud.
 
 Pendant une future première fermeture Cloud, relever commit de bascule, relecture indépendante, catalogues sécurité, blockers et refus directs, puis coordonner exceptions/Auth et backup. **Aucune de ces opérations Cloud n'a été effectuée ici.** Le publisher Cloud, les contrôles opérateur hébergés, la sauvegarde/restauration et le workflow complet restent des blocs distincts.
+
+## PROD.7B.2.1 — Attribution manuelle future des rôles
+
+**Socle Local livré en `0.8.31`, sans attribution réelle ni accès Cloud.** `super_admin` est un statut MY. privé ; il ne donne aucun rôle SQL, accès aux collections privées d'autrui, droit Premium actif ou exception au gel. Les critères frontend PROD.7B.2 restent ouverts et **PROD.7B.2.2 n'est pas commencée**. [Contrat SQL](06-DATABASE.md#rôles-applicatifs--prod7b21), [rapport](reports/2026-10-15-PROD7B21-APP-ROLES.md).
+
+Procédure future uniquement, après installation autorisée de la migration sur la cible identifiée :
+
+1. Créer le compte par le parcours Auth normal, confirmer l'email, terminer TOTP/AAL2. Relever son UUID Auth réel dans une source opérateur fiable et recouper l'identité avec le propriétaire. Aucun email fixe, premier inscrit privilégié ou UUID présent dans Git.
+2. Ouvrir une connexion PostgreSQL autorisée à la cible examinée, avec une vraie session `postgres` ou `supabase_admin`. Les identités `service_role`, `authenticator`, Auth et publisher ne sont pas opérateurs. Garder les identifiants de connexion hors Git, arguments et journaux. Vérifier hôte/cluster/base, `session_user` et `current_user` ; un `SET ROLE postgres` depuis une autre session ne suffit pas.
+3. Avec `psql`, saisir l'UUID, contrôler le compte et appeler le setter privé. Arrêter si l'identité ne correspond pas ou si compte/profil/TOTP ne sont pas vérifiés. Le setter exige lui-même compte existant non anonyme, email confirmé et profil ; le prédicat exige AAL2 au moment d'utiliser le rôle.
+
+```sql
+select session_user, current_user, current_database();
+\prompt 'UUID Auth réel du propriétaire vérifié : ' my_role_user_id
+begin;
+select u.id, u.email_confirmed_at, p.id is not null as has_my_profile,
+  exists (select 1 from auth.mfa_factors f where f.user_id = u.id
+    and f.factor_type = 'totp' and f.status = 'verified') as totp_verified
+from auth.users u left join public.profiles p on p.id = u.id
+where u.id = :'my_role_user_id'::uuid for update of u;
+select private.set_app_role(:'my_role_user_id'::uuid, 'super_admin');
+commit;
+```
+
+4. Ouvrir **une autre connexion** à la même cible. Ressaisir l'UUID, puis lire l'attribution persistée :
+
+```sql
+\prompt 'UUID Auth à relire : ' my_role_user_id
+select user_id, role, granted_at, granted_by
+from private.app_role_assignments where user_id = :'my_role_user_id'::uuid;
+```
+
+Une réponse SQL avant commit ne prouve pas l'attribution. En cas d'erreur ou réponse incertaine, relire l'état depuis une nouvelle connexion avant tout retry. Répéter `super_admin` conserve la ligne et sa provenance ; aucune modification de métadonnées ni rotation de JWT n'est nécessaire. Le prédicat interne `private.is_super_admin()` utilise uniquement l'UUID authentifié, l'AAL2 et l'état serveur vivant. Il ne constitue pas une RPC ou une interface frontend dans cette sous-phase ; sans contexte Auth, il retourne faux.
+
+5. Pour révoquer, utiliser le même type de session opérateur, l'UUID vérifié et une transaction explicite :
+
+```sql
+begin;
+select private.set_app_role(:'my_role_user_id'::uuid, 'user');
+commit;
+```
+
+Confirmer l'absence de ligne depuis une autre connexion. La révocation est idempotente. La suppression physique normale du compte enlève aussi l'attribution par cascade dans la transaction Auth. Pendant le gel PROD.2, cette destruction reste bloquée ; login et MFA restent sous leurs contrôles existants. Les opérateurs SQL gardent leur exception PROD.2 préexistante pour administrer la table ; le statut applicatif `super_admin` n'en reçoit aucune.
 
 ## PROD.3 — Coordination opérateur
 

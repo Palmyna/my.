@@ -92,7 +92,7 @@ export async function verifyFreezeContract(client) {
     left join pg_trigger t on t.tgrelid=c.oid and t.tgname='business_write_freeze' and not t.tgisinternal
     where (n.nspname in ('public','private') and c.relkind in ('r','p')
       and c.oid<>'private.business_write_freeze'::regclass) or c.oid='auth.users'::regclass order by 1`)
-  if (guards.length !== 23 || guards.some(g => g.tgtype !== (g.relation === 'auth.users' ? 14 : 62)
+  if (guards.length !== 24 || guards.some(g => g.tgtype !== (g.relation === 'auth.users' ? 14 : 62)
     || g.tgenabled !== 'O' || !g.correct_function)) throw new MaintenanceError('table_guards_incomplete')
   const { rows: [security] } = await client.query(`select
     (select relrowsecurity and relowner='postgres'::regrole from pg_class where oid='private.business_write_freeze'::regclass)

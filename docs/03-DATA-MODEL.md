@@ -172,6 +172,10 @@ Cette conservation protège les collections et exemplaires existants. Le pipelin
 
 L'authentification fournit l'identité technique du compte. Le modèle applicatif associe à cette identité un profil MY. contenant les informations fonctionnelles propres au produit.
 
+Le statut applicatif ordinaire est `user`, implicite. Une attribution privée, liée à l'UUID Auth, peut désigner explicitement un compte comme `super_admin`. Elle est administrée uniquement par un opérateur PostgreSQL autorisé, indépendamment du profil et des métadonnées Auth. Aucun compte n'est privilégié à sa création. La suppression physique du compte supprime aussi son attribution.
+
+Ce rôle n'est pas un rôle SQL et ne donne aucun accès supplémentaire aux collections privées, aucune dispense MFA ni exception de maintenance. Il doit permettre ultérieurement l'accès du propriétaire aux fonctionnalités Premium sans abonnement ; ces droits, la facturation et les restrictions Premium ne sont pas implémentés dans ce socle. [Contrat serveur](06-DATABASE.md#rôles-applicatifs--prod7b21).
+
 Le profil conserve l'identité applicative nécessaire à la V1 :
 
 - l'identité interne de l'utilisateur ;

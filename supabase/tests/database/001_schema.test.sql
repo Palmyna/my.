@@ -39,8 +39,8 @@ select hasnt_column('public', 'physical_copies', 'collection_id', 'Copies are in
 select hasnt_column('public', 'physical_copies', 'quantity', 'One row per physical copy');
 select hasnt_column('public', 'collection_shares', 'status', 'Share existence means active');
 select results_eq($$select table_name::text collate "default" from information_schema.tables where table_schema = 'private' order by table_name$$,
-  array['business_write_freeze','catalog_entity_keys','catalog_overrides','catalog_sync_runs','collection_notification_reads','collection_operation_receipts','collection_order_intents','notification_announcement_states','notification_announcements']::text[],
-  'Pipeline, relative-order, notification and freeze storage remain private');
+  array['app_role_assignments','business_write_freeze','catalog_entity_keys','catalog_overrides','catalog_sync_runs','collection_notification_reads','collection_operation_receipts','collection_order_intents','notification_announcement_states','notification_announcements']::text[],
+  'Pipeline, relative-order, notification, freeze and role storage remain private');
 
 -- Synthetic fixtures only; all tests roll back. Never assume user tables are empty.
 create temporary table schema_fixture_users (id uuid primary key) on commit drop;
