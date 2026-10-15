@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm exec --yes --package=npm@12.1.0 -- npm ci",
+  "buildCommand": "npm exec --yes --package=npm@12.1.0 -- npm run build",
+  "proxy": {
+    "entrypoint": "middleware.ts"
+  },
   "rewrites": [
     {
       "source": "/(.*)",

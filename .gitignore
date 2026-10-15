@@ -6,6 +6,11 @@ coverage/
 .cache/
 *.tsbuildinfo
 *.log
+# Defense in depth only: backup tooling still requires a destination outside Git.
+*.myb
+*.dump
+*.backup
+backups/
 .eslintcache
 
 # Local environment values; only the root template is versioned

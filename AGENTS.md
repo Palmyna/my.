@@ -16,8 +16,10 @@ Ce document définit le cadre général applicable à tout agent intervenant sur
 ## Workflow Git
 
 - Vérifier la branche courante et l'état réel du dépôt avant toute modification.
-- `dev` est la branche GitHub par défaut et la branche normale de développement et d'intégration ; y réaliser les changements courants, sauf instruction explicite contraire.
-- `main` représente l'état stable et la production ; ne pas y pousser directement dans le workflow normal. La promotion des changements validés de `dev` vers `main` passe par une Pull Request.
+- `main` est la branche GitHub par défaut et représente l'état stable et la production.
+- `dev` reste la branche normale de développement et d'intégration ; y réaliser les changements courants, sauf instruction explicite contraire.
+- Ne pas pousser directement sur `main` dans le workflow normal. Les changements validés de `dev` vers `main` passent par une Pull Request et un merge classique.
+- Pour une publication Production, suivre la [procédure de référence](docs/11-PUBLICATION-PRODUCTION.md) et distinguer les configurations actuelles des mécanismes encore à implémenter.
 - Les branches temporaires (`feature/...`, `fix/...`, etc.) ne sont pas systématiques : ne les créer que si elles apportent une réelle valeur ou sont explicitement demandées.
 
 ## Principes de réalisation

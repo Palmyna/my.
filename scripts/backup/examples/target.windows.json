@@ -1,0 +1,25 @@
+{
+  "format": "my-backup-target-v2",
+  "transport": "windows-native",
+  "environment": "cloud",
+  "project": "REPLACE_FROM_REVIEWED_DASHBOARD",
+  "host": "REPLACE_DIRECT_HOST",
+  "port": 5432,
+  "database": "postgres",
+  "user": "postgres",
+  "system_id": "REPLACE_FROM_AUTHORIZED_IDENTITY_CHECK",
+  "postgres_major": 17,
+  "native_clients": {
+    "directory": "D:\\projets\\my\\tools\\postgresql-17.11\\pgsql\\bin",
+    "version": "17.11",
+    "files": {
+      "pg_dump.exe": "REPLACE_WITH_REVIEWED_SHA256",
+      "pg_restore.exe": "REPLACE_WITH_REVIEWED_SHA256",
+      "psql.exe": "REPLACE_WITH_REVIEWED_SHA256",
+      "libpq.dll": "REPLACE_WITH_ALL_ADJACENT_DLL_NAMES_AND_SHA256"
+    }
+  },
+  "ca_file": "REPLACE_WITH_ABSOLUTE_CA_PATH",
+  "ca_sha256": "REPLACE_WITH_CA_SHA256",
+  "isolated_container": null
+}

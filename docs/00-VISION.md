@@ -41,7 +41,7 @@ Après connexion, il accède à un espace principal centré sur un **dashboard d
 - éditer une collection ;
 - supprimer une collection.
 
-Le fonctionnement précis de l'authentification, des sessions, des droits et de la présentation du dashboard relève de cadrages ultérieurs.
+Le fonctionnement de l'authentification, des sessions, des droits et du dashboard est cadré et livré ; ses règles sont précisées dans les [fonctionnalités](01-FEATURES.md), l'[UX](04-UX-UI.md) et l'[architecture](05-ARCHITECTURE.md).
 
 ## Gestion des collections
 
@@ -87,7 +87,7 @@ Il peut également conserver des informations personnelles concernant les cartes
 - la société de grading ;
 - la note obtenue lors du grading.
 
-Des états tels que *Near Mint*, *Excellent*, *Good* ou *Poor* illustrent le besoin, sans constituer à ce stade une nomenclature définitive. Une même variante peut avoir plusieurs exemplaires physiques distincts ; la nomenclature des états et les règles détaillées du grading restent à cadrer.
+Des états tels que *Near Mint*, *Excellent*, *Good* ou *Poor* illustrent le besoin. Une même variante peut avoir plusieurs exemplaires physiques distincts. La V1 livrée conserve ces informations dans une note libre par exemplaire, sans champ structuré de condition ou de grading ; une éventuelle nomenclature ou gestion structurée nécessiterait un nouveau cadrage. Les [fonctionnalités](01-FEATURES.md#informations-propres-à-chaque-exemplaire) précisent ce périmètre.
 
 ## Vues d'une collection
 
@@ -165,7 +165,7 @@ La direction visuelle repose sur :
 - une forte présence du branding MY. ;
 - des composants simples et lisibles.
 
-Une maquette existante de la page d'accueil sert de référence visuelle. Le logo MY. existe au format SVG et sera fourni lors de la phase d'implémentation concernée. Le design system complet et les règles détaillées des composants seront définis dans un document UX/UI dédié.
+Une maquette existante de la page d'accueil sert de référence visuelle. Le logo SVG MY. est intégré aux écrans livrés. La fondation graphique et les comportements des composants communs sont définis dans le [document UX/UI](04-UX-UI.md) et implémentés ; leurs éventuelles extensions restent à cadrer.
 
 ## Principes produit
 
@@ -231,24 +231,19 @@ Ces possibilités futures ne doivent pas influencer inutilement l'architecture d
 
 ## Éléments laissés ouverts
 
-Les sujets suivants devront être traités dans de futurs documents dédiés et ne sont pas définis par la vision générale :
+Authentification, règles V1 des variantes et de leur ordre, actualisation relative, masquage, notifications internes et interfaces responsive sont cadrés et livrés dans les [Phases 0 à 8 terminées](08-ROADMAP.md#état-actuel). Leurs spécifications restent dans les références spécialisées ; la vision ne redéfinit pas ces contrats.
 
-- les détails d'implémentation laissés ouverts par l'[architecture technique de la V1](05-ARCHITECTURE.md) ;
-- la configuration détaillée de Vercel et du déploiement ;
-- les détails SQL et Supabase volontairement laissés ouverts par le [schéma PostgreSQL / Supabase de la V1](06-DATABASE.md) ;
-- le fonctionnement précis de l'authentification ;
-- les détails d'implémentation et l'automatisation future laissés ouverts par le [pipeline catalogue](07-CATALOG-SYNC.md) ;
-- les règles exactes des variantes de cartes ;
-- les détails d'ordre encore ouverts dans la [politique TCGdex](02-TCGDEX.md), notamment l'ordre des variantes et les cas sans date fiable ;
-- les cas complexes et les contrats techniques d'actualisation et de réordonnancement relatif (8A.2/8A.3), selon les [décisions Phase 8](01-FEATURES.md#réordonnancement-relatif--décisions-phase-8) ;
-- l'implémentation du masquage des automatiques et du centre de notifications interne, planifiés en [Phase 8](08-ROADMAP.md#phase-8--actualisation-masquage-et-notifications) ;
-- la nomenclature exacte des états de conservation ;
-- les sociétés et formats de notes de grading pris en charge ;
-- les éventuelles évolutions du classeur au-delà de la V1 continue et des trois formats livrés ;
-- l'UX détaillée, y compris les comportements sur mobile, tablette et ordinateur ;
-- les règles détaillées du design system.
+Restent ouverts ou à réaliser :
 
-Ces éléments ne doivent pas être inventés ou considérés comme décidés avant leur cadrage et leur validation.
+- la création, la gestion et le retrait des partages en Phase 9, puis la finalisation et la stabilisation V1 en Phase 10 ;
+- les mécanismes et validations du [workflow Production déjà décidé](11-PUBLICATION-PRODUCTION.md), la première mise en ligne étant réalisée selon le propriétaire ;
+- l'adaptation Cloud, la cadence et l'automatisation du [pipeline catalogue](07-CATALOG-SYNC.md), ainsi que les compléments de données explicitement laissés ouverts par la [politique TCGdex](02-TCGDEX.md#éléments-laissés-ouverts) ;
+- le moyen de contact et les procédures de récupération du compte restant à préciser dans les [fonctionnalités](01-FEATURES.md#profil-utilisateur) ;
+- les éventuelles exigences légales ou rétentions particulières liées à la suppression du compte ;
+- une éventuelle gestion structurée des états de conservation et du grading, au-delà des notes libres livrées ;
+- les éventuelles évolutions du classeur, de l'UX et de la fondation graphique au-delà des comportements livrés.
+
+Les décisions déjà cadrées ne sont pas remises en question. Les sujets encore ouverts ne doivent pas être inventés ou considérés comme validés avant leur cadrage.
 
 ## Évolution possible après la V1
 

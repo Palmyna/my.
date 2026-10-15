@@ -1,32 +1,52 @@
 import { readFileSync, statSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import pg from 'pg'
-import { z } from 'zod'
-import { assertLocalUrl } from '../catalog/database.ts'
 import { publicationKey, publicationSchema, publicationHash, publishedResult, withdrawnResult } from './contract.ts'
 import type { Publication } from './contract.ts'
+import { notificationSemver } from '../../src/lib/notification-scalars.ts'
+import { NotificationCliError, connectPublisher, connectCloudPublisher, readCloudTarget, fingerprint, projectReference } from './database.ts'
+export { NotificationCliError, connectPublisher, publisherConfig } from './database.ts'
 
-export class NotificationCliError extends Error {}
-type Command = { mode: 'validate' | 'apply'; file: string } | { mode: 'withdraw'; key: string }
+type CloudSelection = { project: string; targetFile: string; expectedVersion?: string; expectedHash?: string }
+type Command = ({ mode: 'validate' | 'check' | 'apply'; file: string } | { mode: 'withdraw'; key: string }) & { cloud?: CloudSelection }
 export function parseCommand(args: string[]): Command {
-  let values: { file?: string; validate?: boolean; apply?: boolean; withdraw?: string; environment?: string }
+  const options = { file: { type: 'string' }, validate: { type: 'boolean' }, check: { type: 'boolean' }, apply: { type: 'boolean' },
+    withdraw: { type: 'string' }, environment: { type: 'string' }, project: { type: 'string' }, target: { type: 'string' },
+    'expect-version': { type: 'string' }, 'expect-hash': { type: 'string' }, 'authorize-cloud-connect': { type: 'boolean' },
+    'authorize-publish': { type: 'boolean' }, 'authorize-withdraw': { type: 'boolean' } } as const
+  let values
   try {
-    values = parseArgs({ args, options: { file: { type: 'string' }, validate: { type: 'boolean' }, apply: { type: 'boolean' },
-      withdraw: { type: 'string' }, environment: { type: 'string' } }, strict: true, allowPositionals: false }).values
+    values = parseArgs({ args, options, strict: true, allowPositionals: false }).values
   } catch { throw new NotificationCliError('Arguments invalides.') }
-  const modes = Number(values.validate === true) + Number(values.apply === true) + Number(values.withdraw !== undefined)
+  const flags = args.filter(arg => Object.hasOwn(options, arg.split('=')[0]!.slice(2))).map(arg => arg.split('=')[0])
+  const modes = Number(values.validate === true) + Number(values.check === true) + Number(values.apply === true) + Number(values.withdraw !== undefined)
+  const mode = values.validate ? 'validate' : values.check ? 'check' : values.apply ? 'apply' : 'withdraw'
+  const cloud = values.environment === 'cloud'
+  const cloudOnly = ['project', 'target', 'expect-version', 'expect-hash', 'authorize-cloud-connect', 'authorize-publish', 'authorize-withdraw'] as const
   if (modes !== 1 || (values.withdraw !== undefined ? values.file !== undefined : !values.file)
-    || (values.validate ? values.environment !== undefined : values.environment !== 'local')
-    || args.filter(arg => ['--file', '--validate', '--apply', '--withdraw', '--environment'].includes(arg.split('=')[0]!)).length
-      !== new Set(args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0])).size) {
-    throw new NotificationCliError('Choisir --file avec --validate, --file avec --apply --environment local, ou --withdraw avec --environment local. Local seul autorisé.')
+    || (values.validate ? values.environment !== undefined : !['local', 'cloud'].includes(values.environment ?? ''))
+    || flags.length !== new Set(flags).size || (!cloud && (mode === 'check' || cloudOnly.some(key => values[key] !== undefined)))) {
+    throw new NotificationCliError('Modes exclusifs : --file --validate hors connexion ; --file --apply ou --withdraw avec --environment local ; Cloud exige sélection et autorisations explicites.')
+  }
+  let selection: CloudSelection | undefined
+  if (cloud) {
+    if (!projectReference.safeParse(values.project).success || !values.target || !values['authorize-cloud-connect']
+      || (mode !== 'withdraw' && !notificationSemver.safeParse(values['expect-version']).success)
+      || (mode === 'apply' && (!values['authorize-publish'] || !fingerprint.safeParse(values['expect-hash']).success))
+      || (mode !== 'apply' && (values['authorize-publish'] !== undefined || values['expect-hash'] !== undefined))
+      || (mode === 'withdraw' ? !values['authorize-withdraw'] || values['expect-version'] !== undefined : values['authorize-withdraw'] !== undefined)) {
+      throw new NotificationCliError('Cloud : projet/cible et --authorize-cloud-connect obligatoires ; version attendue pour fichier ; --authorize-publish --expect-hash pour publication ; --authorize-withdraw pour retrait.')
+    }
+    selection = { project: values.project!, targetFile: values.target,
+      ...(values['expect-version'] ? { expectedVersion: values['expect-version'] } : {}),
+      ...(values['expect-hash'] ? { expectedHash: values['expect-hash'] } : {}) }
   }
   if (values.withdraw !== undefined) {
     const parsed = publicationKey.safeParse(values.withdraw)
     if (!parsed.success) throw new NotificationCliError('Clé de publication invalide.')
-    return { mode: 'withdraw', key: parsed.data }
+    return { mode: 'withdraw', key: parsed.data, ...(selection ? { cloud: selection } : {}) }
   }
-  return { mode: values.validate ? 'validate' : 'apply', file: values.file! }
+  return { mode, file: values.file!, ...(selection ? { cloud: selection } : {}) } as Command
 }
 
 export function readPublication(file: string): Publication {
@@ -38,36 +58,6 @@ export function readPublication(file: string): Publication {
   const parsed = publicationSchema.safeParse(raw)
   if (!parsed.success) throw new NotificationCliError('Contrat JSON invalide. Vérifier champs, texte brut, version, expiration, action et justification. requires_action=true non supporté.')
   return parsed.data
-}
-
-export function publisherConfig(connection: string | undefined): pg.ClientConfig {
-  try {
-    if (!connection) throw new Error()
-    assertLocalUrl(connection)
-    const url = new URL(connection)
-    if (decodeURIComponent(url.username) !== 'my_notification_publisher' || !url.password) throw new Error()
-  } catch { throw new NotificationCliError('MY_NOTIFICATION_DATABASE_URL doit cibler le rôle my_notification_publisher sur Supabase Local, port 55322, base postgres, sans paramètres URL.') }
-  // Remote connections remain disabled. Future support must require verified
-  // TLS and must reject URL options overriding rejectUnauthorized/CA settings.
-  return { connectionString: connection, ssl: false, connectionTimeoutMillis: 10_000,
-    statement_timeout: 15_000, application_name: 'my-notification-publisher' }
-}
-
-const expectedRole = z.strictObject({ session_user: z.literal('my_notification_publisher'), current_user: z.literal('my_notification_publisher'),
-  rolsuper: z.literal(false), rolcreatedb: z.literal(false), rolcreaterole: z.literal(false), rolreplication: z.literal(false),
-  rolbypassrls: z.literal(false), rolinherit: z.literal(false), member: z.literal(false) })
-export async function connectPublisher(connection = process.env.MY_NOTIFICATION_DATABASE_URL): Promise<pg.Client> {
-  const client = new pg.Client(publisherConfig(connection))
-  // Asynchronous driver errors also use a fixed message, never raw Error/logs.
-  client.on('error', () => undefined)
-  try {
-    await client.connect()
-    const identity = await client.query(`select session_user::text,current_user::text,r.rolsuper,r.rolcreatedb,r.rolcreaterole,
-      r.rolreplication,r.rolbypassrls,r.rolinherit,exists(select 1 from pg_catalog.pg_auth_members m where m.member=r.oid) member
-      from pg_catalog.pg_roles r where r.rolname=current_user`)
-    if (!expectedRole.safeParse(identity.rows[0]).success) throw new NotificationCliError('Identité ou permissions du rôle PostgreSQL invalides.')
-    return client
-  } catch (error) { await client.end().catch(() => undefined); throw error }
 }
 
 export async function publish(client: pg.Client, publication: Publication) {
@@ -97,30 +87,52 @@ export function safeError(error: unknown): string {
     'P0002:notification_publication_not_found': 'notification_publication_not_found : clé inconnue.',
     '42501:notification_publication_unavailable': 'notification_publication_unavailable : rôle refusé.',
   }
-  if (error instanceof pg.DatabaseError) return known[`${error.code}:${error.message}`] ?? 'PostgreSQL a refusé la commande. Vérifier droits et contrat ; reprendre avec la même clé.'
+  if (error instanceof pg.DatabaseError) return known[`${error.code}:${error.message}`] ?? 'Résultat non confirmé par PostgreSQL. Issue incertaine : vérifier droits et reprendre avec le même fichier, la même clé et le même hash.'
   return 'Connexion ou commande interrompue. Issue incertaine : reprendre avec le même fichier et la même clé, ou le même retrait. Aucun secret journalisé.'
+}
+
+export function publicationSummary(publication: Publication) {
+  return { publication_key: publication.publication_key, category: publication.category,
+    app_version: publication.app_version, title_characters: Array.from(publication.title).length, body_characters: Array.from(publication.body).length,
+    action: publication.action, requires_action: publication.requires_action, include_new_users: publication.include_new_users,
+    expires_at: publication.expires_at, content_hash: publicationHash(publication) }
+}
+
+export function verifyPublicationSelection(publication: Publication, selection: CloudSelection): void {
+  if (publication.app_version !== null && publication.app_version !== selection.expectedVersion) {
+    throw new NotificationCliError('Version du fichier différente de la version attendue par l’opérateur. Aucun déploiement Vercel vérifié par cet outil.')
+  }
+  if (selection.expectedHash && publicationHash(publication) !== selection.expectedHash) {
+    throw new NotificationCliError('Empreinte différente de la publication examinée. Revalider fichier/clé/hash avant nouvelle autorisation.')
+  }
 }
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
   let client: pg.Client | undefined
   try {
     const command = parseCommand(args)
+    const publication = command.mode === 'withdraw' ? undefined : readPublication(command.file)
+    if (publication && command.cloud) verifyPublicationSelection(publication, command.cloud)
+    if (command.mode === 'validate') {
+      console.log(JSON.stringify({ outcome: 'validated', ...publicationSummary(publication!) }))
+      return
+    }
+    if (command.cloud) {
+      const target = readCloudTarget(command.cloud.targetFile, command.cloud.project)
+      client = await connectCloudPublisher(target)
+      console.log(JSON.stringify({ outcome: 'checked', environment: 'cloud', project: target.project, connection: target.connection,
+        host: target.host, port: target.port, database: target.database, system_id: target.system_id,
+        session_user: 'my_notification_publisher', current_user: 'my_notification_publisher', TLS: 'verified', permissions: 'verified',
+        deployment_verified: false, maintenance_verified: false, freeze_verified: false,
+        ...(publication ? publicationSummary(publication) : { publication_key: command.mode === 'withdraw' ? command.key : undefined }) }))
+      if (command.mode === 'check') return
+    } else client = await connectPublisher()
     if (command.mode === 'withdraw') {
-      client = await connectPublisher()
       console.log(JSON.stringify(await withdraw(client, command.key)))
     } else {
-      const publication = readPublication(command.file)
-      if (command.mode === 'validate') {
-        console.log(JSON.stringify({ outcome: 'validated', publication_key: publication.publication_key, category: publication.category,
-          app_version: publication.app_version, title_characters: Array.from(publication.title).length, body_characters: Array.from(publication.body).length,
-          action: publication.action, requires_action: publication.requires_action, include_new_users: publication.include_new_users,
-          expires_at: publication.expires_at, content_hash: publicationHash(publication) }))
-      } else {
-        client = await connectPublisher()
-        console.log(JSON.stringify(await publish(client, publication)))
-      }
+      console.log(JSON.stringify(await publish(client, publication!)))
     }
   } catch (error) { console.error(safeError(error)); process.exitCode = 1 }
-  finally { await client?.end().catch(() => undefined) }
+  finally { delete process.env.MY_NOTIFICATION_DATABASE_PASSWORD; await client?.end().catch(() => undefined) }
 }
 if (import.meta.main) await main()

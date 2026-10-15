@@ -1,0 +1,15 @@
+{
+  "format": "my-backup-target-v1",
+  "environment": "cloud",
+  "project": "REPLACE_FROM_REVIEWED_DASHBOARD",
+  "host": "REPLACE_DIRECT_OR_SESSION_HOST",
+  "port": 5432,
+  "database": "postgres",
+  "user": "postgres",
+  "system_id": "REPLACE_FROM_AUTHORIZED_IDENTITY_CHECK",
+  "postgres_major": 17,
+  "client_image": "REPLACE_WITH_REVIEWED_LOCAL_IMAGE_SHA256",
+  "ca_file": "REPLACE_WITH_ABSOLUTE_CA_PATH",
+  "ca_sha256": "REPLACE_WITH_CA_SHA256",
+  "isolated_container": null
+}

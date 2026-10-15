@@ -1,0 +1,17 @@
+{
+  "format": "my-backup-external-v1",
+  "project": "REPLACE",
+  "configuration": {
+    "auth": { "site_url": "https://my.collectrealm.com", "redirect_urls": [], "providers": [], "jwt_expiry_seconds": 3600, "signup_enabled": true, "email_confirmation": true, "auth_service_version": "REPLACE", "configuration_evidence": "REPLACE" },
+    "smtp": { "provider": "Resend", "host": "REPLACE", "port": 465, "sender_evidence": "REPLACE", "templates_evidence": "REPLACE" },
+    "mfa": { "totp_enabled": true, "max_factors": 10, "evidence": "REPLACE" },
+    "data_api": { "schemas": ["public"], "settings_evidence": "REPLACE" },
+    "network": { "restrictions_evidence": "REPLACE", "TLS_certificate_evidence": "REPLACE" },
+    "integrations": { "github_supabase_evidence": "REPLACE", "vercel_evidence": "REPLACE", "other_writers_inventory_evidence": "REPLACE" },
+    "edge": { "name": "delete-account", "deployed_source_sha256": "REPLACE", "deployed_configuration_evidence": "REPLACE" },
+    "encryption": { "vault": "not_used", "column_encryption": "not_used", "auth_key_reprovisioning_evidence": "REPLACE", "signing_keys_reprovisioning_evidence": "REPLACE" },
+    "storage": { "usage": "not_used", "service_configuration_evidence": "REPLACE" }
+  },
+  "secret_store_refs": { "database_password": "REPLACE", "publisher_password": "REPLACE", "SMTP_Resend": "REPLACE", "auth_encryption_keys": "REPLACE", "signing_keys": "REPLACE", "SUPABASE_URL": "REPLACE", "SUPABASE_ANON_KEY": "REPLACE", "SUPABASE_SERVICE_ROLE_KEY": "REPLACE" },
+  "records": { "REPLACE": { "non_secret_settings": "REPLACE_WITH_SANITIZED_FULL_CONFIGURATION_RECORD_FOR_EACH_REFERENCE" } }
+}

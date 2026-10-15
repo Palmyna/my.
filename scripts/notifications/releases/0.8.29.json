@@ -1,0 +1,15 @@
+{
+  "publication_key": "my.release.0.8.29",
+  "category": "changelog",
+  "title": "MY. 0.8.29 — Notifications de mise à jour",
+  "body": "La préparation des notifications de mise à jour est renforcée. Les contrôles de publication et de reprise protègent leur contenu et évitent les doublons.",
+  "app_version": "0.8.29",
+  "action": { "kind": "notification_content" },
+  "requires_action": false,
+  "include_new_users": false,
+  "expires_at": null,
+  "publication_context": {
+    "reason": "Publication de MY. 0.8.29 après validation Production. Fichier préparé en PROD.6 sans diffusion ; cible et préconditions à vérifier avant autorisation.",
+    "include_new_users_justification": null
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "format": "my-notification-target-v1",
+  "environment": "cloud",
+  "project": "aaaaaaaaaaaaaaaaaaaa",
+  "connection": "direct",
+  "host": "db.aaaaaaaaaaaaaaaaaaaa.supabase.co",
+  "port": 5432,
+  "database": "postgres",
+  "user": "my_notification_publisher",
+  "system_id": "1",
+  "server_port": 5432,
+  "ca_file": "C:\\MY-operator\\notification\\root.crt",
+  "ca_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}
