@@ -60,6 +60,14 @@ La documentation Vercel décrit ce second réglage dans **Production / Branch Tr
 
 Avant utilisation de l’intégration Supabase déclarée activée, contrôler ses effets réels : migrations, éventuelles fonctions Edge et configuration. Le `config.toml` actuel est Local ; ses URLs localhost et ses réglages ne doivent pas écraser Auth/SMTP/configuration Production. Le traitement de la configuration par l’intégration doit être cadré et vérifié dans le bloc dédié, sans modifier ce fichier pendant la présente sous-phase. Aucun seed, reset ou réimport du catalogue n’est prévu.
 
+## Exception initiale — installation du middleware Production
+
+La fermeture B suppose un déploiement courant déjà équipé du middleware. L'inspection [PROD.7C.1](reports/2026-10-15-PROD7C1-PRODUCTION-BOOTSTRAP.md) confirme `main` GitHub en `0.8.23`, sans middleware ; le déploiement réellement assigné au domaine reste à identifier. Global Config ne peut pas fermer un ancien déploiement sans lecteur.
+
+**Installation initiale proposée, à autoriser séparément :** préparer `maintenance_production=true`, PR `dev` vers `main` et merge classique, contrôler le succès Supabase et le build **Production** en attente, vérifier son 503 MY., puis promouvoir ce même ID sans rebuild et vérifier le 503 sur le domaine. Jusqu'à cette première promotion, l'ancien site reste sans maintenance MY. Cette exception ne vaut pas exécution A–E ni publication complète sans sauvegarde ; elle exige parité exacte de l'historique Cloud et examen des effets Edge de l'intégration. Arrêter l'installation en état fermé, sans notification ni réouverture.
+
+Le [rapport de préparation](reports/2026-10-15-PROD7C1-PRODUCTION-BOOTSTRAP.md) précise ordre, préconditions et arrêts ; aucune action distante n'y est exécutée. Après installation, la séquence normale ci-dessous reste applicable. T1 et les exigences avant E restent inchangés ; l'ancien déploiement sans middleware n'est pas un rollback compatible maintenance.
+
 ## Procédure officielle
 
 L’opérateur conserve une trace simple de chaque livraison : version, commit attendu, résultats de clôture, sauvegarde et empreintes, migrations réellement appliquées, identifiant du déploiement Vercel, fichier/clé/hash de notification et contrôles de réouverture. Aucun secret ni backup dans Git ou les logs publics. Chaque étape doit réussir avant la suivante ; une incertitude maintient la fermeture.
