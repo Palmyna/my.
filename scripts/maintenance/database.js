@@ -5,7 +5,8 @@ import { assertLocalUrl, localConnection } from '../catalog/database.ts'
 export class MaintenanceError extends Error {}
 export const barrier = '771403'
 const deniedRoles = ['anon', 'authenticated', 'service_role', 'supabase_auth_admin', 'authenticator', 'my_notification_publisher']
-const controlNames = ['set_business_write_freeze', 'get_business_write_freeze', 'require_business_writes_open', 'guard_business_write_freeze']
+const controlNames = ['set_business_write_freeze', 'get_business_write_freeze', 'require_business_writes_open',
+  'guard_business_write_freeze', 'set_app_role', 'is_super_admin']
 const migrationDirectory = new URL('../../supabase/migrations/', import.meta.url)
 const normalize = value => value.replaceAll('\r\n', '\n').trim()
 
@@ -57,7 +58,8 @@ export async function readFreeze(client) {
 
 function expectedBodies() {
   const bodies = new Map()
-  for (const filename of ['20261013133423_prod2_business_write_freeze.sql', '20261013135415_prod2_freeze_admission_barrier.sql']) {
+  for (const filename of ['20261013133423_prod2_business_write_freeze.sql', '20261013135415_prod2_freeze_admission_barrier.sql',
+    '20261015103447_prod7b21_app_roles.sql', '20261015123024_prod7b22_superadmin_freeze.sql']) {
     const source = readFileSync(new URL(filename, migrationDirectory), 'utf8')
     for (const match of source.matchAll(/create\s+(?:or\s+replace\s+)?function\s+((?:private|public)\.\w+)\(([^]*?)\)\s*returns\s+(\w+)([^]*?)\bas\s+(\$\w*\$)([^]*?)\5/gi)) {
       const argumentsList = match[2].trim() ? match[2].split(',').map(a => a.trim().split(/\s+default\s+/i)[0].split(/\s+/)) : []
@@ -68,7 +70,7 @@ function expectedBodies() {
         types: argumentsList.map(a => a.slice(1).join(' ')).join(', '), result })
     }
   }
-  if (bodies.size !== 15) throw new MaintenanceError('repository_contract_invalid')
+  if (bodies.size !== 17) throw new MaintenanceError('repository_contract_invalid')
   return bodies
 }
 
@@ -83,7 +85,7 @@ export async function verifyFreezeContract(client) {
     || f.argument_types !== expected.get(f.name).types || f.result_type !== expected.get(f.name).result
     || JSON.stringify(f.input_names ?? []) !== JSON.stringify(expected.get(f.name).names)
     || f.owner !== 'postgres' || f.proconfig?.length !== 1 || f.proconfig[0] !== 'search_path=""'
-    || f.prosecdef !== !['private.set_business_write_freeze', 'private.get_business_write_freeze'].includes(f.name))) {
+    || f.prosecdef !== !['private.set_business_write_freeze', 'private.get_business_write_freeze', 'private.set_app_role'].includes(f.name))) {
     throw new MaintenanceError('function_contract_incomplete')
   }
   const { rows: guards } = await client.query(`select format('%I.%I',n.nspname,c.relname) relation,
@@ -98,6 +100,10 @@ export async function verifyFreezeContract(client) {
     (select relrowsecurity and relowner='postgres'::regrole from pg_class where oid='private.business_write_freeze'::regclass)
       and not exists(select 1 from pg_policy where polrelid='private.business_write_freeze'::regclass)
       and (select count(*)=1 from private.business_write_freeze) as state_closed_acl,
+    (select relrowsecurity and relowner='postgres'::regrole from pg_class where oid='private.app_role_assignments'::regclass)
+      and not exists(select 1 from pg_policy where polrelid='private.app_role_assignments'::regclass)
+      and not exists(select 1 from unnest($1::text[]) r where has_table_privilege(r,'private.app_role_assignments',
+        'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')) as role_closed_acl,
     not exists(select 1 from unnest($1::text[]) r, pg_proc p
       where p.pronamespace='private'::regnamespace and p.proname=any($2::text[])
       and has_function_privilege(r,p.oid,'EXECUTE'))

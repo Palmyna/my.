@@ -172,7 +172,7 @@ try {
             await refused(writer.query(`select public.${probe}($1::regclass,$2)`, [relation, op]));
             await writer.query('rollback');
         }
-    pass('66 INSERT/UPDATE/DELETE refusals across all 22 MY. tables through an actual privileged definer');
+    pass(`${relations.length * 3} INSERT/UPDATE/DELETE refusals across all ${relations.length} MY. tables through an actual privileged definer`);
     for (const role of ['anon', 'authenticated', 'service_role']) {
         for (const command of ["select private.set_business_write_freeze(false)", "update private.business_write_freeze set frozen=false where singleton",
             "select private.require_business_writes_open()", "set session authorization postgres", "set role postgres",
@@ -432,8 +432,8 @@ finally {
         await db.query('rollback').catch(() => undefined);
     // Preserve an existing freeze if preflight rejected it; this run owns only
     // its own toggles, reserved fixtures and ephemeral publisher credential.
-    if (installed)
-        await toggle(false);
+    // Never reopen in cleanup after a failure or interruption. Successful
+    // scenarios explicitly reopen above; inspect independently before recovery.
     await admin.query('delete from private.notification_announcements where publication_key=$1', [namespace]);
     for (const account of accounts)
         await admin.query('delete from auth.users where id=$1', [account.id]);
@@ -443,7 +443,7 @@ finally {
         await cleanup(admin);
     if (provisioned)
         await admin.query('alter role my_notification_publisher password null');
-    assert.deepEqual(await fingerprint(), original, 'All 22 original MY. tables and sequences preserved');
+    assert.deepEqual(await fingerprint(), original, 'All original MY. tables and sequences preserved');
     assert.deepEqual(await permissions(), originalPermissions, 'No permanent ACL or owner changes from testing/toggles');
     const currentAuth = (await admin.query('select id::text,encode(sha256(convert_to(to_jsonb(u)::text,\'UTF8\')),\'hex\') hash from auth.users u order by id')).rows;
     assert.deepEqual(currentAuth, initialAuth, 'Existing account unchanged; synthetic accounts removed');
@@ -451,5 +451,5 @@ finally {
     for (const db of connections)
         await db.end();
 }
-pass('cleanup: 22 table fingerprints, six sequences, existing Auth rows and all ACLs identical; freeze open; publisher credential restored');
+pass(`cleanup: ${relations.length} table fingerprints, six sequences, existing Auth rows and all ACLs identical; freeze open; publisher credential restored`);
 console.log(JSON.stringify({ scenarios, sqlRefusals, restRefusals, tables: relations.length, publicReaders: 15, writerRPCs: 11 }));

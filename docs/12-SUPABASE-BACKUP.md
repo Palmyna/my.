@@ -10,6 +10,8 @@ Un résultat réussi porte **`capture_integrity_verified`, `restore_proven=false
 
 PROD.3 reste strictement Local et conserve **`backup_authorized=false`**. Sa sortie n'est pas un fichier d'autorisation PROD.4. Extraction du contrôle de gel en `verifyFreezeContract` : `verifyContract` conserve tous ses contrôles et sa parité stricte des migrations ; aucun SQL, rôle, garde ou résultat PROD.3 modifié.
 
+Depuis PROD.7B.2.2, le gel conserve automatiquement les écritures métier du `super_admin` Auth AAL2 éligible. Ces opérations prennent toujours la barrière `771403` mais peuvent recommencer après sa fermeture. `closed_and_drained` ne prouve donc pas leur arrêt futur. La coordination des writers et le snapshot cohérent incluent cette exception permanente, sans bascule ni réattribution de rôle pendant publication. Aucun nouveau mécanisme de backup/restauration livré ici. [Contrat et preuve Local](reports/2026-10-15-PROD7B22-SUPERADMIN-FREEZE.md).
+
 ## Mécanisme retenu
 
 **Un `pg_dump --format=custom` natif de toute la base**, sans filtre de schéma/table, sans `--no-owner`, sans `--no-acl`. Il conserve les objets applicatifs, Auth, Storage, historique de migrations et autres schémas ordinaires accessibles. Le format custom est comprimé et permet l'inspection par `pg_restore`. Le chiffrement AES-256-GCM intervient immédiatement sur stdout, avant toute écriture sur disque.

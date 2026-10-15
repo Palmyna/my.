@@ -83,9 +83,9 @@ async function main() {
     await admin.query('insert into public.user_preferences(user_id) values ($1)', [users[0]])
     const preflight = await run(command('preflight'))
     assert.equal(preflight.state.frozen, false)
-    assert.equal(preflight.contract.migrations, 51)
+    assert.equal(preflight.contract.migrations, 52)
     assert.equal(preflight.backup_authorized, false)
-    pass('initial open, exact target, private controls and 51 migrations')
+    pass('initial open, exact target, private controls and 52 migrations')
 
     // Local frontend harness, not Global Config or a real Vercel deployment.
     server = createServer(async (request, response) => {
@@ -170,7 +170,15 @@ async function main() {
     await admin.query('grant execute on function private.get_business_write_freeze() to authenticated')
     await assert.rejects(verifyContract(admin), { message: 'permissions_incomplete' })
     await admin.query('rollback')
-    pass('missing state, uncovered table and broadened permissions rejected; failure injections rolled back')
+    await admin.query('begin')
+    await admin.query("create or replace function private.is_super_admin() returns boolean language sql stable security definer set search_path='' as $$select true$$")
+    await assert.rejects(verifyContract(admin), { message: 'function_contract_incomplete' })
+    await admin.query('rollback')
+    await admin.query('begin')
+    await admin.query('grant select on private.app_role_assignments to authenticated')
+    await assert.rejects(verifyContract(admin), { message: 'permissions_incomplete' })
+    await admin.query('rollback')
+    pass('missing state, uncovered table, altered role predicate and broadened freeze/role permissions rejected; injections rolled back')
 
     // A setter return in another uncommitted transaction cannot attest a new state.
     const provisional = await connectOperator(connection)

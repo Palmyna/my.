@@ -174,7 +174,7 @@ L'authentification fournit l'identité technique du compte. Le modèle applicati
 
 Le statut applicatif ordinaire est `user`, implicite. Une attribution privée, liée à l'UUID Auth, peut désigner explicitement un compte comme `super_admin`. Elle est administrée uniquement par un opérateur PostgreSQL autorisé, indépendamment du profil et des métadonnées Auth. Aucun compte n'est privilégié à sa création. La suppression physique du compte supprime aussi son attribution.
 
-Ce rôle n'est pas un rôle SQL et ne donne aucun accès supplémentaire aux collections privées, aucune dispense MFA ni exception de maintenance. Il doit permettre ultérieurement l'accès du propriétaire aux fonctionnalités Premium sans abonnement ; ces droits, la facturation et les restrictions Premium ne sont pas implémentés dans ce socle. [Contrat serveur](06-DATABASE.md#rôles-applicatifs--prod7b21).
+Ce rôle n'est pas un rôle SQL et ne donne aucun accès supplémentaire aux collections privées ni dispense MFA. Depuis PROD.7B.2.2 (`0.8.32`), il permet automatiquement les écritures métier déjà autorisées pendant le gel backend, avec identité Auth vérifiée, AAL2 et profil vivant. Il ne permet ni de contrôler le gel, ni de franchir la maintenance frontend. Les droits Premium, la facturation et les restrictions Premium restent hors périmètre. [Contrat serveur](06-DATABASE.md#rôles-applicatifs--prod7b21).
 
 Le profil conserve l'identité applicative nécessaire à la V1 :
 

@@ -222,7 +222,7 @@ Blocs réalisés :
 
 ### Préparation de Production après Phase 8
 
-Socle privé des rôles applicatifs livré Local en `0.8.31` : statut `user` implicite, attribution opérateur de `super_admin`, MFA/RLS conservées. Aucune exception au gel ni droit Premium actif. [Modèle et procédure](06-DATABASE.md#rôles-applicatifs--prod7b21).
+Socle privé des rôles applicatifs livré Local en `0.8.31`, puis exception permanente au gel backend livrée et validée Local en `0.8.32` (PROD.7B.2.2) : statut `user` implicite, attribution opérateur de `super_admin`, identité Auth/AAL2/profil vivant, RLS et propriété conservées. Aucune activation supplémentaire pendant une publication, aucun droit SQL/Premium ou bypass frontend. PROD.7B.2.3 et PROD.7C non commencées. [Modèle et procédure](06-DATABASE.md#rôles-applicatifs--prod7b21).
 
 **Statut : EN COURS.** Première mise en ligne après Phase 8 déclarée réalisée par le propriétaire, sans attendre Phase 10 ; V1 non terminée. Fallback SPA livré en `0.8.23`, routes directes vérifiées par lui. Maintenance frontend implémentée et validée localement, configuration et validation Vercel encore à réaliser. Tests complets de compte réel et procédure coordonnée encore à valider.
 
