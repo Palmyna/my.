@@ -4,6 +4,27 @@ import { dirname, join, resolve } from 'node:path'
 import ts from 'typescript'
 import { expect, it } from 'vitest'
 
+it('typechecks the middleware independently of referenced TypeScript projects', () => {
+  // The Vercel builder reads the nearest tsconfig.json, not the options from
+  // tsconfig.vercel.json referenced by tsc -b. TypeScript 6 defaults types to [].
+  const config = ts.readConfigFile(resolve('tsconfig.json'), file => ts.sys.readFile(file))
+  expect(config.error).toBeUndefined()
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, process.cwd())
+  expect(parsed.errors).toEqual([])
+  const program = ts.createProgram([resolve('middleware.ts')], {
+    ...parsed.options,
+    target: ts.ScriptTarget.ES2021,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    noEmit: true,
+    skipLibCheck: true,
+  })
+  const errors = ts.getPreEmitDiagnostics(program)
+    .filter(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error)
+    .map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
+  expect(errors).toEqual([])
+})
+
 it('starts emitted JavaScript in native Node without TypeScript sources or import rewriting', () => {
   const cache = resolve('.cache')
   mkdirSync(cache, { recursive: true })

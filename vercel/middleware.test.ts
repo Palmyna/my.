@@ -240,6 +240,8 @@ it('configures middleware on all requests and preserves the existing SPA fallbac
   const deployment: unknown = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))
   expect(deployment).toEqual({
     $schema: 'https://openapi.vercel.sh/vercel.json',
+    installCommand: 'npm exec --yes --package=npm@12.1.0 -- npm ci',
+    buildCommand: 'npm exec --yes --package=npm@12.1.0 -- npm run build',
     proxy: { entrypoint: 'middleware.ts' },
     rewrites: [{ source: '/(.*)', destination: '/index.html' }],
   })
