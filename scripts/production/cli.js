@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { promises as fs, constants } from 'node:fs'
 import { configurationBundle, preflightStorage, verifyMountedVolume, backupRoot, requireProduction, ProductionError } from './config.js'
 import { runBackup } from './backup.js'
-import { repositoryIdentity, parseCommand as freezeCommand, run as freezeRun, safeDiagnostic as freezeDiagnostic } from '../maintenance/cli.js'
+import { repositoryIdentity, safeDiagnostic as freezeDiagnostic } from '../maintenance/cli.js'
+import { productionFreeze } from './freeze-api.js'
 import { createVercelMaintenance, safeDiagnostic as vercelDiagnostic, VercelMaintenanceError, operatorLockPath } from '../maintenance/vercel.js'
 import { connectCloudOperator, cloudConnectionConfig } from '../maintenance/cloud.js'
 import { capture } from '../backup/cli.js'
@@ -40,15 +41,7 @@ export async function readDrainage(client, revision) {
 export function productionAPI(bundle, secrets, signal, configFile) {
   const key = encryptionKey(secrets.key)
   const { config, target, maintenance } = bundle
-  const freeze = async (command, revision) => {
-    const args = ['--command', command, '--environment', 'cloud', '--project', config.project,
-      '--target', config.maintenance_target, '--authorize-cloud-connect']
-    if (revision !== undefined) args.push('--expect-revision', revision, '--expect-system-id', target.system_id)
-    if (command === 'close') args.push('--authorize-close')
-    process.env.MY_MAINTENANCE_DATABASE_PASSWORD = secrets.password
-    try { return await freezeRun(freezeCommand(args)) }
-    finally { delete process.env.MY_MAINTENANCE_DATABASE_PASSWORD }
-  }
+  const freeze = (command, revision) => productionFreeze(bundle, secrets.password, command, revision)
   return {
     signal, backupRoot, lockDirectory: join(process.env.LOCALAPPDATA ?? '', 'MY', 'production'),
     repository: () => repositoryIdentity('cloud', config.project),

@@ -24,12 +24,17 @@ export const operatorEvidenceSchema = z.strictObject({
     compatible_deployments_and_propagation: z.literal(true), publication_recovery_prerequisites: z.literal(true),
     no_backup_in_progress_and_privileged_writers_coordinated: z.literal(true) }),
 })
+// Only AUTO.4C, recovering a durable opening intent, can prepare with an
+// already-open frontend. Never ask an operator to attest a nonexistent 503.
+export const openOperatorEvidenceSchema = operatorEvidenceSchema.extend({ checks: operatorEvidenceSchema.shape.checks
+  .omit({ authenticated_GET_HEAD_503_headers_routes_assets: true })
+  .extend({ authenticated_GET_HEAD_open_routes_assets: z.literal(true) }) })
 
 const blocked = new Set(['session_missing', 'session_incomplete', 'session_identity_invalid', 'session_archive_ambiguous',
   'session_configuration_changed_review_required', 'session_backup_path_invalid', 'session_ambiguous',
   'session_evidence_duplicate', 'session_invalid', 'session_evidence_file_missing', 'session_evidence_file_invalid',
   'session_evidence_hash_mismatch', 'session_evidence_reference_invalid', 'session_evidence_reference_mismatch',
-  'session_pointer_invalid', 'session_pointer_missing_review_required', 'session_reparse_path_refused',
+  'session_pointer_invalid', 'session_pointer_missing_review_required', 'session_reparse_path_refused', 'session_completion_unverified',
   'session_changed_during_preparation', 'configuration_changed_during_session', 'archive_incomplete',
   'independent_verify_failed', 'archive_session_binding_mismatch', 'archive_evidence_provenance_missing',
   'archive_changed_during_verify', 'archive_record_contradictory', 'github_publication_contradictory',
@@ -56,14 +61,14 @@ const stable = value => {
   return rest
 }
 
-function validateSession(session, bundle, backupRoot) {
+export function validateOpenSession(session, bundle, backupRoot, completed = false) {
   requireProduction(session.project === bundle.config.project && session.repository?.project === session.project
     && session.repository.environment === 'cloud' && session.repository.branch === 'dev' && session.repository.dirty === false
     && sha.safeParse(session.repository.head).success && typeof session.repository.version === 'string'
     && revision.safeParse(session.freeze_revision).success, 'session_identity_invalid')
   requireProduction(session.fingerprint === bundle.fingerprint, 'session_configuration_changed_review_required')
   const last = session.attempts.at(-1)
-  requireProduction(session.stage === 'verified' && last?.verify === 'complete'
+  requireProduction((session.stage === 'verified' || (completed && session.stage === 'completed')) && last?.verify === 'complete'
     && ['complete', 'recovered_by_independent_verify'].includes(last.capture)
     && !['running', 'failed_or_unknown'].includes(last.recheck)
     && hash.safeParse(last.manifest_sha256).success && revision.safeParse(last.freeze_revision).success
@@ -74,18 +79,21 @@ function validateSession(session, bundle, backupRoot) {
   return last
 }
 
-function validateRemote(remote, session, bundle, release, options) {
+function validateRemote(remote, session, bundle, release, options, protections) {
   const { maintenance, database, deployment, github } = remote
   requireProduction(github.repository === githubRepository && github.source === session.repository.head
     && github.main === github.merge && github.merge === release.merge
     && github.pull_request === options.pull_request, 'github_source_or_main_unexpected')
   requireProduction(maintenance.verified === true && maintenance.control_plane_confirmed === true
-    && maintenance.state?.maintenance_production === true && hash.safeParse(maintenance.checkpoint).success
+    && maintenance.state?.maintenance_production === (protections?.maintenance_production ?? true)
+    && (!protections || maintenance.checkpoint === protections.maintenance_checkpoint)
+    && hash.safeParse(maintenance.checkpoint).success
     && maintenance.identity?.project_id === bundle.vercel.project_id
     && maintenance.identity?.team_id === bundle.vercel.team_id, 'maintenance_prematurely_open_or_unverified')
   requireProduction(database.identity?.system_id === bundle.target.system_id && database.identity?.session_user === 'postgres'
     && database.identity?.database === bundle.target.database, 'database_identity_unexpected')
-  requireProduction(database.state?.frozen === true && database.state.revision === session.freeze_revision, 'freeze_prematurely_open_or_changed')
+  requireProduction(protections ? isDeepStrictEqual(database.state, protections.database_state)
+    : database.state?.frozen === true && database.state.revision === session.freeze_revision, 'freeze_prematurely_open_or_changed')
   requireProduction(isDeepStrictEqual(database.migrations, release.migrations.map(({ version, name }) => ({ version, name }))), 'migration_history_unexpected')
   requireProduction(deployment.deployment_id === options.deployment_id && deployment.commit === release.merge
     && deployment.identity?.project_id === bundle.vercel.project_id && deployment.identity?.team_id === bundle.vercel.team_id
@@ -95,7 +103,7 @@ function validateRemote(remote, session, bundle, release, options) {
 
 // Caller owns the existing AUTO.3 lock and guarded session for the entire
 // operation. AUTO.4B keeps both through publication and independent reads.
-export async function prepareOpenInSession(bundle, input, io, api, { state, store, guard }) {
+export async function prepareOpenInSession(bundle, input, io, api, { state, store, guard, protections, completed = false }) {
   const parsed = optionsSchema.safeParse(input)
   requireProduction(parsed.success, 'preparation_options_invalid')
   const options = parsed.data
@@ -104,7 +112,7 @@ export async function prepareOpenInSession(bundle, input, io, api, { state, stor
     outcome: 'unknown', diagnostic: 'running_or_interrupted', binding: session.open_preparation?.binding, ...limits }
   session.open_preparation = run
   await store.save()
-  const attempt = validateSession(session, bundle, api.backupRoot)
+  const attempt = validateOpenSession(session, bundle, api.backupRoot, completed)
   await guard()
   const verified = await api.verify(attempt.directory)
   verifyArchiveBinding(verified, session, attempt, bundle)
@@ -136,7 +144,7 @@ export async function prepareOpenInSession(bundle, input, io, api, { state, stor
   const readRemote = async gh => ({ github: gh ?? await api.github(options.pull_request),
     maintenance: await api.maintenance(), database: await api.database(), deployment: await api.deployment(options.deployment_id) })
   const before = await readRemote(github)
-  validateRemote(before, session, bundle, release, options)
+  validateRemote(before, session, bundle, release, options, protections)
   await guard()
   const binding = { source: session.repository.head, merge: release.merge, version: release.version,
     pull_request: options.pull_request, deployment_id: options.deployment_id, changelog: release.changelog }
@@ -145,12 +153,13 @@ export async function prepareOpenInSession(bundle, input, io, api, { state, stor
   await store.save()
   const checkpoint = hashBytes(JSON.stringify({ session_id: session.id, archive: attempt.manifest_sha256,
     binding, remote: Object.fromEntries(Object.entries(before).map(([k, v]) => [k, stable(v)])) }))
-  const challenge = { run_id: run.run_id, session_id: session.id, checkpoint, started_at: run.started_at, binding }
+  const challenge = { run_id: run.run_id, session_id: session.id, checkpoint, started_at: run.started_at, binding,
+    ...(protections ? { protections } : {}) }
   await store.record('open_automatic_checks', 'AUTO4A_fresh_reads_and_PROD4_verify', { ...challenge, remote: before, release })
   const evidence = await io.attachEvidence?.(structuredClone(challenge))
   await guard()
   requireProduction(evidence, 'operator_evidence_missing')
-  const decoded = operatorEvidenceSchema.safeParse(evidence)
+  const decoded = (protections?.maintenance_production === false ? openOperatorEvidenceSchema : operatorEvidenceSchema).safeParse(evidence)
   requireProduction(decoded.success, 'operator_evidence_invalid_or_historical')
   const proof = decoded.data
   requireProduction(proof.run_id === run.run_id && proof.session_id === session.id && proof.checkpoint === checkpoint
@@ -161,7 +170,7 @@ export async function prepareOpenInSession(bundle, input, io, api, { state, stor
   // Human checks can take time: re-read all changing facts afterward. No
   // historical record supplies a new remote fact, including on resume.
   const after = await readRemote()
-  validateRemote(after, session, bundle, release, options)
+  validateRemote(after, session, bundle, release, options, protections)
   requireProduction(isDeepStrictEqual(Object.fromEntries(Object.entries(before).map(([k, v]) => [k, stable(v)])),
     Object.fromEntries(Object.entries(after).map(([k, v]) => [k, stable(v)])))
     && isDeepStrictEqual(await api.release(session.repository.head, github.merge), release)
@@ -173,21 +182,30 @@ export async function prepareOpenInSession(bundle, input, io, api, { state, stor
   await store.record('open_preparation_result', 'AUTO4A_observation_not_open_authorization', run)
   await guard()
   // Reuse the historical/archive proof once, but never reuse volatile facts.
-  const revalidate = async () => {
+  const revalidate = async (expectedProtections = protections) => {
     await guard()
-    validateSession(session, bundle, api.backupRoot)
+    validateOpenSession(session, bundle, api.backupRoot, completed)
     const current = await readRemote()
-    validateRemote(current, session, bundle, release, options)
-    requireProduction(isDeepStrictEqual(Object.fromEntries(Object.entries(after).map(([k, v]) => [k, stable(v)])),
+    validateRemote(current, session, bundle, release, options, expectedProtections)
+    // Changes owned by AUTO.4C must be supplied as exact independently read
+    // states. Everything else, including identities/contract/migrations, stays pinned.
+    const expected = structuredClone(after)
+    if (expectedProtections) {
+      expected.database.state = expectedProtections.database_state
+      expected.maintenance.state = { maintenance_production: expectedProtections.maintenance_production }
+      expected.maintenance.checkpoint = expectedProtections.maintenance_checkpoint
+    }
+    requireProduction(isDeepStrictEqual(Object.fromEntries(Object.entries(expected).map(([k, v]) => [k, stable(v)])),
       Object.fromEntries(Object.entries(current).map(([k, v]) => [k, stable(v)])))
       && isDeepStrictEqual(await api.release(session.repository.head, github.merge), release), 'remote_state_changed_during_preparation')
     await store.permissions()
     await guard()
+    return current
   }
   return { run, release, revalidate }
 }
 
-// No public prod:open command. Internal foundation for AUTO.4B/C only.
+// Internal foundation shared with the prod:open orchestrator.
 // api contains reads exclusively. io.attachEvidence may return no evidence;
 // readiness then stays blocked while all automatic results remain reviewable.
 export async function prepareOpen(bundle, input, io, api) {

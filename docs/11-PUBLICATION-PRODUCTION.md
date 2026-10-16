@@ -10,9 +10,9 @@ Version du dépôt : **`0.8.33`**, après correctif local du build Vercel (types
 
 ## État connu et provenance
 
-**AUTO.4A/B, 16 octobre 2026 :** préparation interne AUTO.4A conservée ; AUTO.4B ajoute publication PROD.6, reçu et relecture indépendante, preuve éligible AAL2 opérateur et reprise sans doublon dans la même session AUTO.3. Consentements Cloud/publication distincts ; état volatile revalidé, ancien `ready` ou reçu historique insuffisants. Tests mocks/isolés uniquement, aucune notification ou opération réelle. [Préparation](13-PRODUCTION-AUTOMATION.md#auto4a--préparation-de-réouverture), [publication et limites](13-PRODUCTION-AUTOMATION.md#auto4b--publication-et-vérification-du-changelog). `prod:open` complet et levée des protections restent à livrer en AUTO.4C ; exigences E inchangées.
+**AUTO.4A/B/C, 16 octobre 2026 :** `npm run prod:open` livré : préparation AUTO.4A, publication/relecture PROD.6 et preuve éligible AAL2 AUTO.4B, puis consentements de réouverture distincts, dégel AUTO.1 et réouverture Vercel AUTO.2. Même session/verrou AUTO.3 conservé jusqu'aux contrôles finaux et à la clôture, reprises partielles sans doublon ni bascule inutile. Ancien `ready` ou reçu historique insuffisants. Tests mocks/isolés uniquement, aucune notification ou opération réelle. [Commande, configuration et limites](13-PRODUCTION-AUTOMATION.md#auto4c--commande-finale-prodopen). Exigences E, PROD.4/5/6 et exception permanente `super_admin` inchangées ; AUTO.5 non commencé.
 
-**AUTO.3, 16 octobre 2026 :** `npm run prod:backup` orchestre les API AUTO.2/AUTO.1 et PROD.4, avec configuration et session protégées hors Git, consentements distincts, drainage technique et vérification indépendante. Validation sur mocks/secrets synthétiques uniquement ; aucune opération Cloud ni capture Production. [Usage, préparation initiale et reprise](13-PRODUCTION-AUTOMATION.md). `prod:open` reste futur. Selon le propriétaire à l'ouverture d'AUTO.2, `maintenance_production=true` ; aucune lecture distante ne rafraîchit cette déclaration ici. [Contrat Vercel, exclusivité et limites](#auto2--pilotage-vercel-production).
+**AUTO.3, 16 octobre 2026 :** `npm run prod:backup` orchestre les API AUTO.2/AUTO.1 et PROD.4, avec configuration et session protégées hors Git, consentements distincts, drainage technique et vérification indépendante. Validation sur mocks/secrets synthétiques uniquement ; aucune opération Cloud ni capture Production. [Usage, préparation initiale et reprise](13-PRODUCTION-AUTOMATION.md). Selon le propriétaire à l'ouverture d'AUTO.2, `maintenance_production=true` ; aucune lecture distante ne rafraîchit cette déclaration ici. [Contrat Vercel, exclusivité et limites](#auto2--pilotage-vercel-production).
 
 ### Observations dans le dépôt
 
@@ -142,7 +142,7 @@ Activation Supabase depuis `main` et attente de promotion Vercel sont **déclar�
 
 ### E — Notification et réouverture
 
-Déroulement automatisé cible conservé : **`prod:backup` → PR `dev` vers `main`, merge, déploiements, promotion et tests → futur `prod:open`**, qui devra vérifier la publication et le changelog avant dégel/réouverture. AUTO.3 n'implémente pas `prod:open` et ne supprime aucune exigence E.
+Déroulement automatisé livré : **`prod:backup` → PR `dev` vers `main`, merge, déploiements, promotion et tests → `prod:open`**. AUTO.4C compose les étapes suivantes sous le même verrou/session, avec autorisations et preuves propres à chacune ; aucune exigence E supprimée. [Usage/reprise](13-PRODUCTION-AUTOMATION.md#auto4c--commande-finale-prodopen). PR/merge, déploiements et promotion restent hors automatisation.
 
 1. Maintenance toujours active : vérifier rapidement la version réellement déployée et servie par le domaine après promotion, le commit et la compatibilité backend. Utiliser le moyen de contrôle opérateur protégé prévu par la maintenance.
 2. Après mise en service Cloud explicitement autorisée et vérifiée, utiliser le [publisher PROD.6](10-NOTIFICATION-PUBLICATION.md#cloud--commandes-powershell-et-autorisations) : `--check` avec cible/projet/version puis consentement `--authorize-publish --expect-hash` sur fichier examiné. Publier **une seule fois** notification et changelog public, comme **une publication de catégorie `changelog`**, pendant maintenance et gel toujours actifs. Aucune deuxième annonce parallèle.
@@ -153,7 +153,7 @@ Déroulement automatisé cible conservé : **`prod:backup` → PR `dev` vers `ma
 
 Les utilisateurs éligibles doivent trouver le changelog dès leur retour sur MY. Aucun ajout de polling ou de nouveaux comportements de notification : les lectures explicites Phase 8 restent le contrat.
 
-Si notification, contrôles ou levée d’une protection échouent, maintenir ou rétablir la fermeture et le gel selon la procédure de reprise validée. **Aucune réouverture automatique**, y compris après succès d’un build.
+Si notification, contrôles ou levée d’une protection échouent, identifier les états réellement confirmés et suivre la procédure de reprise validée. Une protection déjà levée ne doit jamais être annoncée fermée. Maintien ou rétablissement éventuel exigent décision opérateur ; aucune opération inverse automatique. **Aucune réouverture sans consentement explicite**, y compris après succès d’un build.
 
 ## Contrat du changelog et prérequis Cloud
 

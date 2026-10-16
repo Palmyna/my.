@@ -2,7 +2,7 @@ import { join, dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { decodeEvidence } from '../backup/contract.js'
 import { requireProduction } from './config.js'
-import { exists, loadSession, createSession, saveSession, record, lockSession } from './session.js'
+import { exists, loadSession, createSession, saveSession, record, lockSession, completedSession } from './session.js'
 import { verifyArchiveBinding } from './archive.js'
 
 function closedVercel(result) {
@@ -34,7 +34,8 @@ export async function runBackup(bundle, io, api) {
   let state
   try {
     state = await loadSession(config.sessions_directory)
-    if (!state) state = await createSession(config.sessions_directory, repository, bundle.fingerprint, config.project)
+    if (!state || completedSession(state.session)) state = await createSession(config.sessions_directory, repository,
+      bundle.fingerprint, config.project, state)
     const { folder, session } = state
     requireProduction(session.project === config.project && session.fingerprint === bundle.fingerprint,
       'session_configuration_changed_review_required')

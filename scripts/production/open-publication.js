@@ -42,6 +42,9 @@ const diagnostics = new Set(['publication_options_invalid', 'cloud_connect_autho
   'publication_binding_changed', 'publication_dispatch_contract_invalid', 'publication_receipt_changed', 'publication_absent',
   'visibility_identity_ineligible', 'visibility_evidence_missing_or_invalid', 'visibility_evidence_historical_or_mismatched',
   'visibility_identity_or_state_changed', 'publisher_target_changed', 'publisher_target_differs_from_session', 'publication_secret_channels_not_consumed'])
+export function publicationDiagnostic(error) {
+  return error instanceof ProductionError && diagnostics.has(error.message) ? error.message : undefined
+}
 
 function validateReceipt(value, binding, bundle) {
   const parsed = receiptSchema.safeParse(value)
@@ -76,14 +79,15 @@ function inspectState(value, publication, binding, bundle, receipt) {
   return { state, row, diagnostic: 'publication_active_exact' }
 }
 
-// Internal AUTO.4B entry, no prod:open command. A single shared AUTO.3 lock spans
-// preparation, consents, dispatch, independent reads and operator evidence.
-export async function publishOpenChangelog(bundle, input, io, api) {
+// AUTO.4C supplies its already-held AUTO.3 lock/store. Standalone callers keep
+// the original lock lifetime. No unlock/relock gap before reopening.
+export async function publishOpenChangelog(bundle, input, io, api, context) {
   let releaseLock, store, state, run, result, prepared
   const guard = async () => {
     requireProduction(!api.signal?.aborted, 'interrupted_state_unknown')
     api.checkConfiguration()
     if (store) await store.check()
+    if (context) await context.guard()
   }
   const persist = async () => {
     run.checked_at = now()
@@ -92,12 +96,16 @@ export async function publishOpenChangelog(bundle, input, io, api) {
   try {
     const options = inputSchema.safeParse(input)
     requireProduction(options.success, 'publication_options_invalid')
-    await api.prepare()
+    if (context) ({ state, store } = context)
+    else {
+      await api.prepare()
+      await guard()
+      releaseLock = await lockSession(api.lockDirectory)
+      state = await loadSession(bundle.config.sessions_directory)
+      requireProduction(state, 'session_missing')
+      store = await guardedSession(bundle.config.sessions_directory, state)
+    }
     await guard()
-    releaseLock = await lockSession(api.lockDirectory)
-    state = await loadSession(bundle.config.sessions_directory)
-    requireProduction(state, 'session_missing')
-    store = await guardedSession(bundle.config.sessions_directory, state)
     const { session } = state, previous = session.open_publication
     run = { format: 'my-production-open-publication-v1', session_id: session.id, run_id: randomUUID(), started_at: now(),
       ...limits, outcome: previous?.receipt ? 'existing_ineligible' : previous?.dispatch_started ? 'uncertain' : 'not_published',
@@ -116,7 +124,8 @@ export async function publishOpenChangelog(bundle, input, io, api) {
     await consent('cloud_connect', io.authorizeCloudConnect, { session_id: session.id, run_id: run.run_id,
       project: bundle.config.project, configuration_fingerprint: bundle.fingerprint })
     prepared = await prepareOpenInSession(bundle, { pull_request: options.data.pull_request, deployment_id: options.data.deployment_id },
-      io, api, { state, store, guard })
+      io, api, { state, store, guard, protections: context?.protections, completed: context?.completed })
+    if (context) context.prepared = prepared
     const binding = { ...prepared.run.binding, visibility_user_id: options.data.visibility_user_id }
     requireProduction(!run.binding || isDeepStrictEqual(run.binding, binding), 'publication_binding_changed')
     run.binding = binding
@@ -146,37 +155,40 @@ export async function publishOpenChangelog(bundle, input, io, api) {
     }
     const before = await read()
     requireProduction(!before.row || before.diagnostic === 'publication_active_exact', before.diagnostic)
-    await consent('publish', io.authorizePublish, { session_id: session.id, run_id: run.run_id,
-      preparation_checkpoint: prepared.run.checkpoint, binding })
-    // Connect/verify publisher first. Only this callback records possible SQL
-    // dispatch; connection failures before it cannot have inserted a new row.
-    const envelope = await api.publish(structuredClone(publication), async () => {
-      await prepared.revalidate()
-      requireProduction(isDeepStrictEqual(await api.publication(structuredClone(binding)), publication), 'publication_binding_changed')
+    if (context?.verifyOnly) requireProduction(run.receipt && before.row, 'publication_receipt_invalid')
+    else {
+      await consent('publish', io.authorizePublish, { session_id: session.id, run_id: run.run_id,
+        preparation_checkpoint: prepared.run.checkpoint, binding })
+      // Connect/verify publisher first. Only this callback records possible SQL
+      // dispatch; connection failures before it cannot have inserted a new row.
+      const envelope = await api.publish(structuredClone(publication), async () => {
+        await prepared.revalidate()
+        requireProduction(isDeepStrictEqual(await api.publication(structuredClone(binding)), publication), 'publication_binding_changed')
+        await guard()
+        run.dispatch_started = true
+        run.outcome = 'uncertain'
+        run.diagnostic = 'dispatch_started_receipt_not_durable'
+        await store.record('open_publication_dispatch', 'PROD6_same_file_key_hash_before_SQL',
+          { session_id: session.id, run_id: run.run_id, binding, started_at: now() })
+        await guard()
+      })
+      requireProduction(run.dispatch_started, 'publication_dispatch_contract_invalid')
+      const receipt = validateReceipt(envelope, binding, bundle)
+      requireProduction(!run.receipt || isDeepStrictEqual(run.receipt, receipt), 'publication_receipt_changed')
+      run.receipt = receipt
       await guard()
-      run.dispatch_started = true
-      run.outcome = 'uncertain'
-      run.diagnostic = 'dispatch_started_receipt_not_durable'
-      await store.record('open_publication_dispatch', 'PROD6_same_file_key_hash_before_SQL',
-        { session_id: session.id, run_id: run.run_id, binding, started_at: now() })
-      await guard()
-    })
-    requireProduction(run.dispatch_started, 'publication_dispatch_contract_invalid')
-    const receipt = validateReceipt(envelope, binding, bundle)
-    requireProduction(!run.receipt || isDeepStrictEqual(run.receipt, receipt), 'publication_receipt_changed')
-    run.receipt = receipt
-    await guard()
-    await store.record('open_publication_receipt', 'PROD6_verified_TLS_identity_ACL_and_PostgreSQL_receipt',
-      { session_id: session.id, run_id: run.run_id, binding, ...receipt })
+      await store.record('open_publication_receipt', 'PROD6_verified_TLS_identity_ACL_and_PostgreSQL_receipt',
+        { session_id: session.id, run_id: run.run_id, binding, ...receipt })
+    }
     const after = await read()
     requireProduction(after.row && after.diagnostic === 'publication_active_exact', after.diagnostic)
     const reader = after.state.reader
     requireProduction(reader?.user_id === binding.visibility_user_id && reader.profile_exists && reader.processed_at === null
       && (publication.include_new_users || notificationInstant(reader.registered_at) <= notificationInstant(after.row.published_at)),
     'visibility_identity_ineligible')
-    const checkpoint = hashBytes(JSON.stringify({ session_id: session.id, run_id: run.run_id, binding, receipt, read: run.last_read, reader }))
+    const checkpoint = hashBytes(JSON.stringify({ session_id: session.id, run_id: run.run_id, binding, receipt: run.receipt, read: run.last_read, reader }))
     const challenge = { session_id: session.id, run_id: run.run_id, checkpoint, started_at: now(),
-      project: bundle.config.project, user_id: binding.visibility_user_id, announcement_id: receipt.receipt.announcement_id,
+      project: bundle.config.project, user_id: binding.visibility_user_id, announcement_id: run.receipt.receipt.announcement_id,
       publication_key: binding.changelog.publication_key, content_hash: binding.changelog.content_hash, app_version: binding.version }
     await store.record('open_publication_visibility_challenge', 'fresh_read_bound_operator_RPC_challenge', challenge)
     const decoded = visibilityEvidenceSchema.safeParse(await io.attachVisibilityEvidence?.(structuredClone(challenge)))
@@ -210,7 +222,7 @@ export async function publishOpenChangelog(bundle, input, io, api) {
     if (error instanceof pg.DatabaseError && error.code === '23505' && error.message === 'publication_key_conflict') {
       diagnostic = 'publication_content_conflict'
       if (run) { run.outcome = 'existing_ineligible'; run.existence = 'present' }
-    } else if (error instanceof ProductionError && diagnostics.has(error.message)) diagnostic = error.message
+    } else if (publicationDiagnostic(error)) diagnostic = publicationDiagnostic(error)
     else {
       const failure = preparationFailure(error, api.signal?.aborted)
       if (failure.outcome === 'blocked') diagnostic = failure.diagnostic
@@ -249,4 +261,20 @@ export function publicationIsVerified(result, currentRunId) {
     && z.uuid().safeParse(currentRunId).success && result.outcome === 'verified' && result.visibility_verified === true
     && typeof result.visibility_evidence === 'string' && hash.safeParse(result.visibility_checkpoint).success
     && result.reopen_authorized === false && result.protections_changed === false
+}
+
+// A historical verified result is never sufficient. Reuse the exact PROD.6
+// receipt/row/audience checks on a new independent connection before each action.
+export async function revalidatePublishedChangelog(bundle, result, api) {
+  const binding = result.binding
+  const receipt = validateReceipt(result.receipt, binding, bundle)
+  const publication = publicationSchema.parse(await api.publication(structuredClone(binding)))
+  requireProduction(publicationHash(publication) === binding.changelog.content_hash
+    && publication.app_version === binding.version && publication.publication_key === binding.changelog.publication_key,
+  'publication_binding_changed')
+  const inspected = inspectState(await api.readPublication(structuredClone(binding)), publication, binding, bundle, receipt)
+  requireProduction(inspected.row && inspected.diagnostic === 'publication_active_exact', inspected.diagnostic)
+  requireProduction(isDeepStrictEqual(inspected.state.reader, result.last_read.reader), 'visibility_identity_or_state_changed')
+  return { announcement_id: inspected.row.announcement_id, content_hash: inspected.row.content_hash,
+    observed_at: inspected.state.observed_at, diagnostic: inspected.diagnostic }
 }

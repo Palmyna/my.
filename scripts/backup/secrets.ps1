@@ -1,7 +1,7 @@
 param(
   [Parameter(Mandatory=$true)][ValidateSet('ImportKey','Run')][string]$Action,
   [Parameter(Mandatory=$true)][string]$KeyFile,
-  [ValidateSet('Backup','Restore','ProductionBackup')][string]$Tool = 'Backup',
+  [ValidateSet('Backup','Restore','ProductionBackup','ProductionOpen')][string]$Tool = 'Backup',
   [string[]]$BackupArgs
 )
 $ErrorActionPreference = 'Stop'
@@ -52,7 +52,9 @@ if ($backupDirectory) {
 $protected = ConvertTo-SecureString ((Get-Content -LiteralPath $keyPath -Raw).Trim())
 $password = $null
 $vercelToken = $null
-if ($Tool -eq 'ProductionBackup' -or $BackupArgs -contains 'capture' -or $BackupArgs -contains '--command=capture') {
+$publisherPassword = $null
+$githubToken = $null
+if ($Tool -in @('ProductionBackup','ProductionOpen') -or $BackupArgs -contains 'capture' -or $BackupArgs -contains '--command=capture') {
   $password = Read-Host 'Selected PostgreSQL operator password' -AsSecureString
 }
 if ($Tool -eq 'Restore' -and ($BackupArgs -contains 'create' -or $BackupArgs -contains 'inspect' -or $BackupArgs -contains 'execute' -or
@@ -66,26 +68,41 @@ function Unprotect-InMemory([Security.SecureString]$value) {
 }
 try {
   if ($env:MY_BACKUP_KEY -or $env:MY_BACKUP_DATABASE_PASSWORD -or $env:MY_RESTORE_DATABASE_PASSWORD -or
-      ($Tool -eq 'ProductionBackup' -and $env:MY_VERCEL_MAINTENANCE_TOKEN)) { throw 'Clear inherited backup/restore secrets first.' }
-  if ($Tool -eq 'ProductionBackup') {
+      ($Tool -in @('ProductionBackup','ProductionOpen') -and $env:MY_VERCEL_MAINTENANCE_TOKEN) -or
+      ($Tool -eq 'ProductionOpen' -and ($env:MY_NOTIFICATION_DATABASE_PASSWORD -or $env:MY_NOTIFICATION_DATABASE_URL -or
+        $env:MY_PRODUCTION_GITHUB_TOKEN -or $env:MY_MAINTENANCE_DATABASE_PASSWORD))) { throw 'Clear inherited backup/restore/publication secrets first.' }
+  if ($Tool -in @('ProductionBackup','ProductionOpen')) {
     $vercelToken = Read-Host 'Vercel operator API token (approved secret store)' -AsSecureString
     $env:MY_VERCEL_MAINTENANCE_TOKEN = Unprotect-InMemory $vercelToken
+  }
+  if ($Tool -eq 'ProductionOpen') {
+    . (Join-Path $PSScriptRoot '../notifications/secrets.ps1') -LoadFunctionsOnly
+    $publisherPassword = Read-NotificationPublisherPassword
+    $env:MY_NOTIFICATION_DATABASE_PASSWORD = Unprotect-InMemory $publisherPassword
+    $githubToken = Read-Host 'GitHub read token (optional for public repository; empty to omit)' -AsSecureString
+    if ($githubToken.Length -gt 0) { $env:MY_PRODUCTION_GITHUB_TOKEN = Unprotect-InMemory $githubToken }
   }
   $env:MY_BACKUP_KEY = Unprotect-InMemory $protected
   if ($password) {
     if ($Tool -eq 'Restore') { $env:MY_RESTORE_DATABASE_PASSWORD = Unprotect-InMemory $password }
     else { $env:MY_BACKUP_DATABASE_PASSWORD = Unprotect-InMemory $password }
   }
-  $entry = if ($Tool -eq 'Restore') { 'restore.js' } elseif ($Tool -eq 'ProductionBackup') { '../production/cli.js' } else { 'cli.js' }
+  $entry = if ($Tool -eq 'Restore') { 'restore.js' } elseif ($Tool -eq 'ProductionBackup') { '../production/cli.js' } elseif ($Tool -eq 'ProductionOpen') { '../production/open-cli.js' } else { 'cli.js' }
   & node (Join-Path $PSScriptRoot $entry) @BackupArgs
   $result = $LASTEXITCODE
 } finally {
   Remove-Item Env:MY_BACKUP_KEY -ErrorAction SilentlyContinue
   Remove-Item Env:MY_BACKUP_DATABASE_PASSWORD -ErrorAction SilentlyContinue
   Remove-Item Env:MY_RESTORE_DATABASE_PASSWORD -ErrorAction SilentlyContinue
-  if ($Tool -eq 'ProductionBackup') { Remove-Item Env:MY_VERCEL_MAINTENANCE_TOKEN -ErrorAction SilentlyContinue }
+  if ($Tool -in @('ProductionBackup','ProductionOpen')) { Remove-Item Env:MY_VERCEL_MAINTENANCE_TOKEN -ErrorAction SilentlyContinue }
+  if ($Tool -eq 'ProductionOpen') {
+    Remove-Item Env:MY_NOTIFICATION_DATABASE_PASSWORD -ErrorAction SilentlyContinue
+    Remove-Item Env:MY_PRODUCTION_GITHUB_TOKEN -ErrorAction SilentlyContinue
+  }
   $protected.Dispose()
   if ($password) { $password.Dispose() }
   if ($vercelToken) { $vercelToken.Dispose() }
+  if ($publisherPassword) { $publisherPassword.Dispose() }
+  if ($githubToken) { $githubToken.Dispose() }
 }
 exit $result

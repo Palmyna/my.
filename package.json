@@ -34,6 +34,8 @@
     "maintenance:test:isolated": "node --test scripts/maintenance/cloud.integration.js",
     "backup": "node scripts/backup/cli.js",
     "prod:backup": "powershell.exe -NoProfile -File scripts/production/backup.ps1",
+    "prod:open": "powershell.exe -NoProfile -File scripts/production/open.ps1",
+    "prod:open:test": "node --test scripts/production/open.test.js",
     "prod:backup:test": "node --test scripts/production/backup.test.js",
     "prod:prepare:test": "node --test scripts/production/open-preparation.test.js",
     "prod:publication:test": "node --test scripts/production/open-publication.test.js",

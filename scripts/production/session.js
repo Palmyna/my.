@@ -41,6 +41,7 @@ export async function loadSession(directory) {
   requireProduction(session.format === 'my-production-session-v1' && session.id === id
     && Array.isArray(session.attempts) && Array.isArray(session.records), 'session_invalid')
   requireProduction(new Set(session.records.map(r => r.id)).size === session.records.length, 'session_evidence_duplicate')
+  const entries = []
   for (const ref of session.records) {
     requireProduction(typeof ref.id === 'string' && ref.id.startsWith('auto3-') && uuid.test(ref.id.slice(6)), 'session_evidence_reference_invalid')
     const file = join(folder, `${ref.id}.json`)
@@ -52,10 +53,39 @@ export async function loadSession(directory) {
     const entry = JSON.parse(bytes.toString('utf8'))
     requireProduction(entry.id === ref.id && entry.kind === ref.kind && entry.provenance === ref.provenance
       && entry.recorded_at === ref.recorded_at, 'session_evidence_reference_mismatch')
+    entries.push(entry)
   }
+  if (completedSession(session)) requireProduction(session.completed_at === session.open_reopening.completed_at
+    && entries.some(r => r.kind === 'open_reopening_result' && JSON.stringify(r.value) === JSON.stringify(session.open_reopening))
+    && entries.some(r => r.id === session.open_reopening.final_evidence && r.kind === 'open_final_evidence'
+      && r.value.run_id === session.open_reopening.run_id && r.value.session_id === session.id), 'session_completion_unverified')
   return { folder, session }
 }
-export async function createSession(directory, repository, fingerprint, project) {
+export function completedSession(session) {
+  return session?.format === 'my-production-session-v1' && session.stage === 'completed'
+    && Number.isFinite(Date.parse(session.completed_at)) && session.open_reopening?.outcome === 'completed'
+    && session.open_reopening?.states?.supabase === 'open' && session.open_reopening?.states?.vercel === 'open'
+    && typeof session.open_reopening.final_evidence === 'string'
+}
+async function checkHistoricalSessions(directory, currentId) {
+  const folders = (await fs.readdir(directory)).filter(name => uuid.test(name))
+  requireProduction(folders.includes(currentId), 'session_ambiguous')
+  for (const id of folders.filter(id => id !== currentId)) {
+    const folder = join(directory, id), file = join(folder, 'session.json')
+    requireProduction(await exists(file), 'session_ambiguous')
+    requireProduction(!(await fs.lstat(folder)).isSymbolicLink() && !(await fs.lstat(file)).isSymbolicLink()
+      && (await fs.stat(file)).size <= 16_777_216, 'session_reparse_path_refused')
+    // Historical folders never supply current evidence or authorization.
+    requireProduction(completedSession(JSON.parse(await fs.readFile(file, 'utf8'))), 'session_ambiguous')
+  }
+}
+export async function createSession(directory, repository, fingerprint, project, previous) {
+  if (previous) {
+    const current = await loadSession(directory)
+    requireProduction(completedSession(current?.session) && JSON.stringify(current.session) === JSON.stringify(previous.session),
+      'previous_session_not_completed')
+    await checkHistoricalSessions(directory, current.session.id)
+  }
   const id = randomUUID(), folder = join(directory, id)
   await fs.mkdir(folder, { mode: 0o700 })
   await restrictDirectory(folder)
@@ -63,7 +93,13 @@ export async function createSession(directory, repository, fingerprint, project)
     created_at: new Date().toISOString(), stage: 'prepared', attempts: [], records: [],
     restore_proven: false, production_recovery_proven: false, publication_authorized: false }
   await saveSession(folder, session)
-  await writeNew(join(directory, 'current.json'), { id })
+  if (previous) {
+    // Keep all completed UUID folders/archives. Only the current pointer moves,
+    // atomically, under AUTO.3's shared lock. An interrupted creation fails closed.
+    const temporary = join(directory, `pointer-${randomUUID()}.tmp`)
+    await writeNew(temporary, { id })
+    await fs.rename(temporary, join(directory, 'current.json'))
+  } else await writeNew(join(directory, 'current.json'), { id })
   return { folder, session }
 }
 export async function record(folder, session, kind, provenance, value) {
@@ -83,10 +119,16 @@ export async function lockSession(directory) {
   try { await writeNew(file, { nonce, pid: process.pid, created_at: new Date().toISOString(),
     recovery: 'inspect_process_and_session_then_manually_remove_only_this_exact_lock' }) }
   catch { requireProduction(false, 'operator_busy_or_interrupted_review_exact_lock') }
-  return async () => {
+  const check = async () => {
+    requireProduction(await exists(file) && !(await fs.lstat(file)).isSymbolicLink(), 'operator_lock_changed')
     requireProduction(JSON.parse(await fs.readFile(file, 'utf8')).nonce === nonce, 'operator_lock_changed')
+  }
+  const release = async () => {
+    await check()
     await fs.unlink(file)
   }
+  release.check = check
+  return release
 }
 
 // One shared AUTO.3 lock serializes cooperating backup/preparation callers.
@@ -98,8 +140,7 @@ export async function guardedSession(directory, state) {
     for (let part = resolve(state.folder); part !== parse(part).root; part = dirname(part)) {
       requireProduction(!(await fs.lstat(part)).isSymbolicLink(), 'session_reparse_path_refused')
     }
-    const folders = (await fs.readdir(directory)).filter(name => uuid.test(name))
-    requireProduction(folders.length === 1 && folders[0] === state.session.id, 'session_ambiguous')
+    await checkHistoricalSessions(directory, state.session.id)
     const loaded = await loadSession(directory)
     requireProduction(loaded?.session.id === state.session.id, 'session_changed_during_preparation')
     requireProduction(!compareSession || JSON.stringify(loaded.session) === JSON.stringify(state.session),
