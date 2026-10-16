@@ -10,6 +10,8 @@ Version du dépôt : **`0.8.33`**, après correctif local du build Vercel (types
 
 ## État connu et provenance
 
+**AUTO.4A, 16 octobre 2026 :** fondations internes de préparation de réouverture livrées : session AUTO.3, archive revérifiée, relation merge/source, lectures fraîches de publication/protections et changelog épinglé. Résultats `ready/blocked/unknown`, sans autorisation d'ouverture. Tests mocks/isolés uniquement, aucune opération réelle. [Contrat et limites](13-PRODUCTION-AUTOMATION.md#auto4a--préparation-de-réouverture). `prod:open`, publication et levée des protections restent à livrer séparément ; exigences E inchangées.
+
 **AUTO.3, 16 octobre 2026 :** `npm run prod:backup` orchestre les API AUTO.2/AUTO.1 et PROD.4, avec configuration et session protégées hors Git, consentements distincts, drainage technique et vérification indépendante. Validation sur mocks/secrets synthétiques uniquement ; aucune opération Cloud ni capture Production. [Usage, préparation initiale et reprise](13-PRODUCTION-AUTOMATION.md). `prod:open` reste futur. Selon le propriétaire à l'ouverture d'AUTO.2, `maintenance_production=true` ; aucune lecture distante ne rafraîchit cette déclaration ici. [Contrat Vercel, exclusivité et limites](#auto2--pilotage-vercel-production).
 
 ### Observations dans le dépôt

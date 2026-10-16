@@ -21,7 +21,7 @@ const diagnostics = new Set(['target_invalid', 'target_unreadable_or_inside_repo
   'api_response_invalid', 'unexpected_project_or_protection', 'production_config_binding_unverified',
   'unexpected_domain', 'unexpected_global_config', 'configuration_changed_fresh_read_required',
   'maintenance_value_invalid', 'authorization_required', 'local_operator_busy_or_interrupted',
-  'reread_contradicts_update', 'interrupted_state_unknown'])
+  'reread_contradicts_update', 'interrupted_state_unknown', 'production_deployment_unconfirmed'])
 export class VercelMaintenanceError extends Error {}
 export function safeDiagnostic(error) {
   return error instanceof VercelMaintenanceError && diagnostics.has(error.message)
@@ -189,6 +189,31 @@ export function createVercelMaintenance(target, token, { authorizeConnect, fetch
   }
   async function preflight() { return (await snapshot()).report }
 
+  // Alias resolution proves current domain assignment, unlike READY alone.
+  // Provider responses can contain secrets: expose only these validated fields.
+  async function publication(deploymentId) {
+    requireVercel(/^dpl_[a-zA-Z0-9]+$/.test(deploymentId), 'arguments_invalid')
+    await verifyTarget()
+    const aliasPath = `/v4/aliases/${t.domain}`
+    const before = await request(aliasPath)
+    const deployment = await request(`/v13/deployments/${deploymentId}?withGitRepoInfo=true`)
+    const after = await request(aliasPath)
+    requireVercel([before, after].every(a => a.alias === t.domain && a.projectId === t.project_id
+      && a.deploymentId === deploymentId && (!a.deployment || a.deployment.id === deploymentId)
+      && !a.redirect && !a.microfrontends)
+      && before.updatedAt === after.updatedAt && deployment.id === deploymentId
+      && deployment.projectId === t.project_id && deployment.target === 'production'
+      && deployment.readyState === 'READY' && deployment.aliasAssigned === true
+      && !deployment.aliasError && deployment.alias?.includes(t.domain)
+      && /^[a-f0-9]{40}$/.test(deployment.gitSource?.sha)
+      && deployment.gitSource.ref === 'main'
+      && (!deployment.meta?.githubCommitSha || deployment.meta.githubCommitSha === deployment.gitSource.sha),
+    'production_deployment_unconfirmed')
+    return { identity, deployment_id: deploymentId, commit: deployment.gitSource.sha,
+      domain_assignment: 'confirmed_by_fresh_alias_reads', target: 'production', ready: true,
+      observed_at: new Date().toISOString(), evidence_scope: 'control_plane_not_served_frontend_or_no_rebuild_proof' }
+  }
+
   async function setMaintenance(action, consent, emit = () => undefined) {
     requireVercel(['close', 'reopen'].includes(action) && consent?.exclusiveWriter === true
       && /^[a-f0-9]{64}$/.test(consent?.checkpoint ?? '')
@@ -232,5 +257,5 @@ export function createVercelMaintenance(target, token, { authorizeConnect, fetch
       changed, idempotent: !changed, independent_read: true, concurrency: 'local_lock_and_operator_exclusivity_not_atomic_CAS' }
   }
 
-  return { preflight, setMaintenance }
+  return { preflight, setMaintenance, publication }
 }

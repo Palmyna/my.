@@ -7,13 +7,13 @@ import { runBackup } from './backup.js'
 import { repositoryIdentity, parseCommand as freezeCommand, run as freezeRun, safeDiagnostic as freezeDiagnostic } from '../maintenance/cli.js'
 import { createVercelMaintenance, safeDiagnostic as vercelDiagnostic, VercelMaintenanceError, operatorLockPath } from '../maintenance/vercel.js'
 import { connectCloudOperator, cloudConnectionConfig } from '../maintenance/cloud.js'
-import { capture, verify } from '../backup/cli.js'
+import { capture } from '../backup/cli.js'
 import { requireClosed, identity as backupIdentity } from '../backup/database.js'
 import { observe } from '../maintenance/database.js'
 import { BackupError, diagnostic as backupDiagnostic } from '../backup/contract.js'
 import { MaintenanceError } from '../maintenance/database.js'
-import { encryptionKey, decryptJson, fileHash, restrictDirectory } from '../backup/secure-files.js'
-import { checkedNativePath } from '../backup/native.js'
+import { encryptionKey, restrictDirectory } from '../backup/secure-files.js'
+import { archiveVerifier } from './archive.js'
 
 export function safeDiagnostic(error) {
   if (error instanceof ProductionError) return error.message
@@ -78,14 +78,7 @@ export function productionAPI(bundle, secrets, signal, configFile) {
       try { return await capture(target, evidence, bundle.external, directory, { signal }) }
       finally { delete process.env.MY_BACKUP_KEY; delete process.env.MY_BACKUP_DATABASE_PASSWORD }
     },
-    async verify(directory) {
-      verifyMountedVolume(config)
-      checkedNativePath(directory, true)
-      const verification = await verify(directory, key)
-      const manifest = await decryptJson(join(directory, 'manifest.myb'), key)
-      const evidence = await decryptJson(join(directory, 'evidence.json.myb'), key)
-      return { verification, manifest, evidence, manifest_sha256: (await fileHash(join(directory, 'manifest.myb'))).sha256 }
-    },
+    verify: archiveVerifier(bundle, key),
     dispose() { key.fill(0); secrets.key = undefined; secrets.password = undefined; secrets.token = undefined },
   }
 }

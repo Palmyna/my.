@@ -21,6 +21,20 @@ export async function restrictDirectory(directory) {
     } catch { throw new BackupError('restrictive_ACL_failed') }
   } else await fs.chmod(directory, 0o700)
 }
+// Verify existing operator files without repairing or concealing a permissive
+// ACL. Paths travel on stdin, never through an interpolated shell command.
+export async function verifyPrivatePaths(paths) {
+  if (process.platform === 'win32') {
+    try {
+      execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+        "$ErrorActionPreference='Stop'; $sid=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $paths=ConvertFrom-Json ([Console]::In.ReadToEnd()); foreach($p in $paths) { $acl=Get-Acl -LiteralPath $p; foreach($r in $acl.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier])) { if($r.AccessControlType -eq 'Allow' -and $r.IdentityReference.Value -notin @($sid,'S-1-5-18')) { exit 1 } } }"],
+      { input: JSON.stringify(paths), timeout: 15_000, maxBuffer: 1_048_576,
+        windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+    } catch { throw new BackupError('operator_storage_permissions_unverified') }
+  } else {
+    for (const path of paths) requireBackup(((await fs.stat(path)).mode & 0o077) === 0, 'operator_storage_permissions_unverified')
+  }
+}
 export const bytes = value => Readable.from([Buffer.isBuffer(value) ? value : Buffer.from(value)])
 export const discard = () => new Writable({ write(_chunk, _encoding, done) { done() } })
 export async function encryptFile(input, filename, key) {

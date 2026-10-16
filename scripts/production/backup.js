@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { decodeEvidence } from '../backup/contract.js'
 import { requireProduction } from './config.js'
 import { exists, loadSession, createSession, saveSession, record, lockSession } from './session.js'
+import { verifyArchiveBinding } from './archive.js'
 
 function closedVercel(result) {
   requireProduction(result.verified === true && result.control_plane_confirmed === true
@@ -12,22 +13,6 @@ function closedFreeze(result, revision) {
   requireProduction(result.state?.frozen === true && result.state.revision === revision,
     'freeze_reread_contradictory')
 }
-function verifiedArchive(result, session, attempt, bundle) {
-  const { manifest, evidence, verification, manifest_sha256 } = result
-  requireProduction(verification?.outcome === 'capture_integrity_verified' && verification.restore_proven === false
-    && verification.publication_authorized === false, 'independent_verify_failed')
-  requireProduction(manifest.environment === 'cloud' && manifest.project === session.project
-    && manifest.identity.system_id === bundle.target.system_id
-    && JSON.stringify(manifest.target) === JSON.stringify(bundle.target)
-    && manifest.repository.head === session.repository.head && manifest.repository.version === session.repository.version
-    && manifest.repository.dirty === false && evidence.freeze_revision === attempt.freeze_revision
-    && /^[a-f0-9]{64}$/.test(manifest_sha256)
-    && (!attempt.manifest_sha256 || attempt.manifest_sha256 === manifest_sha256), 'archive_session_binding_mismatch')
-  for (const key of ['maintenance_evidence', 'freeze_committed_evidence', 'ordinary_writes_drained_evidence', 'privileged_coordination_evidence']) {
-    requireProduction(session.records.some(r => r.id === evidence[key]), 'archive_evidence_provenance_missing')
-  }
-}
-
 // Dependencies are internal APIs, replaced only by isolated test callers. The
 // operator CLI has no selectable transport, fixture hook, or consent bypass.
 export async function runBackup(bundle, io, api) {
@@ -91,7 +76,7 @@ export async function runBackup(bundle, io, api) {
       io.progress('Archive existante : vérification indépendante, aucun nouvel export ni nouvelle fermeture.')
       const verified = await api.verify(last.directory)
       guard()
-      verifiedArchive(verified, session, last, bundle)
+      verifyArchiveBinding(verified, session, last, bundle)
       const after = await vercel.preflight()
       closedVercel(after)
       requireProduction(after.checkpoint === beforeVercel.checkpoint, 'maintenance_changed_during_verify')
@@ -207,7 +192,7 @@ export async function runBackup(bundle, io, api) {
     guard()
     const verified = await api.verify(attempt.directory)
     guard()
-    verifiedArchive(verified, session, attempt, bundle)
+    verifyArchiveBinding(verified, session, attempt, bundle)
     const finalMaintenance = await vercel.preflight()
     closedVercel(finalMaintenance)
     requireProduction(finalMaintenance.checkpoint === maintenance.checkpoint, 'maintenance_changed_during_capture')

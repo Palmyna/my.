@@ -4,6 +4,8 @@ Backend livré et validé sur **Supabase Local** en 8G.3, version `0.8.16`. Aucu
 
 ## Changelog des publications Production
 
+AUTO.4A réutilise ce contrat **hors connexion** pour préparer le futur `prod:open` : fichier `scripts/notifications/releases/<version>.json` committé avec la source sauvegardée, catégorie/version/audience/expiration vérifiées, chemin/clé/hash normalisé et SHA-256 des octets épinglés dans la session AUTO.3. Aucun appel publisher ni publication. Les reprises AUTO.4B devront conserver exactement ce fichier et ces identifiants ; `ready` ne vaut pas consentement métier. [Préparation et limites](13-PRODUCTION-AUTOMATION.md#auto4a--préparation-de-réouverture).
+
 La [procédure Production](11-PUBLICATION-PRODUCTION.md) est la référence unique de l’ordre des opérations. Codex prépare le changelog public et le fichier de notification lors de chaque clôture publiable, avec la version correspondant à la livraison réelle. Une **publication de catégorie `changelog`** porte notification et contenu public dans le centre MY. ; aucune seconde annonce parallèle ni nouvelle page publique nécessaire.
 
 Préparer/valider localement sans diffusion réelle ni publication Cloud. Après maintenance et gel effectifs, backup, merge, réussite Supabase et promotion manuelle du build Vercel Production, vérifier la version effectivement déployée puis publier une seule fois **avant réouverture**. Relire le centre avec identité éligible, contrôler présence/contenu/version et absence de doublon ; lever ensuite gel Supabase puis maintenance Vercel. Échec ou réponse incertaine : fermeture conservée, même fichier/clé/hash pour reprise, jamais nouvelle clé pour contourner l’incertitude.
