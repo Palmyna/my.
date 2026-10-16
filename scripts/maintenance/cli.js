@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { MaintenanceError, operatorConnection, connectOperator, readFreeze, verifyContract, observe, probeOrdinary } from './database.js'
+import { cloudProject, cloudOperator } from './cloud.js'
 
 const root = new URL('../../', import.meta.url)
 const decimal = /^(0|[1-9]\d*)$/
@@ -10,6 +11,7 @@ export function parseCommand(args) {
   try {
     values = parseArgs({ args, strict: true, allowPositionals: false, options: {
       command: { type: 'string' }, environment: { type: 'string' }, project: { type: 'string' },
+      target: { type: 'string' }, 'authorize-cloud-connect': { type: 'boolean' }, 'authorize-close': { type: 'boolean' },
       'expect-system-id': { type: 'string' }, 'expect-revision': { type: 'string' },
       'authorize-reopen': { type: 'boolean' }, 'timeout-ms': { type: 'string' },
     } }).values
@@ -17,23 +19,29 @@ export function parseCommand(args) {
   const names = args.filter(a => a.startsWith('--')).map(a => a.split('=')[0])
   const commands = ['preflight', 'observe', 'close', 'verify-closed', 'reopen', 'verify-open']
   const bound = ['close', 'reopen', 'verify-closed', 'verify-open'].includes(values.command)
-  if (new Set(names).size !== names.length || !commands.includes(values.command) || values.environment !== 'local'
-    || values.project !== 'my-local' || (bound && (!decimal.test(values['expect-system-id'] ?? '') || !decimal.test(values['expect-revision'] ?? '')))
+  const cloud = values.environment === 'cloud'
+  if (new Set(names).size !== names.length || !commands.includes(values.command)
+    || (cloud ? values.project !== cloudProject || !values.target || values['authorize-cloud-connect'] !== true
+      || (values.command === 'close' ? values['authorize-close'] !== true : values['authorize-close'] !== undefined)
+      : values.environment !== 'local' || values.project !== 'my-local' || values.target !== undefined
+        || values['authorize-cloud-connect'] !== undefined || values['authorize-close'] !== undefined)
+    || (bound && (!decimal.test(values['expect-system-id'] ?? '') || !decimal.test(values['expect-revision'] ?? '')))
     || (!bound && (values['expect-system-id'] !== undefined || values['expect-revision'] !== undefined))
     || (values.command === 'reopen' ? values['authorize-reopen'] !== true : values['authorize-reopen'] !== undefined)
     || (values['timeout-ms'] !== undefined && (!/^[1-9]\d*$/.test(values['timeout-ms']) || Number(values['timeout-ms']) < 100 || Number(values['timeout-ms']) > 60_000))) {
-    throw new MaintenanceError('arguments_invalid_local_target_and_explicit_reopen_required')
+    throw new MaintenanceError('arguments_invalid_explicit_target_and_authorization_required')
   }
-  return { command: values.command, systemId: values['expect-system-id'], revision: values['expect-revision'], timeout: Number(values['timeout-ms'] ?? 15_000) }
+  return { command: values.command, environment: values.environment, project: values.project, target: values.target,
+    systemId: values['expect-system-id'], revision: values['expect-revision'], timeout: Number(values['timeout-ms'] ?? 15_000) }
 }
 
-export function repositoryIdentity() {
+export function repositoryIdentity(environment = 'local', project = 'my-local') {
   if (!/^project_id\s*=\s*"my-local"\s*$/m.test(readFileSync(new URL('supabase/config.toml', root), 'utf8'))) throw new MaintenanceError('repository_project_invalid')
   const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   const app = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'))
   const lock = JSON.parse(readFileSync(new URL('package-lock.json', root), 'utf8'))
   if (app.version !== lock.version || app.version !== lock.packages[''].version) throw new MaintenanceError('application_versions_mismatch')
-  return { project: 'my-local', environment: 'local', branch: git(['branch', '--show-current']), head: git(['rev-parse', 'HEAD']),
+  return { project, environment, branch: git(['branch', '--show-current']), head: git(['rev-parse', 'HEAD']),
     version: app.version, dirty: git(['status', '--porcelain']).length > 0 }
 }
 
@@ -43,9 +51,11 @@ function requireExpected(command, identity, state) {
 }
 
 export async function run(command, emit = () => undefined) {
-  const repository = repositoryIdentity()
-  const connection = operatorConnection()
-  const { client, identity } = await connectOperator(connection, command.timeout)
+  const cloud = command.environment === 'cloud'
+  const connection = cloud ? undefined : operatorConnection()
+  const open = cloud ? cloudOperator(command) : () => connectOperator(connection, command.timeout)
+  const repository = repositoryIdentity(command.environment, command.project)
+  const { client, identity } = await open()
   const common = { repository, identity, backup_authorized: false, global_closure: 'not_attested' }
   try {
     if (command.command === 'observe') return { ...common, state: await readFreeze(client), observation: await observe(client) }
@@ -56,24 +66,29 @@ export async function run(command, emit = () => undefined) {
       const frozen = command.command === 'close'
       emit({ ...common, action: command.command, requested: true, recorded: 'unknown', verified: false })
       await client.query('begin')
-      let provisional
+      let provisional, changed
       try {
         // Same transaction and ordering as PROD.2. CAS prevents stale consent reopening a newer closure.
         await client.query('select pg_advisory_xact_lock(771403)')
-        requireExpected(command, identity, await readFreeze(client))
-        await client.query('select private.set_business_write_freeze($1)::text', [frozen])
+        const before = await readFreeze(client)
+        requireExpected(command, identity, before)
+        changed = before.frozen !== frozen
+        if (changed) await client.query('select private.set_business_write_freeze($1)::text', [frozen])
         provisional = await readFreeze(client)
-        emit({ action: command.command, requested: true, recorded: 'provisional_before_commit', verified: false, state: provisional })
+        emit({ action: command.command, requested: true, recorded: 'provisional_before_commit', verified: false, state: provisional,
+          backup_authorized: false, global_closure: 'not_attested' })
         await client.query('commit')
       } catch (error) { await client.query('rollback').catch(() => undefined); throw error }
-      emit({ action: command.command, requested: true, recorded: 'commit_acknowledged', verified: false })
+      emit({ action: command.command, requested: true, recorded: 'commit_acknowledged', verified: false,
+        backup_authorized: false, global_closure: 'not_attested' })
       // Fresh socket, not a statement in the setter's snapshot.
-      const independent = await connectOperator(connection, command.timeout)
+      const independent = await open()
       try {
         const state = await readFreeze(independent.client)
         if (independent.identity.system_id !== identity.system_id || state.revision !== provisional.revision || state.frozen !== frozen) throw new MaintenanceError('committed_state_unverified')
         return { ...common, action: command.command, requested: true, recorded: 'committed', verified: true, state, contract,
-          independent_read: true, next: frozen ? 'verify-closed_then_external_coordination' : 'verify-open_then_manual_Vercel_reopen' }
+          changed, idempotent: !changed, independent_read: true,
+          next: frozen ? 'verify-closed_then_external_coordination' : 'verify-open_then_manual_Vercel_reopen' }
       } finally { await independent.client.end().catch(() => undefined) }
     }
     const frozen = command.command === 'verify-closed'
@@ -86,12 +101,20 @@ export async function run(command, emit = () => undefined) {
       if (state.frozen !== frozen) throw new MaintenanceError('freeze_state_unexpected')
       const observation = await observe(client)
       if (observation.admission_locks.length || observation.prepared_transactions.count !== '0') throw new MaintenanceError('drainage_uncertain_inspect_observe')
-      const probes = await probeOrdinary(connection, frozen, command.timeout)
+      // Cloud postgres cannot stand in for a real authenticator session:
+      // session_user would bypass PROD.2 even after SET ROLE. Never borrow the
+      // operator password or manufacture claims to claim an ordinary API probe.
+      const probes = cloud ? { verified: false, scope: 'ordinary_API_refusals_require_separate_evidence' }
+        : await probeOrdinary(connection, frozen, command.timeout)
       const after = await readFreeze(client)
       if (after.revision !== state.revision || after.frozen !== state.frozen) throw new MaintenanceError('freeze_state_changed')
       await client.query('commit')
-      return { ...common, state, contract, observation, probes, ordinary_writes: frozen ? 'closed_and_drained' : 'open_zero_row_probe_verified',
-        evidence_scope: 'Local_backend_only_at_observation', required_external_evidence: ['Vercel_authorized_HTTP',
+      return { ...common, state, contract, observation, probes,
+        ordinary_writes: cloud ? 'SQL_contract_verified_API_not_probed' : frozen ? 'closed_and_drained' : 'open_zero_row_probe_verified',
+        ...(cloud ? { drainage: 'no_admission_locks_or_prepared_transactions_at_observation',
+          super_admin_exception: 'preserved_not_probed', privileged_writer_exclusion: 'not_attested' } : {}),
+        evidence_scope: cloud ? 'Cloud_SQL_state_and_barrier_only_at_observation' : 'Local_backend_only_at_observation',
+        required_external_evidence: ['Vercel_authorized_HTTP',
           'privileged_writers_stopped_and_coordinated', 'Auth_internal_writes_and_consistent_backup_snapshot', 'Cloud_rehearsal_and_publication_prerequisites'] }
     } catch (error) { await client.query('rollback').catch(() => undefined); throw error }
   } finally { await client.end().catch(() => undefined) }
@@ -108,6 +131,7 @@ export async function main(args = process.argv.slice(2)) {
   const emit = result => console.log(JSON.stringify(result))
   const interrupted = () => {
     emit({ outcome: 'interrupted', recorded: 'unknown', verified: false, backup_authorized: false,
+      global_closure: 'not_attested',
       next: 'fresh_preflight_and_observe_required_no_automatic_reopen' })
     process.exit(130) // Close only this process's sockets; never terminate other backends.
   }
@@ -116,7 +140,7 @@ export async function main(args = process.argv.slice(2)) {
   try { emit(await run(parseCommand(args), emit)) }
   catch (error) {
     emit({ outcome: 'unverified', diagnostic: safeDiagnostic(error), recorded: 'unknown', verified: false,
-      backup_authorized: false, next: 'fresh_preflight_and_observe_required_no_automatic_reopen' })
+      backup_authorized: false, global_closure: 'not_attested', next: 'fresh_preflight_and_observe_required_no_automatic_reopen' })
     process.exitCode = 1
   } finally { process.off('SIGINT', interrupted); process.off('SIGTERM', interrupted) }
 }

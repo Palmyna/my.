@@ -1,0 +1,14 @@
+{
+  "format": "my-maintenance-target-v1",
+  "environment": "cloud",
+  "project": "xvtiwhxvtfxvvokquttu",
+  "connection": "direct",
+  "host": "db.xvtiwhxvtfxvvokquttu.supabase.co",
+  "port": 5432,
+  "database": "postgres",
+  "user": "postgres",
+  "system_id": "REPLACE_WITH_INDEPENDENTLY_VERIFIED_SYSTEM_ID",
+  "server_port": 5432,
+  "ca_file": "C:/MY-operator/maintenance/root.crt",
+  "ca_sha256": "REPLACE_WITH_VERIFIED_CA_SHA256"
+}

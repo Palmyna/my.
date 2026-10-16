@@ -29,6 +29,7 @@
     "maintenance:http": "node scripts/maintenance/http-check.js",
     "maintenance:test": "node --test scripts/maintenance/operator.test.js",
     "maintenance:test:local": "node scripts/maintenance/local.integration.js",
+    "maintenance:test:isolated": "node --test scripts/maintenance/cloud.integration.js",
     "backup": "node scripts/backup/cli.js",
     "backup:test": "node --test scripts/backup/operator.test.js scripts/backup/native.test.js",
     "backup:test:native": "node --test scripts/backup/native.integration.js",

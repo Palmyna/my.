@@ -230,6 +230,8 @@ GitHub `Palmyna/my.` ; `dev` pour développement, `main` par défaut et Producti
 
 Maintenance frontend persistante sans redéploiement et page MY. **503 sans cache**, gel backend des écritures/RPC/accès directs livrés. Installation et essais Cloud du gel confirmés depuis Preview avec `super_admin` ; refus ordinaires, drainage Cloud et contrôle du frontend Production avant réouverture restent à éprouver. Outillage de backup et restauration synthétique isolée livré ; première capture Cloud, restauration adaptée et publication/visibilité du changelog restent nécessaires pour PROD.7C. Réglages d’intégration et promotion manuelle déclarés configurés en PROD.7A, à revérifier. Aucun échec ne rouvre automatiquement le site ; rollback Vercel ne restaure pas la base. [clôture PROD.7B.2.3](reports/2026-10-15-PROD7B23-PREVIEW-CLOUD.md).
 
+Premier bloc d’automatisation du gel Cloud livré avec validations synthétiques isolées : cible et autorisations explicites, contrôles TLS/cluster et révision, sans opération Cloud. Orchestrateurs de sauvegarde et de réouverture restent séparés et non livrés. [Usage et portée AUTO.1](11-PUBLICATION-PRODUCTION.md#auto1--pilotage-cloud-du-gel).
+
 Les [blocs prévisionnels de réalisation](11-PUBLICATION-PRODUCTION.md#blocs-futurs-de-réalisation) seront affinés en petites sous-phases dans la référence opérationnelle, sans les détailler dans cette roadmap macro. Validation du workflow complet avant premiers tests d’utilisateurs réels ; maintenance frontend et gel backend sont implémentés, avec validations Preview/Cloud bornées par PROD.7B.2.3. Adaptation Cloud TCGdex distincte. **Phases 9 et 10 gardent leurs périmètres.**
 
 ### Phase 9 — Partage des collections

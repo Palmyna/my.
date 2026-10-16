@@ -410,7 +410,7 @@ Retour arrière éventuel : nouvelle migration additive rétablissant le corps c
 
 ## PROD.3 — Coordination opérateur
 
-**Livrée en `0.8.26`, répétée sur Local uniquement.** [CLI](../scripts/maintenance/cli.js), [contrôles SQL](../scripts/maintenance/database.js), [contrôles HTTP](../scripts/maintenance/http-check.js), [rapport](reports/2026-10-13-PROD3-COORDINATION.md). Aucun mécanisme PROD.1/PROD.2, RPC publique, frontend ou droit publisher modifié. Aucune bascule Global Config automatisée ; aucun credential supplémentaire. Les commandes DB refusent toute cible distante avant connexion. Les contrôles HTTP futurs sont générés hors connexion, jamais exécutés sur Cloud par cette sous-phase.
+**Livrée en `0.8.26`, répétée sur Local uniquement dans PROD.3.** [CLI](../scripts/maintenance/cli.js), [contrôles SQL](../scripts/maintenance/database.js), [contrôles HTTP](../scripts/maintenance/http-check.js), [rapport](reports/2026-10-13-PROD3-COORDINATION.md). Aucun mécanisme PROD.1/PROD.2, RPC publique, frontend ou droit publisher modifié. Les commandes Local refusent les cibles distantes ; [AUTO.1](#auto1--pilotage-cloud-du-gel) ajoute une sélection Cloud distincte au même moteur. Aucune bascule Global Config automatisée. Les contrôles HTTP sont générés hors connexion, jamais exécutés sur Cloud par ces sous-phases.
 
 ### Précontrôle et dossier opérateur
 
@@ -445,7 +445,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Précontrôle refusé' }
 node scripts/maintenance/cli.js --command close --environment local --project my-local --expect-system-id $maintenanceCheckpoint.identity.system_id --expect-revision $maintenanceCheckpoint.state.revision
 ```
 
-Sortie NDJSON : `requested=true, recorded=unknown`, puis `provisional_before_commit`, puis `commit_acknowledged`, enfin `recorded=committed, verified=true, independent_read=true`. Une sortie intermédiaire ne vaut pas succès final. La transaction prend exclusivement `771403`, vérifie la révision sous verrou, appelle le setter PROD.2 et commit. Une connexion fraîche au même `system_id` doit ensuite retrouver exactement le nouvel état et la nouvelle révision. BIGINT et identifiant système restent des chaînes décimales.
+Sortie NDJSON : `requested=true, recorded=unknown`, puis `provisional_before_commit`, puis `commit_acknowledged`, enfin `recorded=committed, verified=true, independent_read=true`. Une sortie intermédiaire ne vaut pas succès final. La transaction prend exclusivement `771403`, vérifie la révision sous verrou, appelle le setter PROD.2 seulement si l'état doit changer, puis commit. Depuis AUTO.1, une bascule déjà satisfaite renvoie `changed=false, idempotent=true` sans incrémenter la révision ; la comparaison de révision reste obligatoire. Une connexion fraîche au même `system_id` doit ensuite retrouver exactement l'état et la révision attendus. BIGINT et identifiant système restent des chaînes décimales.
 
 `ShareLock` accordé = admission ordinaire encore détenue ; `ExclusiveLock` en attente et ses blockers = fermeture en attente. Les writers admis doivent finir jusqu'au commit/rollback avant la borne de gel. Un lecteur qui verrouille le parent peut indirectement retarder cette borne. Timeout, deadlock, réponse perdue ou interruption : état **inconnu**, aucune réouverture ni relance automatique. Refaire précontrôle/observation depuis une connexion indépendante. Une bascule peut avoir committé malgré une réponse perdue ; une répétition exige la nouvelle révision examinée. Aucun kill automatique. `--timeout-ms` borne la commande (100–60 000 ms, défaut 15 000), jamais la maintenance.
 
@@ -506,6 +506,70 @@ node scripts/maintenance/cli.js --command verify-open --environment local --proj
 `reopen` sans `--authorize-reopen`, avec ancienne révision/cible ou contrat incomplet est refusé. Commit et relecture indépendante sont obligatoires comme à la fermeture. `verify-open` vérifie lectures et UPDATE zéro ligne autorisé ; compléter par une vraie mutation légitime sur identité/donnée synthétique isolée et sa relecture. **Lever backend d'abord**, puis décision explicite manuelle sur la bonne clé Vercel à `false`, `Save Items`, HTTP/routes/ressources/version et parcours Auth/MFA/backend. La répétition Local couvre mutation persistée et RPC Phase 8, puis HTTP 200. Aucun `finally`, succès, erreur, timeout ou arrêt du CLI ne rouvre le gel.
 
 Si levée backend confirmée mais frontend encore fermé : ne pas présumer la reprise ; diagnostiquer le frontend. En cas d'échec de reprise, l'opérateur décide explicitement de rétablir fermeture frontend puis gel, avec nouveau contrôle et drainage. Ce rétablissement n'est jamais automatique. Après `delete-account` refusée en gel, les sessions révoquées restent révoquées : reconnexion requise ; refus Auth natif 500 générique possible, distinct du REST 503. Pour Phase 8, garder UUID, payload/token, intention et reçu exacts ; réponse réseau incertaine ou reçu absent n'autorise aucune nouvelle opération aveugle.
+
+## AUTO.1 — Pilotage Cloud du gel
+
+**Implémenté et validé uniquement sur PostgreSQL/TLS synthétiques isolés. Aucune connexion ou bascule Cloud effectuée pendant AUTO.1.** [Rapport](reports/2026-10-16-AUTO1-CLOUD-FREEZE.md). Le moteur PROD.3, les fonctions/gardes/ACL PROD.2 et l'exception permanente `super_admin` sont conservés. Aucun orchestrateur de backup, publication, maintenance frontend ou réouverture automatique livré. Une réouverture reste une commande opérateur explicitement autorisée, pas une décision prise par l'outil.
+
+### Cible et prérequis
+
+Seul projet accepté : **`xvtiwhxvtfxvvokquttu`**. Préparer hors Git un fichier de cible strict selon [l'exemple volontairement inexécutable](../scripts/maintenance/examples/target.json), sans mot de passe, URL de connexion ni options libres. Renseigner `system_id` à partir d'une source opérateur indépendante et fiable ; ne pas déduire sa valeur d'un nombre de migrations ou d'une ancienne révision. Renseigner le chemin absolu de la CA approuvée et son SHA-256 vérifié. Aucun téléchargement automatique, acceptation du premier certificat ou valeur Production inventée.
+
+- Connexion directe : `connection=direct`, `host=db.xvtiwhxvtfxvvokquttu.supabase.co`, `user=postgres`, port `5432`. Réseau IPv6 fonctionnel ou accès direct IPv4 effectivement configuré requis.
+- Alternative choisie explicitement : `connection=session`, hostname exact Supavisor `aws-N-REGION.pooler.supabase.com` ou `gcp-N-REGION.pooler.supabase.com`, `user=postgres.xvtiwhxvtfxvvokquttu`, port `5432`. Aucun repli depuis direct, transaction pooler/port `6543` et dedicated pooler refusés. Supavisor réel reste à vérifier lors d'une intervention autorisée ; la répétition AUTO.1 utilise la connexion directe synthétique.
+- Identité PostgreSQL réelle `session_user=current_user=postgres`, base `postgres`, port serveur `5432`, réplication `origin`, lecture de `pg_control_system()` et visibilité complète via superuser ou appartenance effective à `pg_read_all_stats`. Échec de permission : arrêt, jamais ajout automatique de GRANT ou changement de rôle.
+- Parité exacte avec les migrations du dépôt et contrat vérifié : 17 fonctions, 24 gardes, ACL privées et publisher inchangés. Les confirmations historiques du propriétaire ne remplacent pas ces contrôles actuels.
+
+Le transport partage la validation TLS du publisher PROD.6 : CA épinglée, chaîne et hostname, protocole TLS 1.2/1.3, inspection du vrai `TLSSocket` client après connexion. `pg_stat_ssl` ne prouve pas le transport opérateur–pooler. Aucun `connectionString` Cloud ; variables héritées `PG*`, `MY_MAINTENANCE_DATABASE_URL` et désactivation TLS refusées. Le mot de passe provient de `MY_MAINTENANCE_DATABASE_PASSWORD`, consommé et supprimé de l'environnement Node avant tout sous-processus Git. Il reste seulement en mémoire pour la relecture indépendante.
+
+### Commandes Windows prévues, à exécuter seulement après autorisation Cloud
+
+Ces commandes documentent l'usage futur ; AUTO.1 ne les exécute pas sur le projet distant. Le wrapper demande le mot de passe par saisie masquée, le transmet temporairement au processus enfant, efface le BSTR et retire la variable dans `finally`. Aucun transcript, argument contenant un secret, fichier de résultat sensible ou variable `VITE_*`. Stocker le secret dans le gestionnaire approuvé ; aucun secret persistant créé par ce wrapper.
+
+```powershell
+$cloudFreezeArgs = @('--environment', 'cloud', '--project', 'xvtiwhxvtfxvvokquttu',
+  '--target', 'C:/MY-operator/maintenance/target.json', '--authorize-cloud-connect')
+$cloudFreezeCheckpoint = & ./scripts/maintenance/secrets.ps1 -MaintenanceArgs (@('--command', 'preflight') + $cloudFreezeArgs) | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Précontrôle Cloud non vérifié' }
+# Examiner repository, identity, state, contract et observation avant toute suite.
+& ./scripts/maintenance/secrets.ps1 -MaintenanceArgs (@('--command', 'observe') + $cloudFreezeArgs)
+```
+
+`--authorize-cloud-connect` est obligatoire pour **toutes** les commandes Cloud, lectures comprises. Il autorise la connexion sélectionnée, jamais une bascule. Un fichier absent/invalide, une erreur TLS, un secret manquant ou un refus d'identité ne déclenche jamais une connexion Local de secours.
+
+Après décision distincte de fermer, utiliser la révision examinée ; prendre seulement la dernière sortie NDJSON comme résultat final et vérifier le code de sortie :
+
+```powershell
+$cloudFreezeBound = @('--expect-system-id', $cloudFreezeCheckpoint.identity.system_id,
+  '--expect-revision', $cloudFreezeCheckpoint.state.revision)
+& ./scripts/maintenance/secrets.ps1 -MaintenanceArgs (@('--command', 'close') + $cloudFreezeArgs + $cloudFreezeBound + @('--authorize-close'))
+if ($LASTEXITCODE -ne 0) { throw 'Gel Cloud inconnu : préflight et observation frais requis' }
+```
+
+`close` et `reopen` prennent le même verrou exclusif transactionnel `771403`, comparent la révision **sous verrou**, évitent le setter si l'état est déjà satisfait, commit puis relisent sur un nouveau socket avec les mêmes contrôles TLS/cluster. Deux opérateurs utilisant la même révision avant une vraie bascule ne peuvent pas tous deux réussir. Une bascule idempotente conserve aussi contrôle de révision, commit et relecture indépendante.
+
+Relire un **nouveau** checkpoint `preflight`, l'examiner et reconstruire `$cloudFreezeBound` avant `verify-closed`, `verify-open` ou une nouvelle bascule. Ne jamais reprendre une ancienne révision après fermeture, erreur ou interruption.
+
+```powershell
+# Après nouvelle lecture et examen du checkpoint fermé :
+& ./scripts/maintenance/secrets.ps1 -MaintenanceArgs (@('--command', 'verify-closed') + $cloudFreezeArgs + $cloudFreezeBound)
+# Réouverture seulement après décision explicite distincte et préconditions E :
+& ./scripts/maintenance/secrets.ps1 -MaintenanceArgs (@('--command', 'reopen') + $cloudFreezeArgs + $cloudFreezeBound + @('--authorize-reopen'))
+```
+
+Le flag `--authorize-close` ne permet jamais `reopen` ; `--authorize-reopen` ne permet jamais `close`. Aucun flag `--force`, retry, timeout du gel ou réouverture en cleanup. Vérifier `$LASTEXITCODE` après chaque invocation. Code `0` : contrôle nommé réussi ; `1` : non vérifié/refus ; `130` : interruption gérée. Un arrêt forcé peut empêcher toute sortie ; absence de résultat final signifie état inconnu.
+
+### Portée des résultats et reprise
+
+`verify-closed` exige état fermé et révision actuelle, vérifie le contrat, tient la barrière partagée contre une bascule concurrente et refuse tout autre lock d'admission ou transaction préparée observés. Résultat Cloud : `evidence_scope=Cloud_SQL_state_and_barrier_only_at_observation`, `drainage=no_admission_locks_or_prepared_transactions_at_observation`. Les transactions privilégiées/Auth restent visibles sans SQL, adresse client ou identité MY. ; leur absence à cet instant ne les exclut pas durablement. L'exception `super_admin` peut admettre de nouveaux writers et n'est jamais désactivée par l'outil.
+
+Cloud ne reprend pas la connexion de probe Local : son mot de passe `postgres` n'authentifie pas `authenticator`, et `SET ROLE` depuis `postgres` conserverait le bypass `session_user`. Ainsi `probes.verified=false`, `ordinary_writes=SQL_contract_verified_API_not_probed`, `super_admin_exception=preserved_not_probed` et `privileged_writer_exclusion=not_attested`. Les refus ordinaires réels REST/RPC et le parcours Auth/MFA restent des preuves séparées à recueillir. `verify-open` confirme de même état ouvert/contrat/barrière, sans inventer une mutation API Cloud.
+
+Tous les résultats gardent **`backup_authorized=false` et `global_closure=not_attested`**. Ni le statut SQL, ni cette commande ne certifient frontend, arrêt durable des imports/publisher/opérateurs/`super_admin`, snapshot, sauvegarde ou récupération. Les contrats PROD.3/4 et les conditions E restent requis.
+
+Échec, timeout, interruption, commit sans accusé ou relecture différente : état **inconnu**, `verified=false`, diagnostic fixe sans erreur serveur brute. Refaire `preflight` et `observe` sur connexion fraîche, examiner la révision réelle puis choisir explicitement la prochaine commande. Si le gel est déjà actif après un commit incertain, un nouveau `close` avec la révision fraîche vérifie l'état sans l'incrémenter. Jamais de réouverture automatique, même lorsque la fermeture n'est pas attestée.
+
+Tests : `npm.cmd run maintenance:test` et `npm.cmd run maintenance:test:isolated`. La seconde commande crée un PostgreSQL jetable `network=none`, sans port/volume personnel, et route exclusivement les sockets de ses processus de test vers un proxy loopback. Tout autre endpoint est refusé avant DNS ; aucun mode de routage de test n'existe dans la CLI livrée. Elle exerce aussi les probes PROD.3 Local sur cette base isolée ; elle ne modifie pas `my-local`.
 
 ## PROD.4 — Outillage de sauvegarde
 

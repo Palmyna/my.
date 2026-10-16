@@ -29,20 +29,24 @@ export async function connectOperator(connection, timeout) {
   client.on('error', () => undefined)
   try {
     await client.connect()
-    const { rows: [identity] } = await client.query(`select session_user::text, current_user::text,
+    return { client, identity: await operatorIdentity(client) }
+  } catch (error) { await client.end().catch(() => undefined); throw error }
+}
+
+export async function operatorIdentity(client) {
+  const { rows: [identity] } = await client.query(`select session_user::text, current_user::text,
       current_database() as database, inet_server_port() as port,
       (pg_control_system()).system_identifier::text as system_id,
       current_setting('server_version') as postgres_version,
       current_setting('session_replication_role') as replication_role,
       (r.rolsuper or pg_has_role(current_user, 'pg_read_all_stats', 'USAGE')) as full_visibility
       from pg_roles r where r.rolname = current_user`)
-    if (!identity || !['postgres', 'supabase_admin'].includes(identity.session_user)
-      || identity.current_user !== identity.session_user || identity.database !== 'postgres' || identity.port !== 5432
-      || identity.replication_role !== 'origin' || identity.full_visibility !== true) {
-      throw new MaintenanceError('identity_or_visibility_invalid')
-    }
-    return { client, identity }
-  } catch (error) { await client.end().catch(() => undefined); throw error }
+  if (!identity || !['postgres', 'supabase_admin'].includes(identity.session_user)
+    || identity.current_user !== identity.session_user || identity.database !== 'postgres' || identity.port !== 5432
+    || identity.replication_role !== 'origin' || identity.full_visibility !== true) {
+    throw new MaintenanceError('identity_or_visibility_invalid')
+  }
+  return identity
 }
 
 export async function readFreeze(client) {

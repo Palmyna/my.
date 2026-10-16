@@ -1,10 +1,9 @@
 import { readFileSync, statSync } from 'node:fs'
-import { createHash } from 'node:crypto'
 import { isAbsolute } from 'node:path'
-import { TLSSocket, checkServerIdentity } from 'node:tls'
 import pg from 'pg'
 import { z } from 'zod'
 import { assertLocalUrl } from '../catalog/database.ts'
+import { verifiedTlsConfig, verifyPostgresTls } from '../postgres-tls.ts'
 
 export class NotificationCliError extends Error {}
 const role = 'my_notification_publisher'
@@ -64,15 +63,12 @@ export function cloudPublisherConfig(target: CloudTarget, password: string | und
   if (Object.keys(process.env).some(key => /^PG/i.test(key) && process.env[key])) {
     throw new NotificationCliError('Retirer les variables PG* héritées avant connexion Cloud. Seule la cible examinée configure le publisher.')
   }
-  let ca: Buffer
+  let ssl: pg.ClientConfig['ssl']
   try {
-    if (!statSync(t.ca_file).isFile() || statSync(t.ca_file).size > 1_000_000) throw new Error()
-    ca = readFileSync(t.ca_file)
-    if (createHash('sha256').update(ca).digest('hex') !== t.ca_sha256) throw new Error()
+    ssl = verifiedTlsConfig(t)
   } catch { throw new NotificationCliError('Autorité TLS absente, illisible ou empreinte différente. Aucun repli autorisé.') }
   return { host: t.host, port: t.port, database: t.database, user: t.user, password,
-    ssl: { ca, rejectUnauthorized: true, minVersion: 'TLSv1.2', servername: t.host,
-      checkServerIdentity: (_hostname, certificate) => checkServerIdentity(t.host, certificate) },
+    ssl,
     connectionTimeoutMillis: 10_000, statement_timeout: 15_000, query_timeout: 17_000,
     application_name: 'my-notification-publisher' }
 }
@@ -138,10 +134,7 @@ export async function verifyPublisher(client: pg.Client, target?: CloudTarget): 
 // pg exposes the negotiated TLSSocket through its connection. Check this leg,
 // not pg_stat_ssl: Supavisor's separate backend leg may use another transport.
 export function verifyPublisherTls(client: pg.Client, target: CloudTarget): void {
-  const stream: unknown = (client as unknown as { connection: { stream: unknown } }).connection.stream
-  if (!(stream instanceof TLSSocket) || stream.authorized !== true
-    || !['TLSv1.2', 'TLSv1.3'].includes(stream.getProtocol() ?? '')
-    || checkServerIdentity(target.host, stream.getPeerCertificate()) !== undefined) {
+  try { verifyPostgresTls(client, target) } catch {
     throw new NotificationCliError('TLS non vérifié, protocole ou hostname incohérent. Aucune écriture autorisée.')
   }
 }
