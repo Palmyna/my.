@@ -153,8 +153,7 @@ async function openPublisher(config: pg.ClientConfig, target?: CloudTarget): Pro
 export async function connectPublisher(connection = process.env.MY_NOTIFICATION_DATABASE_URL): Promise<pg.Client> {
   return await openPublisher(publisherConfig(connection))
 }
-export async function connectCloudPublisher(target: CloudTarget): Promise<pg.Client> {
-  const password = process.env.MY_NOTIFICATION_DATABASE_PASSWORD
+export async function connectCloudPublisher(target: CloudTarget, password = process.env.MY_NOTIFICATION_DATABASE_PASSWORD): Promise<pg.Client> {
   delete process.env.MY_NOTIFICATION_DATABASE_PASSWORD
   return await openPublisher(cloudPublisherConfig(target, password), target)
 }

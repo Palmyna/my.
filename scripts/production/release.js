@@ -6,6 +6,7 @@ import { notificationInstant } from '../../src/lib/notification-scalars.ts'
 import { hashBytes } from '../backup/secure-files.js'
 import { root } from '../backup/contract.js'
 import { requireProduction } from './config.js'
+import { isDeepStrictEqual } from 'node:util'
 
 const sha = /^[a-f0-9]{40}$/
 export const githubRepository = 'Palmyna/my.'
@@ -21,6 +22,20 @@ export function prepareChangelog(bytes, version, file, now = Date.now()) {
   return { file, file_sha256: hashBytes(bytes), publication_key: value.publication_key,
     content_hash: publicationHash(value), app_version: value.app_version, category: value.category,
     include_new_users: value.include_new_users, expires_at: value.expires_at }
+}
+
+export function readPinnedChangelog(changelog, version, directory = root) {
+  requireProduction(changelog.file === `scripts/notifications/releases/${version}.json`, 'changelog_invalid')
+  const actual = join(directory, changelog.file)
+  requireProduction(realpathSync(actual) === resolve(actual), 'changelog_reparse_path_refused')
+  for (let part = actual; part !== parse(part).root; part = dirname(part)) {
+    requireProduction(!lstatSync(part).isSymbolicLink(), 'changelog_reparse_path_refused')
+  }
+  requireProduction(lstatSync(actual).isFile() && lstatSync(actual).size <= 1_048_576, 'changelog_invalid')
+  const bytes = readFileSync(actual)
+  requireProduction(hashBytes(bytes) === changelog.file_sha256, 'changelog_worktree_differs_from_release')
+  requireProduction(isDeepStrictEqual(prepareChangelog(bytes, version, changelog.file), changelog), 'changelog_worktree_differs_from_release')
+  return publicationSchema.parse(JSON.parse(bytes.toString('utf8')))
 }
 
 // Immutable Git objects, never fetch/checkout/merge. Missing objects fail closed.
@@ -49,13 +64,7 @@ export function inspectRelease(source, merge, directory = root) {
   let bytes
   try { bytes = blob(file) } catch { requireProduction(false, 'changelog_committed_file_missing') }
   const changelog = prepareChangelog(bytes, app.version, file)
-  const actual = join(directory, file)
-  requireProduction(realpathSync(actual) === resolve(actual), 'changelog_reparse_path_refused')
-  for (let part = actual; part !== parse(part).root; part = dirname(part)) {
-    requireProduction(!lstatSync(part).isSymbolicLink(), 'changelog_reparse_path_refused')
-  }
-  requireProduction(lstatSync(actual).isFile() && lstatSync(actual).size <= 1_048_576
-    && hashBytes(readFileSync(actual)) === changelog.file_sha256, 'changelog_worktree_differs_from_release')
+  readPinnedChangelog(changelog, app.version, directory)
   const files = git(['ls-tree', '-r', '--name-only', source, '--', 'supabase/migrations']).split('\n')
   const migrations = files.map(file => {
     const match = /^supabase\/migrations\/(\d{14})_(.+)\.sql$/.exec(file)

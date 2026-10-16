@@ -4,6 +4,8 @@
 
 **AUTO.4A** ajoute les fondations internes de préparation de réouverture, décrites [ci-dessous](#auto4a--préparation-de-réouverture). Aucune commande `prod:open`, publication de notification ou levée de protection livrée. Version `0.8.33` conservée, comme AUTO.1–3 : outillage opérateur sans changement applicatif.
 
+**AUTO.4B** livre maintenant le mécanisme interne de publication/vérification du changelog, [décrit ci-dessous](#auto4b--publication-et-vérification-du-changelog). Aucun usage Production effectué ; `prod:open` et la levée des protections restent réservés à AUTO.4C. Version `0.8.33` conservée.
+
 ## Utilisation
 
 Depuis `dev`, source propre et committée, dans un terminal interactif Windows :
@@ -132,3 +134,65 @@ Même verrou `prod-backup.lock` qu'AUTO.3, sans TTL ni reprise automatique par P
 `openPreparationAPI` n'expose que lectures et vérification locale, avec autorisation de connexion explicite à sa construction. Le futur appelant devra consommer/nettoyer les canaux secrets **avant Git ou tout processus enfant**, conserver les identifiants en mémoire et appeler `dispose()` en `finally`, comme AUTO.3. Les erreurs fournisseurs et réponses privées sont supprimées des résultats. Aucun publisher ou setter de protection n'est appelé. Pas de wrapper interactif ou commande d'exploitation livré dans AUTO.4A ; seul `npm.cmd run prod:prepare:test` est ajouté.
 
 Validation : mocks HTTP/PostgreSQL, sessions/ACL et graphe Git synthétiques dans des dossiers temporaires isolés. Aucune lecture ou écriture des projets réels. [Rapport AUTO.4A](reports/2026-10-16-AUTO4A-OPEN-PREPARATION.md).
+
+## AUTO.4B — Publication et vérification du changelog
+
+Livraison **interne**, sans commande `prod:open` partielle. [Rapport AUTO.4B](reports/2026-10-16-AUTO4B-CHANGELOG-PUBLICATION.md). Aucune notification Production publiée pendant le développement ; aucune connexion aux projets réels, migration, capture, restauration, levée de gel ou de maintenance. Les droits SQL et RPC PROD.6 restent inchangés.
+
+### Interfaces pour AUTO.4C
+
+- `publishOpenChangelog(bundle, input, io, api)` dans `scripts/production/open-publication.js`. `input` fermé : `pull_request`, `deployment_id`, `visibility_user_id` (UUID du vrai utilisateur qui effectuera les relectures). Même session AUTO.3, même `current.json`, même verrou `prod-backup.lock`, mêmes écritures atomiques/empreintes/ACL. Le verrou reste détenu de la préparation jusqu'à la dernière relecture ; aucun second registre.
+- `prepareOpenInSession` extrait d'AUTO.4A pour réutiliser **une fois par exécution** la vérification historique complète et l'archive, sous le verrou de l'appelant. `prepareOpen` conserve son comportement et ses résultats. La fonction interne rend aussi `revalidate()` : nouvelles lectures GitHub, maintenance, gel/révision, migrations, build/alias, objets Git et octets du changelog, configuration et fichiers de session. Ces contrôles volatils sont refaits après consentement et après preuve opérateur ; aucun ancien `ready` ne suffit.
+- `openPublicationAPI(bundle, secrets, { publisherTargetFile, authorizeConnect: true, signal, configFile })` étend les lectures AUTO.4A, sans exposer de setter de protection. `publisherTargetFile` désigne le **fichier de cible PROD.6 existant**, hors Git et sans reparse point. Projet, système, endpoint, base, transport et CA doivent correspondre à la cible de la session ; seule l'identité dédiée du publisher diffère. Le fichier est épinglé pendant l'exécution. Pas de modification du format de configuration AUTO.3.
+- `readPinnedChangelog` vérifie chemin conventionnel, absence de reparse point, octets exacts, contrat PROD.6, version et expiration ; renvoie le contenu validé de ces mêmes octets. Aucun changement de clé, audience, expiration, hash ou fichier autorisé en reprise, même après simple reformatage.
+- `readPublishedChangelog` ouvre une **nouvelle connexion** AUTO.1 TLS/identité `postgres`, en transaction `repeatable read read only`. Elle relit la table privée déjà autorisée à cet opérateur, sans élargir les droits du publisher. Recherche par clé **ou changelog de même version**, limitée à deux lignes : une seconde ligne suffit à refuser la réouverture. Aucune requête SQL de mutation, attribution de rôle/JWT ou RPC utilisateur sous identité administrative.
+- `visibilityEvidenceSchema` décrit la preuve authentifiée ; `publicationIsVerified(result, currentRunId)` distingue le résultat vérifié de **l'exécution courante** d'une simple tentative. Ce prédicat ne donne aucun droit de réouverture. AUTO.4C devra revalider les faits actuels avant ses propres actions ; un résultat stocké reste une observation historique.
+
+### Consentements et secrets
+
+Deux consentements explicites distincts : `io.authorizeCloudConnect(challenge)` **avant toute lecture distante**, puis `io.authorizePublish(challenge)` après préparation et première relecture, avec livraison/fichier/clé/hash exacts. Seul le booléen `true` autorise la suite. Chaque consentement est enregistré avec session, nouvelle exécution, horodatage et périmètre. Le consentement d'export PROD.4 et `session.publication_authorized` ne sont jamais utilisés pour autoriser la publication. Le drapeau interne `authorizeConnect` ne remplace pas ces consentements.
+
+La future interface pourra présenter deux demandes regroupées, puis les preuves nécessaires, sans redemander l'accord pour chaque connexion technique. AUTO.4B ne livre pas encore ce wrapper interactif. `io.attachEvidence` reste le contrat contemporain AUTO.4A ; `io.attachVisibilityEvidence` est distinct, car il décrit des lectures réalisées **après** la publication.
+
+Le futur appelant doit appeler `consumeOpenSecrets()` **avant configuration, Git ou tout processus enfant**. Cette fonction consomme et supprime les canaux volatils existants `MY_BACKUP_KEY`, `MY_BACKUP_DATABASE_PASSWORD`, `MY_VERCEL_MAINTENANCE_TOKEN`, `MY_NOTIFICATION_DATABASE_PASSWORD` ; `MY_PRODUCTION_GITHUB_TOKEN` est optionnel pour les lectures GitHub privées. Aucun secret en arguments, session ou logs. `openPublicationAPI` refuse les canaux non consommés ; appeler `api.dispose()` en `finally`, et nettoyer également l'objet de secrets si la construction échoue. Les chaînes JavaScript ne constituent pas une enclave mémoire.
+
+La saisie masquée du publisher est réutilisable par dot-sourcing de `scripts/notifications/secrets.ps1 -LoadFunctionsOnly`, puis `Read-NotificationPublisherPassword`, qui retourne un `SecureString`. Le futur wrapper réutilisera le transfert volatil/BSTR/nettoyage déjà employé par PROD.4/6. Le CLI PROD.6 existant conserve son comportement ; `connectCloudPublisher` accepte désormais aussi le mot de passe fourni en mémoire, pour éviter de remettre un secret dans l'environnement avant les enfants Git.
+
+### Reçu, état réel et visibilité
+
+L'appel utilise exclusivement `publish` et `connectCloudPublisher` de PROD.6 : TLS, cluster, rôle réel, ACL et idempotence inchangés. Avant SQL, un relevé durable `open_publication_dispatch` conserve le binding exact ; `dispatch_started=true` signifie **requête pouvant avoir été envoyée**, pas insertion démontrée. La connexion/validation du publisher précède ce marqueur ; un échec de connexion avant celui-ci n'a pas effectué de publication dans cette exécution.
+
+Le reçu PostgreSQL est fermé : clé, UUID, date et hash. L'enveloppe porte l'identité vérifiée de la connexion ; le reçu SQL **ne contient pas de version**. La version est donc comparée au fichier et à la ligne relue indépendamment. Même UUID/date/clé/hash exigés lors d'une réponse idempotente ou d'une reprise avec reçu connu. La relecture compare aussi contenu complet normalisé et hash recalculé, auteur publisher, audience, expiration, absence de retrait et dates d'activité. Un reçu historique ne rend jamais visible une ligne retirée ou expirée.
+
+L'opérateur de relecture doit disposer d'une **vraie session Supabase authentifiée AAL2** du `visibility_user_id` épinglé, sur le bon projet. Le contrôle administratif vérifie existence Auth/profil, éligibilité par date d'inscription ou exception d'audience, et absence de traitement individuel. Il **ne prouve pas** une session utilisateur ou un AAL2 et ne tente pas d'en fabriquer un.
+
+Après la relecture indépendante, `io.attachVisibilityEvidence(challenge)` reçoit session, nouvelle exécution, checkpoint, heure de début du contrôle, projet, UUID utilisateur/annonce, clé, hash et version. Il doit fournir une preuve fermée `my-production-changelog-visibility-v1`, provenance `operator_verified_real_authenticated_RPC`, référence non secrète, date réelle du contrôle dans ce challenge et `aal=aal2`. Toutes les identités et le checkpoint doivent correspondre. L'opérateur atteste :
+
+1. Identité réelle et AAL2 de la session utilisés, confirmés par le parcours Auth autorisé.
+2. `get_notification_center` : parcourir toutes les pages nécessaires ; exactement une notification de la livraison, bon UUID, version, titre et révision/hash. Une première page sans annonce n'est pas une preuve d'absence.
+3. `get_notification_unread_count` : cohérence avec l'ensemble du centre et ses états existants ; aucun nombre fixe inventé pour une annonce déjà lue.
+4. `get_notification_content` pour cet UUID : contenu non nul et exact (titre, corps, version, révision/hash), conforme au fichier épinglé.
+5. Aucun appel `mark_notification_read` ou `process_notification`, aucune mutation de l'état individuel pendant le contrôle.
+
+Utiliser un client authentifié normalement admis, autorisé et apte à faire ces seules RPC de lecture. L'interface de l'application peut marquer automatiquement une annonce lue : ne pas utiliser un tel parcours comme contrôle sans mutation. Aucun JWT, cookie, email, mot de passe ou corps brut de réponse à joindre à la preuve. Aucun `service_role`, `SET ROLE`, `request.jwt.claims` fabriqué, login administratif ou bypass Vercel ne démontre ces lectures. Sans moyen sûr disponible, la preuve manque et le résultat reste non admissible ; aucune permission n'est ajoutée pour débloquer ce contrôle.
+
+Après la preuve : nouvelles observations des protections/livraison et nouvelle connexion indépendante pour l'annonce. Existence, activité et contenu encore exacts exigés ; identité et état individuel `read_at/processed_at` inchangés. Les relevés distinguent les lectures SQL automatiques des déclarations opérateur. Aucun contrôle de RPC utilisateur automatique n'est revendiqué. Le frontend Production servi sous maintenance reste une preuve AUTO.4A distincte.
+
+### Résultats et reprise
+
+`session.open_publication` conserve le dernier résultat `my-production-open-publication-v1`. Les relevés AUTO.3 existants reçoivent consentements, marqueur de dispatch, reçu, relectures, challenge/preuve de visibilité et résultat horodaté. Les relectures stockent métadonnées, identité, audience, expiration et état du lecteur ; ni corps privé ni secret. Le contenu complet est comparé en mémoire.
+
+| `outcome` | Signification |
+|---|---|
+| `verified` | Reçu valide, état réel actif/exact/unique, preuve éligible AAL2 liée à cette exécution, relectures finales concordantes |
+| `not_published` | Aucun dispatch par cette session ; pas de tentative SQL de publication démontrée. `existence=unobserved` ne prétend pas que la clé est absente du serveur |
+| `uncertain` | Dispatch possible sans confirmation suffisante, interruption, résultat non durable ou verrou altéré ; garder les protections |
+| `existing_ineligible` | Présence/reçu connus, mais retrait, expiration, conflit, doublon, preuve manquante ou préconditions non valides empêchent une réouverture |
+
+Tous les résultats portent `reopen_authorized=false`, `protections_changed=false`, `visibility_verified` explicite et une validité limitée aux observations. Une relecture indisponible après reçu reste `uncertain` ; une preuve de visibilité manquante après une ligne valide donne `existing_ineligible`. Le diagnostic précise la cause. Aucun de ces états ne déclenche d'action inverse.
+
+Réponse perdue, erreur réseau avant/après transaction ou redémarrage : réutiliser **la même session, livraison, version, utilisateur de vérification, fichier, octets, clé et hash**. Refaire consentements et preuves contemporaines. Le publisher reprend idempotemment avec le même UUID si la ligne existe ; aucune seconde notification ni clé de secours. Un conflit, retrait, expiration ou doublon demande un examen opérateur ; aucune correction automatique ni republication sous une autre clé. Si l'identité de vérification épinglée devient inutilisable, arrêt et examen opérateur de la session, sans édition automatique de son binding.
+
+Interruption : marqueur durable conservé, verrou sans TTL ni suppression automatique. Examiner session et processus/enfants, confirmer leur arrêt, puis retirer seulement le verrou exact selon AUTO.3 avant reprise. Les verrous coordonnent les outils coopérants ; les hashes détectent la corruption ou les changements observables, sans signature contre un administrateur hostile. Aucune transaction distribuée ne peut figer simultanément GitHub, Vercel et PostgreSQL : coordination des writers privilégiés toujours obligatoire. Toute divergence observée interdit `verified`.
+
+Tests exclusivement simulés et fichiers/ACL temporaires isolés : `npm.cmd run prod:publication:test`. Aucun banc PostgreSQL, Supabase Local/Cloud ou Vercel réel nécessaire à cette validation.

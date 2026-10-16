@@ -42,7 +42,7 @@ const blocked = new Set(['session_missing', 'session_incomplete', 'session_ident
   'migration_history_unexpected', 'deployment_unexpected', 'release_binding_changed', 'operator_evidence_missing',
   'operator_evidence_invalid_or_historical', 'remote_state_changed_during_preparation', 'preparation_options_invalid'])
 
-function failure(error, interrupted) {
+export function preparationFailure(error, interrupted) {
   if (interrupted) return { outcome: 'unknown', diagnostic: 'interrupted_state_unknown' }
   if (error instanceof ProductionError && blocked.has(error.message)) return { outcome: 'blocked', diagnostic: error.message }
   // No provider errors, paths from exceptions, response bodies or credentials.
@@ -93,6 +93,100 @@ function validateRemote(remote, session, bundle, release, options) {
     && deployment.ready === true && deployment.domain_assignment === 'confirmed_by_fresh_alias_reads', 'deployment_unexpected')
 }
 
+// Caller owns the existing AUTO.3 lock and guarded session for the entire
+// operation. AUTO.4B keeps both through publication and independent reads.
+export async function prepareOpenInSession(bundle, input, io, api, { state, store, guard }) {
+  const parsed = optionsSchema.safeParse(input)
+  requireProduction(parsed.success, 'preparation_options_invalid')
+  const options = parsed.data
+  const { session, folder } = state
+  const run = { format: 'my-production-open-preparation-v1', run_id: randomUUID(), started_at: new Date().toISOString(),
+    outcome: 'unknown', diagnostic: 'running_or_interrupted', binding: session.open_preparation?.binding, ...limits }
+  session.open_preparation = run
+  await store.save()
+  const attempt = validateSession(session, bundle, api.backupRoot)
+  await guard()
+  const verified = await api.verify(attempt.directory)
+  verifyArchiveBinding(verified, session, attempt, bundle)
+  const records = await sessionRecords(folder, session)
+  requireProduction(records.some(r => ['verified_archive', 'verified_archive_rechecked', 'verified_archive_recovered'].includes(r.kind)
+    && r.value.directory === attempt.directory && r.value.manifest_sha256 === attempt.manifest_sha256
+    && r.value.verification?.outcome === 'capture_integrity_verified')
+    && records.some(r => r.kind === 'capture_evidence' && isDeepStrictEqual(r.value, verified.evidence))
+    && records.some(r => r.id === verified.evidence.freeze_committed_evidence
+      && r.provenance === 'AUTO1_commit_and_independent_read' && r.value.verified === true
+      && r.value.independent_read === true && r.value.state?.frozen === true
+      && r.value.state.revision === attempt.freeze_revision), 'archive_record_contradictory')
+  const attestation = records.find(r => r.id === verified.evidence.maintenance_evidence)
+  const drainage = records.find(r => r.id === verified.evidence.ordinary_writes_drained_evidence)
+  requireProduction(attestation?.kind === 'closure_attestation'
+    && attestation.provenance === 'operator_declaration_not_automatic_measurement'
+    && attestation.id === verified.evidence.privileged_coordination_evidence
+    && attestation.value.authenticated_http_503 === true && attestation.value.privileged_writers_excluded_until_end === true
+    && attestation.value.ddl_roles_configuration_excluded_until_end === true
+    && attestation.value.http_checked_at === verified.evidence.maintenance_checked_at
+    && drainage?.kind === 'drainage' && drainage.provenance === 'PROD4_requireClosed_fresh_TLS_transaction'
+    && drainage.value.state?.frozen === true && drainage.value.state.revision === attempt.freeze_revision,
+  'archive_record_contradictory')
+  await guard()
+  const github = await api.github(options.pull_request)
+  requireProduction(github.source === session.repository.head && github.main === github.merge, 'github_source_or_main_unexpected')
+  const release = await api.release(session.repository.head, github.merge)
+  requireProduction(release.version === session.repository.version, 'release_version_unexpected')
+  const readRemote = async gh => ({ github: gh ?? await api.github(options.pull_request),
+    maintenance: await api.maintenance(), database: await api.database(), deployment: await api.deployment(options.deployment_id) })
+  const before = await readRemote(github)
+  validateRemote(before, session, bundle, release, options)
+  await guard()
+  const binding = { source: session.repository.head, merge: release.merge, version: release.version,
+    pull_request: options.pull_request, deployment_id: options.deployment_id, changelog: release.changelog }
+  requireProduction(!run.binding || isDeepStrictEqual(run.binding, binding), 'release_binding_changed')
+  run.binding = binding
+  await store.save()
+  const checkpoint = hashBytes(JSON.stringify({ session_id: session.id, archive: attempt.manifest_sha256,
+    binding, remote: Object.fromEntries(Object.entries(before).map(([k, v]) => [k, stable(v)])) }))
+  const challenge = { run_id: run.run_id, session_id: session.id, checkpoint, started_at: run.started_at, binding }
+  await store.record('open_automatic_checks', 'AUTO4A_fresh_reads_and_PROD4_verify', { ...challenge, remote: before, release })
+  const evidence = await io.attachEvidence?.(structuredClone(challenge))
+  await guard()
+  requireProduction(evidence, 'operator_evidence_missing')
+  const decoded = operatorEvidenceSchema.safeParse(evidence)
+  requireProduction(decoded.success, 'operator_evidence_invalid_or_historical')
+  const proof = decoded.data
+  requireProduction(proof.run_id === run.run_id && proof.session_id === session.id && proof.checkpoint === checkpoint
+    && Date.parse(proof.checked_at) >= Date.parse(run.started_at) && Date.parse(proof.checked_at) <= Date.now()
+    && proof.served_version === release.version && proof.served_commit === release.merge
+    && proof.deployment_id === options.deployment_id, 'operator_evidence_invalid_or_historical')
+  await store.record('open_operator_evidence', 'operator_verified_not_automatic', proof)
+  // Human checks can take time: re-read all changing facts afterward. No
+  // historical record supplies a new remote fact, including on resume.
+  const after = await readRemote()
+  validateRemote(after, session, bundle, release, options)
+  requireProduction(isDeepStrictEqual(Object.fromEntries(Object.entries(before).map(([k, v]) => [k, stable(v)])),
+    Object.fromEntries(Object.entries(after).map(([k, v]) => [k, stable(v)])))
+    && isDeepStrictEqual(await api.release(session.repository.head, github.merge), release)
+    && await api.archiveHash(attempt.directory, verified.manifest) === attempt.manifest_sha256, 'remote_state_changed_during_preparation')
+  await guard()
+  await store.permissions()
+  Object.assign(run, { outcome: 'ready', diagnostic: 'preconditions_observed_next_steps_require_authorization',
+    checked_at: new Date().toISOString(), checkpoint })
+  await store.record('open_preparation_result', 'AUTO4A_observation_not_open_authorization', run)
+  await guard()
+  // Reuse the historical/archive proof once, but never reuse volatile facts.
+  const revalidate = async () => {
+    await guard()
+    validateSession(session, bundle, api.backupRoot)
+    const current = await readRemote()
+    validateRemote(current, session, bundle, release, options)
+    requireProduction(isDeepStrictEqual(Object.fromEntries(Object.entries(after).map(([k, v]) => [k, stable(v)])),
+      Object.fromEntries(Object.entries(current).map(([k, v]) => [k, stable(v)])))
+      && isDeepStrictEqual(await api.release(session.repository.head, github.merge), release), 'remote_state_changed_during_preparation')
+    await store.permissions()
+    await guard()
+  }
+  return { run, release, revalidate }
+}
+
 // No public prod:open command. Internal foundation for AUTO.4B/C only.
 // api contains reads exclusively. io.attachEvidence may return no evidence;
 // readiness then stays blocked while all automatic results remain reviewable.
@@ -113,83 +207,13 @@ export async function prepareOpen(bundle, input, io, api) {
     state = await loadSession(bundle.config.sessions_directory)
     requireProduction(state, 'session_missing')
     store = await guardedSession(bundle.config.sessions_directory, state)
-    const { session, folder } = state
-    run = { format: 'my-production-open-preparation-v1', run_id: randomUUID(), started_at: new Date().toISOString(),
-      outcome: 'unknown', diagnostic: 'running_or_interrupted', binding: session.open_preparation?.binding, ...limits }
-    session.open_preparation = run
-    await store.save()
-    const attempt = validateSession(session, bundle, api.backupRoot)
-    await guard()
-    const verified = await api.verify(attempt.directory)
-    verifyArchiveBinding(verified, session, attempt, bundle)
-    const records = await sessionRecords(folder, session)
-    requireProduction(records.some(r => ['verified_archive', 'verified_archive_rechecked', 'verified_archive_recovered'].includes(r.kind)
-      && r.value.directory === attempt.directory && r.value.manifest_sha256 === attempt.manifest_sha256
-      && r.value.verification?.outcome === 'capture_integrity_verified')
-      && records.some(r => r.kind === 'capture_evidence' && isDeepStrictEqual(r.value, verified.evidence))
-      && records.some(r => r.id === verified.evidence.freeze_committed_evidence
-        && r.provenance === 'AUTO1_commit_and_independent_read' && r.value.verified === true
-        && r.value.independent_read === true && r.value.state?.frozen === true
-        && r.value.state.revision === attempt.freeze_revision), 'archive_record_contradictory')
-    const attestation = records.find(r => r.id === verified.evidence.maintenance_evidence)
-    const drainage = records.find(r => r.id === verified.evidence.ordinary_writes_drained_evidence)
-    requireProduction(attestation?.kind === 'closure_attestation'
-      && attestation.provenance === 'operator_declaration_not_automatic_measurement'
-      && attestation.id === verified.evidence.privileged_coordination_evidence
-      && attestation.value.authenticated_http_503 === true && attestation.value.privileged_writers_excluded_until_end === true
-      && attestation.value.ddl_roles_configuration_excluded_until_end === true
-      && attestation.value.http_checked_at === verified.evidence.maintenance_checked_at
-      && drainage?.kind === 'drainage' && drainage.provenance === 'PROD4_requireClosed_fresh_TLS_transaction'
-      && drainage.value.state?.frozen === true && drainage.value.state.revision === attempt.freeze_revision,
-    'archive_record_contradictory')
-    await guard()
-    const github = await api.github(options.pull_request)
-    requireProduction(github.source === session.repository.head && github.main === github.merge, 'github_source_or_main_unexpected')
-    const release = await api.release(session.repository.head, github.merge)
-    requireProduction(release.version === session.repository.version, 'release_version_unexpected')
-    const readRemote = async gh => ({ github: gh ?? await api.github(options.pull_request),
-      maintenance: await api.maintenance(), database: await api.database(), deployment: await api.deployment(options.deployment_id) })
-    const before = await readRemote(github)
-    validateRemote(before, session, bundle, release, options)
-    await guard()
-    const binding = { source: session.repository.head, merge: release.merge, version: release.version,
-      pull_request: options.pull_request, deployment_id: options.deployment_id, changelog: release.changelog }
-    requireProduction(!run.binding || isDeepStrictEqual(run.binding, binding), 'release_binding_changed')
-    run.binding = binding
-    await store.save()
-    const checkpoint = hashBytes(JSON.stringify({ session_id: session.id, archive: attempt.manifest_sha256,
-      binding, remote: Object.fromEntries(Object.entries(before).map(([k, v]) => [k, stable(v)])) }))
-    const challenge = { run_id: run.run_id, session_id: session.id, checkpoint, started_at: run.started_at, binding }
-    await store.record('open_automatic_checks', 'AUTO4A_fresh_reads_and_PROD4_verify', { ...challenge, remote: before, release })
-    const evidence = await io.attachEvidence?.(structuredClone(challenge))
-    await guard()
-    requireProduction(evidence, 'operator_evidence_missing')
-    const decoded = operatorEvidenceSchema.safeParse(evidence)
-    requireProduction(decoded.success, 'operator_evidence_invalid_or_historical')
-    const proof = decoded.data
-    requireProduction(proof.run_id === run.run_id && proof.session_id === session.id && proof.checkpoint === checkpoint
-      && Date.parse(proof.checked_at) >= Date.parse(run.started_at) && Date.parse(proof.checked_at) <= Date.now()
-      && proof.served_version === release.version && proof.served_commit === release.merge
-      && proof.deployment_id === options.deployment_id, 'operator_evidence_invalid_or_historical')
-    await store.record('open_operator_evidence', 'operator_verified_not_automatic', proof)
-    // Human checks can take time: re-read all changing facts afterward. No
-    // historical record supplies a new remote fact, including on resume.
-    const after = await readRemote()
-    validateRemote(after, session, bundle, release, options)
-    requireProduction(isDeepStrictEqual(Object.fromEntries(Object.entries(before).map(([k, v]) => [k, stable(v)])),
-      Object.fromEntries(Object.entries(after).map(([k, v]) => [k, stable(v)])))
-      && isDeepStrictEqual(await api.release(session.repository.head, github.merge), release)
-      && await api.archiveHash(attempt.directory, verified.manifest) === attempt.manifest_sha256, 'remote_state_changed_during_preparation')
-    await guard()
-    await store.permissions()
-    Object.assign(run, { outcome: 'ready', diagnostic: 'preconditions_observed_next_steps_require_authorization',
-      checked_at: new Date().toISOString(), checkpoint })
-    await store.record('open_preparation_result', 'AUTO4A_observation_not_open_authorization', run)
-    await guard()
-    result = { session_id: session.id, ...run }
+    const prepared = await prepareOpenInSession(bundle, options, io, api, { state, store, guard })
+    run = prepared.run
+    result = { session_id: state.session.id, ...run }
   } catch (error) {
     result = { ...(state ? { session_id: state.session.id } : {}),
-      ...limits, ...failure(error, api.signal?.aborted), checked_at: new Date().toISOString() }
+      ...limits, ...preparationFailure(error, api.signal?.aborted), checked_at: new Date().toISOString() }
+    run ??= state?.session.open_preparation
     if (run && store) {
       Object.assign(run, result)
       try { await store.record('open_preparation_result', 'AUTO4A_observation_not_open_authorization', run) }
