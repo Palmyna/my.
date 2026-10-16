@@ -1,0 +1,10 @@
+{
+  "format": "my-vercel-maintenance-target-v1",
+  "environment": "production",
+  "project": "my",
+  "domain": "my.collectrealm.com",
+  "project_id": "prj_REPLACE",
+  "team_id": "team_REPLACE",
+  "global_config_id": "ecfg_REPLACE",
+  "global_config_slug": "REPLACE"
+}

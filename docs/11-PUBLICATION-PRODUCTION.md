@@ -10,6 +10,8 @@ Version du dépôt : **`0.8.33`**, après correctif local du build Vercel (types
 
 ## État connu et provenance
 
+**AUTO.2, 16 octobre 2026 :** pilotage opérateur Vercel livré et testé avec API simulée uniquement. Selon le propriétaire à l'ouverture d'AUTO.2, `maintenance_production=true` ; aucune lecture distante ne rafraîchit cette déclaration ici. [Commandes, exclusivité opérateur et limites](#auto2--pilotage-vercel-production). AUTO.1 et AUTO.2 restent des moteurs séparés ; `prod:backup` et `prod:open` ne sont pas implémentés.
+
 ### Observations dans le dépôt
 
 Inspection historique du cadrage : branche **`dev`**, HEAD **`590d9fb827948ee694e181fa2654d427442cff8d`**, worktree propre. Inspection initiale PROD.1 : **`dev`**, HEAD **`312ff061c7d9783b1b689ab3c45bf7bcdb614895`**, worktree propre. Inspection initiale PROD.2 : **`dev`**, HEAD **`ceb3cf97ce5ba110867f2d28696eff4eff6e0f1a`**, worktree propre. Inspection initiale PROD.3 : **`dev`**, HEAD **`603460596a8b5ab434dc7519402bd9bb2c493b75`**, worktree propre, version `0.8.25`, 50 migrations Local et gel ouvert. Remote Git : `Palmyna/my.` ; référence locale `origin/HEAD` vers `origin/main`. Cette référence locale ne remplace pas une lecture actuelle des paramètres GitHub. Le tableau distingue le dépôt courant des preuves Local historiques. Inspection initiale PROD.7B.2.3 : `dev`, HEAD `975dc33cc6a3f90282793a9a42e222629968e3c7`, worktree propre ; documentation uniquement.
@@ -568,6 +570,93 @@ Cloud ne reprend pas la connexion de probe Local : son mot de passe `postgres` n
 Tous les résultats gardent **`backup_authorized=false` et `global_closure=not_attested`**. Ni le statut SQL, ni cette commande ne certifient frontend, arrêt durable des imports/publisher/opérateurs/`super_admin`, snapshot, sauvegarde ou récupération. Les contrats PROD.3/4 et les conditions E restent requis.
 
 Échec, timeout, interruption, commit sans accusé ou relecture différente : état **inconnu**, `verified=false`, diagnostic fixe sans erreur serveur brute. Refaire `preflight` et `observe` sur connexion fraîche, examiner la révision réelle puis choisir explicitement la prochaine commande. Si le gel est déjà actif après un commit incertain, un nouveau `close` avec la révision fraîche vérifie l'état sans l'incrémenter. Jamais de réouverture automatique, même lorsque la fermeture n'est pas attestée.
+
+## AUTO.2 — Pilotage Vercel Production
+
+**Livraison d'outillage Windows, validation exclusivement simulée ; aucune opération sur Vercel réel.** [Rapport](reports/2026-10-16-AUTO2-VERCEL-MAINTENANCE.md). Projet `my`, domaine `my.collectrealm.com`, Global Config et middleware PROD.1 conservés. Aucune écriture Preview, déploiement, promotion, modification SSO, domaine, variable d'environnement, autre clé ou gel Supabase. Version applicative `0.8.33` conservée comme AUTO.1 : outillage opérateur, aucun changement de l'application déployée. Aucune dépendance ajoutée.
+
+### Contrat API et concurrence
+
+Documentation officielle consultée le **16 octobre 2026**, via Context7 puis documents fournisseur et OpenAPI courants : [Global Config REST API](https://vercel.com/docs/global-config/vercel-api), [PATCH items](https://vercel.com/docs/rest-api/global-config/update-global-config-items-in-batch), [OpenAPI](https://openapi.vercel.sh/), [tokens et scopes](https://vercel.com/docs/accounts/access-tokens). API retenue : `https://api.vercel.com/v1/global-config/{id}` et `/items`, authentifiée par **token API Vercel opérateur**, distinct du read token `GLOBAL_CONFIG` du middleware. Les routes historiques `edge-config` ne sont pas nécessaires.
+
+Écriture : **un seul** `PATCH /items`, corps fixe `{"items":[{"operation":"update","key":"maintenance_production","value":true}]}` pour fermer, même corps avec `false` pour rouvrir. Pas d'upsert, création de clé, description, remplacement du store ou répétition automatique. `{"status":"ok"}` n'est qu'un accusé. Le moteur relit projet, liaison, domaine, métadonnées et items après le PATCH ; une contradiction ou un changement d'autre clé interdit le succès. Le moteur ne corrige jamais une valeur absente ou invalide, même pour fermer : intervention distincte nécessaire.
+
+**Aucune comparaison atomique d'empreinte avant écriture n'est documentée dans ce contrat officiel** : OpenAPI décrit 409/412 sans fournir de précondition CAS, de champ digest attendu ou de header `If-Match`. AUTO.2 n'en invente aucun. Avec accord explicite du propriétaire pendant AUTO.2, chaque commande d'écriture exige **`--confirm-exclusive-writer`** : tous les autres opérateurs, consoles, intégrations et automates pouvant modifier cette Global Config doivent rester exclus pendant la lecture, l'écriture et la relecture. Arrêter si cette exclusivité n'est pas établie ; ce drapeau est une déclaration opérateur, pas une exclusion distante effectuée par Vercel.
+
+Un verrou fichier exclusif par **équipe/store**, commun aux fichiers de cible et aux processus de ce poste, sérialise les commandes locales. Emplacement : `%LOCALAPPDATA%\MY\maintenance\vercel-<sha256-équipe/store>.lock`, chemin exact fourni par `preflight` dans `operator_lock_path`. Pas d'expiration ni de récupération automatique d'un PID ancien. Ce verrou ne couvre ni les autres postes/utilisateurs Windows ni le dashboard. Les empreintes de métadonnées avant/après lecture et la seconde lecture avant PATCH détectent les changements observables ; **elles ne rendent pas atomique l'intervalle lecture–PATCH**. Une écriture distante concurrente rétablissant la même valeur peut rester indétectable. La garantie repose donc sur l'exclusivité déclarée, pas sur une résistance à des writers distants non coordonnés. AUTO.3 doit conserver cette précondition.
+
+### Configuration initiale et credentials
+
+1. Copier [l'exemple sans secret](../scripts/maintenance/examples/vercel-target.json) **hors Git**, par exemple `D:\MY-operator\vercel-target.json`. Renseigner les vrais `project_id`, `team_id`, `global_config_id` et `global_config_slug` depuis les réglages approuvés du projet et du store. Les placeholders `REPLACE` bloquent. N'ajouter aucun champ, token, URL, endpoint alternatif ou clé libre.
+2. Vérifier indépendamment que cette Global Config est bien celle de la Production. Le moteur exige sur `GET /v9/projects/{id}` : ID/nom/équipe exacts, `ssoProtection.deploymentType=all` et une seule variable `GLOBAL_CONFIG` ciblant Production dont la métadonnée **`edgeConfigId`** correspond au store. Il ne déchiffre pas de variable, ne crée ni ne répare la liaison. Métadonnée manquante ou liaison manuelle non identifiable : `production_config_binding_unverified`, arrêt ; la compatibilité de la liaison réelle reste à éprouver dans une intervention autorisée. Le domaine vérifié doit appartenir au même projet, sans redirection, branche ou environnement personnalisé. ID, owner et slug du store sont contrôlés à chaque lecture.
+3. Créer/garder dans le gestionnaire de secrets approuvé un **token API opérateur**, avec expiration courte et autorisations minimales permettant lecture projet/domaine/store/items et écriture des items du store attendu. Préférer le scope minimal réellement compatible. Vercel documente des tokens projet, mais ceux-ci refusent les ressources d'équipe ; ne pas présumer leur compatibilité avec Global Config. Si le store nécessite un token limité à son équipe propriétaire, examiner explicitement cette portée ; aucun repli automatique vers Full Account, aucun provisionnement ou élargissement de droits par l'outil. Aucune restriction fournisseur par clé n'est établie ici : la restriction `maintenance_production` est imposée par le moteur. Un 403 reste bloquant.
+4. Utiliser le wrapper Windows ci-dessous : saisie `Read-Host -AsSecureString`, secret temporaire dans l'environnement du seul enfant Node, BSTR effacé et variable retirée dans `finally`. Le processus Node consomme/efface `MY_VERCEL_MAINTENANCE_TOKEN` **avant Git ou autre sous-processus**. Aucun stockage persistant créé par le wrapper. Aucun token dans JSON, arguments, historique, transcript, logs, presse-papiers journalisé ou `VITE_*` ; aucun import de l'authentification de la CLI Vercel ni utilisation du read token du middleware. Le secret restant en mémoire de l'opérateur doit bénéficier des protections normales du poste et du gestionnaire approuvé. HTTPS et validation TLS conservés ; `NODE_TLS_REJECT_UNAUTHORIZED=0` refusé. Si la CA système est nécessaire : `NODE_USE_SYSTEM_CA=1`, jamais désactiver TLS.
+
+Les prérequis ci-dessus sont réels et non validés sur le service pendant AUTO.2. Aucune cible contenant de vrais IDs ni credential réel n'est créée par cette livraison.
+
+### Commandes Windows futures, uniquement après autorisation de l'intervention réelle
+
+Ces exemples ne sont **pas exécutés** pendant AUTO.2. `npm.cmd run maintenance:vercel -- ...` expose la CLI Node ; le wrapper constitue l'entrée interactive sûre pour ses credentials et produit le même NDJSON, sans bannière npm.
+
+```powershell
+$vercelBase = @('--environment','production','--project','my',
+  '--target','D:\MY-operator\vercel-target.json','--authorize-vercel-connect')
+$vercelCheckpoint = & .\scripts\maintenance\vercel-secrets.ps1 -VercelArgs (@('--command','preflight') + $vercelBase) | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0 -or -not $vercelCheckpoint.control_plane_confirmed) { throw 'État inconnu ou invalide : arrêt' }
+# Examiner identité, état, checkpoint et éventuel verrou avant toute décision.
+$vercelCheckpoint
+```
+
+Fermer, après exclusion de tous les autres writers et décision explicite ; relever une empreinte fraîche par `preflight` si une incertitude ou modification est survenue :
+
+```powershell
+& .\scripts\maintenance\vercel-secrets.ps1 -VercelArgs (@('--command','close',
+  '--expect-checkpoint',$vercelCheckpoint.checkpoint,'--authorize-close','--confirm-exclusive-writer') + $vercelBase)
+if ($LASTEXITCODE -ne 0) { throw 'Fermeture non vérifiée : nouvelle lecture requise' }
+```
+
+Rouvrir exige décision **distincte**, après toutes les conditions E et levée Supabase indépendamment vérifiée. Refaire la première commande `preflight`, examiner le résultat, puis seulement :
+
+```powershell
+& .\scripts\maintenance\vercel-secrets.ps1 -VercelArgs (@('--command','reopen',
+  '--expect-checkpoint',$vercelCheckpoint.checkpoint,'--authorize-reopen','--confirm-exclusive-writer') + $vercelBase)
+if ($LASTEXITCODE -ne 0) { throw 'Réouverture non vérifiée : nouvelle lecture requise' }
+```
+
+`--authorize-close` ne permet jamais `reopen`, ni l'inverse. La connexion exige aussi `--authorize-vercel-connect`. Sans empreinte exacte, exclusivité, bonne cible ou état booléen connu, aucune écriture. Timeout par requête complète, corps inclus : `--timeout-ms 15000` par défaut, plage `100`–`60000`. Aucun auto-retry, polling de propagation ou ouverture par défaut.
+
+### États, preuves et reprise
+
+| Résultat | Signification et suite |
+|---|---|
+| `state.maintenance_production=true` / `false`, `control_plane_confirmed=true` | Valeur booléenne relue dans le **plan de contrôle**, à `observed_at` ; `checkpoint` lie identité et version du store. Ce n'est pas un contrôle HTTP |
+| `state.maintenance_production=invalid`, `verified=false` | Plan lu mais clé absente ou valeur non booléenne ; aucune réparation automatique, sortie CLI 1 |
+| `state.maintenance_production=unknown`, `recorded=unknown`, `verified=false` | Cible, auth, API, réseau, timeout, interruption ou relecture non établie ; code 1, ou 130 sur signal géré ; nouvelle lecture indépendante obligatoire |
+| `recorded=api_acknowledged`, `verified=false` | Accusé intermédiaire seulement ; ne permet aucune suite |
+| `recorded=reread_confirmed`, `verified=true`, `independent_read=true` | Valeur cible confirmée par nouveaux GET après PATCH ; autres items/metadata de la clé conservés selon comparaison ; portée limitée au plan de contrôle |
+| `recorded=already_satisfied`, `changed=false`, `idempotent=true` | Même vérification sans PATCH ni nouvelle version volontaire. Une ancienne empreinte reste refusée |
+
+Les diagnostics sont fixes : notamment `authentication_failed` (401), `permissions_insufficient` (403), `api_conflict_fresh_read_required` (409/412), `production_config_binding_unverified`, `configuration_changed_fresh_read_required`, `reread_contradicts_update`, `network_or_timeout_state_unknown` et `local_operator_busy_or_interrupted`. Jamais d'erreur fournisseur brute, contenu d'autres clés ou header/URL sensible dans les sorties.
+
+Après échec, interruption, accusé perdu ou résultat contradictoire :
+
+1. Arrêter la suite et les autres writers. Ne pas déduire l'état de l'accusé ni lancer l'action inverse. Un arrêt forcé peut empêcher toute sortie : l'absence de résultat final vaut état inconnu.
+2. Refaire `preflight`, autorisé même en présence du verrou. Examiner identité, valeur réelle, nouvelle empreinte et `operator_lock_path`. Diagnostic auth/permissions/cible : corriger la cause sans bascule distante implicite.
+3. Si un verrou persiste, vérifier indépendamment que son processus et tout autre writer ont terminé. Le PID seul ne prouve pas l'identité du processus. Examiner le marqueur exact puis supprimer **ce seul fichier**, manuellement, après coordination. Ne jamais nettoyer par wildcard, TTL ou PID automatique. Exemple après ces contrôles : `Remove-Item -LiteralPath $vercelCheckpoint.operator_lock_path`. Si le processus peut encore agir, ne pas supprimer le verrou.
+4. Refaire une lecture fraîche après cette coordination puis décider explicitement de la prochaine commande. Si une fermeture incertaine a bien appliqué `true`, `close` avec la nouvelle empreinte vérifie sans PATCH supplémentaire. Une réouverture incertaine ne déclenche jamais de refermeture ou réouverture compensatoire automatique. Maintenir le gel Supabase selon sa procédure indépendante ; AUTO.2 n'y touche pas.
+
+### HTTP protégé et interface AUTO.3
+
+**Vercel Authentication — All Deployments reste volontaire et inchangé.** Un HTTP anonyme `302` vers Vercel SSO signifie admission Vercel requise ; il ne prouve ni échec ni succès du middleware. AUTO.2 ne collecte pas de cookies, ne génère pas de bypass et n'automatise aucune requête authentifiée. Le token de gestion API n'est pas traité comme une session HTTP autorisée.
+
+Réutiliser le contrôle PROD.3 existant : `npm.cmd run maintenance:http -- --print-browser --expect closed` (ou `open`) génère hors connexion un snippet à exécuter depuis une session Vercel normalement authentifiée et une origine autorisée, si sa CSP permet le fetch ; sinon, relever les navigations GET/HEAD dans Network. Voir les [contrôles HTTP existants](#contrôles-http-futurs-sous-vercel-authentication). Fermeture : 503 MY. et headers attendus, pas seulement un 503 générique. Tester domaine, build Production identifié et autres déploiements compatibles séparément. Propagation mondiale, couverture des déploiements, build/version réellement servis et critère T1 avant E restent distincts et non attestés. Tous les résultats AUTO.2 gardent `middleware_http=not_observed_requires_normal_authenticated_request`, `deployment_coverage=not_attested`, `worldwide_propagation_verified=false`, `backup_authorized=false`, `global_closure=not_attested`.
+
+Interfaces réutilisables sans recopier les règles :
+
+- [vercel.js](../scripts/maintenance/vercel.js) exporte `readTarget`, `createVercelMaintenance(target, token, { authorizeConnect: true, timeout, signal })`, `preflight()` puis `setMaintenance('close'|'reopen', { checkpoint, exclusiveWriter: true, authorizeClose, authorizeReopen }, emit)`. Le moteur possède validation distante, PATCH fixe, verrou local, idempotence, délais et relectures ; `unknownResult`/`safeDiagnostic` assainissent les erreurs. `fetchImpl`/`lockDirectory` sont des injections pour les tests, absentes de la configuration/CLI Production.
+- [vercel-cli.js](../scripts/maintenance/vercel-cli.js) exporte `parseCommand` et `run(command, emit)` : résultat structuré et identité Git/version par helper AUTO.1 réutilisé ; flux NDJSON pour CLI/sous-processus. La variable de token est consommée en entrée.
+- [cli.js AUTO.1](../scripts/maintenance/cli.js) conserve `parseCommand`/`run` pour gel Cloud, avec son propre projet, `system_id`, révision, autorisations, barrière SQL et relecture indépendante. Aucun moteur n'appelle l'autre.
+- AUTO.3 devra enchaîner ces interfaces, recueillir séparément preuve HTTP authentifiée, couverture, drainage et conditions PROD.3/4/E, puis seulement appeler les moteurs suivants. Il ne devra convertir aucun `verified` du plan de contrôle en preuve de fermeture globale, ni lever Supabase depuis `setMaintenance`. Aucun `prod:backup`/`prod:open` livré ici.
 
 Tests : `npm.cmd run maintenance:test` et `npm.cmd run maintenance:test:isolated`. La seconde commande crée un PostgreSQL jetable `network=none`, sans port/volume personnel, et route exclusivement les sockets de ses processus de test vers un proxy loopback. Tout autre endpoint est refusé avant DNS ; aucun mode de routage de test n'existe dans la CLI livrée. Elle exerce aussi les probes PROD.3 Local sur cette base isolée ; elle ne modifie pas `my-local`.
 

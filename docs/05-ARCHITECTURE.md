@@ -741,6 +741,8 @@ Les URL, clés publiques et autres paramètres sont injectés par environnement.
 
 ## Versionnement et déploiement
 
+L'outillage opérateur AUTO.2 ([contrat et commandes](11-PUBLICATION-PRODUCTION.md#auto2--pilotage-vercel-production)) pilote uniquement `maintenance_production` par API Vercel, avec cible hors Git, token protégé, autorisations distinctes et relectures. Le moteur possède le verrou local par équipe/store ; l'absence de CAS documenté impose une exclusivité déclarée des writers distants. Il réutilise l'identité dépôt AUTO.1, conserve les limites HTTP/propagation explicites et n'appelle ni gel Supabase ni backup/publisher. Middleware, Preview, protection All Deployments et règles de publication conservés ; orchestration AUTO.3 séparée.
+
 ### Version applicative
 
 La phase majeure 7 correspond à la série `0.7.x`. Une sous-sous-phase applicative livrée incrémente le PATCH ; cadrage/documentation seuls n'imposent pas de version. Convention : 7A.1 → `0.7.1`, 7A.2 → cadrage sans version, 7A.3 → `0.7.2`, 7B.1 → `0.7.3`, 7B.2 → `0.7.4`, 7B.3 → **`0.7.5`**. Phase 8 : `0.8.0` ; cible V1 : `1.0.0`.

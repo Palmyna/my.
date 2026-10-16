@@ -26,6 +26,8 @@
     "db:types": "node scripts/generate-supabase-types.js",
     "roles:test:local": "node scripts/test-app-roles.js",
     "maintenance:db": "node scripts/maintenance/cli.js",
+    "maintenance:vercel": "node scripts/maintenance/vercel-cli.js",
+    "maintenance:vercel:test": "node --test scripts/maintenance/vercel.test.js",
     "maintenance:http": "node scripts/maintenance/http-check.js",
     "maintenance:test": "node --test scripts/maintenance/operator.test.js",
     "maintenance:test:local": "node scripts/maintenance/local.integration.js",

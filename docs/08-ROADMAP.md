@@ -232,6 +232,8 @@ Maintenance frontend persistante sans redéploiement et page MY. **503 sans cach
 
 Premier bloc d’automatisation du gel Cloud livré avec validations synthétiques isolées : cible et autorisations explicites, contrôles TLS/cluster et révision, sans opération Cloud. Orchestrateurs de sauvegarde et de réouverture restent séparés et non livrés. [Usage et portée AUTO.1](11-PUBLICATION-PRODUCTION.md#auto1--pilotage-cloud-du-gel).
 
+Pilotage opérateur de la maintenance Vercel Production livré en AUTO.2, testé par API simulée : cible exacte, autorisations distinctes, exclusivité opérateur obligatoire, verrou local et relecture du plan de contrôle. Vérification HTTP authentifiée, propagation/couverture et coordination restent à éprouver ; aucun accès Vercel réel ni orchestrateur final livré. [Usage et limites AUTO.2](11-PUBLICATION-PRODUCTION.md#auto2--pilotage-vercel-production).
+
 Les [blocs prévisionnels de réalisation](11-PUBLICATION-PRODUCTION.md#blocs-futurs-de-réalisation) seront affinés en petites sous-phases dans la référence opérationnelle, sans les détailler dans cette roadmap macro. Validation du workflow complet avant premiers tests d’utilisateurs réels ; maintenance frontend et gel backend sont implémentés, avec validations Preview/Cloud bornées par PROD.7B.2.3. Adaptation Cloud TCGdex distincte. **Phases 9 et 10 gardent leurs périmètres.**
 
 ### Phase 9 — Partage des collections
