@@ -1,0 +1,13 @@
+{
+  "format": "my-production-backup-v1",
+  "project": "xvtiwhxvtfxvvokquttu",
+  "maintenance_target": "D:\\MY-operator\\maintenance\\target.json",
+  "vercel_target": "D:\\MY-operator\\maintenance\\vercel-target.json",
+  "backup_target": "D:\\MY-operator\\target.windows.json",
+  "evidence": "D:\\MY-operator\\evidence.json",
+  "external": "D:\\MY-operator\\external.json",
+  "key_file": "D:\\MY-secrets\\backup-key.dpapi",
+  "sessions_directory": "D:\\MY-operator\\sessions",
+  "volume_serial": "REPLACE_WITH_M_VOLUME_SERIAL",
+  "encrypted_volume_evidence": "REPLACE_WITH_EXAMINED_ENCRYPTED_VOLUME_RECORD"
+}

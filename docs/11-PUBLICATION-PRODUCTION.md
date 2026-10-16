@@ -10,7 +10,7 @@ Version du dépôt : **`0.8.33`**, après correctif local du build Vercel (types
 
 ## État connu et provenance
 
-**AUTO.2, 16 octobre 2026 :** pilotage opérateur Vercel livré et testé avec API simulée uniquement. Selon le propriétaire à l'ouverture d'AUTO.2, `maintenance_production=true` ; aucune lecture distante ne rafraîchit cette déclaration ici. [Commandes, exclusivité opérateur et limites](#auto2--pilotage-vercel-production). AUTO.1 et AUTO.2 restent des moteurs séparés ; `prod:backup` et `prod:open` ne sont pas implémentés.
+**AUTO.3, 16 octobre 2026 :** `npm run prod:backup` orchestre les API AUTO.2/AUTO.1 et PROD.4, avec configuration et session protégées hors Git, consentements distincts, drainage technique et vérification indépendante. Validation sur mocks/secrets synthétiques uniquement ; aucune opération Cloud ni capture Production. [Usage, préparation initiale et reprise](13-PRODUCTION-AUTOMATION.md). `prod:open` reste futur. Selon le propriétaire à l'ouverture d'AUTO.2, `maintenance_production=true` ; aucune lecture distante ne rafraîchit cette déclaration ici. [Contrat Vercel, exclusivité et limites](#auto2--pilotage-vercel-production).
 
 ### Observations dans le dépôt
 
@@ -87,6 +87,8 @@ L’opérateur conserve une trace simple de chaque livraison : version, commit a
 
 ### B — Mise en maintenance
 
+**Entrée opérateur livrée : `npm run prod:backup`**, après configuration initiale hors Git. Cette commande orchestre B puis C, demande les attestations réellement nécessaires et conserve les protections fermées. [Procédure AUTO.3](13-PRODUCTION-AUTOMATION.md). Les exigences et étapes ci-dessous restent applicables ; une lecture du plan de contrôle ne vaut pas preuve HTTP ou fermeture globale.
+
 1. Activer le mode maintenance depuis la configuration Vercel, sans nouveau déploiement.
 2. Activer le gel des écritures métier Supabase par le dispositif indépendant prévu.
 3. Vérifier que le site est indisponible pour les utilisateurs ordinaires et que les mutations Supabase sont refusées, **y compris RPC et accès directs**, avec sessions et onglets déjà ouverts.
@@ -96,7 +98,7 @@ Les opérations déjà engagées doivent avoir terminé ou été annulées selon
 
 ### C — Sauvegarde manuelle Supabase Cloud
 
-Après maintenance effective, effectuer **un backup manuel avant chaque publication**, avant création de la PR de livraison et avant toute nouvelle migration Production.
+Après maintenance effective, effectuer **un backup déclenché par l'opérateur avant chaque publication**, avant création de la PR de livraison et avant toute nouvelle migration Production. AUTO.3 le réalise par `prod:backup`, avec moteur PROD.4 inchangé et `verify` indépendant. Les commandes PROD.4 séparées restent disponibles selon leurs contrats.
 
 L’[outillage PROD.4](12-SUPABASE-BACKUP.md), livré en `0.8.27` puis enrichi pour PROD.5 en `0.8.28`, prépare les futurs exports manuels avec archive PostgreSQL native complète, snapshot partagé, inventaires et chiffrement immédiat. Restauration et Auth/TOTP éprouvés exclusivement sur données synthétiques isolées ; aucun accès ou backup Cloud. Une vraie sauvegarde Cloud doit encore subir son propre essai isolé adapté. Le périmètre cible reste :
 
@@ -137,6 +139,8 @@ Les deux intégrations peuvent travailler en parallèle ; elles ne constituent p
 Activation Supabase depuis `main` et attente de promotion Vercel sont **déclarées configurées par le propriétaire dans PROD.7A**. Le succès réel de cette séquence reste à démontrer en PROD.7C ; ni la déclaration des réglages ni les essais Preview ne prouvent une publication Production coordonnée.
 
 ### E — Notification et réouverture
+
+Déroulement automatisé cible conservé : **`prod:backup` → PR `dev` vers `main`, merge, déploiements, promotion et tests → futur `prod:open`**, qui devra vérifier la publication et le changelog avant dégel/réouverture. AUTO.3 n'implémente pas `prod:open` et ne supprime aucune exigence E.
 
 1. Maintenance toujours active : vérifier rapidement la version réellement déployée et servie par le domaine après promotion, le commit et la compatibilité backend. Utiliser le moyen de contrôle opérateur protégé prévu par la maintenance.
 2. Après mise en service Cloud explicitement autorisée et vérifiée, utiliser le [publisher PROD.6](10-NOTIFICATION-PUBLICATION.md#cloud--commandes-powershell-et-autorisations) : `--check` avec cible/projet/version puis consentement `--authorize-publish --expect-hash` sur fichier examiné. Publier **une seule fois** notification et changelog public, comme **une publication de catégorie `changelog`**, pendant maintenance et gel toujours actifs. Aucune deuxième annonce parallèle.
@@ -656,7 +660,7 @@ Interfaces réutilisables sans recopier les règles :
 - [vercel.js](../scripts/maintenance/vercel.js) exporte `readTarget`, `createVercelMaintenance(target, token, { authorizeConnect: true, timeout, signal })`, `preflight()` puis `setMaintenance('close'|'reopen', { checkpoint, exclusiveWriter: true, authorizeClose, authorizeReopen }, emit)`. Le moteur possède validation distante, PATCH fixe, verrou local, idempotence, délais et relectures ; `unknownResult`/`safeDiagnostic` assainissent les erreurs. `fetchImpl`/`lockDirectory` sont des injections pour les tests, absentes de la configuration/CLI Production.
 - [vercel-cli.js](../scripts/maintenance/vercel-cli.js) exporte `parseCommand` et `run(command, emit)` : résultat structuré et identité Git/version par helper AUTO.1 réutilisé ; flux NDJSON pour CLI/sous-processus. La variable de token est consommée en entrée.
 - [cli.js AUTO.1](../scripts/maintenance/cli.js) conserve `parseCommand`/`run` pour gel Cloud, avec son propre projet, `system_id`, révision, autorisations, barrière SQL et relecture indépendante. Aucun moteur n'appelle l'autre.
-- AUTO.3 devra enchaîner ces interfaces, recueillir séparément preuve HTTP authentifiée, couverture, drainage et conditions PROD.3/4/E, puis seulement appeler les moteurs suivants. Il ne devra convertir aucun `verified` du plan de contrôle en preuve de fermeture globale, ni lever Supabase depuis `setMaintenance`. Aucun `prod:backup`/`prod:open` livré ici.
+- AUTO.3 enchaîne ces interfaces avec `prod:backup`, recueille déclarations HTTP authentifiées/couverture et exclusion durable séparément des preuves automatiques, puis exige le drainage PROD.4 avant capture. Aucun `verified` du plan de contrôle n'est converti en preuve de fermeture globale ; aucune levée Supabase depuis `setMaintenance`. [Session, configuration, reprise et limites AUTO.3](13-PRODUCTION-AUTOMATION.md). `prod:open` non implémenté.
 
 Tests : `npm.cmd run maintenance:test` et `npm.cmd run maintenance:test:isolated`. La seconde commande crée un PostgreSQL jetable `network=none`, sans port/volume personnel, et route exclusivement les sockets de ses processus de test vers un proxy loopback. Tout autre endpoint est refusé avant DNS ; aucun mode de routage de test n'existe dans la CLI livrée. Elle exerce aussi les probes PROD.3 Local sur cette base isolée ; elle ne modifie pas `my-local`.
 

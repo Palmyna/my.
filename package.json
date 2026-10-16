@@ -33,6 +33,8 @@
     "maintenance:test:local": "node scripts/maintenance/local.integration.js",
     "maintenance:test:isolated": "node --test scripts/maintenance/cloud.integration.js",
     "backup": "node scripts/backup/cli.js",
+    "prod:backup": "powershell.exe -NoProfile -File scripts/production/backup.ps1",
+    "prod:backup:test": "node --test scripts/production/backup.test.js",
     "backup:test": "node --test scripts/backup/operator.test.js scripts/backup/native.test.js",
     "backup:test:native": "node --test scripts/backup/native.integration.js",
     "backup:test:isolated": "node --test scripts/backup/local.integration.js",
