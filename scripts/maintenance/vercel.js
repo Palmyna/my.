@@ -10,7 +10,7 @@ const targetSchema = z.strictObject({
   project: z.literal('my'), domain: z.literal('my.collectrealm.com'),
   project_id: z.string().regex(/^prj_[a-zA-Z0-9]+$/), team_id: z.string().regex(/^team_[a-zA-Z0-9]+$/),
   global_config_id: z.string().regex(/^ecfg_[a-zA-Z0-9]+$/),
-  global_config_slug: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]*$/),
+  global_config_slug: z.string().max(64).regex(/^[a-zA-Z0-9_-]+$/),
 })
 
 // Only fixed diagnostics cross the operator boundary. Never forward API errors,

@@ -97,7 +97,7 @@ export async function workflowFixture(t, { maintenance = false, frozen = false, 
     host: `db.${project}.supabase.co`, port: 5432, database: 'postgres', user: 'postgres', system_id: '12345678901234567890',
     postgres_major: 17, client_image: `sha256:${'b'.repeat(64)}`, ca_file: join(root, 'synthetic.crt'), ca_sha256: 'c'.repeat(64), isolated_container: null }
   const vercel = { format: 'my-vercel-maintenance-target-v1', environment: 'production', project: 'my', domain: 'my.collectrealm.com',
-    project_id: 'prj_Auto5', team_id: 'team_Auto5', global_config_id: 'ecfg_Auto5', global_config_slug: 'auto5' }
+    project_id: 'prj_Auto5', team_id: 'team_Auto5', global_config_id: 'ecfg_Auto5', global_config_slug: 'auto5-maintenance' }
   const external = JSON.parse((await fs.readFile(new URL('../backup/examples/external.json', import.meta.url), 'utf8')).replaceAll('REPLACE', 'auto5'))
   external.project = project; external.configuration.auth.site_url = 'https://auto5.example.invalid'
   external.configuration.edge.deployed_source_sha256 = 'd'.repeat(64); external.records = { auto5: { synthetic: true } }

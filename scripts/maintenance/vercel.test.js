@@ -13,7 +13,7 @@ import { parseCommand, run } from './vercel-cli.js'
 const token = 'synthetic-secret-DO-NOT-LOG'
 const target = { format: 'my-vercel-maintenance-target-v1', environment: 'production', project: 'my',
   domain: 'my.collectrealm.com', project_id: 'prj_Test', team_id: 'team_Test',
-  global_config_id: 'ecfg_Test', global_config_slug: 'my_test' }
+  global_config_id: 'ecfg_Test', global_config_slug: 'my-maintenance' }
 const baseArgs = ['--environment', 'production', '--project', 'my', '--authorize-vercel-connect']
 const cli = fileURLToPath(new URL('./vercel-cli.js', import.meta.url))
 function temporary(t) {
@@ -95,6 +95,22 @@ test('strict explicit target, connection consent and distinct action authorizati
   }
 })
 
+test('Global Config slug accepts the Vercel format and rejects malformed values', () => {
+  for (const slug of ['my-maintenance', 'my_test', 'MyConfig1', 'config-2_test', '123', '_config', '-config', 'a'.repeat(64)]) {
+    assert.equal(decodeTarget({ ...target, global_config_slug: slug }).global_config_slug, slug)
+  }
+  for (const slug of ['', 'my maintenance', ' my-maintenance', 'my-maintenance ', 'my.config', '../config',
+    'my/config', 'my\\config', 'https://example.invalid', 'config?token=value', 'config#fragment', 'éconfig',
+    'config\n', 'config\r', 'config\t', 'config\0', 'a'.repeat(65), 'REPLACE', 'my-REPLACE']) {
+    assert.throws(() => decodeTarget({ ...target, global_config_slug: slug }), { message: 'target_invalid' })
+  }
+  for (const field of ['project_id', 'team_id', 'global_config_id']) {
+    for (const value of ['', target[field] + '-suffix', target[field] + '/other', target[field] + ' ', 'REPLACE']) {
+      assert.throws(() => decodeTarget({ ...target, [field]: value }), { message: 'target_invalid' })
+    }
+  }
+})
+
 test('target is outside repository, bounded, strict and without credentials', t => {
   const file = join(temporary(t), 'target.json')
   writeFileSync(file, JSON.stringify(target))
@@ -157,6 +173,7 @@ for (const [name, mutate] of [
   ['binding', f => { f.project.env[0].edgeConfigId = 'ecfg_Wrong' }],
   ['binding absent', f => { delete f.project.env }], ['domain', f => { f.domain.projectId = 'prj_Wrong' }],
   ['domain redirect', f => { f.domain.redirect = 'evil.invalid' }], ['store', f => { f.config.ownerId = 'team_Wrong' }],
+  ['store ID', f => { f.config.id = 'ecfg_Wrong' }], ['store slug', f => { f.config.slug = 'other-maintenance' }],
 ]) test(`wrong ${name} blocks before PATCH`, async t => {
   const f = fixture(t, false)
   const consent = await f.consent('close')
