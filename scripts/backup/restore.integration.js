@@ -127,11 +127,13 @@ test('PROD5 real PROD4 capture to independent isolated PostgreSQL recovery',{tim
       }finally {await c.end()}
       assert.equal((await readFreeze(destinationClient)).frozen,true)
     })
-    await t.test('83 existing SQL assertions PROD2; controlled open only in test transaction; freeze restored by rollback',async()=>{
+    await t.test('existing SQL assertions PROD2; controlled open only in test transaction; freeze restored by rollback',async()=>{
       const sql=(await readFile(new URL('../../supabase/tests/database/039_business_write_freeze.test.sql',import.meta.url),'utf8'))
         .replace(/^begin;/,'begin;\nselect private.set_business_write_freeze(false);')
       const output=await docker(['exec','-i',target.container_id,'psql','-X','-q','-t','-A','-h','/tmp','-U','supabase_admin','-d','postgres','-v','ON_ERROR_STOP=1','-v','VERBOSITY=sqlstate'],sql,{allowSqlNotices:true})
-      assert.equal(output.split('\n').filter(l=>/^ok \d+/.test(l)).length,83)
+      assert.match(output,/^1\.\.[1-9][0-9]*$/m)
+      const planned=Number(output.match(/^1\.\.([1-9][0-9]*)$/m)[1])
+      assert.equal(output.split('\n').filter(l=>/^ok \d+/.test(l)).length,planned)
       assert.ok(!/^not ok /m.test(output))
       assert.equal((await readFreeze(destinationClient)).frozen,true)
     })

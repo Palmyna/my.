@@ -63,6 +63,9 @@ test('PROD7B1 Windows native PROD4 capture on disposable network-none PostgreSQL
       grant select on auth.identities,auth.mfa_factors,auth.mfa_challenges,auth.mfa_amr_claims,auth.sessions to postgres;
       create table prod5_probe.snapshot(value text);
       insert into prod5_probe.snapshot values('SYNTHETIC_BEFORE_SNAPSHOT'); grant select on prod5_probe.snapshot to postgres;
+      create table prod5_probe.bulk(id integer primary key, value text);
+      insert into prod5_probe.bulk select n, md5(n::text) || md5((n+1)::text) from generate_series(1,100000) n;
+      grant select on prod5_probe.bulk to postgres;
       select private.set_business_write_freeze(true)`)
     const hba=(await admin.query('show hba_file')).rows[0].hba_file
     assert.match(hba,/^\/(etc\/postgresql|var\/lib\/postgresql\/data)\/[a-z_./-]+$/)
@@ -169,7 +172,9 @@ test('PROD7B1 Windows native PROD4 capture on disposable network-none PostgreSQL
       const content=await decryptJson(join(destination,'inventory.json.myb'),key)
       assert.deepEqual(content.data_fingerprints.find(f=>f.schema==='prod5_probe'&&f.name==='snapshot'),before[0])
       assert.notDeepEqual(await dataFingerprints(admin,[{schema:'prod5_probe',name:'snapshot',kind:'r'}]),before)
-      assert.equal(content.migration_history.length,50);assert.equal(content.freeze_state.frozen,true)
+      const migrations=(await readdir(new URL('../../supabase/migrations/',import.meta.url))).filter(f=>/^\d{14}_.+\.sql$/.test(f)).sort()
+      assert.deepEqual(content.migration_history,migrations.map(f=>({version:f.slice(0,14),name:f.slice(15,-4)})))
+      assert.equal(content.freeze_state.frozen,true)
       assert.equal(content.sequences.find(s=>s.name==='pokemon_id_seq').last_value,'9007199254740999')
       const {child,done}=startTool(target,'pg_restore',['--exit-on-error','--file=-'])
       const chunks=[];child.stdout.on('data',b=>chunks.push(b))
@@ -183,6 +188,10 @@ test('PROD7B1 Windows native PROD4 capture on disposable network-none PostgreSQL
         assert.ok(!encrypted.includes(Buffer.from(password))&&!encrypted.includes(Buffer.from('SYNTHETIC_BEFORE_SNAPSHOT')))
       }
       assert.equal((await readdir(destination)).length,7)
+      // A TOC reader exits long before this dump fits in its stdin pipe. Small
+      // fixtures can hide EPIPE because the OS has already buffered all input.
+      assert.ok((await fileHash(join(destination,'database.dump.myb'))).bytes > 1024 * 1024)
+      assert.ok((await inspectArchive(target,join(destination,'database.dump.myb'),key,true)).includes('TABLE DATA'))
       assert.equal((await verify(destination)).outcome,'capture_integrity_verified')
       bundle=await preflightRestore(destination,key);assert.equal(bundle.manifest.format,'my-backup-manifest-v2')
       const output=execFileSync(process.execPath,['scripts/backup/cli.js','--command','verify','--directory',destination],{

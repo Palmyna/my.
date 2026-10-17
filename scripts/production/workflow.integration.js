@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import { workflowFixture } from './workflow-fixtures.js'
 import { operatorLockPath } from '../maintenance/vercel.js'
+import { sessionRecords } from './session.js'
 
 test('AUTO.5: real backup → distinct Git merge → open → second publication, immutable history and archives', async t => {
   const f = await workflowFixture(t)
@@ -100,4 +101,80 @@ for (const [changelog, diagnostic] of [['missing', /changelog_committed_file_mis
   assert.equal(await f.state(), undefined); assert.equal(f.captures, 0); assert.equal(f.dispatches, 0)
   assert.equal(f.freezeWrites, 0); assert.deepEqual(f.patches, [])
   assert.equal(f.events.some(e => e === 'consent:connect'), false)
+})
+
+test('PROD.7C.2: failed capture → tooling commit, same version/changelog → authorized successor → exact PR/merge/open → following publication', async t => {
+  const f = await workflowFixture(t)
+  f.fault = 'capture-epipe'
+  await assert.rejects(f.backup())
+  const old = await f.state(), abandoned = old.session.attempts[0].directory
+  const history = await f.archiveHashes(old.folder), archive = await f.archiveHashes(abandoned)
+  assert.equal((await f.open()).diagnostic, 'session_incomplete')
+  assert.deepEqual(await f.archiveHashes(old.folder), history)
+  f.fault = undefined
+  await fs.writeFile(join(f.repo, 'tooling-fix.txt'), 'Synthetic tooling correction; unchanged release/changelog.\n')
+  f.git(['add', '.']); f.git(['commit', '-m', 'test: synthetic tooling correction'])
+  const corrected = f.repository().head
+  assert.notEqual(corrected, old.session.repository.head)
+  const confirm = f.backupIO.confirm
+  f.backupIO.confirm = async kind => kind !== 'succession'
+  await assert.rejects(f.backup(), /explicit_authorization_missing/)
+  assert.equal((await f.state()).session.id, old.session.id)
+  assert.deepEqual(await f.archiveHashes(old.folder), history)
+  f.backupIO.confirm = async (...args) => args[0] === 'connect' ? false : confirm(...args)
+  await assert.rejects(f.backup(), /explicit_authorization_missing/)
+  const prepared = await f.state()
+  assert.notEqual(prepared.session.id, old.session.id)
+  assert.equal(prepared.session.repository.head, corrected)
+  assert.equal(prepared.session.repository.version, old.session.repository.version)
+  assert.equal(prepared.session.attempts.length, 0); assert.equal(f.captures, 1)
+  f.backupIO.confirm = confirm
+  const backup = await f.backup(), next = await f.state()
+  assert.notEqual(backup.backup, abandoned); assert.equal(f.captures, 2)
+  const records = await sessionRecords(next.folder, next.session)
+  const oldIds = new Set(old.session.records.map(r => r.id))
+  assert.ok(next.session.records.every(r => !oldIds.has(r.id)))
+  const evidence = records.find(r => r.kind === 'capture_evidence').value
+  for (const field of ['maintenance_evidence', 'freeze_committed_evidence', 'ordinary_writes_drained_evidence', 'privileged_coordination_evidence']) {
+    assert.equal(oldIds.has(evidence[field]), false)
+    assert.ok(records.some(r => r.id === evidence[field]))
+  }
+  f.deliver()
+  assert.equal(f.source, corrected)
+  const source = f.source; f.source = old.session.repository.head
+  assert.equal((await f.open()).outcome, 'incomplete'); assert.equal(f.dispatches, 0)
+  f.source = source
+  const opened = await f.open()
+  assert.equal(opened.outcome, 'completed', JSON.stringify(opened))
+  assert.equal(opened.binding.source, corrected)
+  assert.deepEqual(opened.binding.changelog, next.session.source_release.changelog)
+  assert.equal(f.rows.length, 1)
+  await f.prepareSource('99.0.2'); f.pr++
+  await f.backup(); f.deliver(); assert.equal((await f.open()).outcome, 'completed')
+  assert.equal(f.rows.length, 2)
+  assert.deepEqual(await f.archiveHashes(old.folder), history)
+  assert.deepEqual(await f.archiveHashes(abandoned), archive)
+  await f.assertNoSecrets()
+})
+
+for (const invalid of ['committed-invalid', 'worktree-modified', 'changed-during-consent']) test(`PROD.7C.2: ${invalid} changelog cannot create a successor`, async t => {
+  const f = await workflowFixture(t)
+  f.fault = 'capture-epipe'; await assert.rejects(f.backup()); f.fault = undefined
+  const old = await f.state(), history = await f.archiveHashes(old.folder)
+  const changelog = join(f.repo, 'scripts', 'notifications', 'releases', `${f.version}.json`)
+  await fs.writeFile(join(f.repo, 'fix.txt'), 'synthetic correction\n')
+  if (invalid === 'committed-invalid') await fs.writeFile(changelog, '{}')
+  f.git(['add', '.']); f.git(['commit', '-m', 'test: synthetic corrected source'])
+  if (invalid === 'worktree-modified') await fs.appendFile(changelog, ' ')
+  const confirm = f.backupIO.confirm
+  if (invalid === 'changed-during-consent') f.backupIO.confirm = async (...args) => {
+    if (args[0] === 'succession') await fs.appendFile(changelog, ' ')
+    return confirm(...args)
+  }
+  await assert.rejects(f.backup(), invalid === 'committed-invalid' ? /changelog_invalid/
+    : invalid === 'worktree-modified' ? /clean_committed_dev_source_required/ : /source_changed_during_succession/)
+  assert.equal((await f.state()).session.id, old.session.id)
+  assert.deepEqual(await f.archiveHashes(old.folder), history)
+  assert.equal((await fs.readdir(f.sessions)).some(name => name.startsWith('succession-')), false)
+  assert.equal(f.captures, 1)
 })

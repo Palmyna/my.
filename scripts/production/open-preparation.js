@@ -36,6 +36,10 @@ const blocked = new Set(['session_missing', 'session_incomplete', 'session_ident
   'session_evidence_hash_mismatch', 'session_evidence_reference_invalid', 'session_evidence_reference_mismatch',
   'session_pointer_invalid', 'session_pointer_missing_review_required', 'session_reparse_path_refused', 'session_completion_unverified',
   'session_changed_during_preparation', 'configuration_changed_during_session', 'archive_incomplete',
+  'session_succession_pending_review_required', 'session_succession_invalid_review_required', 'session_succession_ambiguous',
+  'session_succession_predecessor_changed', 'session_succession_not_eligible', 'session_succession_archive_uncertain',
+  'session_succession_archive_candidate_refused', 'session_succession_partial_review_required',
+  'session_succession_unreferenced_files_review_required',
   'independent_verify_failed', 'archive_session_binding_mismatch', 'archive_evidence_provenance_missing',
   'archive_changed_during_verify', 'archive_record_contradictory', 'github_publication_contradictory',
   'github_source_or_main_unexpected', 'git_commit_invalid', 'git_repository_unexpected', 'git_history_incomplete',
@@ -141,6 +145,8 @@ export async function prepareOpenInSession(bundle, input, io, api, { state, stor
   requireProduction(github.source === session.repository.head && github.main === github.merge, 'github_source_or_main_unexpected')
   const release = await api.release(session.repository.head, github.merge)
   requireProduction(release.version === session.repository.version, 'release_version_unexpected')
+  requireProduction(!session.source_release || (session.source_release.version === release.version
+    && isDeepStrictEqual(session.source_release.changelog, release.changelog)), 'release_binding_changed')
   const readRemote = async gh => ({ github: gh ?? await api.github(options.pull_request),
     maintenance: await api.maintenance(), database: await api.database(), deployment: await api.deployment(options.deployment_id) })
   const before = await readRemote(github)

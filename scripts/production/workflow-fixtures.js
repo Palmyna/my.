@@ -47,6 +47,7 @@ mock.module('../backup/clients.js', { exports: { ...clients,
   inspectArchive: async (_target, file, key, list) => {
     const content = await decryptJson(file, key)
     assert.equal(content.synthetic, true); assert.equal(content.snapshot, '00000001-00000002-1')
+    if (list && active.fault === 'capture-epipe') throw new Error('AUTO5_SECRET_SIMULATED_EPIPE')
     return list ? toc : ''
   },
 } })

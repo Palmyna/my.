@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { Duplex } from 'node:stream'
+import { Duplex, Writable } from 'node:stream'
 import { requireBackup, BackupError, isNative } from './contract.js'
 import { encryptFile, decryptFile, discard } from './secure-files.js'
 import { startNative } from './native.js'
@@ -106,7 +106,31 @@ export async function inspectArchive(target, filename, key, list = false) {
     if (length > 16 * 1024 * 1024) child.kill()
     else chunks.push(b)
   })
-  try { await decryptFile(filename, key, child.stdin); await done }
+  let draining = false
+  const written = (error, callback) => {
+    if (!error) { callback(); return }
+    if (!['EPIPE', 'ERR_STREAM_DESTROYED'].includes(error.code)) {
+      callback(new BackupError('postgresql_tool_input_failed')); return
+    }
+    // --list can close stdin after its TOC. Accept that only after the existing
+    // process contract (exit zero, no stderr/timeout/start error) has succeeded.
+    // Continue decrypting to a bounded discard sink, including GCM final().
+    done.then(() => {
+      draining = list
+      callback(list ? undefined : new BackupError('postgresql_tool_input_closed_early'))
+    }, callback)
+  }
+  const input = new Writable({
+    write(chunk, encoding, callback) {
+      if (draining) callback()
+      else child.stdin.write(chunk, encoding, error => written(error, callback))
+    },
+    final(callback) {
+      if (draining) callback()
+      else child.stdin.end(error => written(error, callback))
+    },
+  })
+  try { await decryptFile(filename, key, input); await done }
   catch (error) { child.kill(); await done.catch(() => undefined); throw error }
   requireBackup(length <= 16 * 1024 * 1024, 'postgresql_tool_output_limit')
   return Buffer.concat(chunks).toString('utf8')

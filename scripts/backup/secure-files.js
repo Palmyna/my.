@@ -48,20 +48,52 @@ export async function encryptFile(input, filename, key) {
   try { await handle.sync() } finally { await handle.close() }
 }
 async function decryptStream(filename, key, output) {
-  const handle = await fs.open(filename, 'r')
+  let handle, failure
   try {
-    const size = (await handle.stat()).size
-    requireBackup(size > 36, 'encrypted_file_truncated')
+    let size
     const header = Buffer.alloc(20), tag = Buffer.alloc(16)
-    await handle.read(header, 0, 20, 0)
-    await handle.read(tag, 0, 16, size - 16)
+    try {
+      handle = await fs.open(filename, 'r')
+      size = (await handle.stat()).size
+    } catch { throw new BackupError('encrypted_file_read_failed') }
+    requireBackup(size > 36, 'encrypted_file_truncated')
+    let headerRead, tagRead
+    try {
+      headerRead = (await handle.read(header, 0, 20, 0)).bytesRead
+      tagRead = (await handle.read(tag, 0, 16, size - 16)).bytesRead
+    } catch { throw new BackupError('encrypted_file_read_failed') }
+    requireBackup(headerRead === 20 && tagRead === 16, 'encrypted_file_truncated')
     requireBackup(header.subarray(0, 8).equals(magic), 'encrypted_file_format_invalid')
     const decipher = createDecipheriv('aes-256-gcm', key, header.subarray(8))
     decipher.setAAD(magic)
     decipher.setAuthTag(tag)
-    await pipeline(createReadStream(filename, { start: 20, end: size - 17 }), decipher, output)
-  } catch { throw new BackupError('encrypted_file_authentication_failed') }
-  finally { await handle.close() }
+    // Keep read, crypto and consumer errors at their own boundaries. A pipeline
+    // can destroy a Decipher stream with a consumer's EPIPE; that is not GCM failure.
+    await pipeline(async function* () {
+      const buffer = Buffer.alloc(64 * 1024)
+      for (let position = 20; position < size - 16;) {
+        let read
+        try { read = await handle.read(buffer, 0, Math.min(buffer.length, size - 16 - position), position) }
+        catch { throw new BackupError('encrypted_file_read_failed') }
+        requireBackup(read.bytesRead > 0, 'encrypted_file_truncated')
+        position += read.bytesRead
+        let plaintext
+        try { plaintext = decipher.update(buffer.subarray(0, read.bytesRead)) }
+        catch { throw new BackupError('encrypted_file_authentication_failed') }
+        yield plaintext
+      }
+      let final
+      try { final = decipher.final() }
+      catch { throw new BackupError('encrypted_file_authentication_failed') }
+      yield final
+    }, output)
+  } catch (error) {
+    failure = error instanceof BackupError ? error : new BackupError('encrypted_file_pipeline_failed')
+  } finally {
+    if (handle) try { await handle.close() }
+    catch { failure ??= new BackupError('encrypted_file_read_failed') }
+  }
+  if (failure) throw failure
 }
 export async function decryptFile(filename, key, output = discard()) {
   // Authenticate before exposing plaintext to a consumer. No plaintext file is created.
