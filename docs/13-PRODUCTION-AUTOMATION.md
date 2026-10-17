@@ -1,10 +1,10 @@
 # Automatisation des publications Production
 
-Référence pratique des deux commandes Windows : **`npm run prod:backup`**, puis **`npm run prod:open`**. AUTO.5 consolide leur parcours intégré sur fournisseurs simulés, archives chiffrées et secrets synthétiques. Version applicative **0.8.33 conservée**. [Rapport de clôture AUTO.5](reports/2026-10-17-AUTO5-CLOSURE.md). Aucune opération Production réalisée ; PROD.7C reste une intervention séparée à autoriser.
+Référence pratique des deux commandes Windows : **`npm run prod:backup`**, puis **`npm run prod:open`**. AUTO.5 consolide leur parcours intégré sur fournisseurs simulés, archives chiffrées et secrets synthétiques. Version applicative **0.8.33 conservée lors de la clôture AUTO.5** ; livraison **0.8.34 désormais préparée localement sur `dev`**, sans déploiement Production. [Rapport de clôture AUTO.5](reports/2026-10-17-AUTO5-CLOSURE.md). Aucune opération Production réalisée ; PROD.7C reste une intervention séparée à autoriser.
 
 ## Avant la publication
 
-Sur `dev`, préparer la livraison, sa version concordante package/lock et son vrai changelog `scripts/notifications/releases/<version>.json`. Valider et committer ces éléments avant la sauvegarde ; garder le worktree propre. Aucun changelog `0.8.33` n'est créé par AUTO.5. Depuis le terminal Windows :
+Sur `dev`, préparer la livraison, sa version concordante package/lock et son vrai changelog `scripts/notifications/releases/<version>.json`. Valider et committer ces éléments avant la sauvegarde ; garder le worktree propre. Aucun changelog `0.8.33` n'est créé par AUTO.5. La livraison préparée `0.8.34` utilise le [fichier PROD.6](../scripts/notifications/releases/0.8.34.json), clé `my.release.0.8.34`, audience éligible au moment de la diffusion (`include_new_users=false`), sans extension automatique aux futurs inscrits. Préparation locale seulement : commit puis push sur `dev` et worktree propre requis avant la première sauvegarde ; aucun backup ni publication effectué ici. Depuis le terminal Windows :
 
 ```powershell
 npm.cmd run prod:backup

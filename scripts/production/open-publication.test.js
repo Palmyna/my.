@@ -346,5 +346,5 @@ test('exact pinned bytes reject reformatting and replaced paths, even with ident
   await fs.writeFile(actual,JSON.stringify(payload,null,2))
   assert.throws(()=>readPinnedChangelog(pinned,'0.8.33',dir),/changelog_worktree_differs_from_release/)
   const pkg=JSON.parse(readFileSync('package.json','utf8'))
-  assert.equal(pkg.version,'0.8.33'); assert.equal(pkg.scripts['prod:open'],'powershell.exe -NoProfile -File scripts/production/open.ps1')
+  assert.equal(pkg.version,'0.8.34'); assert.equal(pkg.scripts['prod:open'],'powershell.exe -NoProfile -File scripts/production/open.ps1')
 })

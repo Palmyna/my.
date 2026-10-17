@@ -1,0 +1,15 @@
+{
+  "publication_key": "my.release.0.8.34",
+  "category": "changelog",
+  "title": "MY. 0.8.34 — Fiabilité des mises à jour",
+  "body": "Cette version renforce les procédures de mise à jour de MY. grâce à des contrôles supplémentaires, des sauvegardes vérifiées et une meilleure gestion des interruptions.\n\nL'utilisation de vos collections reste inchangée.",
+  "app_version": "0.8.34",
+  "action": { "kind": "notification_content" },
+  "requires_action": false,
+  "include_new_users": false,
+  "expires_at": null,
+  "publication_context": {
+    "reason": "Livraison MY. 0.8.34 : automatisation AUTO.1–5 des mises à jour et corrections associées. Changelog préparé et validé localement sans diffusion ; déploiement, sauvegarde et contrôles Production à réaliser avant publication sous autorisation distincte.",
+    "include_new_users_justification": null
+  }
+}
