@@ -49,7 +49,7 @@ async function fixture(t, { maintenance = false, frozen = false } = {}) {
       propagation_and_coverage: true, ordinary_api_refusals: true, privileged_writers_excluded_until_end: true,
       ddl_roles_configuration_excluded_until_end: true }) }
   const api = { signal: controller.signal, backupRoot: backups, lockDirectory: join(directory, 'locks'),
-    repository: () => ({ ...repository }), checkConfiguration() {}, prepare: async () => calls.push('prepare'),
+    repository: () => ({ ...repository }), validateSource: async () => {}, checkConfiguration() {}, prepare: async () => calls.push('prepare'),
     vercel: () => ({ preflight: async () => { calls.push('vercel:preflight'); return vercelRead() },
       setMaintenance: async (action, consent) => {
         calls.push(`vercel:${action}`)
@@ -243,6 +243,7 @@ test('validated session never duplicates backup, including after dev advances', 
   const f = await fixture(t)
   const initial = await runBackup(f.bundle, f.io, f.api)
   f.repository.head = 'f'.repeat(40)
+  f.api.validateSource = () => { throw new Error('Current dev changelog is irrelevant to archive revalidation') }
   f.calls.length = 0
   const again = await runBackup(f.bundle, f.io, f.api)
   assert.equal(initial.backup, again.backup); assert.equal(again.repository.head, head)

@@ -15,6 +15,7 @@ import { BackupError, diagnostic as backupDiagnostic } from '../backup/contract.
 import { MaintenanceError } from '../maintenance/database.js'
 import { encryptionKey, restrictDirectory } from '../backup/secure-files.js'
 import { archiveVerifier } from './archive.js'
+import { inspectSourceRelease } from './release.js'
 
 export function safeDiagnostic(error) {
   if (error instanceof ProductionError) return error.message
@@ -45,6 +46,7 @@ export function productionAPI(bundle, secrets, signal, configFile) {
   return {
     signal, backupRoot, lockDirectory: join(process.env.LOCALAPPDATA ?? '', 'MY', 'production'),
     repository: () => repositoryIdentity('cloud', config.project),
+    validateSource: repository => inspectSourceRelease(repository.head),
     checkConfiguration() {
       requireProduction(configurationBundle(configFile).fingerprint === bundle.fingerprint, 'configuration_changed_during_session')
     },

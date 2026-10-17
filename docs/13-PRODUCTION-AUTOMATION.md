@@ -1,10 +1,44 @@
 # Automatisation des publications Production
 
-`npm run prod:backup` orchestre AUTO.2, AUTO.1 et PROD.4. Livraison d'outillage Windows en version applicative **0.8.33 conservée**, sans dépendance nouvelle. Tests sur mocks et fichiers/secrets synthétiques temporaires uniquement ; aucune opération Vercel/Supabase Cloud ni capture Production effectuée pendant cette livraison. [Rapport](reports/2026-10-16-AUTO3-PRODUCTION-BACKUP.md).
+Référence pratique des deux commandes Windows : **`npm run prod:backup`**, puis **`npm run prod:open`**. AUTO.5 consolide leur parcours intégré sur fournisseurs simulés, archives chiffrées et secrets synthétiques. Version applicative **0.8.33 conservée**. [Rapport de clôture AUTO.5](reports/2026-10-17-AUTO5-CLOSURE.md). Aucune opération Production réalisée ; PROD.7C reste une intervention séparée à autoriser.
 
-**AUTO.4A** fournit les fondations internes de préparation de réouverture, décrites [ci-dessous](#auto4a--préparation-de-réouverture). Son résultat `ready` reste une observation, sans autorisation de publication ou de réouverture.
+## Avant la publication
 
-**AUTO.4B** fournit la publication/vérification du changelog via PROD.6, [décrite ci-dessous](#auto4b--publication-et-vérification-du-changelog). **AUTO.4C livre `npm run prod:open`**, composant ces API puis dégel Supabase et réouverture Vercel, sous consentements distincts. [Usage et reprise](#auto4c--commande-finale-prodopen), [rapport](reports/2026-10-16-AUTO4C-PRODUCTION-OPEN.md). Version applicative **0.8.33 conservée** ; aucune opération réelle ni preuve Production acquise par ce développement. AUTO.5 reste hors périmètre.
+Sur `dev`, préparer la livraison, sa version concordante package/lock et son vrai changelog `scripts/notifications/releases/<version>.json`. Valider et committer ces éléments avant la sauvegarde ; garder le worktree propre. Aucun changelog `0.8.33` n'est créé par AUTO.5. Depuis le terminal Windows :
+
+```powershell
+npm.cmd run prod:backup
+```
+
+La commande charge la configuration permanente, demande les secrets masqués puis les consentements nécessaires, ferme Vercel avant Supabase, impose le drainage et produit une sauvegarde chiffrée vérifiée. Un changelog absent ou invalide bloque désormais **avant connexion, fermeture et création de session**. Attendre « Sauvegarde vérifiée » ; conserver session et archive. Les protections restent fermées. Ce résultat ne prouve pas une restauration ni ne donne un GO de publication.
+
+## Publication
+
+Créer la PR `dev` → `main` pour **le commit sauvegardé**, puis merger classiquement. Attendre la réussite du déploiement Supabase et du build Vercel Production pour le SHA de merge. Promouvoir ce même build Production sans rebuild, puis réaliser les tests et l'essai de récupération requis par les [conditions de publication](11-PUBLICATION-PRODUCTION.md). Ne pas substituer un build Preview.
+
+Rendre les objets du merge disponibles localement avant `prod:open` (fetch Git habituel, sans modifier le changelog épinglé). L'outil ne fait ni fetch, ni merge, ni déploiement, ni promotion. Garder le numéro de PR, l'identifiant `dpl_...`, l'UUID du lecteur AAL2 éligible et les références non secrètes des contrôles.
+
+## Réouverture
+
+```powershell
+npm.cmd run prod:open
+```
+
+La commande retrouve la session et reprend les identifiants déjà épinglés. Elle revérifie archive/livraison, recueille la preuve de livraison/récupération, publie le changelog via PROD.6 sous consentement distinct, puis exige relecture et preuve de visibilité AAL2. Après **deux consentements distincts**, elle dégèle Supabase puis désactive la maintenance Vercel. Les contrôles applicatifs finaux et dernières relectures doivent réussir pour afficher `completed` et « Session clôturée ». Le prochain `prod:backup` peut alors créer une nouvelle session ; archives et historique restent conservés.
+
+HTTP authentifié, version réellement servie, récupération et RPC AAL2 restent des contrôles humains contemporains. Un 302 SSO ou un ancien reçu ne suffit pas. Authentication **All Deployments** et exception permanente **`super_admin`** restent conservées. Aucun bypass ni automatisation de session utilisateur.
+
+## En cas d'échec
+
+Relancer **la même commande**, avec la même session et les mêmes références, après diagnostic. Lire les états réellement affichés : `closed`, `open`, `unknown` ; deux protections ouvertes avec preuve finale incomplète restent un échec de clôture. Une archive complète est revérifiée sans export ; une capture partielle est conservée et ne sert jamais de nouvelle destination. Une réponse publisher perdue se reprend avec mêmes octets/clé/hash, sans doublon. Une ouverture partielle ne répète que les bascules restant nécessaires, après nouvelles preuves et consentements.
+
+Ne pas supprimer une session, une archive ou des verrous pour « débloquer ». Après interruption, examiner les processus/enfants, les changements distants et les **marqueurs exacts** affichés ; leur retrait manuel exige arrêt et coordination établis. Aucun TTL, rollback ni réouverture automatique. Détails : [reprise backup](#capture-résultat-et-reprise), [reprise ouverture](#verrou-concurrence-et-reprise), [sécurité et restauration](12-SUPABASE-BACKUP.md).
+
+## Ce qui revient à chaque publication
+
+La configuration, les cibles, chemins, CA, volume, copie DPAPI et références permanentes se préparent [une seule fois](#configuration-initiale-une-seule-fois), puis se revoient si elles changent. Les secrets sont fournis masqués depuis le coffre à chaque commande ; ils ne sont pas mémorisés dans la session.
+
+Restent contemporains : consentements connexion/fermeture/export, déclaration HTTP et exclusion des writers ; puis identifiants de livraison encore inconnus, preuves livraison/récupération, autorisation de publication, preuve AAL2, consentements dégel/Vercel et contrôle final. Dates/références concernent les contrôles réellement effectués après les challenges. En reprise, PR/build/lecteur fiables ne sont pas redemandés ; les faits volatils sont relus.
 
 ## Utilisation
 
@@ -251,4 +285,16 @@ Une reprise incomplète exige `REPRENDRE OUVERTURE` après examen des processus/
 
 Tests : `npm.cmd run prod:open:test`, intégration isolée du vrai cœur AUTO.4A/B, PROD.6 et des sessions/ACL, avec fournisseurs simulés et réseau interdit. Les wrappers Windows/DPAPI sont exercés uniquement avec secrets synthétiques. [Validation et limites](reports/2026-10-16-AUTO4C-PRODUCTION-OPEN.md).
 
-Restent avant le premier usage autorisé : configuration AUTO.3 complète, volume/clé/ACL, cible et droits publisher, accès GitHub si privé, changelog exact de la version livré/validé/committé, moyens autorisés pour les preuves AAL2 et applicatives, vraie sauvegarde et essai de récupération PROD.5 adapté. Le dépôt conserve seulement le changelog historique `0.8.29.json` : aucun changelog `0.8.33` inventé pour cet outillage. Droits/transport Cloud, délais/propagation, erreurs de vrais fournisseurs, interruption du processus/poste et coordination multi-opérateurs restent à éprouver dans une intervention Production explicitement autorisée. Aucun usage réel effectué ici ; AUTO.5 non commencé.
+## Reprise séparée de PROD.7C
+
+**Déjà préparé, relu hors connexion le 17 octobre 2026 :** cible Windows PROD.4 présente ; champs permanents d'`evidence.json` valides ; `external.json` valide avec ses références documentaires ; VHDX présent. Ces constats ne prouvent pas transport/droits Cloud, montage/chiffrement actif ou restauration. Les anciens décomptes de champs incomplets ne décrivent plus ces fichiers actuels. Aucun fichier opérateur ni secret réel modifié/chargé par AUTO.5.
+
+**Configuration unique restant à établir pour AUTO :** `D:\MY-operator\production.json` absent ; cibles AUTO.1/AUTO.2 à référencer, répertoire de sessions protégé à préparer, volume approuvé à monter et `M:\MY-backups` à créer. Aucun relevé `volume_serial` + chiffrement + absence de synchronisation conforme à AUTO.3 trouvé dans l'inventaire actuel. Les ACL de `D:\MY-operator`, `D:\MY-secrets` et `E:\MY-Backups.vhdx` comportent encore une autorisation autre que l'opérateur/SYSTEM : examiner leur compatibilité avec les contrôles stricts, sans déduire une attestation de stockage du seul VHDX. Référencer la copie DPAPI et sa clé de récupération indépendante déjà préparées, sans recopier les secrets. Cible publisher attendue `notifications\target.json` absente : nécessaire à `prod:open`, pas à la capture.
+
+**Bloquants avant la première sauvegarde Cloud :** compléter cette configuration/ce stockage protégés, préparer et committer le vrai changelog de la livraison, puis obtenir dans l'intervention autorisée les preuves fraîches d'identité/TLS/droits/contrat, maintenance authentifiée effective, gel exact et drainage, exclusion durable des writers/DDL/configuration, consentements connexion/fermeture/export. Les références permanentes restent réutilisables si toujours valides ; aucun nouveau faux relevé n'est demandé pour satisfaire les schémas.
+
+**Pendant la première intervention réelle :** droits/transport fournisseur, couverture/propagation, délais, erreurs réelles et coordination opérateur restent à établir. La première installation d'un build équipé du middleware conserve son [bootstrap PROD.7C.1](reports/2026-10-15-PROD7C1-PRODUCTION-BOOTSTRAP.md) : un ancien build sans middleware ne peut pas être fermé par le seul flag. Sous maintenance, 503 ne démontre pas la version applicative servie ; déterminer un moyen autorisé de l'établir avant d'attester la livraison. À défaut, `prod:open` doit rester bloqué.
+
+**Après capture, avant publication/réouverture :** essai PROD.5 adapté à la vraie archive, avec clients compatibles, serveur/extensions, durée/perte et étapes manuelles ; droits/cible publisher, lecture GitHub si privé et client sûr pour les trois RPC AAL2. Les clés Auth de déchiffrement, signature ES256 non exportable, sessions/MFA et reprovisionnement SMTP/API/Edge gardent leurs limites documentées. Ni sauvegarde logique, ni clôture AUTO ne prouvent récupération Supabase hébergée ou récupération Production ; `restore_proven=false` et `production_recovery_proven=false` restent explicites. Contrats détaillés dans [PROD.4/5](12-SUPABASE-BACKUP.md) et [PROD.6](10-NOTIFICATION-PUBLICATION.md), sans nouvelle campagne lourde ici.
+
+Validation consolidée : `npm.cmd run prod:test:isolated` ; [preuves, corrections et limites AUTO.5](reports/2026-10-17-AUTO5-CLOSURE.md). PROD.7C non commencé pendant cette clôture.

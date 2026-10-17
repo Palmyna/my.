@@ -38,6 +38,26 @@ export function readPinnedChangelog(changelog, version, directory = root) {
   return publicationSchema.parse(JSON.parse(bytes.toString('utf8')))
 }
 
+const sourceBlob = (source, file, directory) => execFileSync('git', ['show', `${source}:${file}`], { cwd: directory, timeout: 15_000,
+  maxBuffer: 4_194_304, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+
+// The same committed package/changelog contract applies before backup and open.
+// Reject an unusable release before closing MY. or creating an active session.
+export function inspectSourceRelease(source, directory = root) {
+  requireProduction(sha.test(source), 'git_commit_invalid')
+  const blob = file => sourceBlob(source, file, directory)
+  const app = JSON.parse(blob('package.json')), lock = JSON.parse(blob('package-lock.json'))
+  requireProduction(app.version === lock.version && app.version === lock.packages[''].version, 'git_release_versions_mismatch')
+  // Version becomes part of a filename only after the existing SemVer contract.
+  requireProduction(typeof app.version === 'string' && /^[0-9A-Za-z.+-]{1,64}$/.test(app.version), 'git_release_version_invalid')
+  const file = `scripts/notifications/releases/${app.version}.json`
+  let bytes
+  try { bytes = blob(file) } catch { requireProduction(false, 'changelog_committed_file_missing') }
+  const changelog = prepareChangelog(bytes, app.version, file)
+  readPinnedChangelog(changelog, app.version, directory)
+  return { version: app.version, changelog }
+}
+
 // Immutable Git objects, never fetch/checkout/merge. Missing objects fail closed.
 // A previous classic main merge need not be an ancestor of dev: its tree can
 // equal their common base. Unexpected main-only edits/conflict edits still fail.
@@ -54,25 +74,15 @@ export function inspectRelease(source, merge, directory = root) {
     'git_main_changes_not_in_source')
   const tree = git(['rev-parse', `${source}^{tree}`])
   requireProduction(git(['rev-parse', `${merge}^{tree}`]) === tree, 'git_production_tree_unexpected')
-  const blob = file => execFileSync('git', ['show', `${source}:${file}`], { cwd: directory, timeout: 15_000,
-    maxBuffer: 4_194_304, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
-  const app = JSON.parse(blob('package.json')), lock = JSON.parse(blob('package-lock.json'))
-  requireProduction(app.version === lock.version && app.version === lock.packages[''].version, 'git_release_versions_mismatch')
-  // Version becomes part of a filename only after the existing SemVer contract.
-  requireProduction(typeof app.version === 'string' && /^[0-9A-Za-z.+-]{1,64}$/.test(app.version), 'git_release_version_invalid')
-  const file = `scripts/notifications/releases/${app.version}.json`
-  let bytes
-  try { bytes = blob(file) } catch { requireProduction(false, 'changelog_committed_file_missing') }
-  const changelog = prepareChangelog(bytes, app.version, file)
-  readPinnedChangelog(changelog, app.version, directory)
+  const { version, changelog } = inspectSourceRelease(source, directory)
   const files = git(['ls-tree', '-r', '--name-only', source, '--', 'supabase/migrations']).split('\n')
   const migrations = files.map(file => {
     const match = /^supabase\/migrations\/(\d{14})_(.+)\.sql$/.exec(file)
     requireProduction(match, 'git_migration_filename_invalid')
-    return { version: match[1], name: match[2], sha256: hashBytes(blob(file)) }
+    return { version: match[1], name: match[2], sha256: hashBytes(sourceBlob(source, file, directory)) }
   }).sort((a, b) => a.version.localeCompare(b.version))
   requireProduction(migrations.length > 0 && new Set(migrations.map(m => m.version)).size === migrations.length, 'git_migrations_ambiguous')
-  return { source, merge, previous_main: parents[0], tree, version: app.version, migrations, changelog }
+  return { source, merge, previous_main: parents[0], tree, version, migrations, changelog }
 }
 
 // Only two fixed GET endpoints; no supplier response/error reaches a report.

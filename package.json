@@ -37,6 +37,7 @@
     "prod:open": "powershell.exe -NoProfile -File scripts/production/open.ps1",
     "prod:open:test": "node --test scripts/production/open.test.js",
     "prod:backup:test": "node --test scripts/production/backup.test.js",
+    "prod:test:isolated": "node --experimental-test-module-mocks --test scripts/production/workflow.integration.js scripts/production/workflow.windows.test.js",
     "prod:prepare:test": "node --test scripts/production/open-preparation.test.js",
     "prod:publication:test": "node --test scripts/production/open-publication.test.js",
     "backup:test": "node --test scripts/backup/operator.test.js scripts/backup/native.test.js",

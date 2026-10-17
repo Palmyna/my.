@@ -33,9 +33,13 @@ export async function runBackup(bundle, io, api) {
   const release = await lockSession(api.lockDirectory)
   let state
   try {
-    state = await loadSession(config.sessions_directory)
-    if (!state || completedSession(state.session)) state = await createSession(config.sessions_directory, repository,
-      bundle.fingerprint, config.project, state)
+    const previous = await loadSession(config.sessions_directory)
+    const freshSession = !previous || completedSession(previous.session)
+    if (freshSession) {
+      await api.validateSource(repository)
+      guard()
+      state = await createSession(config.sessions_directory, repository, bundle.fingerprint, config.project, previous)
+    } else state = previous
     const { folder, session } = state
     requireProduction(session.project === config.project && session.fingerprint === bundle.fingerprint,
       'session_configuration_changed_review_required')
@@ -98,6 +102,7 @@ export async function runBackup(bundle, io, api) {
         repository: session.repository, restore_proven: false, publication_authorized: false }
     }
 
+    if (!freshSession) { await api.validateSource(repository); guard() }
     await consent('close', 'Autoriser fermeture Vercel puis gel Supabase. Exclure tous les autres writers Global Config pendant lecture, écriture et relecture ; aucune précondition CAS distante.', 'FERMER MY')
     await record(folder, session, 'close_authorization', 'operator_explicit_consent', { close: true, exclusive_vercel_writer: true })
     session.stage = 'closing_vercel'
